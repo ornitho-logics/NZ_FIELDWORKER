@@ -18,7 +18,7 @@
 
 #! Options
   options(shiny.autoreload = TRUE)
-  options(shiny.maxRequestSize = 10 * 1024^2)
+  options(shiny.maxRequestSize = 10 * 1024^4)
   options(dbo.tz = "CET")
 
 #* Variables

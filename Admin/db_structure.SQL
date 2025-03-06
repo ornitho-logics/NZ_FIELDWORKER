@@ -182,3 +182,10 @@ CREATE TABLE GPS_TRACKS (
   KEY gps (gps_id,seg_id),
   KEY datetime_ (datetime_)
 ) ENGINE=InnoDB;
+
+
+
+DROP   VIEW IF EXISTS nest_locations;
+
+CREATE VIEW nest_locations AS 
+SELECT DISTINCT nest_id nest, lat, lon from NESTS n join `GPS_POINTS` g on n.gps_id = g.gps_id AND n.gps_point = g.gps_point;
