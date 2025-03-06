@@ -31,14 +31,8 @@
   }
   
   describeTable <- function() {
-    x <- DBq("SELECT ID, CAST( CONCAT_WS(' ', `date`,released) AS DATETIME) datetime_ FROM CAPTURES WHERE ID is not NULL
-              ORDER BY datetime_ DESC")
-
-    data.table(
-      N_entries    = nrow(x),
-      N_unique_IDs = length(unique(x$ID)),
-      last_captures  = paste(x[1, ], collapse = ", ")
-    )
+    x = DBq(glue("SELECT * FROM {tableName}"))
+    data.frame(Info = glue("The database table has {nrow(x)} rows."))
   }
 
 
@@ -48,6 +42,7 @@
   excludeColumns  = c("pk", "nov")
   n_empty_lines   = 10
   SERVER          = "nz_fieldworker"
+  # SERVER          = "scidb_replica"
   cnf = read.config(getOption("dbo.my.cnf"))[[SERVER]]
   user = cnf$user
   host = cnf$host
@@ -56,6 +51,9 @@
 
 
   sites = c('MS', 'CR', 'KK', 'KT', 'MR', 'TP', 'MB', 'TS', 'OD', 'TR', 'TA', 'PR')
+
+  cap_method = c('HA', 'TB', 'TN', 'SM', 'MM', 'O')
+
 
 # UI elements
   comments = column_comment(
@@ -78,13 +76,12 @@
       n = n_empty_lines,
       preFilled = list(
         date = format(Sys.Date(), "%Y-%m-%d"),
-        species = "BADO" # ,
-        # UL   = "M",
-        # UR   = "W"
+        species = "BADO"
       )
     ) |>
     rhandsontable(afterGetColHeader = js_hot_tippy_header(comments, "description")) |>
     hot_cols(columnSorting = FALSE, manualColumnResize = TRUE) |>
     hot_rows(fixedRowsTop = 1) |>
     # autocompletion columns
-    hot_col(col = "site", type = "autocomplete", source = sites,strict = TRUE)
+    hot_col(col = "site", type = "autocomplete", source = sites,strict = TRUE)|>
+    hot_col(col = "capture_method", type = "autocomplete", source = cap_method,strict = TRUE)

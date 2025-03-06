@@ -6,8 +6,6 @@
 #' ii = inspector(dat)
 #' evalidators(ii)
 
-# TODO: validate the existence of GPS points in the GPS table (GPS should be downloaded before data entry). 
-
 
 
 inspector.RESIGHTINGS <- function(dat, ...){
@@ -16,61 +14,43 @@ x <- copy(dat)
 x[, rowid := .I]
 
 list(
-
-# Mandatory values
-  x[, .(author, gps_id, gps_point_start, UL, UR, LR, rclass, behaviour, rowid)] |>
-  is.na_validator()
-,
-# Reinforce values (from existing db tables or lists)
-
-  x[, .(author, rowid)] |>
-  is.element_validator(v = data.table(
-      variable = "author",
-      set = list(DBq("SELECT author ii FROM OBSERVERS")$ii), 
-      reason = 'entry not in the OBSERVERS table'
-    ))
+  # Mandatory values
+    x[, .(species, observer, gps_id, gps_point_start,behav, rowid)] |>
+      is.na_validator() |>
+      try_validator(nam = 1)
   ,
 
+  # Reinforce values (from given lists)
+    {
+    z = x[, .(
+      species,
+      behav,
+      rowid
+    )]
 
-  x[, .(gps_id, rowid)] |>
-    is.element_validator(v = data.table(
-      variable = "gps_id",
-      set = list(1:10),
-      reason = "GPS ID not in use"
-    ))
-  ,
-
-  x[, .(rclass, rowid)] |>
-    is.element_validator(v = data.table(
-      variable = "rclass",
-      set = list(c("R", "C", "V")),
-      reason = "invalid entry."
-    ))
-  ,
-
-
-
-
-# TODO REINFORCE VALUES: comma delimited entries
-# beh <- c("AC", "TF", "VF", "OF", "FI", "PS", "GS", "C", "For", "R", "PR", "DD", "INC", "O")
-
-
-
-# COMBO should exist in CAPTURES
-  {
-    z <- x[, .(UL, LL, UR, LR, rowid)]
-    z[, combo := make_combo(z)]
-    z[combo == "~/~|~/~", combo := NA]
-
-    is.element_validator(z,
-      v = data.table(
-        variable = "combo",
-        set = list(DBq("SELECT UL,LL, UR, LR FROM CAPTURES") |> make_combo() )
-        ), 
-      reason = "combo does not exist in CAPTURES. "
-      
+    v = data.table(
+      variable = names(z)[-which(names(z)=='rowid')],
+      set = c(
+        list(c("BADO", "WRYB", "SNZD", "BFDO", "OTHER")), # species
+        list(c("IN", "CO", "PR", "BW", "BC", "NM", "FC", "FA", "RS", "LF", "AT", "FT", "OB")) # behav
       )
-  }
+    )
+
+    is.element_validator(z, v)
+    } |> try_validator(nam = 3)
+  ,
+
+
+  # color bands
+    x[, .(UL,UR, rowid)] |>
+    is.regexp_validator(regexp = "^[XOYWBRGLM]$|^F[A-Z][ACEHJKLMPNTUVXY1234567890]{2}$") |>
+    try_validator(nam = 11)
+    ,
+    x[, .(LL,LR, rowid)] |>
+    is.regexp_validator(regexp = "^[XOYWBRGLM]$") |>
+    try_validator(nam = 12)
+  
+
 
 
 )

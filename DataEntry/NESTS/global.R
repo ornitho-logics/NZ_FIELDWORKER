@@ -76,9 +76,7 @@
     n              = n_empty_lines, 
     preFilled = list(
       date = format(Sys.Date(), "%Y-%m-%d"),
-      species = "NOLA" #,
-      # UL   = "M", 
-      # UR   = "W"
+      species = "BADO"
     )
     ) |> 
     rhandsontable(afterGetColHeader = js_hot_tippy_header(comments, "description")) |>

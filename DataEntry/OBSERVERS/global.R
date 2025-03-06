@@ -31,18 +31,15 @@
   }
   
   describeTable <- function() {
-    x <- DBq("SELECT * FROM OBSERVERS")
-
-    data.table(
-      N_entries    = nrow(x)
-    )
+    x = DBq(glue("SELECT * FROM {tableName}"))
+    data.frame(Info = glue("The database table has {nrow(x)} rows."))
   }
 
 
 
 #! PARAMETERS
   tableName       = "OBSERVERS"
-  n_empty_lines   = 10
+  n_empty_lines   = 5
   SERVER          = "nz_fieldworker"
   cnf = read.config(getOption("dbo.my.cnf"))[[SERVER]]
   user = cnf$user

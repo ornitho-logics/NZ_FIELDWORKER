@@ -15,7 +15,7 @@ x[ , rowid := .I]
 
 list(
 # Mandatory values
-  x[, .(Name, author, START, STOP, rowid)] |>
+  x[, .(name, observer,rowid)] |>
   is.na_validator() |> try_validator(nam = 1)
 )
 

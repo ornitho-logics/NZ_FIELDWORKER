@@ -31,14 +31,8 @@
   }
   
   describeTable <- function() {
-    x <- DBq("SELECT nest, date FROM EGGS WHERE nest is not NULL
-              ORDER BY date DESC")
-
-    data.table(
-      N_entries    = nrow(x),
-      N_eGGS      = length(unique(x$nest)),
-      last_entry   = paste(x[1, ], collapse = ", ")
-    )
+    x = DBq(glue("SELECT * FROM {tableName}"))
+    data.frame(Info = glue("The database table has {nrow(x)} rows."))
   }
 
 
@@ -76,9 +70,7 @@
     n              = n_empty_lines, 
     preFilled = list(
       date = format(Sys.Date(), "%Y-%m-%d"),
-      species = "NOLA" #,
-      # UL   = "M", 
-      # UR   = "W"
+      species = "BADO" 
     )
     ) |> 
     rhandsontable(afterGetColHeader = js_hot_tippy_header(comments, "description")) |>

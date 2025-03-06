@@ -35,9 +35,9 @@
               ORDER BY pk DESC")
 
     data.table(
-      N_entries    = nrow(x),
+      N_entries       = nrow(x),
       N_unique_combos = length(unique(x$combo)),
-      last_entry   = paste(x[1, pk], collapse = ", ")
+      last_entry      = paste(x[1, pk], collapse = ", ")
     )
   }
 
@@ -73,8 +73,7 @@
     table          = tableName,
     excludeColumns = excludeColumns,
     n              = n_empty_lines,
-    preFilled      = list(species = "NOLA") # TODO
-    # preFilled      = list(UL = "M", UR = "W") # TODO
+    preFilled      = list(species = "BADO") 
     ) |> 
     rhandsontable(afterGetColHeader = js_hot_tippy_header(comments, "description")) |>
       hot_cols(columnSorting = FALSE, manualColumnResize = TRUE) |>

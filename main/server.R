@@ -122,22 +122,22 @@ shinyServer(function(input, output, session) {
       WaitToast("Processing nests...")
     
       n = NESTS()
-      nolat = n[is.na(lat)]
-      if (nrow(nolat) > 0) {
-        ErrToast(
-          glue("{paste(nolat$nest, collapse = ';')} without coordinates.
-                Did you download all GPS units?")
-        )
-      }
+      # nolat = n[is.na(lat)]
+      # if (nrow(nolat) > 0) {
+      #   ErrToast(
+      #     glue("{paste(nolat$nest, collapse = ';')} without coordinates.
+      #           Did you download all GPS units?")
+      #   )
+      # }
 
-      n[, N := .N, nest_id]
-      doubleEntry = n[N > 1]
+      # n[, N := .N, nest_id]
+      # doubleEntry = n[N > 1]
       
-      if (nrow(doubleEntry) > 0) {
-        WarnToast(
-          glue("Nests with inconsistent states: {paste( unique(doubleEntry$nest_id), collapse = ';')} ")
-        )
-      }
+      # if (nrow(doubleEntry) > 0) {
+      #   WarnToast(
+      #     glue("Nests with inconsistent states: {paste( unique(doubleEntry$nest_id), collapse = ';')} ")
+      #   )
+      # }
 
       n
     }
@@ -155,7 +155,7 @@ shinyServer(function(input, output, session) {
 
       n = N()
       req(n)
-      n = st_as_sf(n[!is.na(lat)], coords = c("lon", "lat"), crs = 4326)
+      # n = st_as_sf(n[!is.na(lat)], coords = c("lon", "lat"), crs = 4326)
 
 
     if (nrow(n) > 0) {
@@ -181,7 +181,7 @@ shinyServer(function(input, output, session) {
       {
       n = N()
       req(n)
-      setorder(n, days_till_hatching)
+      # setorder(n, days_till_hatching)
 
       },
       server        = FALSE,
