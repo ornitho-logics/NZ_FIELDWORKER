@@ -34,11 +34,10 @@
     app_nam              = "NZ_FIELDWORKER",
     server               = "nz_fieldworker",
     db                   = "FIELD_2024_BADOatNZ",
-    dbtabs_entry         = c("OBSERVERS", "CAPTURES", "NESTS", "EGGS", "RESIGHTINGS"),
-    dbtabs_view          = c("OBSERVERS", "CAPTURES", "NESTS", "EGGS", "RESIGHTINGS"),
+    dbtabs_entry         = c("OBSERVERS", "CAPTURES", "NESTS", "EGGS", "RESIGHTINGS", "RESIGHTINGS_PUBLIC"),
+    dbtabs_view          = c("OBSERVERS", "CAPTURES", "CAPTURES_ARCHIVE", "NESTS", "EGGS", "RESIGHTINGS", "RESIGHTINGS_PUBLIC"),
     species              = c("BADO"),
-    ggrepel.max.overlaps = 20,
-    studySiteCenter      = c(x = -4, y = 170)
+    ggrepel.max.overlaps = 20
   )
 
   options(shiny.autoreload = TRUE)

@@ -1,91 +1,110 @@
-dashboardPage(
-preloader = list(html = waiter::spin_loaders(id = 16, color = "#01125f"), color = "#b8c7c5"),   
-dark = FALSE,
-title = paste( "FIELDWORKER", year(Sys.Date()) ),
-help = NULL, 
-
-header = dashboardHeader(
-    title = dashboardBrand(
-        title = paste( pagetitle, year(Sys.Date()) ),
-        image = "ICO.png"
-    )
-),
-
-sidebar = dashboardSidebar(disable = TRUE),
-controlbar = dashboardControlbar(
-
-  uiOutput("clock"),
-  code("Hard drive:"),
-  uiOutput("hdd_state")
+ui_new <- bs4Dash::dashboardPage(
+  help = NULL,
+  preloader = list(
+    html = waiter::spin_loaders(id = 16, color = "#01125f"), 
+    color = "#b8c7c5"
   ),
-
-
-body = dashboardBody(
-
-  bs4Dash::tabBox(id = "main", width = 12, collapsible =FALSE,
-
-  tabPanel(title = "News",
-    hr(),
-    includeMarkdown("./www/help/news.md")
-  ),
-
-  tabPanel(title = "GPS",
-    uiOutput("open_gps"),
-    hr(),
-    includeMarkdown("./www/help/gps.md")
-  ),
-
-  tabPanel(title = "ENTER DATA",
-    uiOutput("new_data"),
-    hr(),
-    includeMarkdown("./www/help/enter_data.md")
-  ),
-
-  tabPanel(title = "DATABASE",
-    
-    div(class ="btn-toolbar btn-group-lg", style = "gap: 5px;" , 
-    uiOutput("open_db")
-    ),
-    hr(),
-    includeMarkdown("./www/help/database.md")
-
-  ),
-
-  tabPanel(title = "VIEW DATA", 
-
-    bs4Dash::tabsetPanel(
-      id = "tabset",
-      .list = lapply(getOption('dbtabs_view'), function(i) {
-        tabPanel(
-          title = paste0("[", i, "]"),
-          active = FALSE,
-          DT::DTOutput(outputId = paste0(i, "_show"))
-        )
-      }) 
-    )
-  ),
-
-  tabPanel(title = "NEST MAP",
-
-      bs4Dash::box(width = 12,maximizable = TRUE,
-
-      shiny::tags$style(type = "text/css", "#nest_dynmap_show {height: calc(95vh - 1px) !important;}"),
-      leafletOutput(outputId = "nest_dynmap_show")
-
-    )
-
-
-  ), 
-
-  tabPanel(title = "NESTS OVERVIEW",
-
-    DT::DTOutput(outputId = "nests_overview")
-
-
-  )
+  dark = FALSE,
+  title = paste("FIELDWORKER", year(Sys.Date())),
   
+  header = dashboardHeader(
+    title = dashboardBrand(
+      title = paste(pagetitle, year(Sys.Date())),
+      image = "ICO.png"
+    )
+  ),
+  
+  sidebar = dashboardSidebar(
+    collapsed = TRUE,
+    sidebarMenu(
+      id = "main",
+      menuItem("Start", tabName = "start", icon = icon("rss")),
+      menuItem("GPS", tabName = "gps", icon = icon("location-arrow")),
+      menuItem("ENTER DATA", tabName = "enter_data", icon = icon("edit")),
+      menuItem("DATABASE", tabName = "database", icon = icon("database")),
+      menuItem("VIEW DATA", tabName = "view_data", icon = icon("table")),
+      menuItem("NEST MAP", tabName = "nest_map", icon = icon("map")),
+      menuItem("NESTS OVERVIEW", tabName = "nests_overview", icon = icon("tasks"))
+    )
+  ),
+  
+  body = dashboardBody(
+    tabItems(
+      # Start Tab
+      tabItem(
+        tabName = "start",
+        hr(),
+        includeMarkdown("./www/help/start.md")
+      ),
+      
+      # GPS Tab
+      tabItem(
+        tabName = "gps",
+        uiOutput("open_gps"),
+        hr(),
+        includeMarkdown("./www/help/gps.md")
+      ),
+      
+      # Enter Data Tab
+      tabItem(
+        tabName = "enter_data",
+        uiOutput("new_data"),
+        hr(),
+        includeMarkdown("./www/help/enter_data.md")
+      ),
+      
+      # Database Tab
+      tabItem(
+        tabName = "database",
+        div(
+          class = "btn-toolbar btn-group-lg",
+          style = "gap: 5px;",
+          uiOutput("open_db")
+        ),
+        hr(),
+        includeMarkdown("./www/help/database.md")
+      ),
+      
+      # View Data Tab
+      tabItem(
+        tabName = "view_data",
+        bs4Dash::tabsetPanel(
+          id = "tabset",
+          .list = lapply(getOption('dbtabs_view'), function(i) {
+            tabPanel(
+              title = paste0("[", i, "]"),
+              active = FALSE,
+              DT::DTOutput(outputId = paste0(i, "_show"))
+            )
+          })
+        )
+      ),
+      
+      # Nest Map Tab
+      tabItem(
+        tabName = "nest_map",
+        bs4Dash::box(
+          width = 12,
+          maximizable = TRUE,
+          shiny::tags$style(
+            type = "text/css", 
+            "#nest_dynmap_show {height: calc(95vh - 1px) !important;}"
+          ),
+          leafletOutput(outputId = "nest_dynmap_show")
+        )
+      ),
+      
+      # Nests Overview Tab
+      tabItem(
+        tabName = "nests_overview",
+        DT::DTOutput(outputId = "nests_overview")
+      )
+    )
+  ),
+  
+  controlbar = dashboardControlbar(
+    uiOutput("clock"),
+    code("Hard drive:"),
+    uiOutput("hdd_state")
   )
-
-)
-
 )
