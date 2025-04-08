@@ -15,7 +15,7 @@ x[, rowid := .I]
 
 list(
   # Mandatory values
-    x[, .(species, observer, gps_id, time, date, rowid)] |>
+    x[, .(species, observer, time, date, rowid)] |>
       is.na_validator() |>
       try_validator(nam = 1)
     ,
