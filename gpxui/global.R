@@ -19,7 +19,7 @@
 #! Options
   options(shiny.autoreload = TRUE)
   options(shiny.maxRequestSize = 10 * 1024^4)
-  options(dbo.tz = "CET")
+  options(dbo.tz = "Pacific/Auckland")
 
 #* Variables
   SERVER        = "nz_fieldworker"
