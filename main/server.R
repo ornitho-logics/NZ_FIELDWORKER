@@ -15,26 +15,25 @@ shinyServer(function(input, output, session) {
 
   #* ENTER DATA
   output$new_data <- renderUI({
-    startApp(getOption("app_nam"), "DataEntry", getOption("dbtabs_entry"),
-             host = session$clientData$url_hostname,
-             labels = paste(icon("pencil"), getOption("dbtabs_entry"))
+    startApp(
+        hrefs = glue('../DataEntry/{getOption("dbtabs_entry")}/'),
+        labels = paste(icon("pencil"), getOption("dbtabs_entry"))
     )
   })
 
   #* GPS
   output$open_gps <- renderUI({
-    startApp(getOption("app_nam"), "gpxui",
-             host = "https://behavioural-ecology.orn.mpg.de/apps/",  # session$clientData$url_hostname,
-             labels = p(icon("location-crosshairs"), "GPS upload/download")
-    )
+    startApp(
+      hrefs  = "../gpxui/" ,
+      labels = p(icon("location-crosshairs"), "GPS upload/download")
+    ) 
   })
 
   #* Database Interface
   output$open_db <- renderUI({
-    startApp("db_ui", "field_db.php",
-             isShiny = FALSE,
-             host = session$clientData$url_hostname,
-             labels = p(icon("database"), "Database interface")
+    startApp(
+      hrefs = "../../../db_ui/field_db.php",
+      labels = p(icon("database"), "Database interface")
     )
   })
 
@@ -81,7 +80,7 @@ shinyServer(function(input, output, session) {
       class = c("compact", "stripe", "order-column", "hover")
     )
   }
- 
+
   # Crosscheck with getOption('dbtabs_view')
   output$OBSERVERS_show          <- TABLE_show("OBSERVERS")      
   output$CAPTURES_show           <- TABLE_show("CAPTURES")       
