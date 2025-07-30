@@ -55,7 +55,6 @@ WaitToast <- function(msg) {
   )
 }
 
-# the last element of ...  can have length > 1
 startApp <- function(labels, hrefs) {
 
   o = glue('
