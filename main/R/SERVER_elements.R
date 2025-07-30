@@ -77,7 +77,7 @@ startApp <- function(..., labels, host, isShiny = TRUE, class = "primary") {
   basepath = ddd[[length(ddd)]]
   
   if(isShiny)
-    hrefs <- glue("http://{host}:3838/{midpath}/{basepath}")
+    hrefs <- glue("../{basepath}/")
   if(!isShiny)
     hrefs <- glue("http://{host}/{midpath}/{basepath}")
 

@@ -24,7 +24,7 @@ shinyServer(function(input, output, session) {
   #* GPS
   output$open_gps <- renderUI({
     startApp(getOption("app_nam"), "gpxui",
-             host = session$clientData$url_hostname,
+             host = "https://behavioural-ecology.orn.mpg.de/apps/",  # session$clientData$url_hostname,
              labels = p(icon("location-crosshairs"), "GPS upload/download")
     )
   })
