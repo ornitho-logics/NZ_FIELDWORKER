@@ -30,12 +30,12 @@
 
 
 #! OPTIONS
-    app_nam              = "NZ_FIELDWORKER",
-    server               = "nz_fieldworker",
-    db                   = "FIELD_2024_BADOatNZ",
-    dbtabs_entry         = c("OBSERVERS", "CAPTURES", "NESTS", "EGGS", "RESIGHTINGS", "RESIGHTINGS_PUBLIC"),
-    dbtabs_view          = c("OBSERVERS", "CAPTURES", "CAPTURES_ARCHIVE", "NESTS", "EGGS", "RESIGHTINGS", "RESIGHTINGS_PUBLIC"),
-    species              = "BADO",
+    app_nam              = "NZ_FIELDWORKER"
+    server               = "nz_fieldworker"
+    db                   = "FIELD_2024_BADOatNZ"
+    dbtabs_entry         = c("OBSERVERS", "CAPTURES", "NESTS", "EGGS", "RESIGHTINGS", "RESIGHTINGS_PUBLIC")
+    dbtabs_view          = c("OBSERVERS", "CAPTURES", "CAPTURES_ARCHIVE", "NESTS", "EGGS", "RESIGHTINGS", "RESIGHTINGS_PUBLIC")
+    species              = "BADO"
     ggrepel.max.overlaps = 20
 
   options(shiny.autoreload = TRUE)
