@@ -16,8 +16,8 @@ shinyServer(function(input, output, session) {
   #* ENTER DATA
   output$new_data <- renderUI({
     startApp(
-        hrefs = glue('../DataEntry/{getOption("dbtabs_entry")}/'),
-        labels = paste(icon("pencil"), getOption("dbtabs_entry"))
+        hrefs = glue('../DataEntry/{dbtabs_entry}/'),
+        labels = paste(icon("pencil"), dbtabs_entry)
     )
   })
 
@@ -38,7 +38,7 @@ shinyServer(function(input, output, session) {
   })
 
   output$dbdump <- downloadHandler(
-    filename = paste0(getOption("db"), ".zip"),
+    filename = paste0(db, ".zip"),
     content = function(file) {
       dbTxtDump(zipfile = file)
     }
@@ -81,7 +81,7 @@ shinyServer(function(input, output, session) {
     )
   }
 
-  # Crosscheck with getOption('dbtabs_view')
+  # Crosscheck with dbtabs_view
   output$OBSERVERS_show          <- TABLE_show("OBSERVERS")      
   output$CAPTURES_show           <- TABLE_show("CAPTURES")       
   output$RESIGHTINGS_show        <- TABLE_show("RESIGHTINGS")       

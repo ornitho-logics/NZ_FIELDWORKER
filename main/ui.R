@@ -70,7 +70,7 @@ ui_new <- bs4Dash::dashboardPage(
         tabName = "view_data",
         bs4Dash::tabsetPanel(
           id = "tabset",
-          .list = lapply(getOption('dbtabs_view'), function(i) {
+          .list = lapply(dbtabs_view, function(i) {
             tabPanel(
               title = paste0("[", i, "]"),
               active = FALSE,
