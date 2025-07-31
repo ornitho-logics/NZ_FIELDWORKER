@@ -39,11 +39,6 @@ WarnToast <- function(msg){
 }
 
 
-
-
-
-
-
 WaitToast <- function(msg) {
   toast(
     title = NULL,
@@ -60,35 +55,20 @@ WaitToast <- function(msg) {
   )
 }
 
-
-
-
-
-
-
-
-
-# the last element of ...  can have length > 1
-startApp <- function(..., labels, host, isShiny = TRUE, class = "primary") {
-
-  ddd = list(...)
-  
-  midpath = ddd[-(length(ddd))] |> unlist() |> paste(collapse = "/")
-  basepath = ddd[[length(ddd)]]
-  
-  if(isShiny)
-    hrefs <- glue("../{basepath}/")
-  if(!isShiny)
-    hrefs <- glue("http://{host}/{midpath}/{basepath}")
+startApp <- function(labels, hrefs) {
 
   o = glue('
-      <a  href="{hrefs}" target = "blank" class="btn btn-sm btn-{class} bttn bttn-fill bttn-md bttn-primary bttn-no-outline" role="button" >
-      <h4> {labels} </h4>
-    </a>
+      <a  href="{hrefs}" target = "blank" 
+        class="btn btn-sm btn-primary bttn bttn-fill bttn-md bttn-primary bttn-no-outline" role="button" >
+        <h4> {labels} </h4>
+      </a>
     ') |>
     glue_collapse()
 
-  div(HTML(o), class = "d-grid gap-3 mx-auto mr-3")
+  div(
+    HTML(o),
+    class = "d-grid gap-3 mx-auto mr-3"
+  )
 
   
 }
