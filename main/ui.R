@@ -1,7 +1,8 @@
-ui_new <- bs4Dash::dashboardPage(
+
+bs4Dash::dashboardPage(
   help = NULL,
   preloader = list(
-    html = waiter::spin_loaders(id = 16, color = "#01125f"), 
+    html = spin_loaders(id = 16, color = "#01125f"), 
     color = "#b8c7c5"
   ),
   dark = FALSE,
@@ -18,24 +19,27 @@ ui_new <- bs4Dash::dashboardPage(
     collapsed = TRUE,
     sidebarMenu(
       id = "main",
-      menuItem("Start", tabName = "start", icon = icon("rss")),
+      menuItem("MAP", tabName = "MAP", icon = icon("map")),
       menuItem("GPS", tabName = "gps", icon = icon("location-arrow")),
       menuItem("ENTER DATA", tabName = "enter_data", icon = icon("edit")),
       menuItem("DATABASE", tabName = "database", icon = icon("database")),
       menuItem("VIEW DATA", tabName = "view_data", icon = icon("table")),
-      menuItem("NEST MAP", tabName = "nest_map", icon = icon("map")),
       menuItem("NESTS OVERVIEW", tabName = "nests_overview", icon = icon("tasks"))
     )
   ),
   
   body = dashboardBody(
     tabItems(
-      # Start Tab
+      # Map Tab
       tabItem(
-        tabName = "start",
-        hr(),
-        includeMarkdown("./www/help/start.md")
-      ),
+        tabName = "MAP",
+        
+        div(
+          style = "height: 90vh; width: 100%;",  
+          leafletOutput("MAP_show", width = "100%", height = "100%")
+        )
+      )
+      ,
       
       # GPS Tab
       tabItem(
@@ -77,20 +81,6 @@ ui_new <- bs4Dash::dashboardPage(
               DT::DTOutput(outputId = paste0(i, "_show"))
             )
           })
-        )
-      ),
-      
-      # Nest Map Tab
-      tabItem(
-        tabName = "nest_map",
-        bs4Dash::box(
-          width = 12,
-          maximizable = TRUE,
-          shiny::tags$style(
-            type = "text/css", 
-            "#nest_dynmap_show {height: calc(95vh - 1px) !important;}"
-          ),
-          leafletOutput(outputId = "nest_dynmap_show")
         )
       ),
       

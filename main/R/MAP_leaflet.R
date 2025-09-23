@@ -12,7 +12,7 @@ leaflet_map <- function( ) {
           setView    = TRUE
         )
       ) |>
-      addMiniMap(toggleDisplay = TRUE) |>
+      # addMiniMap(toggleDisplay = TRUE) |>
       
       addFullscreenControl()
 

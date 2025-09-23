@@ -17,6 +17,7 @@
     "ggrepel",
     "patchwork",
     
+    "waiter",
     "shinyWidgets",
     "bs4Dash",
     "DT",
@@ -32,7 +33,7 @@
 #! OPTIONS
     app_nam              = "NZ_FIELDWORKER"
     server               = "nz_fieldworker"
-    db                   = "FIELD_2024_BADOatNZ"
+    db                   = "FIELD_2025_BADOatNZ"
     dbtabs_entry         = c("OBSERVERS", "CAPTURES", "NESTS", "EGGS", "RESIGHTINGS", "RESIGHTINGS_PUBLIC")
     dbtabs_view          = c("OBSERVERS", "CAPTURES", "CAPTURES_ARCHIVE", "NESTS", "EGGS", "RESIGHTINGS", "RESIGHTINGS_PUBLIC")
     species              = "BADO"
@@ -46,7 +47,7 @@
 
 #! UI DEFAULTS
   
-  ver                 = "v 0.0.1"
+  ver                 = "v 2.0"
   apptitle            = "Aotearoa"
   pagetitle           = "Banded dotterel"
   set_capturedDaysAgo = 3

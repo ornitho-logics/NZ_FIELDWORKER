@@ -1,9 +1,9 @@
 shinyServer(function(input, output, session) {
 
-  observe(on.exit(assign('input', reactiveValuesToList(input), envir = .GlobalEnv)))
-  # observe(on.exit(assign("session", reactiveValuesToList(session$clientData), envir = .GlobalEnv)))
+observe(on.exit(assign('input', reactiveValuesToList(input), envir = .GlobalEnv)))
+# observe(on.exit(assign("session", reactiveValuesToList(session$clientData), envir = .GlobalEnv)))
 
-  #* Control Bar Clock
+# Control Bar Clock
   output$clock <- renderUI({
     invalidateLater(5000, session)
     glue('<kbd>{format(Sys.time(), "%d-%B %H:%M %Z")}</kbd>') |> HTML()
@@ -11,25 +11,25 @@ shinyServer(function(input, output, session) {
 
   output$hdd_state <- renderUI({
     dfsys_output()
-  })
+})
 
-  #* ENTER DATA
+# ENTER DATA
   output$new_data <- renderUI({
     startApp(
         hrefs = glue('../DataEntry/{dbtabs_entry}/'),
         labels = paste(icon("pencil"), dbtabs_entry)
     )
-  })
+})
 
-  #* GPS
-  output$open_gps <- renderUI({
-    startApp(
-      hrefs  = "../gpxui/" ,
-      labels = p(icon("location-crosshairs"), "GPS upload/download")
-    ) 
-  })
+# GPS
+output$open_gps <- renderUI({
+  startApp(
+    hrefs  = "../gpxui/" ,
+    labels = p(icon("location-crosshairs"), "GPS upload/download")
+  ) 
+})
 
-  #* Database Interface
+# Database Interface
   output$open_db <- renderUI({
     startApp(
       hrefs = "../../../db_ui/field_db.php",
@@ -41,10 +41,9 @@ shinyServer(function(input, output, session) {
     filename = paste0(db, ".zip"),
     content = function(file) {
       dbTxtDump(zipfile = file)
-    }
-  )
+})
 
-  #* VIEW DATA     
+# DATA VIEWERS
   TABLE_show <- function(table_nam) {
     DT::renderDataTable(
       {
@@ -81,7 +80,7 @@ shinyServer(function(input, output, session) {
     )
   }
 
-  # Crosscheck with dbtabs_view
+  #NOTE: Crosscheck with dbtabs_view
   output$OBSERVERS_show          <- TABLE_show("OBSERVERS")      
   output$CAPTURES_show           <- TABLE_show("CAPTURES")       
   output$RESIGHTINGS_show        <- TABLE_show("RESIGHTINGS")       
@@ -89,65 +88,70 @@ shinyServer(function(input, output, session) {
   output$NESTS_show              <- TABLE_show("NESTS")       
   output$EGGS_show               <- TABLE_show("EGGS")       
 
-  #+ NESTS DATA
+# DATA SETS
   N <- reactive({
-    # Now triggers when either "nest_map" or "nests_overview" is active.
-    if (input$main %in% c("nest_map", "nests_overview")) {
-      WaitToast("Processing nests...")
-      n <- NESTS()
-      n
-    }
+    req(input$main %in% c("MAP", "nests_overview"))
+    
+    w <- Waiter$new(
+      id = "MAP_show", 
+      html = tagList(spin_ellipsis(), h4("Processing nests..."))
+    )
+    
+    w$show()
+    on.exit(w$hide(), add = TRUE)
+    
+    NESTS()
   })
 
-  #* NESTS MAP
-  leafmap <- leaflet_map()
-  
-  output$nest_dynmap_show <- renderLeaflet(leafmap)
+#+ NESTS MAP
+leafmap <- leaflet_map()
 
-  observeEvent(input$main, {
-    if (input$main == "nest_map") {
-      n <- N()
-      req(n)
-      if (nrow(n) > 0) {
-        leafletProxy("nest_dynmap_show") |>
-          clearMarkers() |>
-          clearShapes() |>
-          addCircleMarkers(
-            data        = n,
-            fillOpacity = 0.5,
-            opacity     = 0.5,
-            radius      = ~3,
-            label       = ~nest_id
-          )
-      }
+output$MAP_show <- renderLeaflet(leafmap)
+
+observeEvent(input$main, {
+  if (input$main == "MAP") {
+    n <- N()
+    req(n)
+    if (nrow(n) > 0) {
+      leafletProxy("MAP_show") |>
+        clearMarkers() |>
+        clearShapes() |>
+        addCircleMarkers(
+          data        = n,
+          fillOpacity = 0.5,
+          opacity     = 0.5,
+          radius      = ~3,
+          label       = ~nest_id
+        )
     }
-  })
+  }
+})
 
-  #* NESTS OVERVIEW
-  output$nests_overview <- DT::renderDataTable(
-    {
-      n <- N()
-      req(n)
-    },
-    server        = FALSE,
-    rownames      = TRUE, 
-    escape        = FALSE,
-    extensions    = c("Scroller", "Buttons"),
-    options       = list(
-      dom         = "Blfrtip",
-      buttons     = list("copy", list(
-        extend = "collection",
-        buttons = c("excel", "pdf"),
-        text = "Download"
-      )),
-      scrollX     = "600px",
-      deferRender = TRUE,
-      scrollY     = 900,
-      scroller    = TRUE, 
-      searching   = TRUE, 
-      columnDefs  = list(list(className = "dt-center", targets = "_all"))
-    ),
-    class = c("compact", "stripe", "order-column", "hover")
-  )
+#+ NESTS OVERVIEW
+output$nests_overview <- DT::renderDataTable(
+  {
+    n <- N()
+    req(n)
+  },
+  server        = FALSE,
+  rownames      = TRUE, 
+  escape        = FALSE,
+  extensions    = c("Scroller", "Buttons"),
+  options       = list(
+    dom         = "Blfrtip",
+    buttons     = list("copy", list(
+      extend = "collection",
+      buttons = c("excel", "pdf"),
+      text = "Download"
+    )),
+    scrollX     = "600px",
+    deferRender = TRUE,
+    scrollY     = 900,
+    scroller    = TRUE, 
+    searching   = TRUE, 
+    columnDefs  = list(list(className = "dt-center", targets = "_all"))
+  ),
+  class = c("compact", "stripe", "order-column", "hover")
+)
 
 })

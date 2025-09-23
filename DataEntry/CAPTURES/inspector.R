@@ -7,6 +7,9 @@
 #' ii = inspector(dat)
 #' evalidators(ii)
 
+#TODO
+# see CAPTURE.parents
+# if capture_status = R but combo in 2024 then do everything
 
 inspector.CAPTURES <- function(dat, ...) {
 

@@ -9,7 +9,8 @@
 #' ii = inspector(dat)
 #' evalidators(ii)
 
-
+# TODO: at found GPS AND POint are required
+# TODO: negative validation: no GPS or POINT for revisits. 
 
 
 inspector.NESTS <- function(dat, ...){  

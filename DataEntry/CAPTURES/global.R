@@ -54,6 +54,7 @@
 
   cap_method = c('HA', 'TB', 'TN', 'SM', 'MM', 'O')
 
+  #TODO: feather_wear = 0:3
 
 # UI elements
   comments = column_comment(
