@@ -44,49 +44,14 @@ output$open_gps <- renderUI({
 })
 
 # DATA VIEWERS
-  TABLE_show <- function(table_nam) {
-    DT::renderDataTable(
-      {
-        get_data <- reactivePoll(5000, session,
-          checkFunc = function() {
-            dbtable_is_updated(table_nam)
-          },
-          valueFunc = function() {
-            DBq(glue("select * FROM {table_nam}"))[, ":="(pk = NULL, nov = NULL)] |>
-              data.frame()
-          }
-        )
-        get_data()
-      },
-      server        = FALSE,
-      rownames      = FALSE, 
-      escape        = FALSE,
-      extensions    = c("Scroller", "Buttons"),
-      options       = list(
-        dom         = "Blfrtip",
-        buttons     = list("copy", list(
-          extend = "collection",
-          buttons = "excel",
-          text = "Download"
-        )),
-        scrollX     = "600px",
-        deferRender = TRUE,
-        scrollY     = 900,
-        scroller    = TRUE, 
-        searching   = TRUE, 
-        columnDefs  = list(list(className = "dt-center", targets = "_all"))
-      ),
-      class = c("compact", "stripe", "order-column", "hover")
-    )
-  }
 
   #NOTE: Crosscheck with dbtabs_view
-  output$OBSERVERS_show          <- TABLE_show("OBSERVERS")      
-  output$CAPTURES_show           <- TABLE_show("CAPTURES")       
-  output$RESIGHTINGS_show        <- TABLE_show("RESIGHTINGS")       
-  output$RESIGHTINGS_PUBLIC_show <- TABLE_show("RESIGHTINGS_PUBLIC")       
-  output$NESTS_show              <- TABLE_show("NESTS")       
-  output$EGGS_show               <- TABLE_show("EGGS")       
+  output$OBSERVERS_show          <- TABLE_show("OBSERVERS", session)      
+  output$CAPTURES_show           <- TABLE_show("CAPTURES", session)       
+  output$RESIGHTINGS_show        <- TABLE_show("RESIGHTINGS", session)       
+  output$RESIGHTINGS_PUBLIC_show <- TABLE_show("RESIGHTINGS_PUBLIC", session)       
+  output$NESTS_show              <- TABLE_show("NESTS", session)       
+  output$EGGS_show               <- TABLE_show("EGGS", session)       
 
 # DATA SETS
   N <- reactive({
