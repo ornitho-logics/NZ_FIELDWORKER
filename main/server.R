@@ -89,7 +89,8 @@ shinyServer(function(input, output, session) {
             fillOpacity = 0.5,
             opacity     = 0.5,
             radius      = ~3,
-            label       = ~map_label
+            label       = ~ map_label
+          
           )
       }
     }
