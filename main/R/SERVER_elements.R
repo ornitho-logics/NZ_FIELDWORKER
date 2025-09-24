@@ -72,20 +72,8 @@ startApp <- function(labels, hrefs) {
   
 }
 
-
 TABLE_show <- function(table_nam, session) {
   DT::renderDataTable({
-    oi = shiny::getCurrentOutputInfo()
-    wid = oi$outputId
-
-    w = waiter::Waiter$new(
-      id   = wid,
-      html = tagList(waiter::spin_fading_circles(), h5(sprintf("Loading %s…", table_nam))),
-      color = "#ffffff"
-    )
-    w$show()
-    on.exit(w$hide(), add = TRUE)
-
     get_data = reactivePoll(
       5000, session,
       checkFunc = function() dbtable_is_updated(table_nam),

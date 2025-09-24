@@ -512,3 +512,16 @@ CREATE TABLE RESIGHTINGS_PUBLIC (
   pk int(10)                     NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (pk)
 ) ENGINE=InnoDB  ;
+
+
+-- VIEWS
+CREATE OR REPLACE VIEW FIELD_2025_BADOatNZ.CAPTURES_ARCHIVE AS
+SELECT site, lat, lon ,date ,cap_start ,capture_method ,nest_id,observer,field_sex ,age  ,ring ,UL   ,LL   ,UR   ,LR   ,tag_id ,tag_action ,tag_type,tag_extras ,harness_size,culmen  ,tarsus ,total_head ,head_white,head_black     ,rufous_band ,wing ,weight ,moult,fat,sample
+FROM FIELD_2024_BADOatNZ.CAPTURES c LEFT JOIN FIELD_2024_BADOatNZ.GPS_POINTS g 
+on c.gps_id = g.gps_id and c.gps_point = g.gps_point
+
+
+CREATE OR REPLACE VIEW FIELD_2025_BADOatNZ.CAPTURES_active AS
+SELECT site, lat, lon ,date ,cap_start ,capture_method ,nest_id,observer,field_sex ,age  ,ring ,UL   ,LL   ,UR   ,LR   ,tag_id ,tag_action ,tag_type,tag_extras ,NULL harness_size,culmen  ,tarsus ,total_head ,head_white,head_black     ,rufous_band ,wing ,weight ,moult,fat,sample
+FROM FIELD_2025_BADOatNZ.CAPTURES c LEFT JOIN FIELD_2025_BADOatNZ.GPS_POINTS g 
+on c.gps_id = g.gps_id and c.gps_point = g.gps_point

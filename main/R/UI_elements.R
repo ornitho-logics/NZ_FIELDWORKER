@@ -20,9 +20,3 @@ S <- function(x = "-------", z = 1) {
     "5" = strong(v, style = "color:#b8d2ff")
   )
 }
-
-
-select_combo_list <- function() {
-  DBq("SELECT DISTINCT UL, LL, UR, LR FROM CAPTURES where tagID is not NULL") |>
-    make_combo(short = "LR")
-}

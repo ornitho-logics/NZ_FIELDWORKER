@@ -19,16 +19,18 @@ bs4Dash::dashboardPage(
     collapsed = TRUE,
     sidebarMenu(
       id = "main",
-      menuItem("MAP", tabName = "MAP", icon = icon("map")),
-      menuItem("GPS", tabName = "gps", icon = icon("location-arrow")),
-      menuItem("ENTER DATA", tabName = "enter_data", icon = icon("edit")),
-      menuItem("DATABASE", tabName = "database", icon = icon("database")),
-      menuItem("VIEW DATA", tabName = "view_data", icon = icon("table")),
-      menuItem("NESTS OVERVIEW", tabName = "nests_overview", icon = icon("tasks"))
+      menuItem("MAP",          tabName = "MAP", icon = icon("map")),
+      menuItem("DATA VIEWERS", tabName = "view_data", icon = icon("table")),
+      menuItem("GPS",          tabName = "gps", icon = icon("location-arrow")),
+      menuItem("DATA ENTRY",   tabName = "enter_data", icon = icon("edit")),
+      menuItem("DATABASE",     tabName = "database", icon = icon("database"))
+
     )
   ),
   
   body = dashboardBody(
+    
+ 
     tabItems(
       # Map Tab
       tabItem(
@@ -82,13 +84,8 @@ bs4Dash::dashboardPage(
             )
           })
         )
-      ),
-      
-      # Nests Overview Tab
-      tabItem(
-        tabName = "nests_overview",
-        DT::DTOutput(outputId = "nests_overview")
       )
+      
     )
   ),
   
