@@ -35,7 +35,7 @@ bs4Dash::dashboardPage(
       # Map Tab
       tabItem(
         tabName = "MAP",
-        
+
         div(
           style = "height: 90vh; width: 100%;",  
           leafletOutput("MAP_show", width = "100%", height = "100%")
