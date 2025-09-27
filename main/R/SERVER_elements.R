@@ -91,7 +91,26 @@ TABLE_show <- function(table_nam, session) {
   options       = list(
     dom         = "Blfrtip",
     buttons     = list("copy", list(extend = "collection", buttons = "excel", text = "Download")),
-    scrollX     = "600px",
+    scrollX     = TRUE,
+    deferRender = TRUE,
+    scrollY     = 900,
+    scroller    = TRUE,
+    searching   = TRUE,
+    columnDefs  = list(list(className = "dt-center", targets = "_all"))
+  ),
+  class = c("compact", "stripe", "order-column", "hover"))
+}
+
+
+DATASET_show <- function(x) {
+  DT::renderDataTable(x,
+  server        = FALSE,
+  rownames      = FALSE,
+  escape        = FALSE,
+  extensions    = c("Scroller"),
+  options       = list(
+    dom         = "flrtip",
+    scrollX     = TRUE,
     deferRender = TRUE,
     scrollY     = 900,
     scroller    = TRUE,

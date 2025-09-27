@@ -5,42 +5,54 @@ select_combo_list <- function() {
     make_combo()
 }
 
-#' x = all_captures()
-all_captures <- function() {
+#' x = all_adults()
+all_adults <- function() {
 
-  cnams = c(
-    "UL", "LL","UR", "LR",
-    "ring", "nest_id",
-    "site", "date", "field_sex",  
-    "lat", "lon", 
-    "tag_id"
-  ) |> paste(collapse = ", ")
+  mn = dbq(q = 
+    glue("SELECT UL, LL, UR, LR, ring, nest_id, date, field_sex,site_code site, latitude lat, longitude lon, tag_id FROM
+          BADOatNZ.CAPTURES
+        WHERE age <>'J' ")
+  )
 
-  ar = DBq(glue("SELECT {cnams} FROM CAPTURES_ARCHIVE where age <>'J' "))
-  ac = DBq(glue("SELECT {cnams} FROM CAPTURES_active where age <>'J' "))
+  ar = DBq(
+    glue("SELECT UL, LL, UR, LR, ring, nest_id, date, field_sex,site, lat, lon, tag_id
+    FROM CAPTURES_ARCHIVE
+      WHERE age <>'J' ")
+  )
+    
+  ac = DBq(glue("
+    SELECT UL, LL, UR, LR, ring, nest_id, date, field_sex, site, lat, lon, tag_id FROM
+        CAPTURES_active
+          WHERE age <>'J' "))
 
-  o = rbind(ac, ar)
+  o = list(mn, ac, ar) |> rbindlist()
 
   make_combo(o)
 
-  o
+  o[, let(UL = NULL, LL = NULL, UR = NULL, LR = NULL)]
+  setcolorder(o, "combo")
+  o[combo == '·/·|·/·', combo := NA]
 
+
+  o
 
 }
 
-#' x = all_captures()
+#' x = all_adults()
 pairs <- function(x) {
 
-  o = x[!is.na(nest_id)]
+
+  o = x[!is.na(nest_id) & !nest_id == 'Kaik' & field_sex %in% c("M", "F")]
   o[, n := .N, nest_id]
   o = o[n > 1]
+
 
   dcast(
   o,
   site+nest_id + lat + lon  ~ field_sex  ,
   value.var =   "combo",
   fun.aggregate = \(x) paste(unique(x), collapse = "; ")
-)
+  )
 
   
 

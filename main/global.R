@@ -19,6 +19,7 @@
     
     "waiter",
     "shinyWidgets",
+    "shinycssloaders",
     "bs4Dash",
     "DT",
     
@@ -35,7 +36,7 @@
     server               = "nz_fieldworker"
     db                   = "FIELD_2025_BADOatNZ"
     dbtabs_entry         = c("OBSERVERS", "CAPTURES", "NESTS", "EGGS", "RESIGHTINGS", "RESIGHTINGS_PUBLIC")
-    dbtabs_view          = c("OBSERVERS", "CAPTURES", "CAPTURES_ARCHIVE", "NESTS", "EGGS", "RESIGHTINGS", "RESIGHTINGS_PUBLIC")
+    dbtabs_view          = c("OBSERVERS", "CAPTURES",  "NESTS", "EGGS", "RESIGHTINGS", "RESIGHTINGS_PUBLIC")
     species              = "BADO"
     ggrepel.max.overlaps = 20
 

@@ -1,4 +1,5 @@
 
+
 leaflet_map <- function( ) {
   leaflet(options = leafletOptions(zoomControl = TRUE)) |>
     setView(lng = 172, lat = -44, zoom = 6) |>
@@ -12,8 +13,7 @@ leaflet_map <- function( ) {
           setView    = TRUE
         )
       ) |>
-      # addMiniMap(toggleDisplay = TRUE) |>
-      
+
       addFullscreenControl()
 
 

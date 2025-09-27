@@ -43,31 +43,33 @@ shinyServer(function(input, output, session) {
       dbTxtDump(zipfile = file)
 })
 
+# DATA SETS (REACTIVE)
+  all_adult_cap <- reactive({
+    req(input$main %in% c("MAP", "view_data_all"))
+   
+    all_adults()
+})
+  all_pair <- reactive({
+    req(input$main %in% c( "view_data_all"))
+   
+    all_adults() |> pairs()
+})
+
+
 # DATA VIEWERS
 
   #NOTE: Crosscheck with dbtabs_view
   output$OBSERVERS_show          <- TABLE_show("OBSERVERS", session)      
   output$CAPTURES_show           <- TABLE_show("CAPTURES", session)       
-  output$CAPTURES_ARCHIVE_show   <- TABLE_show("CAPTURES_ARCHIVE", session)       
   output$RESIGHTINGS_show        <- TABLE_show("RESIGHTINGS", session)       
   output$RESIGHTINGS_PUBLIC_show <- TABLE_show("RESIGHTINGS_PUBLIC", session)       
   output$NESTS_show              <- TABLE_show("NESTS", session)       
   output$EGGS_show               <- TABLE_show("EGGS", session)       
 
-# DATA SETS
-  all_caps <- reactive({
-    req(input$main == "MAP")
-    
-    w <- Waiter$new(
-      id = "MAP_show", 
-      html = tagList(spin_ellipsis(), h4("Processing..."))
-    )
-    
-    w$show()
-    on.exit(w$hide(), add = TRUE)
-    
-    all_captures()
-})
+  output$all_adults_show         <- DATASET_show(all_adult_cap()[, let(lat = NULL, lon = NULL)] )
+  output$all_pairs_show          <- DATASET_show(all_pair()[, let(lat = NULL, lon = NULL)] )
+
+
 
 #+ FIELD MAP
   leafmap <- leaflet_map()
@@ -76,9 +78,8 @@ shinyServer(function(input, output, session) {
 
   observeEvent(input$main, {
     if (input$main == "MAP") {
-      dat <- all_captures()
       
-      req(dat)
+      dat <- all_adult_cap()
       
       if (nrow(dat) > 0) {
         leafletProxy("MAP_show") |>
@@ -89,7 +90,7 @@ shinyServer(function(input, output, session) {
             fillOpacity = 0.5,
             opacity     = 0.5,
             radius      = ~3,
-            label       = ~ map_label
+            label       = ~ combo
           
           )
       }
