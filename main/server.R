@@ -79,21 +79,22 @@ shinyServer(function(input, output, session) {
   observeEvent(input$main, {
     if (input$main == "MAP") {
       
-      dat <- all_adult_cap()
-      
-      if (nrow(dat) > 0) {
-        leafletProxy("MAP_show") |>
-          clearMarkers() |>
-          clearShapes() |>
-          addCircleMarkers(
-            data        = dat,
-            fillOpacity = 0.5,
-            opacity     = 0.5,
-            radius      = ~3,
-            label       = ~ combo
-          
-          )
-      }
+      dat = all_adult_cap() |> all_adults_sf()
+
+
+      leafletProxy("MAP_show") |>
+        clearMarkers() |>
+        clearShapes() |>
+        leaflet.extras2::addDivicon(
+          data = dat,
+          html = ~map_txt,
+          popup = ~map_popup,
+          options = markerOptions(draggable = TRUE ),
+          group = "divicons"
+        ) 
+        
+
+
     }
 })
 

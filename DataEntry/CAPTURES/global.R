@@ -40,7 +40,7 @@
 #! PARAMETERS
   tableName       = "CAPTURES"
   excludeColumns  = c("pk", "nov")
-  n_empty_lines   = 10
+  n_empty_lines   = 20
   SERVER          = "nz_fieldworker"
   # SERVER          = "scidb_replica"
   cnf = read.config(getOption("dbo.my.cnf"))[[SERVER]]
@@ -50,11 +50,11 @@
   db   = cnf$database
 
 
-  sites = c('MS', 'CR', 'KK', 'KT', 'MR', 'TP', 'MB', 'TS', 'OD', 'TR', 'TA', 'PR')
+  sites = c("AU","CH","CR","HC","HR","KK","KP","KT","MB","MR","MS","OD","OK","OM","PB","PR","TA","TO","TP","TR","TS","WA")
 
   cap_method = c('HA', 'TB', 'TN', 'SM', 'MM', 'O')
 
-  #TODO: feather_wear = 0:3
+  feather_wear = 0:3
 
 # UI elements
   comments = column_comment(
@@ -85,4 +85,5 @@
     hot_rows(fixedRowsTop = 1) |>
     # autocompletion columns
     hot_col(col = "site", type = "autocomplete", source = sites,strict = TRUE)|>
-    hot_col(col = "capture_method", type = "autocomplete", source = cap_method,strict = TRUE)
+    hot_col(col = "capture_method", type = "autocomplete", source = cap_method,strict = TRUE) |>
+    hot_col(col = "feather_wear", type = "autocomplete", source = feather_wear,strict = TRUE)

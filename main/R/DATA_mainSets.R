@@ -31,14 +31,27 @@ all_adults <- function() {
 
   o[, let(UL = NULL, LL = NULL, UR = NULL, LR = NULL)]
   setcolorder(o, "combo")
-  o[combo == '·/·|·/·', combo := NA]
+  o[combo == '*/*|*/*', combo := NA]
 
+  o[, info_label := paste(date, field_sex, site, collapse = "<br>", sep = "<br>"), by = .I]
 
   o
 
 }
 
-#' x = all_adults()
+all_adults_sf <- function(x) {
+  
+  o = x[!is.na(lat)]
+  o[, i := .I]
+  o[, map_txt   := glue_data(.SD, '<div class="bdot-info"><div class="title">{combo}</div></div>')]
+  o[, map_popup := glue_data(.SD, 'site:{site}<br>date:{date}<br>sex:{field_sex}<br>tag:{tag_id}<br>nest:{nest_id}') ]
+  
+
+  st_as_sf(o, coords = c("lon", "lat"), crs = "OGC:CRS84")  
+
+}
+
+#' x = all_adults() |> pairs()
 pairs <- function(x) {
 
 
