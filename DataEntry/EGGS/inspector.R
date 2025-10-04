@@ -20,7 +20,7 @@ x[, rowid := .I]
 list(
 
 # Mandatory values
-  x[, .(species, observer, date, time_visit, nest_id, egg1_float_angle, egg1_float_surface, egg1_float_location, egg2_float_angle, egg2_float_surface, egg2_float_location, egg3_float_angle, egg3_float_surface, egg3_float_location, egg4_float_angle, egg4_float_surface, egg4_float_location, rowid)] |>
+  x[, .(species, observer, date, time_visit, nest_id, rowid)] |>
     is.na_validator() |>
     try_validator(nam = "required")
 ,
