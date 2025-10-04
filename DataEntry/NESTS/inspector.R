@@ -74,7 +74,7 @@ list(
       try_validator(nam = "observer")
 ,
 
-# Nest_ID pattern
+# Nest_ID pattern (should be a 8-character string: SSXXYYY, Where SS is the species (the first two letters of the species name), XX = your GPS number (01 to 11), YYY = your running nest number (001 to 999). Note if a brood was found of unknown origin, the nest_id is coded as a negative (e.g., -BA09003, would be the 3rd unknown banded dotterel brood encountered by the observer with GPS 09).)
   x[, .(nest_id, rowid)] |>
   is.regexp_validator(regexp = "^-?BA(0[1-9]|1[0-9]|20|21)([0-9]{3})$") |>
   try_validator(nam = "nest id")
@@ -83,7 +83,7 @@ list(
 
 # color bands
   x[, .(female_UL,female_UR,male_UL,male_UR, rowid)] |>
-  is.regexp_validator(regexp = "^[XOYWBRGLM]$|^F[A-Z][ACEHJKLMPNTUVXY1234567890]{2}$") |>
+  is.regexp_validator(regexp = "^[XM]$|^FW[ACEHJKLMPNTUVXY1234567890]{2}$") |>
   try_validator(nam = "combo f")
   ,
   x[, .(female_LL,female_UR,male_LL,male_LR, rowid)] |>
