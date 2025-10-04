@@ -44,10 +44,10 @@ list(
   interval_validator(
     v = fread("    
           variable          lq     uq
-          egg1_float_surface  0     4
-          egg2_float_surface  0     4
-          egg3_float_surface  0     4
-          egg4_float_surface  0     4
+          egg1_float_surface  0     5
+          egg2_float_surface  0     5
+          egg3_float_surface  0     5
+          egg4_float_surface  0     5
           "),
     reason = "Out of range values."
   )|> try_validator(nam = "float surface")
