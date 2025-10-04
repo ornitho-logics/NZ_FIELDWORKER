@@ -201,6 +201,8 @@ DROP TABLE IF EXISTS EGGS ;
 CREATE TABLE EGGS (
   species char(4)                  DEFAULT NULL COMMENT '4-letter species code, e.g. BADO, WRYB, SNZD, BFDO',
   observer varchar(3)              DEFAULT NULL COMMENT 'Initials of the observer (see OBSERVERS table).',
+  book_id char(2) DEFAULT      NULL COMMENT '2-character integer that is a unique book_id (i.e., your fieldnote book)',
+  form_id char(4) unsigned zerofill DEFAULT      NULL COMMENT '3-character integer that is a unique page of your book_id',
   date date                        DEFAULT NULL COMMENT 'Date (YYYY-MM-DD) when eggs were measured (local, NZDT or NZST).',
   time_visit time                  DEFAULT NULL COMMENT 'Time (HH:MM) when the eggs were measured (local, NZDT or NZST)',
 
@@ -233,7 +235,7 @@ CREATE TABLE EGGS (
   KEY date (date)
 ) ENGINE=InnoDB ;
 
-
+# question to Mihai: is it okay that gps_id and gps_point are "int" in these two tables?
 DROP TABLE IF EXISTS GPS_POINTS ;
 CREATE TABLE GPS_POINTS (
   gps_id int(2) unsigned zerofill NOT NULL COMMENT 'gps id',
@@ -279,9 +281,9 @@ CREATE TABLE NESTS (
 
   time_visit time                     DEFAULT NULL COMMENT 'Time (HH:MM) when the nest was checked (local, NZDT or NZST)',
 
-  gps_id int(2) unsigned zerofill     DEFAULT NULL COMMENT 'handheld Garmin GPS ID (1-12)',
+  gps_id char(2) DEFAULT NULL COMMENT 'handheld Garmin GPS ID (1-12)',
 
-  gps_point int(10) unsigned zerofill DEFAULT NULL COMMENT 'GPS waypoint (if nest_state is F this is the position of the nest, otherwise this is the escape distance when nest is still active)',
+  gps_point char(10) DEFAULT NULL COMMENT 'GPS waypoint (if nest_state is F this is the position of the nest, otherwise this is the escape distance when nest is still active)',
 
   clutch_size int(1)                  DEFAULT NULL COMMENT 'Clutch size (if nest)',
 
@@ -366,6 +368,8 @@ CREATE TABLE NESTS (
 
   comments text                       DEFAULT NULL COMMENT 'Comments',
 
+  book_id char(2) DEFAULT      NULL COMMENT '2-character integer that is a unique book_id (i.e., your fieldnote book)',
+  form_id char(4) unsigned zerofill DEFAULT      NULL COMMENT '3-character integer that is a unique page of your book_id',
   observer_upload varchar(3)          DEFAULT NULL COMMENT 'Initials of the person uploading to the database (see OBSERVERS table)',
 
   nov int(1) unsigned zerofill        DEFAULT NULL COMMENT 'No validation. Do not edit !',
@@ -398,9 +402,9 @@ CREATE TABLE RESIGHTINGS (
 
   observer varchar(3)                       DEFAULT NULL COMMENT 'Initials of the observer (see OBSERVERS table).',
 
-  gps_id int(2) unsigned zerofill           DEFAULT NULL COMMENT 'handheld Garmin GPS ID',
+  gps_id char(2)        DEFAULT NULL COMMENT 'handheld Garmin GPS ID',
 
-  gps_point int(10) unsigned zerofill DEFAULT NULL COMMENT 'Required: waypoint number stored in your handheld Garmin GPS unit for the behavioural observation',
+  gps_point char(10) DEFAULT NULL COMMENT 'Required: waypoint number stored in your handheld Garmin GPS unit for the behavioural observation',
 
   date date                                 DEFAULT NULL,
 
