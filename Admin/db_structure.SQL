@@ -23,9 +23,9 @@ CREATE TABLE CAPTURES (
   site varchar(255) DEFAULT                     NULL COMMENT '2-letter site codes:<br>AU=Upper Ashburton<br>CH=Chatham Is.<br>CR=Cass R.<br>HC=Hawkes Bay Coast<br>HR=Hawkes Bay Rivers<br>KK=Kaikoura<br>KP=Kina Pen.<br>KT=Kaitorete Spit<br>MB=Maryburn<br>MR=Macaulay R.<br>MS=Motueka Spit<br>OD=Ohau Downs<br>OK=Okarito<br>OM=Old Mans Range<br>PB=Porters Beach<br>PR=Pisa Range<br>TA=Te Anau (Upukerora)<br>TO=Tongariro (Rangipo Desert)<br>TP=Tiwai Point<br>TR=Tekapo R.<br>TS=Tasman R. Valley<br>WA=Wairarapa',
 
 
-  book_id int(2) unsigned zerofill DEFAULT      NULL COMMENT '3-character integer that is a unique book_id (i.e., your fieldnote book)',
+  book_id char(2) DEFAULT      NULL COMMENT '2-character integer that is a unique book_id (i.e., your fieldnote book)',
 
-  form_id int(3) unsigned zerofill DEFAULT      NULL COMMENT '2-character integer that is a unique page of your book_id',
+  form_id char(3) unsigned zerofill DEFAULT      NULL COMMENT '3-character integer that is a unique page of your book_id',
 
   observer varchar(3) DEFAULT                   NULL COMMENT 'Initials of the bander (see OBSERVERS table)',
 
@@ -65,8 +65,8 @@ CREATE TABLE CAPTURES (
   YY = your running nest number (01 to 99).      <br>
   Note if a brood was found of unknown origin, the nest_id is coded as a <strong>negative</strong> (e.g., -BA0903).',
 
-  gps_id int(2) unsigned zerofill DEFAULT       NULL COMMENT 'handheld Garmin GPS ID',
-  gps_point int(10) unsigned zerofill DEFAULT   NULL COMMENT 'waypoint number of the capture location stored in your handheld Garmin GPS unit',
+  gps_id char(2) DEFAULT       NULL COMMENT 'handheld Garmin GPS ID',
+  gps_point char(10) DEFAULT   NULL COMMENT 'waypoint number of the capture location stored in your handheld Garmin GPS unit',
 
   field_sex varchar(2) DEFAULT                  NULL COMMENT '
    observed sex based on field observations (ornamentation, behaviour, etc.):<br>
@@ -151,13 +151,13 @@ CREATE TABLE CAPTURES (
   brood_patch tinyint(1) unsigned DEFAULT       NULL COMMENT '"0" (no) or "1" (yes). Was there a brood patch when captured?',
 
   weight double DEFAULT                         NULL COMMENT 'Body mass (g) of captured individual (note: this includes the weight of the metal and colour rings. A metal ring weighs approximately 0.17g and a colour ring weighs approximately 0.08g.',
-  wt_w_tag tinyint(1) unsigned DEFAULT          NULL COMMENT '"0" (no) or "1" (yes). Was the body weight measured with a tag on?',
+  wt_w_tag char(1) DEFAULT                      NULL COMMENT '"0" (no) or "1" (yes). Was the body weight measured with a tag on?',
 
   moult varchar(255) DEFAULT                    NULL COMMENT 'primary molt score of captured individual. Scored as a the stage of the moult and the number of feathers at     that stage. If all 10 primaries are old feathers with no moult, it would be scored as "0(10)". See Ringers Manual, British Trust for Ornithology, Thetford for more details.',
 
-  fat int(1) unsigned DEFAULT                   NULL COMMENT 'fat score of captured individual, scored as the amount of visible fat in the furcular region or tracheal pit.    See <i>Ringers Manual, British Trust for Ornithology, Thetford for more details.</i>',
+  fat char(1) DEFAULT                           NULL COMMENT 'fat score of captured individual, scored as the amount of visible fat in the furcular region or tracheal pit.    See <i>Ringers Manual, British Trust for Ornithology, Thetford for more details.</i>',
 
-  feather_wear tinyint(1) unsigned DEFAULT     NULL COMMENT 'scored as "0" (Fresh), "1" (Slightly worn), "2" (Moderately worn), or "3" (Very worn). See NZNBBS Bird Banders Manual for more details',
+  feather_wear char(1) DEFAULT                  NULL COMMENT 'scored as "0" (Fresh), "1" (Slightly worn), "2" (Moderately worn), or "3" (Very worn). See NZNBBS Bird Banders Manual for more details',
 
   sample varchar(255) DEFAULT                   NULL COMMENT 'Samples taken, comma separated: <br>    FP = feather_primary <br>     FB = feather_breast <br>     BQ = blood in Queen <br>    BF = blood on filter paper <br>    BE = blood in EDTA',
 
