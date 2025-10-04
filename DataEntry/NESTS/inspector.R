@@ -87,7 +87,7 @@ list(
   try_validator(nam = "combo f")
   ,
   x[, .(female_LL,female_UR,male_LL,male_LR, rowid)] |>
-  is.regexp_validator(regexp = "^[XOYWBRGLM]$") |>
+  is.regexp_validator(regexp = "[XOYWBRGL]{1,2}") |>
   try_validator(nam = "combo m")
 ,
 
