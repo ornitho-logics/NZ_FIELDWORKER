@@ -53,6 +53,12 @@ list(
   )|> try_validator(nam = "float surface")
 ,
 
+# Nest_ID pattern
+x[, .(nest_id, rowid)] |>
+  is.regexp_validator(regexp = "^-?BA(0[1-9]|1[0-9]|20|21)([0-9]{3})$") |>
+  try_validator(nam = "nest id")
+,
+
 # Float location 
   {
   z = x[, .(
