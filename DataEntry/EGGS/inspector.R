@@ -19,71 +19,63 @@ x[, rowid := .I]
 
 list(
 
-# Mandatory values
+  # Mandatory values
   x[, .(species, observer, date, time_visit, nest_id, rowid)] |>
     is.na_validator() |>
-    try_validator(nam = "required")
-,
-
-# Float angles 
-    x[, .(egg1_float_angle,egg2_float_angle,egg3_float_angle,egg4_float_angle, rowid)] |>
-  interval_validator(
-    v = fread("    
-          variable         lq     uq
-          egg1_float_angle  20    90
-          egg2_float_angle  20    90
-          egg3_float_angle  20    90
-          egg4_float_angle  20    90
-          "),
-    reason = "Out of range values."
-  )|> try_validator(nam = "float angle")
-,
-
-# Float surfaces 
-    x[, .(egg1_float_surface,egg2_float_surface,egg3_float_surface,egg4_float_surface, rowid)] |>
-  interval_validator(
-    v = fread("    
-          variable          lq     uq
-          egg1_float_surface  0     5
-          egg2_float_surface  0     5
-          egg3_float_surface  0     5
-          egg4_float_surface  0     5
-          "),
-    reason = "Out of range values."
-  )|> try_validator(nam = "float surface")
-,
-
-# Nest_ID pattern
-x[, .(nest_id, rowid)] |>
-  is.regexp_validator(regexp = "^-?BA(0[1-9]|1[0-9]|20|21)([0-9]{3})$") |>
-  try_validator(nam = "nest id")
-,
-
-# Float location 
+    try_validator(nam = "required"),
+  # Float angles
+  x[, .(egg1_float_angle, egg2_float_angle, egg3_float_angle, egg4_float_angle, rowid)] |>
+    interval_validator(
+      v = fread("
+        variable         lq     uq
+        egg1_float_angle  20    90
+        egg2_float_angle  20    90
+        egg3_float_angle  20    90
+        egg4_float_angle  20    90
+        "),
+      reason = "Out of range values."
+    ) |>
+    try_validator(nam = "float angle"),
+  # Float surfaces
+  x[, .(egg1_float_surface, egg2_float_surface, egg3_float_surface, egg4_float_surface, rowid)] |>
+    interval_validator(
+      v = fread("
+        variable          lq     uq
+        egg1_float_surface  0     5
+        egg2_float_surface  0     5
+        egg3_float_surface  0     5
+        egg4_float_surface  0     5
+        "),
+      reason = "Out of range values."
+    ) |>
+    try_validator(nam = "float surface"),
+  # Nest_ID pattern
+  x[, .(nest_id, rowid)] |>
+    is.regexp_validator(regexp = "^-?BA(0[1-9]|1[0-9]|20|21)([0-9]{3})$") |>
+    try_validator(nam = "nest id"),
+  # Float location
   {
-  z = x[, .(
-    egg1_float_location,
-    egg2_float_location,
-    egg3_float_location,
-    egg4_float_location,
-    rowid
-  )]
+    z = x[, .(
+      egg1_float_location,
+      egg2_float_location,
+      egg3_float_location,
+      egg4_float_location,
+      rowid
+    )]
 
-  v = data.table(
-    variable = names(z)[-which(names(z)=='rowid')],
-    set = c(
-      list(c("bottom", "suspended", "surface")), 
-      list(c("bottom", "suspended", "surface")), 
-      list(c("bottom", "suspended", "surface")), 
-      list(c("bottom", "suspended", "surface"))
-
+    v = data.table(
+      variable = names(z)[-which(names(z) == "rowid")],
+      set = c(
+        list(c("bottom", "suspended", "surface")),
+        list(c("bottom", "suspended", "surface")),
+        list(c("bottom", "suspended", "surface")),
+        list(c("bottom", "suspended", "surface"))
+      )
     )
-  )
 
-  is.element_validator(z, v)
+    is.element_validator(z, v)
   } |> try_validator(nam = "float location")
+)
 
 
-
-
-)}
+}

@@ -157,15 +157,19 @@ list(
   }
 ,
 # morphometrics (capture_status == "F")
-  x[capture_status == "F" & age == "A", .(culmen, tarsus, wing, weight, rowid)] |>
+  x[capture_status == "F" & age == "A", .(culmen, tarsus, wing, weight,total_head,head_white,head_black,rufous_band, rowid)] |>
   interval_validator(
     v = fread("    
-        variable   lq     uq
-          culmen   15.8   19.3  
-          tarsus   27.1   32.3
-            wing   125    139
-          weight   52.6   69.0"),
-    reason = "Measurement out of the typical range."
+        variable      lq     uq
+          culmen      15.70  20.01   
+          tarsus      28.10  33.76 
+            wing      121.78 138.61
+          weight      49.15  75.92 
+          total_head  42.02  49.34
+          head_white  2.84   8.38
+          head_black  1.00   7.04 
+          rufous_band 3.95   27.74"),
+    reason = "Measurement is outside the typical range. Only 0.5% of values fall outside this range."
   )|> try_validator(nam = "measurements Adults")
 ,
 # morphometrics( capture_status == "F" & age == "J")
