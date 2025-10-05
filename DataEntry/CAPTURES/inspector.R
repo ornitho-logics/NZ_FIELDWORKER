@@ -33,11 +33,11 @@ list(
     v = fread("    
         variable   lq     uq
           book_id   1      5  
-          form_id   101    599
-            gps_id  1      11
+          form_id   1      999
+            gps_id  1      23
           gps_point 1      999"),
     reason = "Out of range value."
-  )|> try_validator(nam = "constrain interval")
+  ) |> try_validator(nam = "constrain interval")
 ,
 # Reinforce values (from given lists)
   {
@@ -103,7 +103,7 @@ list(
 ,
 # Nest_ID pattern
   x[, .(nest_id, rowid)] |>
-  is.regexp_validator(regexp = "^-?(BA|WR|SN|BF)(0[1-9]|1[0-1])(0[1-9]|[1-9][0-9])$") |>
+  is.regexp_validator(regexp = "^-?BA(0[1-9]|1[0-9]|20|21)([0-9]{3})$") |>
   try_validator(nam = 7)
 
 ,
@@ -112,6 +112,17 @@ list(
   is.regexp_validator(regexp = "C(P?[0-9]{5})$") |>
   try_validator(nam = 8)
 ,
+
+# Color bands
+  x[, .(UL, UR, rowid)] |>
+    is.regexp_validator(regexp = "^[XM]$|^FW[ACEHJKLMPNTUVXY1234567890]{2}$") |>
+    try_validator(nam = "upper combo")
+  ,
+  x[, .(LL, LR, rowid)] |>
+    is.regexp_validator(regexp = "^[XOYWBRGL]{1,2}$") |>
+    try_validator(nam = "lower combo")
+,
+
 # Required (capture_status == "F" & age == "A")
   x[capture_status == "F" & age == "A", 
     .(gps_id, gps_point,field_sex,

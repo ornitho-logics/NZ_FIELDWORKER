@@ -14,9 +14,18 @@ x = copy(dat)
 x[ , rowid := .I]
 
 list(
-# Mandatory values
-  x[, .(name, observer,rowid)] |>
-  is.na_validator() |> try_validator(nam = 1)
+  # Mandatory values
+  x[, .( observer, rowid)] |>
+    is.na_validator() |>
+    try_validator(nam = "mandatory"),
+
+  x[, .(name, rowid)] |>
+    is.na_validator() |>
+    try_validator(nam = "mandatory")
+
+
+
+
 )
 
 

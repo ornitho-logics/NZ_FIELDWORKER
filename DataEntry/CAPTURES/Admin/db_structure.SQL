@@ -23,9 +23,9 @@ CREATE TABLE CAPTURES (
   site varchar(255) DEFAULT                     NULL COMMENT '2-letter site codes:<br>AU=Upper Ashburton<br>CH=Chatham Is.<br>CR=Cass R.<br>HC=Hawkes Bay Coast<br>HR=Hawkes Bay Rivers<br>KK=Kaikoura<br>KP=Kina Pen.<br>KT=Kaitorete Spit<br>MB=Maryburn<br>MR=Macaulay R.<br>MS=Motueka Spit<br>OD=Ohau Downs<br>OK=Okarito<br>OM=Old Mans Range<br>PB=Porters Beach<br>PR=Pisa Range<br>TA=Te Anau (Upukerora)<br>TO=Tongariro (Rangipo Desert)<br>TP=Tiwai Point<br>TR=Tekapo R.<br>TS=Tasman R. Valley<br>WA=Wairarapa',
 
 
-  book_id char(2) DEFAULT      NULL COMMENT '2-character integer that is a unique book_id (i.e., your fieldnote book)',
+  book_id int(2) unsigned zerofill DEFAULT      NULL COMMENT '3-character integer that is a unique book_id (i.e., your fieldnote book)',
 
-  form_id char(3) unsigned zerofill DEFAULT      NULL COMMENT '3-character integer that is a unique page of your book_id',
+  form_id int(3) unsigned zerofill DEFAULT      NULL COMMENT '2-character integer that is a unique page of your book_id',
 
   observer varchar(3) DEFAULT                   NULL COMMENT 'Initials of the bander (see OBSERVERS table)',
 
@@ -65,8 +65,8 @@ CREATE TABLE CAPTURES (
   YY = your running nest number (01 to 99).      <br>
   Note if a brood was found of unknown origin, the nest_id is coded as a <strong>negative</strong> (e.g., -BA0903).',
 
-  gps_id char(2) DEFAULT       NULL COMMENT 'handheld Garmin GPS ID',
-  gps_point char(10) DEFAULT   NULL COMMENT 'waypoint number of the capture location stored in your handheld Garmin GPS unit',
+  gps_id int(2) unsigned zerofill DEFAULT       NULL COMMENT 'handheld Garmin GPS ID',
+  gps_point int(10) unsigned zerofill DEFAULT   NULL COMMENT 'waypoint number of the capture location stored in your handheld Garmin GPS unit',
 
   field_sex varchar(2) DEFAULT                  NULL COMMENT '
    observed sex based on field observations (ornamentation, behaviour, etc.):<br>
@@ -151,13 +151,13 @@ CREATE TABLE CAPTURES (
   brood_patch tinyint(1) unsigned DEFAULT       NULL COMMENT '"0" (no) or "1" (yes). Was there a brood patch when captured?',
 
   weight double DEFAULT                         NULL COMMENT 'Body mass (g) of captured individual (note: this includes the weight of the metal and colour rings. A metal ring weighs approximately 0.17g and a colour ring weighs approximately 0.08g.',
-  wt_w_tag char(1) DEFAULT                      NULL COMMENT '"0" (no) or "1" (yes). Was the body weight measured with a tag on?',
+  wt_w_tag tinyint(1) unsigned DEFAULT          NULL COMMENT '"0" (no) or "1" (yes). Was the body weight measured with a tag on?',
 
   moult varchar(255) DEFAULT                    NULL COMMENT 'primary molt score of captured individual. Scored as a the stage of the moult and the number of feathers at     that stage. If all 10 primaries are old feathers with no moult, it would be scored as "0(10)". See Ringers Manual, British Trust for Ornithology, Thetford for more details.',
 
-  fat char(1) DEFAULT                           NULL COMMENT 'fat score of captured individual, scored as the amount of visible fat in the furcular region or tracheal pit.    See <i>Ringers Manual, British Trust for Ornithology, Thetford for more details.</i>',
+  fat int(1) unsigned DEFAULT                   NULL COMMENT 'fat score of captured individual, scored as the amount of visible fat in the furcular region or tracheal pit.    See <i>Ringers Manual, British Trust for Ornithology, Thetford for more details.</i>',
 
-  feather_wear char(1) DEFAULT                  NULL COMMENT 'scored as "0" (Fresh), "1" (Slightly worn), "2" (Moderately worn), or "3" (Very worn). See NZNBBS Bird Banders Manual for more details',
+  feather_wear tinyint(1) unsigned DEFAULT     NULL COMMENT 'scored as "0" (Fresh), "1" (Slightly worn), "2" (Moderately worn), or "3" (Very worn). See NZNBBS Bird Banders Manual for more details',
 
   sample varchar(255) DEFAULT                   NULL COMMENT 'Samples taken, comma separated: <br>    FP = feather_primary <br>     FB = feather_breast <br>     BQ = blood in Queen <br>    BF = blood on filter paper <br>    BE = blood in EDTA',
 
@@ -201,8 +201,6 @@ DROP TABLE IF EXISTS EGGS ;
 CREATE TABLE EGGS (
   species char(4)                  DEFAULT NULL COMMENT '4-letter species code, e.g. BADO, WRYB, SNZD, BFDO',
   observer varchar(3)              DEFAULT NULL COMMENT 'Initials of the observer (see OBSERVERS table).',
-  book_id char(2) DEFAULT      NULL COMMENT '2-character integer that is a unique book_id (i.e., your fieldnote book)',
-  form_id char(4) unsigned zerofill DEFAULT      NULL COMMENT '3-character integer that is a unique page of your book_id',
   date date                        DEFAULT NULL COMMENT 'Date (YYYY-MM-DD) when eggs were measured (local, NZDT or NZST).',
   time_visit time                  DEFAULT NULL COMMENT 'Time (HH:MM) when the eggs were measured (local, NZDT or NZST)',
 
@@ -235,7 +233,7 @@ CREATE TABLE EGGS (
   KEY date (date)
 ) ENGINE=InnoDB ;
 
-# question to Mihai: is it okay that gps_id and gps_point are "int" in these two tables?
+
 DROP TABLE IF EXISTS GPS_POINTS ;
 CREATE TABLE GPS_POINTS (
   gps_id int(2) unsigned zerofill NOT NULL COMMENT 'gps id',
@@ -281,9 +279,9 @@ CREATE TABLE NESTS (
 
   time_visit time                     DEFAULT NULL COMMENT 'Time (HH:MM) when the nest was checked (local, NZDT or NZST)',
 
-  gps_id char(2) DEFAULT NULL COMMENT 'handheld Garmin GPS ID (1-12)',
+  gps_id int(2) unsigned zerofill     DEFAULT NULL COMMENT 'handheld Garmin GPS ID (1-12)',
 
-  gps_point char(10) DEFAULT NULL COMMENT 'GPS waypoint (if nest_state is F this is the position of the nest, otherwise this is the escape distance when nest is still active)',
+  gps_point int(10) unsigned zerofill DEFAULT NULL COMMENT 'GPS waypoint (if nest_state is F this is the position of the nest, otherwise this is the escape distance when nest is still active)',
 
   clutch_size int(1)                  DEFAULT NULL COMMENT 'Clutch size (if nest)',
 
@@ -368,8 +366,6 @@ CREATE TABLE NESTS (
 
   comments text                       DEFAULT NULL COMMENT 'Comments',
 
-  book_id char(2) DEFAULT      NULL COMMENT '2-character integer that is a unique book_id (i.e., your fieldnote book)',
-  form_id char(4) unsigned zerofill DEFAULT      NULL COMMENT '3-character integer that is a unique page of your book_id',
   observer_upload varchar(3)          DEFAULT NULL COMMENT 'Initials of the person uploading to the database (see OBSERVERS table)',
 
   nov int(1) unsigned zerofill        DEFAULT NULL COMMENT 'No validation. Do not edit !',
@@ -402,9 +398,9 @@ CREATE TABLE RESIGHTINGS (
 
   observer varchar(3)                       DEFAULT NULL COMMENT 'Initials of the observer (see OBSERVERS table).',
 
-  gps_id char(2)        DEFAULT NULL COMMENT 'handheld Garmin GPS ID',
+  gps_id int(2) unsigned zerofill           DEFAULT NULL COMMENT 'handheld Garmin GPS ID',
 
-  gps_point char(10) DEFAULT NULL COMMENT 'Required: waypoint number stored in your handheld Garmin GPS unit for the behavioural observation',
+  gps_point int(10) unsigned zerofill DEFAULT NULL COMMENT 'Required: waypoint number stored in your handheld Garmin GPS unit for the behavioural observation',
 
   date date                                 DEFAULT NULL,
 
@@ -437,6 +433,7 @@ CREATE TABLE RESIGHTINGS (
     "BW" = distraction display (e.g.broken wing) <br>
     "BC" = brooding chicks                       <br>
     "NM" = nest maintenance                      <br>
+    "SC" = scraping                              <br>
     "FC" = foraging with chicks                  <br>
     "FA" = foraging alone                        <br>
     "FM" = foraging with (presumed) mate         <br>
@@ -519,13 +516,105 @@ CREATE TABLE RESIGHTINGS_PUBLIC (
 
 
 -- VIEWS
-CREATE OR REPLACE VIEW FIELD_2025_BADOatNZ.CAPTURES_ARCHIVE AS
-SELECT site, lat, lon ,date ,cap_start ,capture_method ,nest_id,observer,field_sex ,age  ,ring ,UL   ,LL   ,UR   ,LR   ,tag_id ,tag_action ,tag_type,tag_extras ,harness_size,culmen  ,tarsus ,total_head ,head_white,head_black     ,rufous_band ,wing ,weight ,moult,fat,sample
-FROM FIELD_2024_BADOatNZ.CAPTURES c LEFT JOIN FIELD_2024_BADOatNZ.GPS_POINTS g 
-on c.gps_id = g.gps_id and c.gps_point = g.gps_point
+  CREATE OR REPLACE VIEW FIELD_2025_BADOatNZ.CAPTURES_ARCHIVE AS
+  SELECT site, lat, lon ,date ,cap_start ,capture_method ,nest_id,observer,field_sex ,age  ,ring ,UL   ,LL   ,UR   ,LR   ,tag_id ,tag_action ,tag_type,tag_extras ,harness_size,culmen  ,tarsus ,total_head ,head_white,head_black     ,rufous_band ,wing ,weight ,moult,fat,sample
+  FROM FIELD_2024_BADOatNZ.CAPTURES c LEFT JOIN FIELD_2024_BADOatNZ.GPS_POINTS g 
+  on c.gps_id = g.gps_id and c.gps_point = g.gps_point
 
 
-CREATE OR REPLACE VIEW FIELD_2025_BADOatNZ.CAPTURES_active AS
-SELECT site, lat, lon ,date ,cap_start ,capture_method ,nest_id,observer,field_sex ,age  ,ring ,UL   ,LL   ,UR   ,LR   ,tag_id ,tag_action ,tag_type,tag_extras ,NULL harness_size,culmen  ,tarsus ,total_head ,head_white,head_black     ,rufous_band ,wing ,weight ,moult,fat,sample
-FROM FIELD_2025_BADOatNZ.CAPTURES c LEFT JOIN FIELD_2025_BADOatNZ.GPS_POINTS g 
-on c.gps_id = g.gps_id and c.gps_point = g.gps_point
+  CREATE OR REPLACE VIEW FIELD_2025_BADOatNZ.CAPTURES_active AS
+  SELECT site, lat, lon ,date ,cap_start ,capture_method ,nest_id,observer,field_sex ,age  ,ring ,UL   ,LL   ,UR   ,LR   ,tag_id ,tag_action ,tag_type,tag_extras ,NULL harness_size,culmen  ,tarsus ,total_head ,head_white,head_black     ,rufous_band ,wing ,weight ,moult,fat,sample
+  FROM FIELD_2025_BADOatNZ.CAPTURES c LEFT JOIN FIELD_2025_BADOatNZ.GPS_POINTS g 
+  on c.gps_id = g.gps_id and c.gps_point = g.gps_point
+
+-- WITHIN-SEASON UPDATES
+
+
+  -- nest ID in all tables
+  ALTER TABLE NESTS
+    MODIFY COLUMN nest_id VARCHAR(8) DEFAULT NULL COMMENT
+    'a 7-character string: SSXXYYY, Where SS is the species (the first two letters of the species name), <br>
+    XX = your GPS number (01 to 30)                   <br>
+    YYY = your running nest number (001 to 999).      <br>
+    Note if a brood was found of unknown origin, the nest_id is coded as a <strong>negative</strong> (e.g., -BA09003).'
+
+  ALTER TABLE CAPTURES
+    MODIFY COLUMN nest_id VARCHAR(8) DEFAULT NULL COMMENT
+    'a 7-character string: SSXXYYY, Where SS is the species (the first two letters of the species name), <br>
+    XX = your GPS number (01 to 30)                   <br>
+    YYY = your running nest number (001 to 999).      <br>
+    Note if a brood was found of unknown origin, the nest_id is coded as a <strong>negative</strong> (e.g., -BA09003).'
+
+
+  --  behav in  NEST table:
+
+  ALTER TABLE NESTS
+    CHANGE COLUMN behav behav_F TEXT DEFAULT NULL COMMENT
+    '    female behavioral class, as many as applicable, seperated by a comma:<br>
+      "IN" = incubating                            <br>
+      "PR" = preening                              <br>
+      "BW" = distraction display (e.g.broken wing) <br>
+      "BC" = brooding chicks                       <br>
+      "NM" = nest maintenance                      <br>
+      "FC" = foraging with chicks                  <br>
+      "RS" = roosting                              <br>
+      "LF" = loafing                               <br>
+      "AT" = alert                                 <br>
+      "FT" = fighting                              <br>
+      "OB" = other behavious (please comment)'
+
+
+
+    ALTER TABLE NESTS
+      ADD COLUMN behav_M TEXT DEFAULT NULL COMMENT
+      'male behavioral class, as many as applicable, separated by a comma:<br>
+      "IN" = incubating <br>
+      "PR" = preening <br>
+      "BW" = distraction display (e.g. broken wing) <br>
+      "BC" = brooding chicks <br>
+      "NM" = nest maintenance <br>
+      "FC" = foraging with chicks <br>
+      "RS" = roosting <br>
+      "LF" = loafing <br>
+      "AT" = alert <br>
+      "FT" = fighting <br>
+      "OB" = other behaviours (please comment)'
+      AFTER behav_F;
+
+
+--- behav in resightings
+  ALTER TABLE RESIGHTINGS
+    MODIFY COLUMN behav text  DEFAULT NULL COMMENT
+    'behavioral class, as many as applicable, seperated by a comma:<br>
+      "IN" = incubating                            <br>
+      "CO" = courtship                             <br>
+      "PR" = preening                              <br>
+      "BW" = distraction display (e.g.broken wing) <br>
+      "BC" = brooding chicks                       <br>
+      "NM" = nest maintenance                      <br>
+      "SC" = scraping                              <br>
+      "FC" = foraging with chicks                  <br>
+      "FA" = foraging alone                        <br>
+      "FM" = foraging with (presumed) mate         <br>
+      "FF" = foraging in flock                     <br>
+      "RS" = roosting                              <br>
+      "LF" = loafing                               <br>
+      "AT" = alert                                 <br>
+      "FT" = fighting                              <br>
+      "OB" = other behavious (please comment)'
+
+
+  --- nest and eggs
+
+ALTER TABLE NESTS ADD COLUMN book_id INT(2)   DEFAULT NULL COMMENT
+  '3-character integer that is a unique book_id (i.e., your fieldnote book)'; 
+
+ALTER TABLE NESTS ADD COLUMN form_id INT(3)  LL DEFAULT NULL COMMENT
+  '2-character integer that is a unique page of your book_id';
+
+
+ALTER TABLE EGGS ADD COLUMN book_id INT(2) DEFAULT NULL COMMENT
+  '3-character integer that is a unique book_id (i.e., your fieldnote book)';
+
+ALTER TABLE EGGS ADD COLUMN form_id INT(3)   DEFAULT NULL COMMENT
+  '2-character integer that is a unique page of your book_id';
