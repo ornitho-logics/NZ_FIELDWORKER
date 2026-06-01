@@ -6,7 +6,7 @@ This repository is `ornitho-logics/NZ_FIELDWORKER`, a modular R/Shiny applicatio
 
 The working local repository is:
 
-`/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2025_Fieldworker/NZ_FIELDWORKER`
+`/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER`
 
 The app currently includes:
 
