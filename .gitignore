@@ -1,15 +1,32 @@
-.vscode
+# -------------------------------------------------------------------------
+# Editor / IDE files
+# -------------------------------------------------------------------------
 
-# History files
+.vscode/
+.Rproj.user/
+
+# macOS / filesystem noise
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# -------------------------------------------------------------------------
+# R history, session, and user-specific files
+# -------------------------------------------------------------------------
+
 .Rhistory
 .Rapp.history
-
-# Session Data files
 .RData
 .RDataTmp
-
-# User-specific files
 .Ruserdata
+.Renviron
+
+# OAuth2 token, see https://github.com/hadley/httr/releases/tag/v0.3
+.httr-oauth
+
+# -------------------------------------------------------------------------
+# R package/build/check artefacts
+# -------------------------------------------------------------------------
 
 # Example code in package build process
 *-Ex.R
@@ -20,32 +37,138 @@
 # Output files from R CMD check
 /*.Rcheck/
 
-# RStudio files
-.Rproj.user/
-
-# produced vignettes
+# Produced vignettes
 vignettes/*.html
 vignettes/*.pdf
-
-# OAuth2 token, see https://github.com/hadley/httr/releases/tag/v0.3
-.httr-oauth
 
 # knitr and R markdown default cache directories
 *_cache/
 /cache/
 
-# Temporary files created by R markdown
+# Temporary files created by R Markdown / Quarto
 *.utf8.md
 *.knit.md
+.quarto/
 
-# R Environment Variables
-.Renviron
-
-# pkgdown site
-docs/
-
-# translation temp files
+# Translation temp files
 po/*~
 
 # RStudio Connect folder
 rsconnect/
+
+# -------------------------------------------------------------------------
+# pkgdown / generated documentation
+# -------------------------------------------------------------------------
+
+# Ignore generated pkgdown site, but allow manually reviewed Codex decision
+# summaries if you later choose to track them.
+docs/*
+!docs/codex_decisions/
+!docs/codex_decisions/**
+
+# -------------------------------------------------------------------------
+# Codex scratch/proposal/log files
+# -------------------------------------------------------------------------
+
+# Codex may create files here, but these must remain local and untracked.
+notes/codex_proposals/
+notes/codex_logs/
+tmp/codex/
+
+# Local-only Codex override instructions
+AGENTS.override.md
+
+# -------------------------------------------------------------------------
+# Local credentials and connection files
+# -------------------------------------------------------------------------
+
+# Never commit database credentials or local config files.
+*.cnf
+*.my.cnf
+.my.cnf
+my.cnf
+
+# Local environment/config files that may contain secrets
+.env
+.env.*
+*.env
+
+# -------------------------------------------------------------------------
+# Database dumps, local database files, and confidential extracts
+# -------------------------------------------------------------------------
+
+# SQL dumps / backups
+*.sql.gz
+*.sql.zip
+*.dump
+*.backup
+*.bak
+
+# Local database files
+*.sqlite
+*.sqlite3
+*.db
+*.db3
+
+# Exported database tables / extracts
+*.rds
+*.Rds
+*.RData
+*.csv
+*.tsv
+*.xlsx
+*.xls
+
+# -------------------------------------------------------------------------
+# QField / QGIS / spatial export outputs
+# -------------------------------------------------------------------------
+
+# Ignore generated/private spatial exports by default.
+*.gpkg
+*.qgz
+*.qgs
+*.shp
+*.shx
+*.dbf
+*.prj
+*.cpg
+*.kml
+*.kmz
+*.geojson
+
+# If Thread 5 later creates deliberately shareable QField/QGIS templates,
+# use a narrower rule such as:
+# qfield/exports/
+# qfield/private/
+# !qfield/templates/
+# !qfield/templates/*.qgs
+# !qfield/templates/*.qgz
+
+# -------------------------------------------------------------------------
+# GPS upload/download artefacts
+# -------------------------------------------------------------------------
+
+*.gpx
+*.fit
+*.tcx
+
+# -------------------------------------------------------------------------
+# Temporary and local output folders
+# -------------------------------------------------------------------------
+
+tmp/
+temp/
+output/
+outputs/
+exports/
+private/
+local/
+scratch/
+
+# -------------------------------------------------------------------------
+# Logs
+# -------------------------------------------------------------------------
+
+*.log
+*.out
+*.err
