@@ -124,6 +124,7 @@
     hot_cols(columnSorting = FALSE, manualColumnResize = TRUE) |>
     hot_rows(fixedRowsTop = 1) |>
     # autocompletion columns
+    hot_col(col = "date", width = 95) |>
     hot_col(col = "species", type = "autocomplete", source = species_opts, strict = TRUE) |>
     hot_col(col = "site", type = "autocomplete", source = sites, strict = TRUE) |>
     hot_col(col = "capture_status", type = "autocomplete", source = capture_status_opts, strict = TRUE) |>

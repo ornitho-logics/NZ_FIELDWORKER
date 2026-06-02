@@ -24,7 +24,7 @@ CREATE TABLE CAPTURES (
   SNZD (Southern New Zealand Dotterel) <br> 
   BFDO (Black-fronted Dotterel)',
 
-  site varchar(255) DEFAULT                     NULL COMMENT '
+  site varchar(2) DEFAULT                     NULL COMMENT '
       2-letter site codes:<br>
       AR (Aparima River) <br>
       AU (Upper Ashburton) <br>
@@ -53,9 +53,9 @@ CREATE TABLE CAPTURES (
       WN (West Coast North) <br>
       WS (West Coast South)',
 
-   book_id int unsigned DEFAULT      NULL COMMENT '3-character integer that is a unique book_id (i.e., your fieldnote book)',
+  book_id smallint unsigned DEFAULT      NULL COMMENT '3-character integer that is a unique book_id (i.e., your fieldnote book)',
 
-  form_id int(3) unsigned zerofill DEFAULT      NULL COMMENT '2-character integer that is a unique page of your book_id',
+  form_id smallint unsigned DEFAULT      NULL COMMENT '2-character integer that is a unique page of your book_id',
 
   observer varchar(3) DEFAULT                   NULL COMMENT '2- or 3-character initials of the bander (see OBSERVERS table)',
 
@@ -74,7 +74,7 @@ CREATE TABLE CAPTURES (
       O  (Other; please specify in comments)',
   
   nest_id varchar(7) DEFAULT                    NULL COMMENT '
-      a 6-character string: SSXXYY, Where SS is the species (the first two letters of the species name), <br>
+      a 6- or 7-character string: SSXXYY, Where SS is the species (the first two letters of the species name), <br>
       XX = your GPS number (01 to 11)           <br>
       YY = your running nest number (01 to 99).      <br>
       Note if a brood was found of unknown origin, the nest_id is coded as a <strong>negative</strong> (e.g., -BA0903).',
@@ -225,7 +225,7 @@ CREATE TABLE CAPTURES (
       3 (Very worn). <br> 
     See NZNBBS Bird Banders Manual for more details',
 
-  tag_id varchar(10) DEFAULT                    NULL COMMENT 'ID of tag/geolocator deployed or retrived',
+  tag_id varchar(20) DEFAULT                    NULL COMMENT 'ID of tag/geolocator deployed or retrived',
   
   tag_type char(3) DEFAULT                      NULL COMMENT '
     type of tag deployed: <br>
@@ -240,7 +240,7 @@ CREATE TABLE CAPTURES (
       S (tag Stayed on: bird had a tag when captured and was released with the same tag)     <br>
       N (New tag: bird had a tag when captured and was released with a new tag)',
 
-  cam_id varchar(255) DEFAULT                   NULL COMMENT '2-character integer that is a unique ID of your field camera',
+  cam_id varchar(10) DEFAULT                   NULL COMMENT '2- or 3-character string that is a unique ID of your field camera',
 
   photo_start varchar(255) DEFAULT              NULL COMMENT 'image filename for the first photo of the sequence',
   photo_end varchar(255) DEFAULT                NULL COMMENT 'image filename for the last photo of the sequence',
@@ -280,37 +280,59 @@ CREATE TABLE CAPTURES (
 
 DROP TABLE IF EXISTS EGGS ;
 CREATE TABLE EGGS (
-  species char(4)                  DEFAULT NULL COMMENT '4-letter species code, e.g. BADO, WRYB, SNZD, BFDO',
-  observer varchar(3)              DEFAULT NULL COMMENT 'Initials of the observer (see OBSERVERS table).',
-  date date                        DEFAULT NULL COMMENT 'Date (YYYY-MM-DD) when eggs were measured (local, NZDT or NZST).',
-  time_visit time                  DEFAULT NULL COMMENT 'Time (HH:MM) when the eggs were measured (local, NZDT or NZST)',
+  species char(4) DEFAULT NULL COMMENT '
+    4-letter species code: <br>
+      BADO (Banded Dotterel) <br>
+      WRYB (Wrybill) <br> 
+      SNZD (Southern New Zealand Dotterel) <br> 
+      BFDO (Black-fronted Dotterel)',
 
-  nest_id varchar(8)               DEFAULT NULL COMMENT '
-  a 6-character string: SSXXYY, Where SS is the species (the first two letters of the species name), XX = your GPS number (01 to 11), YY = your running nest number (01 to 99).',
+  observer varchar(3) DEFAULT NULL COMMENT '2- or 3-character initials of the observer (see OBSERVERS table)',
 
-  egg1_float_angle int(3)          DEFAULT NULL COMMENT 'Egg floating angle (degrees, minimum 20, maximum 90).',
-  egg1_float_surface int(3)        DEFAULT NULL COMMENT 'Height of egg above water surface (mm)',
-  egg1_float_location varchar(255) DEFAULT NULL COMMENT 'Position of the egg ("bottom", "suspended", or "surface")',
-  egg2_float_angle int(3)          DEFAULT NULL COMMENT 'Egg floating angle (degrees, minimum 20, maximum 90).',
-  egg2_float_surface int(3)        DEFAULT NULL COMMENT 'Height of egg above water surface (mm).',
-  egg2_float_location varchar(255) DEFAULT NULL COMMENT 'Position of the egg ("bottom", "suspended", or "surface")',
-  egg3_float_angle int(3)          DEFAULT NULL COMMENT 'Egg floating angle (degrees, minimum 20, maximum 90).',
-  egg3_float_surface int(3)        DEFAULT NULL COMMENT 'Height of egg above water surface (mm).',
-  egg3_float_location varchar(255) DEFAULT NULL COMMENT 'Position of the egg ("bottom", "suspended", or "surface")',
-  egg4_float_angle int(3)          DEFAULT NULL COMMENT 'Egg floating angle (degrees, minimum 20, maximum 90).',
-  egg4_float_surface int(3)        DEFAULT NULL COMMENT 'Height of egg above water surface (mm).',
-  egg4_float_location varchar(255) DEFAULT NULL COMMENT 'Position of the egg ("bottom", "suspended", or "surface")',
+  date date DEFAULT NULL COMMENT 'Date eggs measured YYYY-MM-DD (local, NZDT or NZST)',
 
-  cam_id varchar(255)              DEFAULT NULL COMMENT '2-character integer that is a unique ID of your field camera',
-  photo_start varchar(255)         DEFAULT NULL COMMENT 'image filename for the first photo of the sequence',
-  photo_end varchar(255)           DEFAULT NULL COMMENT 'image filename for the last photo of the sequence',
-  harddrive_id int(2)              DEFAULT NULL COMMENT 'harddrive ID where photos were uploaded after returning from the field',
-  comments text                    DEFAULT NULL COMMENT 'Comments.',
-  observer_upload varchar(3)       DEFAULT NULL COMMENT 'Initials of the person uploading to the database (see OBSERVERS table)',
-  nov int(1) unsigned zerofill     DEFAULT NULL COMMENT 'No validation. Do not edit !',
-  pk int(10) NOT NULL AUTO_INCREMENT,
+  time_visit time DEFAULT NULL COMMENT 'hh:mm time eggs were measured (local, NZDT or NZST)',
+
+  nest_id varchar(8) DEFAULT NULL COMMENT '
+      a 6-character string: SSXXYY, Where SS is the species (the first two letters of the species name), <br>
+      XX = your GPS number (01 to 11)           <br>
+      YY = your running nest number (01 to 99).      <br>
+      Note if a brood was found of unknown origin, the nest_id is coded as a <strong>negative</strong> (e.g., -BA0903).',
+
+  egg_id tinyint unsigned DEFAULT NULL COMMENT '
+      egg number within the nest: <br>
+      1 (first egg) <br>
+      2 (second egg) <br>
+      3 (third egg) <br>
+      4 (fourth egg)',
+
+  float_angle tinyint unsigned DEFAULT NULL COMMENT 'Egg floating angle (degrees, minimum 20, maximum 90)',
+
+  float_surface tinyint unsigned DEFAULT NULL COMMENT 'Height of egg above water surface (mm)',
+
+  float_location varchar(10) DEFAULT NULL COMMENT '
+      Position of the egg in the floating jar: <br>
+      bottom <br>
+      suspended <br>
+      surface',
+
+  cam_id varchar(10) DEFAULT NULL COMMENT 'ID of your field camera',
+
+  photo_start varchar(255) DEFAULT NULL COMMENT 'image filename for the first photo of the sequence',
+
+  photo_end varchar(255) DEFAULT NULL COMMENT 'image filename for the last photo of the sequence',
+
+  harddrive_id smallint unsigned DEFAULT NULL COMMENT 'harddrive ID where photos were uploaded after returning from the field',
+
+  comments text DEFAULT NULL COMMENT 'Comments',
+
+  observer_upload varchar(3) DEFAULT NULL COMMENT 'Initials of the person uploading to the database (see OBSERVERS table)',
+
+  nov int(10) unsigned zerofill DEFAULT         NULL COMMENT 'Validation flag. Do not edit this column!',
+  pk int unsigned NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (pk),
   KEY nest (nest_id),
+  KEY nest_egg (nest_id, egg_id),
   KEY date (date)
 ) ENGINE=InnoDB ;
 
@@ -687,7 +709,6 @@ ALTER TABLE NESTS ADD COLUMN book_id INT(2)   DEFAULT NULL COMMENT
 
 ALTER TABLE NESTS ADD COLUMN form_id INT(3)  LL DEFAULT NULL COMMENT
   '2-character integer that is a unique page of your book_id';
-
 
 ALTER TABLE EGGS ADD COLUMN book_id INT(2) DEFAULT NULL COMMENT
   '3-character integer that is a unique book_id (i.e., your fieldnote book)';
