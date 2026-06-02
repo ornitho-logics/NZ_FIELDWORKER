@@ -53,7 +53,7 @@ CREATE TABLE CAPTURES (
       WN (West Coast North) <br>
       WS (West Coast South)',
 
-  book_id int(2) unsigned zerofill DEFAULT      NULL COMMENT '3-character integer that is a unique book_id (i.e., your fieldnote book)',
+   book_id int unsigned DEFAULT      NULL COMMENT '3-character integer that is a unique book_id (i.e., your fieldnote book)',
 
   form_id int(3) unsigned zerofill DEFAULT      NULL COMMENT '2-character integer that is a unique page of your book_id',
 
@@ -72,6 +72,12 @@ CREATE TABLE CAPTURES (
       SM (Stationary Mistnet)  <br>
       MM (Mobile Mistnet)      <br>
       O  (Other; please specify in comments)',
+  
+  nest_id varchar(7) DEFAULT                    NULL COMMENT '
+      a 6-character string: SSXXYY, Where SS is the species (the first two letters of the species name), <br>
+      XX = your GPS number (01 to 11)           <br>
+      YY = your running nest number (01 to 99).      <br>
+      Note if a brood was found of unknown origin, the nest_id is coded as a <strong>negative</strong> (e.g., -BA0903).',
 
   caught_with varchar(255) DEFAULT              NULL COMMENT '
       Social members caught with focal individual, comma separated: <br>
@@ -88,15 +94,10 @@ CREATE TABLE CAPTURES (
         U1 (one unknown sex parent) <br>
         U2 (two unknown sex parents) <br>
         O (other (write in comments)',
-
-  nest_id varchar(7) DEFAULT                    NULL COMMENT '
-      a 6-character string: SSXXYY, Where SS is the species (the first two letters of the species name), <br>
-      XX = your GPS number (01 to 11)           <br>
-      YY = your running nest number (01 to 99).      <br>
-      Note if a brood was found of unknown origin, the nest_id is coded as a <strong>negative</strong> (e.g., -BA0903).',CAPTURES
-
-  gps_id int(2) unsigned zerofill DEFAULT       NULL COMMENT 'handheld Garmin GPS ID',
-  gps_point int(10) unsigned zerofill DEFAULT   NULL COMMENT 'waypoint number of the capture location stored in your handheld Garmin GPS unit',
+      
+  gps_id tinyint unsigned DEFAULT       NULL COMMENT 'handheld Garmin GPS ID',
+  
+  gps_point int unsigned DEFAULT   NULL COMMENT 'waypoint number of the capture location stored in your handheld Garmin GPS unit',
 
   field_sex varchar(2) DEFAULT                  NULL COMMENT '
    observed sex based on field observations (ornamentation, behaviour, etc.):<br>
@@ -110,7 +111,7 @@ CREATE TABLE CAPTURES (
   age of captured individual: <br>
   A (Adult),<br>
   J (Juvenile),<br>
-  C (Chick)'
+  C (Chick)',
 
   ring varchar(50) DEFAULT    NULL COMMENT 'alpha-numeric code of metal ring assigned to captured individual',
 
@@ -197,40 +198,40 @@ CREATE TABLE CAPTURES (
 
   fat int(1) unsigned DEFAULT                   NULL COMMENT 'fat score of captured individual, scored as the amount of visible fat in the furcular region or tracheal pit. See <i>Ringers Manual, British Trust for Ornithology, Thetford for more details.</i>',
 
-  feather_wear tinyint(1) unsigned DEFAULT     NULL COMMENT '
-  scored as: <br>
-  0 (Fresh) <br> 
-  1 (Slightly worn) <br> 
-  2 (Moderately worn) or <br>
-  3 (Very worn). <br> 
-  See NZNBBS Bird Banders Manual for more details',
-
-  blood char(1) DEFAULT             NULL COMMENT '
-  Was blood taken? 
-  BQ (blood in Queens buffer) <br>    
-  BF (blood on filter paper) <br>    
-  BE (blood in EDTA tube) <br> 
-  leave blank if not collected',
-  
-  primary tinyint(1) unsigned DEFAULT          NULL COMMENT '
+  breast_samp tinyint(1) unsigned DEFAULT          NULL COMMENT '
+    Were breast feathers sampled? <br>
+    0 (no) or <br>
+    1 (yes)',
+    
+  primary_samp tinyint(1) unsigned DEFAULT          NULL COMMENT '
     Was a primary feather sampled? <br>
     0 (no) or <br>
     1 (yes)',
   
-  breast tinyint(1) unsigned DEFAULT          NULL COMMENT '
-    Were breast feathers sampled? <br>
-    0 (no) or <br>
-    1 (yes)'
+  blood_samp char(2) DEFAULT             NULL COMMENT '
+    Was blood taken?  <br>  
+    BQ (blood in Queens buffer) <br>    
+    BF (blood on filter paper) <br>    
+    BE (blood in EDTA tube) <br> 
+    leave blank if not collected',
   
-  other_sample varchar(255) DEFAULT                    NULL COMMENT 'free text of any other samples collected (e.g., "lice")'
+  other_sample varchar(255) DEFAULT                    NULL COMMENT 'free text of any other samples collected (e.g., "lice")',
+    
+  feather_wear tinyint(1) unsigned DEFAULT     NULL COMMENT '
+    scored as: <br>
+      0 (Fresh) <br> 
+      1 (Slightly worn) <br> 
+      2 (Moderately worn) or <br>
+      3 (Very worn). <br> 
+    See NZNBBS Bird Banders Manual for more details',
 
   tag_id varchar(10) DEFAULT                    NULL COMMENT 'ID of tag/geolocator deployed or retrived',
   
   tag_type char(3) DEFAULT                      NULL COMMENT '
-  type of tag deployed: <br>
-  PTT (satellite tag) <br>
-  GPS (GPS tag), or <br>
-  GEO (light-logger geolocator)',
+    type of tag deployed: <br>
+    PTT (satellite tag) <br>
+    GPS (GPS tag), or <br>
+    GEO (light-logger geolocator)',
 
   tag_action char(1) DEFAULT                    NULL COMMENT '
       O (nO tag: bird did not have a tag when captured and was released without a tag)           <br>
@@ -316,8 +317,8 @@ CREATE TABLE EGGS (
 
 DROP TABLE IF EXISTS GPS_POINTS ;
 CREATE TABLE GPS_POINTS (
-  gps_id int(2) unsigned zerofill NOT NULL COMMENT 'gps id',
-  gps_point int(10) unsigned zerofill NOT NULL COMMENT 'gps point',
+  gps_id tinyint unsigned NOT NULL COMMENT 'gps id',
+  gps_point int unsigned NOT NULL COMMENT 'gps point',
   datetime_ datetime NOT NULL COMMENT 'gps date-time (NZST / NZDT)',
   lat double NOT NULL COMMENT 'latitude',
   lon double NOT NULL COMMENT 'longitude',
@@ -331,9 +332,9 @@ CREATE TABLE GPS_POINTS (
 
 DROP TABLE IF EXISTS GPS_TRACKS ;
 CREATE TABLE GPS_TRACKS (
-  gps_id int(2) unsigned zerofill NOT NULL COMMENT 'gps id',
-  seg_id int(10) unsigned zerofill NOT NULL COMMENT 'segment id',
-  seg_point_id int(10) unsigned zerofill NOT NULL COMMENT 'segment point id',
+  gps_id tinyint unsigned NOT NULL COMMENT 'gps id',
+  seg_id int unsigned NOT NULL COMMENT 'segment id',
+  seg_point_id int unsigned NOT NULL COMMENT 'segment point id',
   datetime_ datetime NOT NULL COMMENT 'gps date-time (NZST / NZDT)',
   lat double NOT NULL COMMENT 'latitude',
   lon double NOT NULL COMMENT 'longitude',
@@ -359,9 +360,9 @@ CREATE TABLE NESTS (
 
   time_visit time                     DEFAULT NULL COMMENT 'Time (HH:MM) when the nest was checked (local, NZDT or NZST)',
 
-  gps_id int(2) unsigned zerofill     DEFAULT NULL COMMENT 'handheld Garmin GPS ID (1-12)',
+  gps_id tinyint unsigned     DEFAULT NULL COMMENT 'handheld Garmin GPS ID (1-12)',
 
-  gps_point int(10) unsigned zerofill DEFAULT NULL COMMENT 'GPS waypoint (if nest_state is F this is the position of the nest, otherwise this is the escape distance when nest is still active)',
+  gps_point int unsigned DEFAULT NULL COMMENT 'GPS waypoint (if nest_state is F this is the position of the nest, otherwise this is the escape distance when nest is still active)',
 
   clutch_size int(1)                  DEFAULT NULL COMMENT 'Clutch size (if nest)',
 
@@ -461,14 +462,9 @@ DROP TABLE IF EXISTS OBSERVERS ;
 CREATE TABLE OBSERVERS (
   name text DEFAULT NULL COMMENT 'Your full name.',
   observer varchar(3) DEFAULT NULL COMMENT 'Your initials. Use two or three letters. This is what you will use when entering data.',
-  affiliation text DEFAULT NULL COMMENT 'Your affiliation as it would listed in a publication',
-  email text DEFAULT NULL COMMENT 'An email address which can be used for data enquiries about your observations',
-  gps_id int(2) unsigned zerofill DEFAULT NULL COMMENT 'Personal GPS ID',
-  radio_id int(2) unsigned zerofill DEFAULT NULL COMMENT 'Personal radio ID',
-  cam_id varchar(255) DEFAULT NULL COMMENT 'Personal camcorder ID',
-  harddrive_id int(2) DEFAULT NULL COMMENT 'Team harddrive ID where photos were uploaded after returning from the field',
-  remarks text DEFAULT NULL COMMENT 'Please provide any relevant information, such as your ratings in cooking, chess, or poker.'
-) ENGINE=InnoDB  ;
+  gps_id tinyint unsigned DEFAULT NULL COMMENT 'Personal GPS ID',
+  cam_id varchar(255) DEFAULT NULL COMMENT 'Personal camcorder ID'
+) ENGINE=InnoDB ;
 
 
 DROP TABLE IF EXISTS RESIGHTINGS ;
@@ -478,9 +474,9 @@ CREATE TABLE RESIGHTINGS (
 
   observer varchar(3)                       DEFAULT NULL COMMENT 'Initials of the observer (see OBSERVERS table).',
 
-  gps_id int(2) unsigned zerofill           DEFAULT NULL COMMENT 'handheld Garmin GPS ID',
+  gps_id tinyint unsigned           DEFAULT NULL COMMENT 'handheld Garmin GPS ID',
 
-  gps_point int(10) unsigned zerofill DEFAULT NULL COMMENT 'Required: waypoint number stored in your handheld Garmin GPS unit for the behavioural observation',
+  gps_point int unsigned DEFAULT NULL COMMENT 'Required: waypoint number stored in your handheld Garmin GPS unit for the behavioural observation',
 
   date date                                 DEFAULT NULL,
 
