@@ -67,11 +67,11 @@
   
   age_opts = c("A", "J", "C")
   
-  yes_no_opts = 0:1
+  yes_no_opts = c("0", "1")
+  
+  feather_wear = c("0", "1", "2", "3")
   
   blood_samp_opts = c("BQ", "BF", "BE")
-  
-  feather_wear = 0:3
   
   tag_type_opts = c("PTT", "GPS", "GEO")
   
