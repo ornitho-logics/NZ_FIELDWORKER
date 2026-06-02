@@ -21,11 +21,23 @@
 
 #* FUNCTIONS
   
+  muffleUnsignedIntegerWarning <- function(expr) {
+    withCallingHandlers(
+      expr,
+      warning = function(w) {
+        if (grepl("^Unsigned INTEGER in col [0-9]+ imported as numeric$", conditionMessage(w))) {
+          invokeRestart("muffleWarning")
+        }
+      }
+    )
+  }
+
   DBq <- function(x) {
     con <- dbo::dbcon(server = SERVER, db = db)
     on.exit(DBI::dbDisconnect(con))
 
-    o <- DBI::dbGetQuery(con, x)
+    # MariaDB UNSIGNED integers are safely imported as R numeric here.
+    o <- muffleUnsignedIntegerWarning(DBI::dbGetQuery(con, x))
     setDT(o)
     o
   }
@@ -49,24 +61,46 @@
 
 
   # UI elements
-  comments = column_comment(
+  obs_frame =
+    muffleUnsignedIntegerWarning(emptyFrame(
+      user           = user,
+      host           = host,
+      db             = db,
+      pwd            = pwd,
+      table          = tableName,
+      n              = n_empty_lines
+    ))
+
+  comments = muffleUnsignedIntegerWarning(column_comment(
     user           = user,
     host           = host,
     db             = db,
     pwd            = pwd,
     table          = tableName
-  )
+  ))
 
-  uitable = 
-    emptyFrame(   
-    user           = user,
-    host           = host,
-    db             = db,
-    pwd            = pwd,
-    table          = tableName,
-    n              = n_empty_lines
+  comments = comments[match(names(obs_frame), comments$Column), , drop = FALSE]
 
-    ) |> 
+  uitable =
+    obs_frame |>
     rhandsontable(afterGetColHeader = js_hot_tippy_header(comments, "description")) |>
       hot_cols(columnSorting = FALSE, manualColumnResize = TRUE) |>
-      hot_rows(fixedRowsTop = 1) 
+      hot_rows(fixedRowsTop = 1)
+
+  if ("name" %in% names(obs_frame))
+    uitable = hot_col(uitable, col = "name", width = 160)
+
+  if ("observer" %in% names(obs_frame))
+    uitable = hot_col(uitable, col = "observer", width = 75)
+
+  if ("START" %in% names(obs_frame))
+    uitable = hot_col(uitable, col = "START", width = 95)
+
+  if ("STOP" %in% names(obs_frame))
+    uitable = hot_col(uitable, col = "STOP", width = 95)
+
+  if ("gps_id" %in% names(obs_frame))
+    uitable = hot_col(uitable, col = "gps_id", width = 65)
+
+  if ("cam_id" %in% names(obs_frame))
+    uitable = hot_col(uitable, col = "cam_id", width = 85)

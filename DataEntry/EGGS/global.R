@@ -21,11 +21,23 @@
 
 #* FUNCTIONS
   
+  muffleUnsignedIntegerWarning <- function(expr) {
+    withCallingHandlers(
+      expr,
+      warning = function(w) {
+        if (grepl("^Unsigned INTEGER in col [0-9]+ imported as numeric$", conditionMessage(w))) {
+          invokeRestart("muffleWarning")
+        }
+      }
+    )
+  }
+
   DBq <- function(x) {
     con <- dbo::dbcon(server = SERVER, db = db)
     on.exit(DBI::dbDisconnect(con))
 
-    o <- DBI::dbGetQuery(con, x)
+    # MariaDB UNSIGNED integers are safely imported as R numeric here.
+    o <- muffleUnsignedIntegerWarning(DBI::dbGetQuery(con, x))
     setDT(o)
     o
   }
@@ -73,7 +85,7 @@
 
   # UI elements
   egg_frame =
-    emptyFrame(
+    muffleUnsignedIntegerWarning(emptyFrame(
       user           = user,
       host           = host,
       db             = db,
@@ -82,16 +94,16 @@
       excludeColumns = excludeColumns,
       n              = n_empty_lines,
       preFilled      = prefilled
-    )
+    ))
 
-  comments = column_comment(
+  comments = muffleUnsignedIntegerWarning(column_comment(
     user           = user,
     host           = host,
     db             = db,
     pwd            = pwd,
     table          = tableName,
     excludeColumns = excludeColumns
-  )
+  ))
 
   comments = comments[match(names(egg_frame), comments$Column), , drop = FALSE]
 
