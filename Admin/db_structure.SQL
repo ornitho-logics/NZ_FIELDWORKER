@@ -1,33 +1,63 @@
 
 -- COMMENT-s can be styled with html markup.
 
--- DROP DATABASE IF EXISTS FIELD_2025_BADOatNZ;
+-- DROP DATABASE IF EXISTS FIELD_2026_BADOatNZ;
 
-CREATE DATABASE IF NOT EXISTS FIELD_2025_BADOatNZ;
+CREATE DATABASE IF NOT EXISTS FIELD_2026_BADOatNZ;
 
-USE FIELD_2025_BADOatNZ;
+USE FIELD_2026_BADOatNZ;
 
 DROP TABLE IF EXISTS CAPTURES;
 CREATE TABLE CAPTURES (
   date date DEFAULT                             NULL COMMENT 'Date caught YYYY-MM-DD (local, NZDT or NZST)',
 
-  cap_start time DEFAULT                        NULL COMMENT
-  'hh:mm capture start (when you set the trap or commenced trapping with the mistnet)',
+  cap_start time DEFAULT                        NULL COMMENT 'hh:mm capture start (when you set the trap or commenced trapping with the mistnet)',
 
   caught time DEFAULT                           NULL COMMENT 'hh:mm time caught (local, NZDT or NZST)',
 
   released time DEFAULT                         NULL COMMENT 'hh:mm time released (local, NZDT or NZST)',
 
-  species char(4) DEFAULT                       NULL COMMENT '4-letter species code, e.g. BADO, WRYB, SNZD, BFDO',
+  species char(4) DEFAULT                       NULL COMMENT '
+  4-letter species code: <br>
+  BADO (Banded Dotterel) <br>
+  WRYB (Wrybill) <br> 
+  SNZD (Southern New Zealand Dotterel) <br> 
+  BFDO (Black-fronted Dotterel)',
 
-  site varchar(255) DEFAULT                     NULL COMMENT '2-letter site codes:<br>AU=Upper Ashburton<br>CH=Chatham Is.<br>CR=Cass R.<br>HC=Hawkes Bay Coast<br>HR=Hawkes Bay Rivers<br>KK=Kaikoura<br>KP=Kina Pen.<br>KT=Kaitorete Spit<br>MB=Maryburn<br>MR=Macaulay R.<br>MS=Motueka Spit<br>OD=Ohau Downs<br>OK=Okarito<br>OM=Old Mans Range<br>PB=Porters Beach<br>PR=Pisa Range<br>TA=Te Anau (Upukerora)<br>TO=Tongariro (Rangipo Desert)<br>TP=Tiwai Point<br>TR=Tekapo R.<br>TS=Tasman R. Valley<br>WA=Wairarapa',
-
+  site varchar(255) DEFAULT                     NULL COMMENT '
+      2-letter site codes:<br>
+      AR (Aparima River) <br>
+      AU (Upper Ashburton) <br>
+      CH (Chathams) <br>
+      CL (Clarence River) <br>
+      CR (Cass River) <br>
+      HC (Hawkes Bay Coast) <br>
+      HR (Hawkes Bay Rivers) <br>
+      KK (Kaikoura) <br>
+      KP (Kina Peninsula) <br>
+      KT (Kaitorete Spit) <br>
+      MB (Maryburn) <br>
+      MR (Macaulay River) <br>
+      MS (Motueka Spit) <br>
+      OD (Ohau Downs) <br>
+      OK (Okarito) <br>
+      OM (Old Man Range) <br>
+      PB (Porters Beach) <br>
+      PR (Pisa Range) <br>
+      TA (Te Anau (Upukerora)) <br>
+      TO (Tongariro (Rangipo Desert)) <br>
+      TP (Tiwai Point) <br>
+      TR (Tekapo River) <br>
+      TS (Tasman River) <br>
+      WA (Wairarapa) <br>
+      WN (West Coast North) <br>
+      WS (West Coast South)',
 
   book_id int(2) unsigned zerofill DEFAULT      NULL COMMENT '3-character integer that is a unique book_id (i.e., your fieldnote book)',
 
   form_id int(3) unsigned zerofill DEFAULT      NULL COMMENT '2-character integer that is a unique page of your book_id',
 
-  observer varchar(3) DEFAULT                   NULL COMMENT 'Initials of the bander (see OBSERVERS table)',
+  observer varchar(3) DEFAULT                   NULL COMMENT '2- or 3-character initials of the bander (see OBSERVERS table)',
 
   capture_status char(1) DEFAULT                NULL COMMENT '
       F (First marking)<br>
@@ -45,54 +75,57 @@ CREATE TABLE CAPTURES (
 
   caught_with varchar(255) DEFAULT              NULL COMMENT '
       Social members caught with focal individual, comma separated: <br>
-      M = mate (high certainty) <br>
-      M? = mate (unsure, but likely) <br>
-      S = same sex conspecific (e.g., rival individual) <br>
-      C = chick (e.g., "2C" for two chicks)',
+      M (mate, high certainty) <br>
+      M? (mate, unsure, but likely) <br>
+      S (same sex conspecific, e.g., rival individual) <br>
+      C (chick, e.g., "2C" for two chicks)',
 
   parents varchar(2) DEFAULT                    NULL COMMENT '
-  If chicks captured, which parents were seen attending? <br>
-      "MF": male and female<br>
-      "F" : female only<br>
-      "M" : male only<br>
-      "U1": one unknown sex parent<br>
-      "U2": two unknown sex parent<br>
-      "O" : other (write in comments)',
+      If chicks captured, which parents were seen attending? <br>
+        MF (male and female) <br>
+        F (female only) <br>
+        M (male only) <br>
+        U1 (one unknown sex parent) <br>
+        U2 (two unknown sex parents) <br>
+        O (other (write in comments)',
 
-  nest_id varchar(8) DEFAULT                    NULL COMMENT '
-  a 6-character string: SSXXYY, Where SS is the species (the first two letters of the species name), <br>
-  XX = your GPS number (01 to 11)           <br>
-  YY = your running nest number (01 to 99).      <br>
-  Note if a brood was found of unknown origin, the nest_id is coded as a <strong>negative</strong> (e.g., -BA0903).',
+  nest_id varchar(7) DEFAULT                    NULL COMMENT '
+      a 6-character string: SSXXYY, Where SS is the species (the first two letters of the species name), <br>
+      XX = your GPS number (01 to 11)           <br>
+      YY = your running nest number (01 to 99).      <br>
+      Note if a brood was found of unknown origin, the nest_id is coded as a <strong>negative</strong> (e.g., -BA0903).',CAPTURES
 
   gps_id int(2) unsigned zerofill DEFAULT       NULL COMMENT 'handheld Garmin GPS ID',
   gps_point int(10) unsigned zerofill DEFAULT   NULL COMMENT 'waypoint number of the capture location stored in your handheld Garmin GPS unit',
 
   field_sex varchar(2) DEFAULT                  NULL COMMENT '
    observed sex based on field observations (ornamentation, behaviour, etc.):<br>
-   "M" (male),<br>
-   "F" (female),<br>
-   "U" (unknown)',
+   M (male), <br>
+   M? (male, but uncertain), <br>
+   F (female), <br>
+   F? (fmale, but uncertain), <br>
+   U (unknown, e.g., for chicks and juveniles)',
 
   age char(1) DEFAULT                           NULL COMMENT '
   age of captured individual: <br>
-  "A" (Adult),<br>
-  "J" (Juvenile)',
+  A (Adult),<br>
+  J (Juvenile),<br>
+  C (Chick)'
 
   ring varchar(50) DEFAULT    NULL COMMENT 'alpha-numeric code of metal ring assigned to captured individual',
 
   UL varchar(4) DEFAULT    NULL COMMENT '
   code for the color/type of band(s) assigned to the left tibia (upper band listed first if more than one band assigned):<br>
-      X = blank              <br>
-      O = orange             <br>
-      Y = yellow             <br>
-      W = white              <br>
-      B = blue               <br>
-      R = red                <br>
-      G = green              <br>
-      L = light green "lime" <br>
-      M = metal              <br>
-      FXYZ = Flag with colour "X" (same color codes as rings) and two-character alphanumeric code "YZ" a two-character string that can contain the following characters, with there needing to be at least one letter: A, C, E, H, J, K, L, M, N, P, T, U, V, X, Y, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0.',
+      X (blank)              <br>
+      O (orange)             <br>
+      Y (yellow)             <br>
+      W (white)              <br>
+      B (blue)               <br>
+      R (red)                <br>
+      G (green)              <br>
+      L (light green "lime") <br>
+      M (metal)              <br>
+      FXYZ (Flag with colour "X" (same color codes as rings) and two-character alphanumeric code "YZ" a two-character string that can contain the following characters, with there needing to be at least one letter: A, C, E, H, J, K, L, M, N, P, T, U, V, X, Y, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0)',
 
   LL varchar(4) DEFAULT   NULL COMMENT '
   code for the color/type of band(s) assigned to the left tarsus (upper band listed first if more than one band assigned): <br>
@@ -118,7 +151,8 @@ CREATE TABLE CAPTURES (
       G = green              <br>
       L = light green "lime" <br>
       M = metal              <br>
-  , FXYZ = Flag with colour "X" (same color codes as rings) and two-character alphanumeric code "YZ" a two-character string that can contain the following characters, with there needing to be at least one letter: A, C, E, H, J, K, L, M, N, P, T, U, V, X, Y, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0.',
+      T (tag, e.g., for a geolocator on the tibia, note that when used, the tag_id field also needs to be completed)              <br>
+      FXYZ = Flag with colour "X" (same color codes as rings) and two-character alphanumeric code "YZ" a two-character string that can contain the following characters, with there needing to be at least one letter: A, C, E, H, J, K, L, M, N, P, T, U, V, X, Y, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0.',
 
   LR varchar(4) DEFAULT                         NULL COMMENT '
   code for the color/type of band(s) assigned to the right tarsus (upper band listed first if more than one     band assigned): <br>
@@ -133,8 +167,7 @@ CREATE TABLE CAPTURES (
       M = metal              <br>
    No flag assigned to tarsi.',
 
-  tarsus double DEFAULT                         NULL COMMENT '
-  length (mm) of tarsus of captured individual. Measured as the distance between the notch at the end of the lateral condyle of the tibiotarsus on the backside of the leg, to the last tarsal scute on the front of the leg at the base of the foot (also known as the "outside tarsus" or "diagonal tarsus" measurement; <i> sensu page 11 of Pyle, P. 1997. Identification guide to North American birds. Part 1, Columbidae to Ploceidae. State Creek Press, Bolinas, CA) </i>',
+  tarsus double DEFAULT                         NULL COMMENT 'length (mm) of tarsus of captured individual. Measured as the distance between the notch at the end of the lateral condyle of the tibiotarsus on the backside of the leg, to the last tarsal scute on the front of the leg at the base of the foot (also known as the "outside tarsus" or "diagonal tarsus" measurement; <i> sensu page 11 of Pyle, P. 1997. Identification guide to North American birds. Part 1, Columbidae to Ploceidae. State Creek Press, Bolinas, CA) </i>',
 
   culmen double DEFAULT                         NULL COMMENT 'length (mm) of upper mandible of captured individual. Measured as the distance between the tip of the forehead feathering at the base of the upper bill, along the ridge of the culmen, and the tip of the bill (also known as the "exposed culmen" measurement; <i> sensu page 8 of Pyle, P. 1997. Identification guide to North American birds. Part 1, Columbidae to Ploceidae. State Creek Press, Bolinas, CA) </i>',
 
@@ -148,44 +181,91 @@ CREATE TABLE CAPTURES (
 
   wing double DEFAULT                           NULL COMMENT 'length (mm) of wing of captured individual. Measured as the distance from the carpal joint (the bend of the wing) to the longest primary feather whilst flattening the wing and straightening the primaries (also known as the "maximum flat" or "flattened and straightened" measurement; <i> sensu page 6 of Pyle, P. 1997. Identification guide to North American birds. Part 1, Columbidae to Ploceidae. State Creek Press, Bolinas, CA)  </i>',
 
-  brood_patch tinyint(1) unsigned DEFAULT       NULL COMMENT '"0" (no) or "1" (yes). Was there a brood patch when captured?',
+  brood_patch tinyint(1) unsigned DEFAULT       NULL COMMENT '
+    Was there a brood patch when captured? <br>
+    0 (no) or <br>
+    1 (yes)',
 
-  weight double DEFAULT                         NULL COMMENT 'Body mass (g) of captured individual (note: this includes the weight of the metal and colour rings. A metal ring weighs approximately 0.17g and a colour ring weighs approximately 0.08g.',
-  wt_w_tag tinyint(1) unsigned DEFAULT          NULL COMMENT '"0" (no) or "1" (yes). Was the body weight measured with a tag on?',
+  weight double DEFAULT                         NULL COMMENT 'Body mass (g) of captured individual (note: this includes the weight of the metal and colour rings).',
+  
+  wt_w_tag tinyint(1) unsigned DEFAULT          NULL COMMENT '
+    Was the body weight measured with a tag on? <br>
+    0 (no) or <br>
+    1 (yes)',
 
-  moult varchar(255) DEFAULT                    NULL COMMENT 'primary molt score of captured individual. Scored as a the stage of the moult and the number of feathers at     that stage. If all 10 primaries are old feathers with no moult, it would be scored as "0(10)". See Ringers Manual, British Trust for Ornithology, Thetford for more details.',
+  moult varchar(255) DEFAULT                    NULL COMMENT 'primary molt score of captured individual. Scored as a the stage of the moult and the number of feathers at that stage. If all 10 primaries are old feathers with no moult, it would be scored as "0(10)". See Ringers Manual, British Trust for Ornithology, Thetford for more details.',
 
-  fat int(1) unsigned DEFAULT                   NULL COMMENT 'fat score of captured individual, scored as the amount of visible fat in the furcular region or tracheal pit.    See <i>Ringers Manual, British Trust for Ornithology, Thetford for more details.</i>',
+  fat int(1) unsigned DEFAULT                   NULL COMMENT 'fat score of captured individual, scored as the amount of visible fat in the furcular region or tracheal pit. See <i>Ringers Manual, British Trust for Ornithology, Thetford for more details.</i>',
 
-  feather_wear tinyint(1) unsigned DEFAULT     NULL COMMENT 'scored as "0" (Fresh), "1" (Slightly worn), "2" (Moderately worn), or "3" (Very worn). See NZNBBS Bird Banders Manual for more details',
+  feather_wear tinyint(1) unsigned DEFAULT     NULL COMMENT '
+  scored as: <br>
+  0 (Fresh) <br> 
+  1 (Slightly worn) <br> 
+  2 (Moderately worn) or <br>
+  3 (Very worn). <br> 
+  See NZNBBS Bird Banders Manual for more details',
 
-  sample varchar(255) DEFAULT                   NULL COMMENT 'Samples taken, comma separated: <br>    FP = feather_primary <br>     FB = feather_breast <br>     BQ = blood in Queen <br>    BF = blood on filter paper <br>    BE = blood in EDTA',
+  blood char(1) DEFAULT             NULL COMMENT '
+  Was blood taken? 
+  BQ (blood in Queens buffer) <br>    
+  BF (blood on filter paper) <br>    
+  BE (blood in EDTA tube) <br> 
+  leave blank if not collected',
+  
+  primary tinyint(1) unsigned DEFAULT          NULL COMMENT '
+    Was a primary feather sampled? <br>
+    0 (no) or <br>
+    1 (yes)',
+  
+  breast tinyint(1) unsigned DEFAULT          NULL COMMENT '
+    Were breast feathers sampled? <br>
+    0 (no) or <br>
+    1 (yes)'
+  
+  other_sample varchar(255) DEFAULT                    NULL COMMENT 'free text of any other samples collected (e.g., "lice")'
 
-  tag_id varchar(10) DEFAULT                    NULL COMMENT 'ID of tag deployed or retrived',
-  tag_type char(3) DEFAULT                      NULL COMMENT 'type of tag deployed ("PTT" or "GPS")',
+  tag_id varchar(10) DEFAULT                    NULL COMMENT 'ID of tag/geolocator deployed or retrived',
+  
+  tag_type char(3) DEFAULT                      NULL COMMENT '
+  type of tag deployed: <br>
+  PTT (satellite tag) <br>
+  GPS (GPS tag), or <br>
+  GEO (light-logger geolocator)',
 
   tag_action char(1) DEFAULT                    NULL COMMENT '
-  "O" (nO tag: bird did not have a tag when captured and was released without a tag)           <br>
-      "D" (new Deployment: bird  did not have a tag when captured and was released with a tag) <br>
-      "R" (Retrieved: bird had a tag when captured and was released without a tag)             <br>
-      "S" (tag Stayed on: bird had a tag when captured and was released with the same tag)     <br>
-      "N" (New tag: bird had a tag when captured and was released with a new tag)',
-
-  tag_extras varchar(10) DEFAULT                NULL COMMENT 'type of tag deployed ("shield", "foam", or "shield and foam")',
+      O (nO tag: bird did not have a tag when captured and was released without a tag)           <br>
+      D (new Deployment: bird  did not have a tag when captured and was released with a tag) <br>
+      R (Retrieved: bird had a tag when captured and was released without a tag)             <br>
+      S (tag Stayed on: bird had a tag when captured and was released with the same tag)     <br>
+      N (New tag: bird had a tag when captured and was released with a new tag)',
 
   cam_id varchar(255) DEFAULT                   NULL COMMENT '2-character integer that is a unique ID of your field camera',
 
   photo_start varchar(255) DEFAULT              NULL COMMENT 'image filename for the first photo of the sequence',
   photo_end varchar(255) DEFAULT                NULL COMMENT 'image filename for the last photo of the sequence',
-  mugshot_photo tinyint(1) unsigned DEFAULT     NULL COMMENT '"0" (no) or "1" (yes). Was a mugshot photo taken?',
-  wing_photo tinyint(1) unsigned DEFAULT        NULL COMMENT '"0" (no) or "1" (yes). Was a wing photo taken?',
-  chick_photo tinyint(1) unsigned DEFAULT       NULL COMMENT '"0" (no) or "1" (yes). Was a chick photo taken?',
-
-  harddrive_id int(2) unsigned zerofill DEFAULT NULL COMMENT 'harddrive ID where photos were uploaded after returning from the field',
+  mugshot_photo tinyint(1) unsigned DEFAULT     NULL COMMENT '
+    Was a mugshot photo taken? <br>
+    0 (no) or <br>
+    1 (yes)',
+  wing_photo tinyint(1) unsigned DEFAULT        NULL COMMENT '
+    Was a wing photo taken? <br>
+    0 (no) or <br>
+    1 (yes)',
+  chick_tent_photo tinyint(1) unsigned DEFAULT       NULL COMMENT  '
+    Was a chick photo taken in the tent? <br>
+    0 (no) or <br>
+    1 (yes)',
+  chick_hide_photo tinyint(1) unsigned DEFAULT       NULL COMMENT '
+    Was an in-situ photo taken of a hiding chick? <br>
+    0 (no) or <br>
+    1 (yes)',
 
   comments text DEFAULT                         NULL COMMENT 'Comments',
 
-  falcon_upload tinyint(1) unsigned DEFAULT     NULL COMMENT '"0" (no) or "1" (yes). Was the capture uploaded to FALCON?',
+  falcon_upload tinyint(1) unsigned DEFAULT     NULL COMMENT  '
+    Was the capture uploaded to FALCON? Leave blank unless managing the DOC upload to FALCON <br>
+    0 (no) or <br>
+    1 (yes)',
 
   observer_upload varchar(3) DEFAULT            NULL COMMENT 'Initials of the person uploading to the database (see OBSERVERS table)',
 
