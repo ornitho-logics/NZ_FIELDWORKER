@@ -69,6 +69,8 @@
   )
 
   nest_state_opts = c("F", "I", "H", "B", "pP", "pD", "P", "D", "notA", "O")
+  
+  bird_inc_opts = c("M", "F", "U", "E")
 
   observer_opts =
     DBq("SELECT observer FROM OBSERVERS WHERE observer IS NOT NULL AND observer <> ''")[["observer"]] |>
@@ -120,7 +122,8 @@
       hot_col(col = "nest_id", width = 95) |>
       hot_col(col = "species", width = 95, type = "autocomplete", source = species_opts, strict = TRUE) |>
       hot_col(col = "site", type = "autocomplete", source = sites, strict = TRUE) |>
-      hot_col(col = "nest_state", type = "autocomplete", source = nest_state_opts, strict = TRUE)
+      hot_col(col = "nest_state", type = "autocomplete", source = nest_state_opts, strict = TRUE) |>
+      hot_col(col = "bird_inc", type = "autocomplete", source = bird_inc_opts, strict = TRUE)
 
   if (length(observer_opts) > 1) {
     uitable =

@@ -515,6 +515,13 @@ CREATE TABLE NESTS (
     <b>2N2S</b> <br>
     <b>1N1S1C1CC</b>',
     
+  bird_inc ENUM('M','F','U','E') DEFAULT NULL COMMENT '
+    incubating or attending bird seen from a distance: <br>
+    <b>M</b> (male) <br>
+    <b>F</b> (female) <br>
+    <b>U</b> (unknown) <br>
+    <b>E</b> (nest empty; no bird seen)',
+    
   gps_id tinyint unsigned DEFAULT NULL COMMENT 'handheld Garmin GPS ID (recorded when nest_id is assigned at intial discovery: for both nests and broods)',
 
   gps_point int unsigned DEFAULT NULL COMMENT 'waypoint number of the nest or brood location stored in your handheld Garmin GPS unit (recorded when nest_id is assigned at intial discovery: for both nests and broods)',
