@@ -17,6 +17,14 @@ CREATE TABLE OBSERVERS (
   cam_id varchar(255) DEFAULT NULL COMMENT 'Personal cameral ID'
 ) ENGINE=InnoDB ;
 
+INSERT INTO OBSERVERS (name, observer, START, STOP, gps_id, cam_id)
+VALUES
+  (NULL, NULL, NULL, NULL, NULL, NULL),
+  (NULL, NULL, NULL, NULL, NULL, NULL),
+  (NULL, NULL, NULL, NULL, NULL, NULL);
+
+
+
 DROP TABLE IF EXISTS CAPTURES;
 CREATE TABLE CAPTURES (
   date date DEFAULT                             NULL COMMENT 'Date caught YYYY-MM-DD (local, NZDT or NZST)',
@@ -882,105 +890,35 @@ CREATE TABLE RESIGHTINGS_PUBLIC (
 ) ENGINE=InnoDB  ;
 
 
--- VIEWS
-  CREATE OR REPLACE VIEW FIELD_2025_BADOatNZ.CAPTURES_ARCHIVE AS
+DROP TABLE IF EXISTS inspectors; 
+
+CREATE TABLE IF NOT EXISTS inspectors (
+  table_name varchar(128) NOT NULL
+    COMMENT '<strong>Inspected table</strong><br>Name of the database table this inspector applies to. This value is used by <code>inspector_loader(table_name)</code> to find the validation logic for that table.',
+
+  inspector longtext NOT NULL
+    COMMENT '<strong>Validation rules</strong><br>Write the R checks that should run before this table is saved.<br><br>In these rules, <code>x</code> means the table being edited. Usually the rules are written as a <code>list(...)</code> of checks. For example:<br><code>list(x[, .(field)] |> is.na_validator())</code><br><br>If a check finds a problem, the app will show which rows need attention and will not save until the problems are fixed.',
+
+  comments text NULL
+    COMMENT '<strong>Inspector notes</strong><br>Optional notes about this inspector',
+
+  updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    
+);
+
+
+
+
+-- VIEWS 
+
+  CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.CAPTURES_active AS
+  SELECT site, lat, lon ,date ,cap_start ,capture_method ,nest_id,observer,field_sex ,age  ,ring ,UL   ,LL   ,UR   ,LR   ,tag_id ,tag_action ,tag_type,NULL harness_size,culmen  ,tarsus ,total_head ,head_white,head_black     ,rufous_band ,wing ,weight ,moult,fat
+  FROM FIELD_2026_BADOatNZ.CAPTURES c LEFT JOIN FIELD_2026_BADOatNZ.GPS_POINTS g 
+  on c.gps_id = g.gps_id and c.gps_point = g.gps_point
+
+
+-- TODO
+  CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.CAPTURES_ARCHIVE AS
   SELECT site, lat, lon ,date ,cap_start ,capture_method ,nest_id,observer,field_sex ,age  ,ring ,UL   ,LL   ,UR   ,LR   ,tag_id ,tag_action ,tag_type,tag_extras ,harness_size,culmen  ,tarsus ,total_head ,head_white,head_black     ,rufous_band ,wing ,weight ,moult,fat,sample
   FROM FIELD_2024_BADOatNZ.CAPTURES c LEFT JOIN FIELD_2024_BADOatNZ.GPS_POINTS g 
   on c.gps_id = g.gps_id and c.gps_point = g.gps_point
-
-
-  CREATE OR REPLACE VIEW FIELD_2025_BADOatNZ.CAPTURES_active AS
-  SELECT site, lat, lon ,date ,cap_start ,capture_method ,nest_id,observer,field_sex ,age  ,ring ,UL   ,LL   ,UR   ,LR   ,tag_id ,tag_action ,tag_type,tag_extras ,NULL harness_size,culmen  ,tarsus ,total_head ,head_white,head_black     ,rufous_band ,wing ,weight ,moult,fat,sample
-  FROM FIELD_2025_BADOatNZ.CAPTURES c LEFT JOIN FIELD_2025_BADOatNZ.GPS_POINTS g 
-  on c.gps_id = g.gps_id and c.gps_point = g.gps_point
-
--- WITHIN-SEASON UPDATES
-
-
-  -- nest ID in all tables
-  ALTER TABLE NESTS
-    MODIFY COLUMN nest_id VARCHAR(8) DEFAULT NULL COMMENT
-    'a 7-character string: SSXXYYY, Where SS is the species (the first two letters of the species name), <br>
-    XX = your GPS number (01 to 30)                   <br>
-    YYY = your running nest number (001 to 999).      <br>
-    Note if a brood was found of unknown origin, the nest_id is coded as a <b>negative</b> (e.g., -BA09003).'
-
-  ALTER TABLE CAPTURES
-    MODIFY COLUMN nest_id VARCHAR(8) DEFAULT NULL COMMENT
-    'a 7-character string: SSXXYYY, Where SS is the species (the first two letters of the species name), <br>
-    XX = your GPS number (01 to 30)                   <br>
-    YYY = your running nest number (001 to 999).      <br>
-    Note if a brood was found of unknown origin, the nest_id is coded as a <b>negative</b> (e.g., -BA09003).'
-
-
-  --  behav in  NEST table:
-
-  ALTER TABLE NESTS
-    CHANGE COLUMN behav behav_F TEXT DEFAULT NULL COMMENT
-    '    female behavioral class, as many as applicable, seperated by a comma:<br>
-      "IN" = incubating                            <br>
-      "PR" = preening                              <br>
-      "BW" = distraction display (e.g.broken wing) <br>
-      "BC" = brooding chicks                       <br>
-      "NM" = nest maintenance                      <br>
-      "FC" = foraging with chicks                  <br>
-      "RS" = roosting                              <br>
-      "LF" = loafing                               <br>
-      "AT" = alert                                 <br>
-      "FT" = fighting                              <br>
-      "OB" = other behavious (please comment)'
-
-
-
-    ALTER TABLE NESTS
-      ADD COLUMN behav_M TEXT DEFAULT NULL COMMENT
-      'male behavioral class, as many as applicable, separated by a comma:<br>
-      "IN" = incubating <br>
-      "PR" = preening <br>
-      "BW" = distraction display (e.g. broken wing) <br>
-      "BC" = brooding chicks <br>
-      "NM" = nest maintenance <br>
-      "FC" = foraging with chicks <br>
-      "RS" = roosting <br>
-      "LF" = loafing <br>
-      "AT" = alert <br>
-      "FT" = fighting <br>
-      "OB" = other behaviours (please comment)'
-      AFTER behav_F;
-
-
---- behav in resightings
-  ALTER TABLE RESIGHTINGS
-    MODIFY COLUMN behav text  DEFAULT NULL COMMENT
-    'behavioral class, as many as applicable, seperated by a comma:<br>
-      "IN" = incubating                            <br>
-      "CO" = courtship                             <br>
-      "PR" = preening                              <br>
-      "BW" = distraction display (e.g.broken wing) <br>
-      "BC" = brooding chicks                       <br>
-      "NM" = nest maintenance                      <br>
-      "SC" = scraping                              <br>
-      "FC" = foraging with chicks                  <br>
-      "FA" = foraging alone                        <br>
-      "FM" = foraging with (presumed) mate         <br>
-      "FF" = foraging in flock                     <br>
-      "RS" = roosting                              <br>
-      "LF" = loafing                               <br>
-      "AT" = alert                                 <br>
-      "FT" = fighting                              <br>
-      "OB" = other behavious (please comment)'
-
-
-  --- nest and eggs
-
-ALTER TABLE NESTS ADD COLUMN book_id INT(2)   DEFAULT NULL COMMENT
-  '3-character integer that is a unique book_id (i.e., your fieldnote book)'; 
-
-ALTER TABLE NESTS ADD COLUMN form_id INT(3)  LL DEFAULT NULL COMMENT
-  '2-character integer that is a unique page of your book_id';
-
-ALTER TABLE EGGS ADD COLUMN book_id INT(2) DEFAULT NULL COMMENT
-  '3-character integer that is a unique book_id (i.e., your fieldnote book)';
-
-ALTER TABLE EGGS ADD COLUMN form_id INT(3)   DEFAULT NULL COMMENT
-  '2-character integer that is a unique page of your book_id';
