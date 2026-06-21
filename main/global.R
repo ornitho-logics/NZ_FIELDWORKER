@@ -103,7 +103,6 @@ options(ggrepel.max.overlaps = Inf)
 #! UI DEFAULTS
 
 ver <- "v 3.0"
-apptitle <- "Aotearoa"
 pagetitle <- "Banded dotterel"
 set_capturedDaysAgo <- 3
 set_seenDaysAgo <- 3
