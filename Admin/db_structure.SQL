@@ -731,18 +731,18 @@ CREATE TABLE RESIGHTINGS (
 
 DROP TABLE IF EXISTS RESIGHTINGS_PUBLIC ;
 CREATE TABLE RESIGHTINGS_PUBLIC (
-  species char(4) NOT NULL COMMENT '
+  species char(4) DEFAULT NULL COMMENT '
   4-letter species code: <br>
   <b>BADO</b> (Banded Dotterel) <br>
   <b>WRYB</b> (Wrybill) <br> 
   <b>SNZD</b> (Southern New Zealand Dotterel) <br> 
   <b>BFDO</b> (Black-fronted Dotterel)',
 
-  observer varchar(255) NOT NULL COMMENT 'Name or initials of the observer as provided by the original source',
+  observer varchar(255) DEFAULT NULL COMMENT 'Name or initials of the observer as provided by the original source',
 
-  time time NOT NULL COMMENT 'hh:mm time of observation (local time if known)',
+  time time DEFAULT NULL COMMENT 'hh:mm time of observation (local time if known)',
 
-  date date NOT NULL COMMENT 'Date observation made YYYY-MM-DD',
+  date date DEFAULT NULL COMMENT 'Date observation made YYYY-MM-DD',
 
   latitude double DEFAULT NULL COMMENT 'Latitude in decimal degrees',
 
@@ -760,7 +760,7 @@ CREATE TABLE RESIGHTINGS_PUBLIC (
    <b>F?</b> (female, but uncertain), <br>
    <b>U</b> (unknown)',
 
-  UL varchar(4) NOT NULL COMMENT '
+  UL varchar(4) DEFAULT NULL COMMENT '
   code for the color/type of band(s) observed on the left tibia (upper band listed first if more than one band assigned):<br>
       <b>X</b> (blank)              <br>
       <b>O</b> (orange)             <br>
@@ -773,7 +773,7 @@ CREATE TABLE RESIGHTINGS_PUBLIC (
       <b>M</b> (metal)              <br>
       FXYZ (flag with colour X and 2-character code YZ; use the same colour letters as above and include at least one letter)',
 
-  LL varchar(4) NOT NULL COMMENT '
+  LL varchar(4) DEFAULT NULL COMMENT '
   code for the color/type of band(s) observed on the left tarsus (upper band listed first if more than one band assigned): <br>
       <b>X</b> (blank)            <br>
       <b>O</b> (orange)           <br>
@@ -786,7 +786,7 @@ CREATE TABLE RESIGHTINGS_PUBLIC (
       <b>M</b> (metal)            <br>
    No flag assigned to tarsi',
 
-  UR varchar(4) NOT NULL COMMENT '
+  UR varchar(4) DEFAULT NULL COMMENT '
   code for the color/type of band(s) observed on the right tibia (upper band listed first if more than one band assigned):<br>
       <b>X</b> (blank)              <br>
       <b>O</b> (orange)             <br>
@@ -800,7 +800,7 @@ CREATE TABLE RESIGHTINGS_PUBLIC (
       <b>T</b> (tag; if used, also complete tag_id) <br>
       FXYZ (flag with colour X and 2-character code YZ; use the same colour letters as above and include at least one letter).',
 
-  LR varchar(4) NOT NULL COMMENT '
+  LR varchar(4) DEFAULT NULL COMMENT '
   code for the color/type of band(s) observed on the right tarsus (upper band listed first if more than one band assigned): <br>
       <b>X</b> (blank)              <br>
       <b>O</b> (orange)             <br>
@@ -833,11 +833,11 @@ CREATE TABLE RESIGHTINGS_PUBLIC (
 
   num_photos int unsigned DEFAULT NULL COMMENT 'Number of photos associated with this public observation',
 
-  source varchar(50) NOT NULL COMMENT 'Source of the public observation (e.g., eBird, email, WhatsApp, Banding Office, etc.)',
+  source varchar(50) DEFAULT NULL COMMENT 'Source of the public observation (e.g., eBird, email, WhatsApp, Banding Office, etc.)',
 
-  source_identifier varchar(500) NOT NULL COMMENT 'Identifier used by the source, such as the email-thread subject',
+  source_identifier varchar(500) DEFAULT NULL COMMENT 'Identifier used by the source, such as the email-thread subject',
 
-  country ENUM('NZ','AU','O') NOT NULL COMMENT '
+  country ENUM('NZ','AU','O') DEFAULT NULL COMMENT '
     country code of the observation source or observation location: <br>
     <b>NZ</b> (New Zealand) <br>
     <b>AU</b> (Australia) <br>
@@ -912,14 +912,119 @@ inspector longtext NOT NULL
 
 -- VIEWS 
 
-  CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.CAPTURES_active AS
-  SELECT site, lat, lon ,date ,cap_start ,capture_method ,nest_id,observer,field_sex ,age  ,ring ,UL   ,LL   ,UR   ,LR   ,tag_id ,tag_action ,tag_type,NULL harness_size,culmen  ,tarsus ,total_head ,head_white,head_black     ,rufous_band ,wing ,weight ,moult,fat
-  FROM FIELD_2026_BADOatNZ.CAPTURES c LEFT JOIN FIELD_2026_BADOatNZ.GPS_POINTS g 
-  on c.gps_id = g.gps_id and c.gps_point = g.gps_point
+CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.CAPTURES_active AS
+SELECT site, lat, lon ,date ,cap_start ,capture_method ,nest_id,observer,field_sex ,age  ,ring ,UL   ,LL   ,UR   ,LR   ,tag_id ,tag_action ,tag_type,NULL harness_size,culmen  ,tarsus ,total_head ,head_white,head_black     ,rufous_band ,wing ,weight ,moult,fat
+FROM FIELD_2026_BADOatNZ.CAPTURES c LEFT JOIN FIELD_2026_BADOatNZ.GPS_POINTS g 
+on c.gps_id = g.gps_id and c.gps_point = g.gps_point
 
 
--- TODO
-  CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.CAPTURES_ARCHIVE AS
-  SELECT site, lat, lon ,date ,cap_start ,capture_method ,nest_id,observer,field_sex ,age  ,ring ,UL   ,LL   ,UR   ,LR   ,tag_id ,tag_action ,tag_type,tag_extras ,harness_size,culmen  ,tarsus ,total_head ,head_white,head_black     ,rufous_band ,wing ,weight ,moult,fat,sample
-  FROM FIELD_2024_BADOatNZ.CAPTURES c LEFT JOIN FIELD_2024_BADOatNZ.GPS_POINTS g 
-  on c.gps_id = g.gps_id and c.gps_point = g.gps_point
+
+CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.CAPTURES_ARCHIVE AS
+
+SELECT
+  CONVERT(c.species USING utf8mb4) COLLATE utf8mb4_unicode_ci AS species,
+  CONVERT(c.site USING utf8mb4) COLLATE utf8mb4_unicode_ci AS site,
+  g.lat,
+  g.lon,
+  c.date,
+  c.cap_start,
+  c.caught,
+  c.released,
+  CONVERT(c.capture_method USING utf8mb4) COLLATE utf8mb4_unicode_ci AS capture_method,
+  CONVERT(c.nest_id USING utf8mb4) COLLATE utf8mb4_unicode_ci AS nest_id,
+  c.book_id,
+  c.form_id,
+  CONVERT(c.observer USING utf8mb4) COLLATE utf8mb4_unicode_ci AS observer,
+  c.gps_id,
+  c.gps_point,
+  CONVERT(c.field_sex USING utf8mb4) COLLATE utf8mb4_unicode_ci AS field_sex,
+  CONVERT(c.age USING utf8mb4) COLLATE utf8mb4_unicode_ci AS age,
+  CONVERT(c.ring USING utf8mb4) COLLATE utf8mb4_unicode_ci AS ring,
+  CONVERT(c.UL USING utf8mb4) COLLATE utf8mb4_unicode_ci AS UL,
+  CONVERT(c.LL USING utf8mb4) COLLATE utf8mb4_unicode_ci AS LL,
+  CONVERT(c.UR USING utf8mb4) COLLATE utf8mb4_unicode_ci AS UR,
+  CONVERT(c.LR USING utf8mb4) COLLATE utf8mb4_unicode_ci AS LR,
+  CONVERT(c.tag_id USING utf8mb4) COLLATE utf8mb4_unicode_ci AS tag_id,
+  CONVERT(c.tag_action USING utf8mb4) COLLATE utf8mb4_unicode_ci AS tag_action,
+  CONVERT(c.tag_type USING utf8mb4) COLLATE utf8mb4_unicode_ci AS tag_type,
+  CONVERT(c.tag_extras USING utf8mb4) COLLATE utf8mb4_unicode_ci AS tag_extras,
+  c.culmen,
+  c.tarsus,
+  c.total_head,
+  c.head_white,
+  c.head_black,
+  c.rufous_band,
+  c.wing,
+  c.weight,
+  c.wt_w_tag,
+  CONVERT(c.moult USING utf8mb4) COLLATE utf8mb4_unicode_ci AS moult,
+  c.fat,
+  CONVERT(c.sample USING utf8mb4) COLLATE utf8mb4_unicode_ci AS sample,
+  CONVERT(c.cam_id USING utf8mb4) COLLATE utf8mb4_unicode_ci AS cam_id,
+  CONVERT(c.photo_start USING utf8mb4) COLLATE utf8mb4_unicode_ci AS photo_start,
+  CONVERT(c.photo_end USING utf8mb4) COLLATE utf8mb4_unicode_ci AS photo_end,
+  c.harddrive_id,
+  CONVERT(c.capture_status USING utf8mb4) COLLATE utf8mb4_unicode_ci AS capture_status,
+  CONVERT(c.parents USING utf8mb4) COLLATE utf8mb4_unicode_ci AS parents,
+  CONVERT(c.comments USING utf8mb4) COLLATE utf8mb4_unicode_ci AS comments,
+  c.falcon_upload,
+  c.nov
+FROM FIELD_2024_BADOatNZ.CAPTURES c
+LEFT JOIN FIELD_2025_BADOatNZ.GPS_POINTS g
+  ON c.gps_id = g.gps_id
+ AND c.gps_point = g.gps_point
+
+UNION ALL
+
+SELECT
+  CONVERT(c.species USING utf8mb4) COLLATE utf8mb4_unicode_ci AS species,
+  CONVERT(c.site USING utf8mb4) COLLATE utf8mb4_unicode_ci AS site,
+  g.lat,
+  g.lon,
+  c.date,
+  c.cap_start,
+  c.caught,
+  c.released,
+  CONVERT(c.capture_method USING utf8mb4) COLLATE utf8mb4_unicode_ci AS capture_method,
+  CONVERT(c.nest_id USING utf8mb4) COLLATE utf8mb4_unicode_ci AS nest_id,
+  c.book_id,
+  c.form_id,
+  CONVERT(c.observer USING utf8mb4) COLLATE utf8mb4_unicode_ci AS observer,
+  c.gps_id,
+  c.gps_point,
+  CONVERT(c.field_sex USING utf8mb4) COLLATE utf8mb4_unicode_ci AS field_sex,
+  CONVERT(c.age USING utf8mb4) COLLATE utf8mb4_unicode_ci AS age,
+  CONVERT(c.ring USING utf8mb4) COLLATE utf8mb4_unicode_ci AS ring,
+  CONVERT(c.UL USING utf8mb4) COLLATE utf8mb4_unicode_ci AS UL,
+  CONVERT(c.LL USING utf8mb4) COLLATE utf8mb4_unicode_ci AS LL,
+  CONVERT(c.UR USING utf8mb4) COLLATE utf8mb4_unicode_ci AS UR,
+  CONVERT(c.LR USING utf8mb4) COLLATE utf8mb4_unicode_ci AS LR,
+  CONVERT(c.tag_id USING utf8mb4) COLLATE utf8mb4_unicode_ci AS tag_id,
+  CONVERT(c.tag_action USING utf8mb4) COLLATE utf8mb4_unicode_ci AS tag_action,
+  CONVERT(c.tag_type USING utf8mb4) COLLATE utf8mb4_unicode_ci AS tag_type,
+  CONVERT(c.tag_extras USING utf8mb4) COLLATE utf8mb4_unicode_ci AS tag_extras,
+  c.culmen,
+  c.tarsus,
+  c.total_head,
+  c.head_white,
+  c.head_black,
+  c.rufous_band,
+  c.wing,
+  c.weight,
+  c.wt_w_tag,
+  CONVERT(c.moult USING utf8mb4) COLLATE utf8mb4_unicode_ci AS moult,
+  c.fat,
+  CONVERT(c.sample USING utf8mb4) COLLATE utf8mb4_unicode_ci AS sample,
+  CONVERT(c.cam_id USING utf8mb4) COLLATE utf8mb4_unicode_ci AS cam_id,
+  CONVERT(c.photo_start USING utf8mb4) COLLATE utf8mb4_unicode_ci AS photo_start,
+  CONVERT(c.photo_end USING utf8mb4) COLLATE utf8mb4_unicode_ci AS photo_end,
+  c.harddrive_id,
+  CONVERT(c.capture_status USING utf8mb4) COLLATE utf8mb4_unicode_ci AS capture_status,
+  CONVERT(c.parents USING utf8mb4) COLLATE utf8mb4_unicode_ci AS parents,
+  CONVERT(c.comments USING utf8mb4) COLLATE utf8mb4_unicode_ci AS comments,
+  c.falcon_upload,
+  c.nov
+FROM FIELD_2025_BADOatNZ.CAPTURES c
+LEFT JOIN FIELD_2025_BADOatNZ.GPS_POINTS g
+  ON c.gps_id = g.gps_id
+ AND c.gps_point = g.gps_point;
