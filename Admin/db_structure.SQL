@@ -896,8 +896,9 @@ CREATE TABLE IF NOT EXISTS inspectors (
   table_name varchar(128) NOT NULL
     COMMENT '<strong>Inspected table</strong><br>Name of the database table this inspector applies to. This value is used by <code>inspector_loader(table_name)</code> to find the validation logic for that table.',
 
-  inspector longtext NOT NULL
-    COMMENT '<strong>Validation rules</strong><br>Write the R checks that should run before this table is saved.<br><br>In these rules, <code>x</code> means the table being edited. Usually the rules are written as a <code>list(...)</code> of checks. For example:<br><code>list(x[, .(field)] |> is.na_validator())</code><br><br>If a check finds a problem, the app will show which rows need attention and will not save until the problems are fixed.',
+inspector longtext NOT NULL
+  COMMENT '<strong>Validation rules</strong><br>Write the R checks that should run before this table is saved.<br><br>In these rules, <code>x</code> means the table being edited. Usually the rules are written as a <code>list(...)</code> of checks. For example:<br><code>list(x[, .(field)] |> is.na_validator())</code><br><br>If a check finds a problem, the app will show which rows need attention and will not save until the problems are fixed.<br><br>More details: https://ornitho-logics.github.io/DataEntry/articles/writing-validators.html',
+
 
   comments text NULL
     COMMENT '<strong>Inspector notes</strong><br>Optional notes about this inspector',

@@ -2,7 +2,7 @@
 
 require(DataEntry)
 
-table_name <- "Inspector"
+table_name <- "inspectors"
 
 group <- "nz_fieldworker"
 
@@ -13,8 +13,6 @@ n_empty_lines <- 2
 exclude_columns <- "updated_at"
 
 code_column <- "inspector"
-
-table_name <- "inspectors"
 
 code_column_width <- 760
 

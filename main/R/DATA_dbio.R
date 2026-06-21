@@ -1,9 +1,5 @@
-
 DBq <- function(x) {
-  con = dbo::dbcon(server = server, db = db)
-  on.exit(DBI::dbDisconnect(con))
-
-  o <- try(DBI::dbGetQuery(con, x), silent = TRUE)
+  o <- try(DataEntry::db_get(x), silent = TRUE)
 
   if (inherits(o, "try-error")) {
     err <- as.character(attributes(o)$condition)
@@ -18,23 +14,45 @@ DBq <- function(x) {
 
 
 dbtable_is_updated <- function(tab) {
-  DBq(glue("CHECKSUM TABLE {tab}"))$Checksum
+  x <- DBq(glue("CHECKSUM TABLE {tab}"))
+
+  if (!"Checksum" %in% names(x)) {
+    return(Sys.time())
+  }
+
+  x$Checksum
 }
 
+#' x = showTable('CAPTURES')
+showTable <- function(tab, exclude = c("pk", "nov"), formatDate = TRUE) {
+  cc <- DBq(glue("SHOW COLUMNS FROM {tab};"))
+  cc <- cc[!Field %in% exclude]
 
+  o <- DBq(
+    glue("SELECT DISTINCT {paste(cc$Field, collapse = ', ')} FROM {tab};")
+  )
 
-dbTxtDump <- function( p = paste0(fs::path_temp(), "_dbdump"), zipfile = "dbdump.zip" ) {
-  
-  dir.create(p)
-  
-  x = DBq("show full tables where Table_Type = 'BASE TABLE'")[, 1]
-  setnames(x, "tabs")
+  if (formatDate && "date" %in% cc$Field) {
+    o[, date := format(date, "%m-%d")]
+  }
 
-  o = x[, DBq(paste("SELECT * FROM", tabs)) |> list() |> list(), by = tabs]
-  o[, path := glue_data(.SD,"{tabs}.csv")]
+  if ("comments" %in% cc$Field) {
+    o[
+      !is.na(comments),
+      comments := glue_data(
+        .SD,
+        HTML(
+          '<span class="custom-tooltip" 
+        data-tooltip="{htmltools::htmlEscape(
+          str_replace_all(comments, "(;|\\\\.)\\\\s|(;|\\\\.)$", "\\n"), 
+          attribute = TRUE)}">
+        {str_trunc(comments, 10, "right")}
+      </span>'
+        )
+      ),
+      by = .I
+    ]
+  }
 
-  o[, fwrite(V1[[1]], glue_data(.SD,"{p}/path"), yaml = TRUE), by = tabs]
-
-  zip::zip(zipfile = zipfile, files = o$path, root = p, recurse = FALSE, include_directories = FALSE)
-
+  o
 }

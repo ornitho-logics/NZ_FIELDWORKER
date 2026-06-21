@@ -90,3 +90,10 @@ if (length(observer_opts) > 1) {
   dropdowns$observer <- observer_opts
   dropdowns$observer_upload <- observer_opts
 }
+
+
+#####
+shinyApp(
+  ui = ui_append_rows(table_name = table_name),
+  server = server_append_rows
+)
