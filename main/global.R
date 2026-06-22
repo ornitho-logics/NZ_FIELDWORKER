@@ -1,6 +1,6 @@
 #+ NOTE:
 #' list.files('./R', full.names = TRUE) |> lapply(source) |> invisible(); source('global.R')
-#' ss = function() shiny::runApp(launch.browser = TRUE)
+#' ss = function() shiny::runApp("main", launch.browser = TRUE )
 
 #! PACKAGES & DATA
 sapply(

@@ -1,4 +1,4 @@
-#' shiny::runApp("./DataEntry/Inspector", launch.browser = TRUE )
+#' shiny::runApp("./DataEntry/inspectors", launch.browser = TRUE )
 
 require(DataEntry)
 
