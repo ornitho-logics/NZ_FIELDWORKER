@@ -35,9 +35,16 @@ shinyServer(function(input, output, session) {
   })
 
   output$new_data <- renderUI({
+    entry_classes <- fifelse(
+      dbtabs_entry %in% c("inspectors", "artifacts"),
+      "btn-danger bttn-danger",
+      "btn-primary bttn-primary"
+    )
+
     startApp(
       hrefs = glue("../DataEntry/{dbtabs_entry}/"),
-      labels = paste(icon("pencil"), dbtabs_entry)
+      labels = paste(icon("pencil"), dbtabs_entry),
+      classes = entry_classes
     )
   })
 

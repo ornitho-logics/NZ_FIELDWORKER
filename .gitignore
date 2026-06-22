@@ -172,3 +172,4 @@ scratch/
 *.log
 *.out
 *.err
+.Rproj.user

@@ -908,6 +908,29 @@ inspector longtext NOT NULL
 );
 
 
+DROP TABLE IF EXISTS artifacts; 
+CREATE TABLE IF NOT EXISTS artifacts (
+  artifact_name varchar(128) NOT NULL
+    COMMENT 'This is the value the app uses to load the relevant saved code, WKT, map plot code, or todo list code.',
+
+  artifact longtext NULL
+    COMMENT '<strong>Artifact content</strong><br>Saved artifact content. This can be R code, WKT geometry, todo-list code, map configuration, or another R code used by the app.',
+
+  comments text NULL
+    COMMENT 'Optional notes about this artifact',
+
+  updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+  PRIMARY KEY (artifact_name)
+);
+
+INSERT IGNORE INTO artifacts (artifact_name, artifact, comments)
+VALUES
+  ('study_area', NULL, NULL),
+  ('nests_map', NULL, NULL),
+  ('daily_todo', NULL, NULL),
+  ('resightings_map', NULL, NULL);
+
 
 
 -- VIEWS 

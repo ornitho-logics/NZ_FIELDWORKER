@@ -52,8 +52,11 @@ dbtabs_entry <- c(
   "EGGS",
   "RESIGHTINGS",
   "RESIGHTINGS_PUBLIC",
-  "inspectors"
+  "inspectors",
+  "artifacts"
 )
+
+
 dbtabs_view <- c(
   "OBSERVERS",
   "CAPTURES",
@@ -67,7 +70,7 @@ dbtabs_view <- c(
   "GPS_TRACKS"
 )
 species <- "BADO"
-studySiteCenter <- c(x = 172.0, y = -43.5)
+
 
 hatch_pred_gam <- "./data/gam_float_to_hach.rds"
 
