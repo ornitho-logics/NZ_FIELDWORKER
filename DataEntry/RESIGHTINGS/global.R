@@ -84,7 +84,8 @@
 
   prefilled = list(
     date = format(Sys.Date(), "%Y-%m-%d"),
-    species = "BADO"
+    species = "BADO",
+    site = "CR"
   )
 
   if (length(observer_opts) == 1) {

@@ -693,7 +693,11 @@ CREATE TABLE RESIGHTINGS (
       a 6-character string: SSXXYY, Where SS is the species (the first two letters of the species name), <br>
       XX = your GPS number (01 to 11)           <br>
       YY = your running nest number (01 to 99).      <br>
-      Note if a brood was found of unknown origin, the nest_id is coded as a <b>negative</b> (e.g., -BA0903).',
+      Note if a brood was found of unknown origin, the nest_id is coded as a <b>negative</b> (e.g., -BA0903). <br>
+      Only required when: <br>
+      1) <b> behav <b> is <b>IN</b> or <b>NM</b> AND <br>
+      2) bird was not captured at the nest (e.g., already banded) AND <br>
+      3) resighting is the first observation of the bird associating with the nest (i.e., to establish social parentage)',
 
   cam_id varchar(10) DEFAULT NULL COMMENT 'ID of your field camera',
 
