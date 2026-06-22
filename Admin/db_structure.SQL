@@ -17,6 +17,14 @@ CREATE TABLE OBSERVERS (
   cam_id varchar(255) DEFAULT NULL COMMENT 'Personal cameral ID'
 ) ENGINE=InnoDB ;
 
+INSERT INTO OBSERVERS (name, observer, START, STOP, gps_id, cam_id)
+VALUES
+  (NULL, NULL, NULL, NULL, NULL, NULL),
+  (NULL, NULL, NULL, NULL, NULL, NULL),
+  (NULL, NULL, NULL, NULL, NULL, NULL);
+
+
+
 DROP TABLE IF EXISTS CAPTURES;
 CREATE TABLE CAPTURES (
   date date DEFAULT                             NULL COMMENT 'Date caught YYYY-MM-DD (local, NZDT or NZST)',
@@ -695,7 +703,7 @@ CREATE TABLE RESIGHTINGS (
       YY = your running nest number (01 to 99).      <br>
       Note if a brood was found of unknown origin, the nest_id is coded as a <b>negative</b> (e.g., -BA0903). <br>
       Only required when: <br>
-      1) <b> behav <b> is <b>IN</b> or <b>NM</b> AND <br>
+      1) <b> behav </b> is <b>IN</b> or <b>NM</b> AND <br>
       2) bird was not captured at the nest (e.g., already banded) AND <br>
       3) resighting is the first observation of the bird associating with the nest (i.e., to establish social parentage)',
 
@@ -727,18 +735,18 @@ CREATE TABLE RESIGHTINGS (
 
 DROP TABLE IF EXISTS RESIGHTINGS_PUBLIC ;
 CREATE TABLE RESIGHTINGS_PUBLIC (
-  species char(4) NOT NULL COMMENT '
+  species char(4) DEFAULT NULL COMMENT '
   4-letter species code: <br>
   <b>BADO</b> (Banded Dotterel) <br>
   <b>WRYB</b> (Wrybill) <br> 
   <b>SNZD</b> (Southern New Zealand Dotterel) <br> 
   <b>BFDO</b> (Black-fronted Dotterel)',
 
-  observer varchar(255) NOT NULL COMMENT 'Name or initials of the observer as provided by the original source',
+  observer varchar(255) DEFAULT NULL COMMENT 'Name or initials of the observer as provided by the original source',
 
-  time time NOT NULL COMMENT 'hh:mm time of observation (local time if known)',
+  time time DEFAULT NULL COMMENT 'hh:mm time of observation (local time if known)',
 
-  date date NOT NULL COMMENT 'Date observation made YYYY-MM-DD',
+  date date DEFAULT NULL COMMENT 'Date observation made YYYY-MM-DD',
 
   latitude double DEFAULT NULL COMMENT 'Latitude in decimal degrees',
 
@@ -756,7 +764,7 @@ CREATE TABLE RESIGHTINGS_PUBLIC (
    <b>F?</b> (female, but uncertain), <br>
    <b>U</b> (unknown)',
 
-  UL varchar(4) NOT NULL COMMENT '
+  UL varchar(4) DEFAULT NULL COMMENT '
   code for the color/type of band(s) observed on the left tibia (upper band listed first if more than one band assigned):<br>
       <b>X</b> (blank)              <br>
       <b>O</b> (orange)             <br>
@@ -769,7 +777,7 @@ CREATE TABLE RESIGHTINGS_PUBLIC (
       <b>M</b> (metal)              <br>
       FXYZ (flag with colour X and 2-character code YZ; use the same colour letters as above and include at least one letter)',
 
-  LL varchar(4) NOT NULL COMMENT '
+  LL varchar(4) DEFAULT NULL COMMENT '
   code for the color/type of band(s) observed on the left tarsus (upper band listed first if more than one band assigned): <br>
       <b>X</b> (blank)            <br>
       <b>O</b> (orange)           <br>
@@ -782,7 +790,7 @@ CREATE TABLE RESIGHTINGS_PUBLIC (
       <b>M</b> (metal)            <br>
    No flag assigned to tarsi',
 
-  UR varchar(4) NOT NULL COMMENT '
+  UR varchar(4) DEFAULT NULL COMMENT '
   code for the color/type of band(s) observed on the right tibia (upper band listed first if more than one band assigned):<br>
       <b>X</b> (blank)              <br>
       <b>O</b> (orange)             <br>
@@ -796,7 +804,7 @@ CREATE TABLE RESIGHTINGS_PUBLIC (
       <b>T</b> (tag; if used, also complete tag_id) <br>
       FXYZ (flag with colour X and 2-character code YZ; use the same colour letters as above and include at least one letter).',
 
-  LR varchar(4) NOT NULL COMMENT '
+  LR varchar(4) DEFAULT NULL COMMENT '
   code for the color/type of band(s) observed on the right tarsus (upper band listed first if more than one band assigned): <br>
       <b>X</b> (blank)              <br>
       <b>O</b> (orange)             <br>
@@ -829,11 +837,11 @@ CREATE TABLE RESIGHTINGS_PUBLIC (
 
   num_photos int unsigned DEFAULT NULL COMMENT 'Number of photos associated with this public observation',
 
-  source varchar(50) NOT NULL COMMENT 'Source of the public observation (e.g., eBird, email, WhatsApp, Banding Office, etc.)',
+  source varchar(50) DEFAULT NULL COMMENT 'Source of the public observation (e.g., eBird, email, WhatsApp, Banding Office, etc.)',
 
-  source_identifier varchar(500) NOT NULL COMMENT 'Identifier used by the source, such as the email-thread subject',
+  source_identifier varchar(500) DEFAULT NULL COMMENT 'Identifier used by the source, such as the email-thread subject',
 
-  country ENUM('NZ','AU','O') NOT NULL COMMENT '
+  country ENUM('NZ','AU','O') DEFAULT NULL COMMENT '
     country code of the observation source or observation location: <br>
     <b>NZ</b> (New Zealand) <br>
     <b>AU</b> (Australia) <br>
@@ -886,105 +894,141 @@ CREATE TABLE RESIGHTINGS_PUBLIC (
 ) ENGINE=InnoDB  ;
 
 
--- VIEWS
-  CREATE OR REPLACE VIEW FIELD_2025_BADOatNZ.CAPTURES_ARCHIVE AS
-  SELECT site, lat, lon ,date ,cap_start ,capture_method ,nest_id,observer,field_sex ,age  ,ring ,UL   ,LL   ,UR   ,LR   ,tag_id ,tag_action ,tag_type,tag_extras ,harness_size,culmen  ,tarsus ,total_head ,head_white,head_black     ,rufous_band ,wing ,weight ,moult,fat,sample
-  FROM FIELD_2024_BADOatNZ.CAPTURES c LEFT JOIN FIELD_2024_BADOatNZ.GPS_POINTS g 
-  on c.gps_id = g.gps_id and c.gps_point = g.gps_point
+DROP TABLE IF EXISTS inspectors; 
+
+CREATE TABLE IF NOT EXISTS inspectors (
+  table_name varchar(128) NOT NULL
+    COMMENT '<strong>Inspected table</strong><br>Name of the database table this inspector applies to. This value is used by <code>inspector_loader(table_name)</code> to find the validation logic for that table.',
+
+inspector longtext NOT NULL
+  COMMENT '<strong>Validation rules</strong><br>Write the R checks that should run before this table is saved.<br><br>In these rules, <code>x</code> means the table being edited. Usually the rules are written as a <code>list(...)</code> of checks. For example:<br><code>list(x[, .(field)] |> is.na_validator())</code><br><br>If a check finds a problem, the app will show which rows need attention and will not save until the problems are fixed.<br><br>More details: https://ornitho-logics.github.io/DataEntry/articles/writing-validators.html',
 
 
-  CREATE OR REPLACE VIEW FIELD_2025_BADOatNZ.CAPTURES_active AS
-  SELECT site, lat, lon ,date ,cap_start ,capture_method ,nest_id,observer,field_sex ,age  ,ring ,UL   ,LL   ,UR   ,LR   ,tag_id ,tag_action ,tag_type,tag_extras ,NULL harness_size,culmen  ,tarsus ,total_head ,head_white,head_black     ,rufous_band ,wing ,weight ,moult,fat,sample
-  FROM FIELD_2025_BADOatNZ.CAPTURES c LEFT JOIN FIELD_2025_BADOatNZ.GPS_POINTS g 
-  on c.gps_id = g.gps_id and c.gps_point = g.gps_point
+  comments text NULL
+    COMMENT '<strong>Inspector notes</strong><br>Optional notes about this inspector',
 
--- WITHIN-SEASON UPDATES
-
-
-  -- nest ID in all tables
-  ALTER TABLE NESTS
-    MODIFY COLUMN nest_id VARCHAR(8) DEFAULT NULL COMMENT
-    'a 7-character string: SSXXYYY, Where SS is the species (the first two letters of the species name), <br>
-    XX = your GPS number (01 to 30)                   <br>
-    YYY = your running nest number (001 to 999).      <br>
-    Note if a brood was found of unknown origin, the nest_id is coded as a <b>negative</b> (e.g., -BA09003).'
-
-  ALTER TABLE CAPTURES
-    MODIFY COLUMN nest_id VARCHAR(8) DEFAULT NULL COMMENT
-    'a 7-character string: SSXXYYY, Where SS is the species (the first two letters of the species name), <br>
-    XX = your GPS number (01 to 30)                   <br>
-    YYY = your running nest number (001 to 999).      <br>
-    Note if a brood was found of unknown origin, the nest_id is coded as a <b>negative</b> (e.g., -BA09003).'
-
-
-  --  behav in  NEST table:
-
-  ALTER TABLE NESTS
-    CHANGE COLUMN behav behav_F TEXT DEFAULT NULL COMMENT
-    '    female behavioral class, as many as applicable, seperated by a comma:<br>
-      "IN" = incubating                            <br>
-      "PR" = preening                              <br>
-      "BW" = distraction display (e.g.broken wing) <br>
-      "BC" = brooding chicks                       <br>
-      "NM" = nest maintenance                      <br>
-      "FC" = foraging with chicks                  <br>
-      "RS" = roosting                              <br>
-      "LF" = loafing                               <br>
-      "AT" = alert                                 <br>
-      "FT" = fighting                              <br>
-      "OB" = other behavious (please comment)'
+  updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    
+);
 
 
 
-    ALTER TABLE NESTS
-      ADD COLUMN behav_M TEXT DEFAULT NULL COMMENT
-      'male behavioral class, as many as applicable, separated by a comma:<br>
-      "IN" = incubating <br>
-      "PR" = preening <br>
-      "BW" = distraction display (e.g. broken wing) <br>
-      "BC" = brooding chicks <br>
-      "NM" = nest maintenance <br>
-      "FC" = foraging with chicks <br>
-      "RS" = roosting <br>
-      "LF" = loafing <br>
-      "AT" = alert <br>
-      "FT" = fighting <br>
-      "OB" = other behaviours (please comment)'
-      AFTER behav_F;
+
+-- VIEWS 
+
+CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.CAPTURES_active AS
+SELECT site, lat, lon ,date ,cap_start ,capture_method ,nest_id,observer,field_sex ,age  ,ring ,UL   ,LL   ,UR   ,LR   ,tag_id ,tag_action ,tag_type,NULL harness_size,culmen  ,tarsus ,total_head ,head_white,head_black     ,rufous_band ,wing ,weight ,moult,fat
+FROM FIELD_2026_BADOatNZ.CAPTURES c LEFT JOIN FIELD_2026_BADOatNZ.GPS_POINTS g 
+on c.gps_id = g.gps_id and c.gps_point = g.gps_point
 
 
---- behav in resightings
-  ALTER TABLE RESIGHTINGS
-    MODIFY COLUMN behav text  DEFAULT NULL COMMENT
-    'behavioral class, as many as applicable, seperated by a comma:<br>
-      "IN" = incubating                            <br>
-      "CO" = courtship                             <br>
-      "PR" = preening                              <br>
-      "BW" = distraction display (e.g.broken wing) <br>
-      "BC" = brooding chicks                       <br>
-      "NM" = nest maintenance                      <br>
-      "SC" = scraping                              <br>
-      "FC" = foraging with chicks                  <br>
-      "FA" = foraging alone                        <br>
-      "FM" = foraging with (presumed) mate         <br>
-      "FF" = foraging in flock                     <br>
-      "RS" = roosting                              <br>
-      "LF" = loafing                               <br>
-      "AT" = alert                                 <br>
-      "FT" = fighting                              <br>
-      "OB" = other behavious (please comment)'
 
+CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.CAPTURES_ARCHIVE AS
 
-  --- nest and eggs
+SELECT
+  CONVERT(c.species USING utf8mb4) COLLATE utf8mb4_unicode_ci AS species,
+  CONVERT(c.site USING utf8mb4) COLLATE utf8mb4_unicode_ci AS site,
+  g.lat,
+  g.lon,
+  c.date,
+  c.cap_start,
+  c.caught,
+  c.released,
+  CONVERT(c.capture_method USING utf8mb4) COLLATE utf8mb4_unicode_ci AS capture_method,
+  CONVERT(c.nest_id USING utf8mb4) COLLATE utf8mb4_unicode_ci AS nest_id,
+  c.book_id,
+  c.form_id,
+  CONVERT(c.observer USING utf8mb4) COLLATE utf8mb4_unicode_ci AS observer,
+  c.gps_id,
+  c.gps_point,
+  CONVERT(c.field_sex USING utf8mb4) COLLATE utf8mb4_unicode_ci AS field_sex,
+  CONVERT(c.age USING utf8mb4) COLLATE utf8mb4_unicode_ci AS age,
+  CONVERT(c.ring USING utf8mb4) COLLATE utf8mb4_unicode_ci AS ring,
+  CONVERT(c.UL USING utf8mb4) COLLATE utf8mb4_unicode_ci AS UL,
+  CONVERT(c.LL USING utf8mb4) COLLATE utf8mb4_unicode_ci AS LL,
+  CONVERT(c.UR USING utf8mb4) COLLATE utf8mb4_unicode_ci AS UR,
+  CONVERT(c.LR USING utf8mb4) COLLATE utf8mb4_unicode_ci AS LR,
+  CONVERT(c.tag_id USING utf8mb4) COLLATE utf8mb4_unicode_ci AS tag_id,
+  CONVERT(c.tag_action USING utf8mb4) COLLATE utf8mb4_unicode_ci AS tag_action,
+  CONVERT(c.tag_type USING utf8mb4) COLLATE utf8mb4_unicode_ci AS tag_type,
+  CONVERT(c.tag_extras USING utf8mb4) COLLATE utf8mb4_unicode_ci AS tag_extras,
+  c.culmen,
+  c.tarsus,
+  c.total_head,
+  c.head_white,
+  c.head_black,
+  c.rufous_band,
+  c.wing,
+  c.weight,
+  c.wt_w_tag,
+  CONVERT(c.moult USING utf8mb4) COLLATE utf8mb4_unicode_ci AS moult,
+  c.fat,
+  CONVERT(c.sample USING utf8mb4) COLLATE utf8mb4_unicode_ci AS sample,
+  CONVERT(c.cam_id USING utf8mb4) COLLATE utf8mb4_unicode_ci AS cam_id,
+  CONVERT(c.photo_start USING utf8mb4) COLLATE utf8mb4_unicode_ci AS photo_start,
+  CONVERT(c.photo_end USING utf8mb4) COLLATE utf8mb4_unicode_ci AS photo_end,
+  c.harddrive_id,
+  CONVERT(c.capture_status USING utf8mb4) COLLATE utf8mb4_unicode_ci AS capture_status,
+  CONVERT(c.parents USING utf8mb4) COLLATE utf8mb4_unicode_ci AS parents,
+  CONVERT(c.comments USING utf8mb4) COLLATE utf8mb4_unicode_ci AS comments,
+  c.falcon_upload,
+  c.nov
+FROM FIELD_2024_BADOatNZ.CAPTURES c
+LEFT JOIN FIELD_2025_BADOatNZ.GPS_POINTS g
+  ON c.gps_id = g.gps_id
+ AND c.gps_point = g.gps_point
 
-ALTER TABLE NESTS ADD COLUMN book_id INT(2)   DEFAULT NULL COMMENT
-  '3-character integer that is a unique book_id (i.e., your fieldnote book)'; 
+UNION ALL
 
-ALTER TABLE NESTS ADD COLUMN form_id INT(3)  LL DEFAULT NULL COMMENT
-  '2-character integer that is a unique page of your book_id';
-
-ALTER TABLE EGGS ADD COLUMN book_id INT(2) DEFAULT NULL COMMENT
-  '3-character integer that is a unique book_id (i.e., your fieldnote book)';
-
-ALTER TABLE EGGS ADD COLUMN form_id INT(3)   DEFAULT NULL COMMENT
-  '2-character integer that is a unique page of your book_id';
+SELECT
+  CONVERT(c.species USING utf8mb4) COLLATE utf8mb4_unicode_ci AS species,
+  CONVERT(c.site USING utf8mb4) COLLATE utf8mb4_unicode_ci AS site,
+  g.lat,
+  g.lon,
+  c.date,
+  c.cap_start,
+  c.caught,
+  c.released,
+  CONVERT(c.capture_method USING utf8mb4) COLLATE utf8mb4_unicode_ci AS capture_method,
+  CONVERT(c.nest_id USING utf8mb4) COLLATE utf8mb4_unicode_ci AS nest_id,
+  c.book_id,
+  c.form_id,
+  CONVERT(c.observer USING utf8mb4) COLLATE utf8mb4_unicode_ci AS observer,
+  c.gps_id,
+  c.gps_point,
+  CONVERT(c.field_sex USING utf8mb4) COLLATE utf8mb4_unicode_ci AS field_sex,
+  CONVERT(c.age USING utf8mb4) COLLATE utf8mb4_unicode_ci AS age,
+  CONVERT(c.ring USING utf8mb4) COLLATE utf8mb4_unicode_ci AS ring,
+  CONVERT(c.UL USING utf8mb4) COLLATE utf8mb4_unicode_ci AS UL,
+  CONVERT(c.LL USING utf8mb4) COLLATE utf8mb4_unicode_ci AS LL,
+  CONVERT(c.UR USING utf8mb4) COLLATE utf8mb4_unicode_ci AS UR,
+  CONVERT(c.LR USING utf8mb4) COLLATE utf8mb4_unicode_ci AS LR,
+  CONVERT(c.tag_id USING utf8mb4) COLLATE utf8mb4_unicode_ci AS tag_id,
+  CONVERT(c.tag_action USING utf8mb4) COLLATE utf8mb4_unicode_ci AS tag_action,
+  CONVERT(c.tag_type USING utf8mb4) COLLATE utf8mb4_unicode_ci AS tag_type,
+  CONVERT(c.tag_extras USING utf8mb4) COLLATE utf8mb4_unicode_ci AS tag_extras,
+  c.culmen,
+  c.tarsus,
+  c.total_head,
+  c.head_white,
+  c.head_black,
+  c.rufous_band,
+  c.wing,
+  c.weight,
+  c.wt_w_tag,
+  CONVERT(c.moult USING utf8mb4) COLLATE utf8mb4_unicode_ci AS moult,
+  c.fat,
+  CONVERT(c.sample USING utf8mb4) COLLATE utf8mb4_unicode_ci AS sample,
+  CONVERT(c.cam_id USING utf8mb4) COLLATE utf8mb4_unicode_ci AS cam_id,
+  CONVERT(c.photo_start USING utf8mb4) COLLATE utf8mb4_unicode_ci AS photo_start,
+  CONVERT(c.photo_end USING utf8mb4) COLLATE utf8mb4_unicode_ci AS photo_end,
+  c.harddrive_id,
+  CONVERT(c.capture_status USING utf8mb4) COLLATE utf8mb4_unicode_ci AS capture_status,
+  CONVERT(c.parents USING utf8mb4) COLLATE utf8mb4_unicode_ci AS parents,
+  CONVERT(c.comments USING utf8mb4) COLLATE utf8mb4_unicode_ci AS comments,
+  c.falcon_upload,
+  c.nov
+FROM FIELD_2025_BADOatNZ.CAPTURES c
+LEFT JOIN FIELD_2025_BADOatNZ.GPS_POINTS g
+  ON c.gps_id = g.gps_id
+ AND c.gps_point = g.gps_point;

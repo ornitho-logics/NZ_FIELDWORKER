@@ -1,6 +1,6 @@
 
 
-
+### Tips
 * Always keep your GPS switched on when you're in the study area!
 
 * Do not delete any points on your GPS!
@@ -9,7 +9,7 @@
 
 * Remember to download your GPS first and then enter your data!
 
-* Make sure your GPS is set using the following settings:
+### Make sure your GPS is set using the following settings:
 
 ##### Time 
 - **Time Format** 24 hour

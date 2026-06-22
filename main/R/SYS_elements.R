@@ -14,7 +14,7 @@ dfsys_output <- function( x = dfsys() ) {
     
   o1 = glue('
   <a>
-  <span class="badge badge-pill badge-primary">
+  <span class="badge badge-primary">
   {x$Avail} free
   </span>
   </a>
@@ -23,7 +23,7 @@ dfsys_output <- function( x = dfsys() ) {
   
   o2 = glue('
   <a>
-  <span class="badge badge-pill badge-{state}">
+  <span class="badge badge-{state}">
   {x$`Use%`}% used.
    </span>
    </a>
@@ -37,18 +37,5 @@ dfsys_output <- function( x = dfsys() ) {
   HTML(o)
 
 
-
-}
-
-# install app locally as a shiny server App 
-appInst <- function(app = app_nam){
-
-  to = paste0('/srv/shiny-server/', app_nam)
-
-  if (fs::dir_exists(to)) {
-    fs::dir_delete(to)
-  }
-
-  fs::dir_copy(getwd(), to)
 
 }

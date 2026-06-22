@@ -1,8 +1,54 @@
 
+TABLE_show <- function(x, session) {
+  DT::renderDataTable({
+    get_data <- reactivePoll(5000, 
+      session   = session,
+      checkFunc = function() {
+        
+        dbtable_is_updated(x)
+      
+      },
+      valueFunc = function() {
+        
+        if(is.character(x)){
+          return(showTable(x))
+        } else return(x)
+  
+      }
+    )
+    get_data()
+  },
+  server        = FALSE,
+  rownames      = FALSE,
+  escape        = FALSE,
+  selection     = "none", 
+  extensions    = c("Scroller", "Buttons"),
+  options       = list(
+    dom         = "Blfrtip",
+    buttons     = list("copy", list(
+      extend  = "collection",
+      buttons = "excel",
+      text    = "Download"
+    )),
+    scrollX     = "600px",
+    deferRender = TRUE,
+    scrollY     = 900,
+    scroller    = TRUE,
+    searching   = TRUE,
+    columnDefs  = list(
+      list(className = "dt-center", targets = "_all")
+      )
+  ),
+  class = c("compact", "stripe", "order-column", "hover")
+  )
+
+}
+  
+
 ErrToast <- function(msg){
-  toast(
+  bs4Dash::toast(
     
-    title = "Moin!",
+    title = "Oops!",
     
     body = msg |> a(class = "text-primary font-weight-bold") |> h4(),
         
@@ -19,9 +65,9 @@ ErrToast <- function(msg){
 }
 
 WarnToast <- function(msg){
-  toast(
+  bs4Dash::toast(
     
-    title = "Moin!",
+    title = "Hi!",
     
     body = msg |> a(class = "text-primary font-weight-bold") |> h4(),
         
@@ -36,22 +82,6 @@ WarnToast <- function(msg){
   )
 
 
-}
-
-WaitToast <- function(msg) {
-  toast(
-    title = NULL,
-    body = paste('<i class="fa-solid fa-hourglass-start"></i>', msg) |>
-          HTML() |>
-          h5()  ,
-    options = list(
-      autohide = TRUE,
-      close    = FALSE,
-      fade     = TRUE,
-      delay    = 6000, 
-      position = "topRight"
-    )
-  )
 }
 
 startApp <- function(labels, hrefs) {
@@ -70,52 +100,4 @@ startApp <- function(labels, hrefs) {
   )
 
   
-}
-
-TABLE_show <- function(table_nam, session) {
-  DT::renderDataTable({
-    get_data = reactivePoll(
-      5000, session,
-      checkFunc = function() dbtable_is_updated(table_nam),
-      valueFunc = function() {
-        DBq(glue("select * FROM {table_nam}"))[, ":="(pk = NULL, nov = NULL)] |>
-          data.frame()
-      }
-    )
-    get_data()
-  },
-  server        = FALSE,
-  rownames      = FALSE,
-  escape        = FALSE,
-  extensions    = c("Scroller", "Buttons"),
-  options       = list(
-    dom         = "Blfrtip",
-    buttons     = list("copy", list(extend = "collection", buttons = "excel", text = "Download")),
-    scrollX     = TRUE,
-    deferRender = TRUE,
-    scrollY     = 900,
-    scroller    = TRUE,
-    searching   = TRUE,
-    columnDefs  = list(list(className = "dt-center", targets = "_all"))
-  ),
-  class = c("compact", "stripe", "order-column", "hover"))
-}
-
-
-DATASET_show <- function(x) {
-  DT::renderDataTable(x,
-  server        = FALSE,
-  rownames      = FALSE,
-  escape        = FALSE,
-  extensions    = c("Scroller"),
-  options       = list(
-    dom         = "flrtip",
-    scrollX     = TRUE,
-    deferRender = TRUE,
-    scrollY     = 900,
-    scroller    = TRUE,
-    searching   = TRUE,
-    columnDefs  = list(list(className = "dt-center", targets = "_all"))
-  ),
-  class = c("compact", "stripe", "order-column", "hover"))
 }
