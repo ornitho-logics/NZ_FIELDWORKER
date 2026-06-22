@@ -380,19 +380,42 @@ CREATE TABLE EGGS (
       YY = your running nest number (01 to 99).      <br>
       Note if a brood was found of unknown origin, the nest_id is coded as a <b>negative</b> (e.g., -BA0903).',
 
-  egg_id tinyint unsigned DEFAULT NULL COMMENT '
-      egg number within the nest: <br>
-      <b>1</b> (first egg) <br>
-      <b>2</b> (second egg) <br>
-      <b>3</b> (third egg) <br>
-      <b>4</b> (fourth egg)',
+  float_angle_1 tinyint unsigned DEFAULT NULL COMMENT 'Egg 1 floating angle (degrees, minimum 20, maximum 90)',
 
-  float_angle tinyint unsigned DEFAULT NULL COMMENT 'Egg floating angle (degrees, minimum 20, maximum 90)',
+  float_surface_1 tinyint unsigned DEFAULT NULL COMMENT 'Height of egg 1 above water surface (mm)',
 
-  float_surface tinyint unsigned DEFAULT NULL COMMENT 'Height of egg above water surface (mm)',
+  float_location_1 ENUM('bottom','suspended','surface') DEFAULT NULL COMMENT '
+      Position of egg 1 in the floating jar: <br>
+      <b>bottom</b> <br>
+      <b>suspended</b> <br>
+      <b>surface</b>',
 
-  float_location ENUM('bottom','suspended','surface') DEFAULT NULL COMMENT '
-      Position of the egg in the floating jar: <br>
+  float_angle_2 tinyint unsigned DEFAULT NULL COMMENT 'Egg 2 floating angle (degrees, minimum 20, maximum 90)',
+
+  float_surface_2 tinyint unsigned DEFAULT NULL COMMENT 'Height of egg 2 above water surface (mm)',
+
+  float_location_2 ENUM('bottom','suspended','surface') DEFAULT NULL COMMENT '
+      Position of egg 2 in the floating jar: <br>
+      <b>bottom</b> <br>
+      <b>suspended</b> <br>
+      <b>surface</b>',
+
+  float_angle_3 tinyint unsigned DEFAULT NULL COMMENT 'Egg 3 floating angle (degrees, minimum 20, maximum 90)',
+
+  float_surface_3 tinyint unsigned DEFAULT NULL COMMENT 'Height of egg 3 above water surface (mm)',
+
+  float_location_3 ENUM('bottom','suspended','surface') DEFAULT NULL COMMENT '
+      Position of egg 3 in the floating jar: <br>
+      <b>bottom</b> <br>
+      <b>suspended</b> <br>
+      <b>surface</b>',
+
+  float_angle_4 tinyint unsigned DEFAULT NULL COMMENT 'Egg 4 floating angle (degrees, minimum 20, maximum 90)',
+
+  float_surface_4 tinyint unsigned DEFAULT NULL COMMENT 'Height of egg 4 above water surface (mm)',
+
+  float_location_4 ENUM('bottom','suspended','surface') DEFAULT NULL COMMENT '
+      Position of egg 4 in the floating jar: <br>
       <b>bottom</b> <br>
       <b>suspended</b> <br>
       <b>surface</b>',
@@ -402,6 +425,16 @@ CREATE TABLE EGGS (
   photo_start varchar(255) DEFAULT NULL COMMENT 'image filename for the first photo of the sequence',
 
   photo_end varchar(255) DEFAULT NULL COMMENT 'image filename for the last photo of the sequence',
+  
+  nest_photo ENUM('0','1') DEFAULT        NULL COMMENT '
+    Was the clutch photographed in the scrape? <br>
+    <b>0</b> (no) or <br>
+    <b>1</b> (yes)',
+  
+  tent_photo ENUM('0','1') DEFAULT        NULL COMMENT '
+    Was the clutch photographed in the tent? <br>
+    <b>0</b> (no) or <br>
+    <b>1</b> (yes)',
 
   harddrive_id smallint unsigned DEFAULT NULL COMMENT 'harddrive ID where photos were uploaded after returning from the field',
 
@@ -704,7 +737,7 @@ CREATE TABLE RESIGHTINGS (
       Note if a brood was found of unknown origin, the nest_id is coded as a <b>negative</b> (e.g., -BA0903). <br>
       Only required when: <br>
       1) <b> behav </b> is <b>IN</b> or <b>NM</b> AND <br>
-      2) bird was not captured at the nest (e.g., already banded) AND <br>
+      2) bird does not need to be captured (e.g., already banded) AND <br>
       3) resighting is the first observation of the bird associating with the nest (i.e., to establish social parentage)',
 
   cam_id varchar(10) DEFAULT NULL COMMENT 'ID of your field camera',
