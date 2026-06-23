@@ -1,14 +1,11 @@
 leaflet_map <- function() {
   stusi <-
-    study_site_loader() |>
-    st_make_valid() |>
-    st_transform(4326)
+    study_site_loader()
 
   center <-
     stusi |>
     st_union() |>
     st_centroid() |>
-    st_transform(4326) |>
     st_coordinates() |>
     as.numeric()
 

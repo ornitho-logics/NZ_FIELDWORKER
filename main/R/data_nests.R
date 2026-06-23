@@ -1,44 +1,4 @@
-NESTS_last_seasons <- function() {
-  data.table(
-    nest = character(),
-    latit = numeric(),
-    longit = numeric()
-  )
-}
-
-
-ALL_EGGS <- function() {
-  o <- DBq(
-    "
-    SELECT date, nest_id nest, float_angle, float_surface surface
-    FROM EGGS
-    WHERE float_angle IS NOT NULL
-      AND float_surface IS NOT NULL
-    "
-  )
-
-  if (nrow(o) == 0) {
-    return(data.table(
-      nest = character(),
-      min_days_to_hatch_at_found = numeric(),
-      date = as.Date(character()),
-      min_pred_hatch_date = as.Date(character())
-    ))
-  }
-
-  d2h <- hatching_prediction(o, .gampath = hatch_pred_gam)
-  d2h <- d2h[,
-    .(
-      min_days_to_hatch_at_found = min(conf.low, na.rm = TRUE),
-      date = max(date, na.rm = TRUE)
-    ),
-    nest
-  ]
-  d2h[, min_pred_hatch_date := date + min_days_to_hatch_at_found]
-
-  d2h
-}
-
+#TODO
 
 NESTS <- function(.refdate = input$refdate) {
   if (!exists("input", envir = .GlobalEnv)) {
@@ -244,39 +204,4 @@ NESTS <- function(.refdate = input$refdate) {
   o[, let(F_nest = NA_character_, M_nest = NA_character_)]
 
   o
-}
-
-
-CAPTURED_CHICKS <- function(.refdate = input$refdate) {
-  if (!exists("input", envir = .GlobalEnv)) {
-    .refdate <- as.character(Sys.Date())
-    warning("input not found, using ", Sys.Date() |> dQuote(), " as reference.")
-  }
-
-  x <- DBq(
-    glue(
-      "
-      SELECT *
-      FROM CAPTURES
-      WHERE age = 'C'
-        AND date <= {shQuote(.refdate)}
-      "
-    )
-  )
-
-  if (nrow(x) == 0) {
-    return(data.table())
-  }
-
-  if ("nest_id" %in% names(x)) {
-    setnames(x, "nest_id", "nest")
-  }
-
-  x[, date := lubridate::ymd_hms(paste(date, caught))]
-  x[, pk := NULL]
-  x <- unique(x)
-
-  setorder(x, nest, date)
-
-  x
 }

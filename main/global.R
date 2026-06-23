@@ -1,5 +1,5 @@
 #+ NOTE:
-#' list.files('/main/R/', full.names = TRUE) |> lapply(source) |> invisible(); source('main/global.R')
+#' list.files('./main/R/', full.names = TRUE) |> lapply(source) |> invisible(); source('main/global.R')
 #' ss = function() shiny::runApp("main", launch.browser = TRUE )
 
 #! PACKAGES & DATA

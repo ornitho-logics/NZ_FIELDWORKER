@@ -1,7 +1,7 @@
 study_site_loader <- function(
   lon = 170.507560,
   lat = -43.881055,
-  radius_m = 0.01,
+  radius_m = 1000,
   crs = 4326
 ) {
   fallback <- function() {

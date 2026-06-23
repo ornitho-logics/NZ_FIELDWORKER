@@ -4,7 +4,7 @@ bs4Dash::dashboardPage(
   help = NULL,
   preloader = list(
     html = waiter::spin_loaders(id = 16, color = "#1e3d24"),
-    color = '#e66604d5'
+    color = '#2f6fa3de'
   ),
 
   title = glue('FIELDWORKER {ver}'),
@@ -21,7 +21,7 @@ bs4Dash::dashboardPage(
     collapsed = TRUE,
     sidebarMenu(
       id = "main", # Assigning an id here allows input$main to be set
-      menuItem("Start", tabName = "start", icon = icon("circle-play")),
+      menuItem("Overview", tabName = "overview", icon = icon("circle-play")),
       menuItem("GPS", tabName = "gps", icon = icon("location-arrow")),
       menuItem("Enter Data", tabName = "enter_data", icon = icon("edit")),
       menuItem("Database", tabName = "database", icon = icon("database")),
@@ -34,7 +34,6 @@ bs4Dash::dashboardPage(
       ),
       menuItem("To-Do list", tabName = "todo_list", icon = icon("tasks")),
       menuItem("To-Do map", tabName = "todo_map", icon = icon("street-view")),
-      menuItem("Overview", tabName = "overview", icon = icon("chart-line")),
       menuItem("Hatching", tabName = "hatching_est", icon = icon("egg")),
       HR(),
       menuItem(
@@ -108,13 +107,11 @@ bs4Dash::dashboardPage(
         icon = icon("file-pdf")
       ),
       downloadBttn(
-        outputId = "map_todo_pdf",
+        outputId = "todo_pdf",
         label = "To-do",
         icon = icon("file-pdf")
       )
-    ),
-    uiOutput("clock"),
-    uiOutput("hdd_state")
+    )
   ),
   body = dashboardBody(
     includeCSS("./www/style.css"),
@@ -128,14 +125,17 @@ bs4Dash::dashboardPage(
     )),
 
     tabItems(
-      # Start tab (k4)
+      # Overview tab (first tab)
       tabItem(
-        tabName = "start",
+        tabName = "overview",
         box(
           collapsible = FALSE,
-          icon = icon("envelope-open"),
+          title = "Season overview",
+          icon = icon("gauge-high"),
           width = 12,
-          includeMarkdown("./www/help/news.md")
+          spinner(
+            plotOutput("overview_show")
+          )
         )
       ),
       # GPS tab
@@ -209,13 +209,6 @@ bs4Dash::dashboardPage(
         tabName = "todo_list",
         spinner(
           DT::DTOutput(outputId = "todo_list_show")
-        )
-      ),
-      # Overview tab
-      tabItem(
-        tabName = "overview",
-        spinner(
-          plotOutput("overview_show")
         )
       ),
       # To-Do map tab
