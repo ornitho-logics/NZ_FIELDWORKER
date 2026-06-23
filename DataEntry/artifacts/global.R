@@ -3,6 +3,7 @@
 require(DataEntry)
 
 table_name <- "artifacts"
+id_column <- "artifact_name"
 
 group <- "nz_fieldworker"
 
