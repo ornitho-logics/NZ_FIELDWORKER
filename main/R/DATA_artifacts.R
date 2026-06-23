@@ -1,28 +1,11 @@
-default_study_site_artifact <- function() {
-  'list(
-    NZ = "POLYGON ((172.98 -43.58, 173.00 -43.58, 173.00 -43.56, 172.98 -43.56, 172.98 -43.58))"
-  )'
-}
-
-artifact_text <- function(
-  artifact_name,
-  default = default_study_site_artifact()
+study_site_loader <- function(
+  lon = 170.507560,
+  lat = -43.881055,
+  radius_m = 0.01,
+  crs = 4326
 ) {
-  x <- DBq(glue(
-    "SELECT artifact FROM {db}.artifacts WHERE artifact_name = {shQuote(artifact_name)}"
-  ))
-
-  missing_artifact <-
-    "error" %in%
-    names(x) ||
-    !nrow(x) ||
-    is.na(x$artifact[1]) ||
-    !nzchar(x$artifact[1])
-
-  if (missing_artifact) {
-    msg <- glue(
-      "No artifact text found for `{artifact_name}`. Using fallback NZ square."
-    )
+  fallback <- function() {
+    msg <- "The study site did not load properly. WKT is faulty. Fix the entry in the artifacts table"
 
     if (shiny::isRunning()) {
       showNotification(msg, type = "warning", duration = 10)
@@ -30,43 +13,76 @@ artifact_text <- function(
       warning(msg, call. = FALSE)
     }
 
-    return(default)
+    sf::st_sf(
+      id = "study_site",
+      geometry = sf::st_sfc(sf::st_point(c(lon, lat)), crs = 4326)
+    ) |>
+      sf::st_buffer(radius_m)
   }
 
-  x$artifact[1]
-}
+  x <- try(
+    DBq(glue(
+      "SELECT artifact FROM {db}.artifacts WHERE artifact_name = 'study_area'"
+    )),
+    silent = TRUE
+  )
 
-study_site_from_text <- function(txt, crs = 4326) {
-  x <- eval(parse(text = txt), envir = new.env(parent = globalenv()))
+  if (
+    inherits(x, "try-error") ||
+      "error" %in% names(x) ||
+      !nrow(x) ||
+      is.na(x$artifact[1]) ||
+      !nzchar(x$artifact[1])
+  ) {
+    return(fallback())
+  }
 
-  if (!inherits(x, "sf")) {
-    if (inherits(x, "sfc")) {
-      x <- sf::st_sf(id = seq_along(x), geometry = x)
-    } else {
-      wkt <- unlist(x, use.names = TRUE)
-      ids <- names(wkt)
+  study_site <- try(
+    {
+      obj <- eval(
+        parse(text = x$artifact[1]),
+        envir = new.env(parent = globalenv())
+      )
 
-      if (is.null(ids) || any(!nzchar(ids))) {
-        ids <- seq_along(wkt)
+      if (inherits(obj, "sf")) {
+        out <- obj
+      } else if (inherits(obj, "sfc")) {
+        out <- sf::st_sf(id = seq_along(obj), geometry = obj)
+      } else {
+        wkt <- unlist(obj, use.names = TRUE)
+        ids <- names(wkt)
+
+        if (is.null(ids) || any(!nzchar(ids))) {
+          ids <- seq_along(wkt)
+        }
+
+        out <- sf::st_sf(
+          id = ids,
+          geometry = sf::st_as_sfc(unname(wkt), crs = crs)
+        )
       }
 
-      x <- sf::st_sf(
-        id = ids,
-        geometry = sf::st_as_sfc(unname(wkt), crs = crs)
-      )
-    }
+      if (!"id" %in% names(out)) {
+        out$id <- seq_len(nrow(out))
+      }
+
+      out <- out |>
+        sf::st_make_valid() |>
+        sf::st_transform(4326)
+
+      # smoke test for later in leaflet
+      out |>
+        sf::st_union() |>
+        sf::st_centroid()
+
+      out
+    },
+    silent = TRUE
+  )
+
+  if (inherits(study_site, "try-error") || !inherits(study_site, "sf")) {
+    return(fallback())
   }
 
-  if (!"id" %in% names(x)) {
-    x$id <- seq_len(nrow(x))
-  }
-
-  x |>
-    sf::st_make_valid() |>
-    sf::st_transform(4326)
-}
-
-study_site_loader <- function(artifact_name = "study_area") {
-  artifact_text(artifact_name) |>
-    study_site_from_text()
+  study_site
 }
