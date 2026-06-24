@@ -1,6 +1,6 @@
 #+ NOTE:
-#' list.files('./R', full.names = TRUE) |> lapply(source) |> invisible(); source('global.R')
-#' ss = function() shiny::runApp(launch.browser = TRUE)
+#' list.files('./main/R/', full.names = TRUE) |> lapply(source) |> invisible(); source('main/global.R')
+#' ss = function() shiny::runApp("main", launch.browser = TRUE )
 
 #! PACKAGES & DATA
 sapply(
@@ -52,8 +52,11 @@ dbtabs_entry <- c(
   "EGGS",
   "RESIGHTINGS",
   "RESIGHTINGS_PUBLIC",
-  "inspectors"
+  "inspectors",
+  "artifacts"
 )
+
+
 dbtabs_view <- c(
   "OBSERVERS",
   "CAPTURES",
@@ -67,7 +70,7 @@ dbtabs_view <- c(
   "GPS_TRACKS"
 )
 species <- "BADO"
-studySiteCenter <- c(x = 172.0, y = -43.5)
+
 
 hatch_pred_gam <- "./data/gam_float_to_hach.rds"
 

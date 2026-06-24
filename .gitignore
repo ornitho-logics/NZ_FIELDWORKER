@@ -172,4 +172,4 @@ scratch/
 *.log
 *.out
 *.err
-.positai
+.Rproj.user
