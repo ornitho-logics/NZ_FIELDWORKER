@@ -11,8 +11,8 @@ DROP TABLE IF EXISTS OBSERVERS ;
 CREATE TABLE OBSERVERS (
   name text DEFAULT NULL COMMENT 'Your full name.',
   observer varchar(3) DEFAULT NULL COMMENT 'Your initials. Use two or three letters. This is what you will use when entering data.',
-  START date                   DEFAULT NULL COMMENT 'Start of work (YYYY-MM-DD)',
-  STOP date                    DEFAULT NULL COMMENT 'End of work (YYYY-MM-DD)',
+  start date                   DEFAULT NULL COMMENT 'Start of work (YYYY-MM-DD)',
+  stop date                    DEFAULT NULL COMMENT 'End of work (YYYY-MM-DD)',
   gps_id tinyint unsigned DEFAULT NULL COMMENT 'Personal GPS ID',
   cam_id varchar(255) DEFAULT NULL COMMENT 'Personal cameral ID'
 ) ENGINE=InnoDB ;
@@ -380,63 +380,22 @@ CREATE TABLE EGGS (
       YY = your running nest number (01 to 99).      <br>
       Note if a brood was found of unknown origin, the nest_id is coded as a <b>negative</b> (e.g., -BA0903).',
 
-  float_angle_1 tinyint unsigned DEFAULT NULL COMMENT 'Egg 1 floating angle (degrees, minimum 20, maximum 90)',
+  egg_id tinyint unsigned DEFAULT NULL COMMENT '
+      egg number within the nest: <br>
+      <b>1</b> (first egg) <br>
+      <b>2</b> (second egg) <br>
+      <b>3</b> (third egg) <br>
+      <b>4</b> (fourth egg)',
 
-  float_surface_1 tinyint unsigned DEFAULT NULL COMMENT 'Height of egg 1 above water surface (mm)',
+  float_angle tinyint unsigned DEFAULT NULL COMMENT 'Egg floating angle (degrees, minimum 20, maximum 90)',
 
-  float_location_1 ENUM('bottom','suspended','surface') DEFAULT NULL COMMENT '
-      Position of egg 1 in the floating jar: <br>
+  float_surface tinyint unsigned DEFAULT NULL COMMENT 'Height of egg above water surface (mm)',
+
+  float_location ENUM('bottom','suspended','surface') DEFAULT NULL COMMENT '
+      Position of the egg in the floating jar: <br>
       <b>bottom</b> <br>
       <b>suspended</b> <br>
       <b>surface</b>',
-
-  float_angle_2 tinyint unsigned DEFAULT NULL COMMENT 'Egg 2 floating angle (degrees, minimum 20, maximum 90)',
-
-  float_surface_2 tinyint unsigned DEFAULT NULL COMMENT 'Height of egg 2 above water surface (mm)',
-
-  float_location_2 ENUM('bottom','suspended','surface') DEFAULT NULL COMMENT '
-      Position of egg 2 in the floating jar: <br>
-      <b>bottom</b> <br>
-      <b>suspended</b> <br>
-      <b>surface</b>',
-
-  float_angle_3 tinyint unsigned DEFAULT NULL COMMENT 'Egg 3 floating angle (degrees, minimum 20, maximum 90)',
-
-  float_surface_3 tinyint unsigned DEFAULT NULL COMMENT 'Height of egg 3 above water surface (mm)',
-
-  float_location_3 ENUM('bottom','suspended','surface') DEFAULT NULL COMMENT '
-      Position of egg 3 in the floating jar: <br>
-      <b>bottom</b> <br>
-      <b>suspended</b> <br>
-      <b>surface</b>',
-
-  float_angle_4 tinyint unsigned DEFAULT NULL COMMENT 'Egg 4 floating angle (degrees, minimum 20, maximum 90)',
-
-  float_surface_4 tinyint unsigned DEFAULT NULL COMMENT 'Height of egg 4 above water surface (mm)',
-
-  float_location_4 ENUM('bottom','suspended','surface') DEFAULT NULL COMMENT '
-      Position of egg 4 in the floating jar: <br>
-      <b>bottom</b> <br>
-      <b>suspended</b> <br>
-      <b>surface</b>',
-
-  cam_id varchar(10) DEFAULT NULL COMMENT 'ID of your field camera',
-
-  photo_start varchar(255) DEFAULT NULL COMMENT 'image filename for the first photo of the sequence',
-
-  photo_end varchar(255) DEFAULT NULL COMMENT 'image filename for the last photo of the sequence',
-  
-  nest_photo ENUM('0','1') DEFAULT        NULL COMMENT '
-    Was the clutch photographed in the scrape? <br>
-    <b>0</b> (no) or <br>
-    <b>1</b> (yes)',
-  
-  tent_photo ENUM('0','1') DEFAULT        NULL COMMENT '
-    Was the clutch photographed in the tent? <br>
-    <b>0</b> (no) or <br>
-    <b>1</b> (yes)',
-
-  harddrive_id smallint unsigned DEFAULT NULL COMMENT 'harddrive ID where photos were uploaded after returning from the field',
 
   comments text DEFAULT NULL COMMENT 'Comments',
 
@@ -576,6 +535,16 @@ CREATE TABLE NESTS (
   photo_start varchar(255) DEFAULT NULL COMMENT 'image filename for the first photo of the sequence',
 
   photo_end varchar(255) DEFAULT NULL COMMENT 'image filename for the last photo of the sequence',
+  
+  nest_photo ENUM('0','1') DEFAULT        NULL COMMENT '
+    Was the clutch photographed in the scrape? <br>
+    <b>0</b> (no) or <br>
+    <b>1</b> (yes)',
+  
+  tent_photo ENUM('0','1') DEFAULT        NULL COMMENT '
+    Was the clutch photographed in the tent? <br>
+    <b>0</b> (no) or <br>
+    <b>1</b> (yes)',
 
   comments text DEFAULT NULL COMMENT 'Comments',
 
@@ -745,9 +714,7 @@ CREATE TABLE RESIGHTINGS (
   photo_start varchar(255) DEFAULT NULL COMMENT 'image filename for the first photo of the sequence',
 
   photo_end varchar(255) DEFAULT NULL COMMENT 'image filename for the last photo of the sequence',
-
-  harddrive_id smallint unsigned DEFAULT NULL COMMENT 'harddrive ID where photos/videos were uploaded after returning from the field',
-
+  
   comments text DEFAULT NULL COMMENT 'Comments',
 
   falcon_upload tinyint(1) unsigned DEFAULT NULL COMMENT '
