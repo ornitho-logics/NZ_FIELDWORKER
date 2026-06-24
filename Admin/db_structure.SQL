@@ -14,7 +14,8 @@ CREATE TABLE OBSERVERS (
   start date                   DEFAULT NULL COMMENT 'Start of work (YYYY-MM-DD)',
   stop date                    DEFAULT NULL COMMENT 'End of work (YYYY-MM-DD)',
   gps_id tinyint unsigned DEFAULT NULL COMMENT 'Personal GPS ID',
-  cam_id varchar(255) DEFAULT NULL COMMENT 'Personal cameral ID'
+  cam_id varchar(255) DEFAULT NULL COMMENT 'Personal cameral ID',
+  nznbbs_number CHAR(4) DEFAULT NULL COMMENT 'Your 4-character New Zealand National Bird Banding Scheme (NZNBBS) certification number'
 ) ENGINE=InnoDB ;
 
 INSERT INTO OBSERVERS (name, observer, START, STOP, gps_id, cam_id)
