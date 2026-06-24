@@ -895,7 +895,7 @@ CREATE TABLE RESIGHTINGS_PUBLIC (
 ) ENGINE=InnoDB  ;
 
 
-DROP TABLE IF EXISTS inspectors; 
+--- DROP TABLE IF EXISTS inspectors; 
 
 CREATE TABLE IF NOT EXISTS inspectors (
   table_name varchar(128) NOT NULL
@@ -913,7 +913,7 @@ inspector longtext NOT NULL
 );
 
 
-DROP TABLE IF EXISTS artifacts; 
+--- DROP TABLE IF EXISTS artifacts; 
 CREATE TABLE IF NOT EXISTS artifacts (
   artifact_name varchar(128) NOT NULL
     COMMENT 'This is the value the app uses to load the relevant saved code, WKT, map plot code, or todo list code.',
