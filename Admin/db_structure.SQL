@@ -118,12 +118,12 @@ CREATE TABLE CAPTURES (
   
   gps_point int unsigned DEFAULT   NULL COMMENT 'waypoint number of the capture location stored in your handheld Garmin GPS unit',
 
-  field_sex ENUM('M','M?','F','F?','U') DEFAULT NULL COMMENT '
+  field_sex ENUM('M','MU','F','FU','U') DEFAULT NULL COMMENT '
    observed sex based on field observations (ornamentation, behaviour, etc.):<br>
    <b>M</b> (male), <br>
-   <b>M?</b> (male, but uncertain), <br>
+   <b>MU</b> (male, but uncertain), <br>
    <b>F</b> (female), <br>
-   <b>F?</b> (fmale, but uncertain), <br>
+   <b>FU</b> (fmale, but uncertain), <br>
    <b>U</b> (unknown, e.g., for chicks and juveniles)',
 
   age ENUM('A','J','C') DEFAULT                 NULL COMMENT '
