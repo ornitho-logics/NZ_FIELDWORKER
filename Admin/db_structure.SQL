@@ -11,10 +11,11 @@ DROP TABLE IF EXISTS OBSERVERS ;
 CREATE TABLE OBSERVERS (
   name text DEFAULT NULL COMMENT 'Your full name.',
   observer varchar(3) DEFAULT NULL COMMENT 'Your initials. Use two or three letters. This is what you will use when entering data.',
-  START date                   DEFAULT NULL COMMENT 'Start of work (YYYY-MM-DD)',
-  STOP date                    DEFAULT NULL COMMENT 'End of work (YYYY-MM-DD)',
+  start date                   DEFAULT NULL COMMENT 'Start of work (YYYY-MM-DD)',
+  stop date                    DEFAULT NULL COMMENT 'End of work (YYYY-MM-DD)',
   gps_id tinyint unsigned DEFAULT NULL COMMENT 'Personal GPS ID',
-  cam_id varchar(255) DEFAULT NULL COMMENT 'Personal cameral ID'
+  cam_id varchar(255) DEFAULT NULL COMMENT 'Personal cameral ID',
+  nznbbs_number CHAR(4) DEFAULT NULL COMMENT 'Your 4-character New Zealand National Bird Banding Scheme (NZNBBS) certification number'
 ) ENGINE=InnoDB ;
 
 INSERT INTO OBSERVERS (name, observer, START, STOP, gps_id, cam_id)
@@ -117,12 +118,12 @@ CREATE TABLE CAPTURES (
   
   gps_point int unsigned DEFAULT   NULL COMMENT 'waypoint number of the capture location stored in your handheld Garmin GPS unit',
 
-  field_sex ENUM('M','M?','F','F?','U') DEFAULT NULL COMMENT '
+  field_sex ENUM('M','MU','F','FU','U') DEFAULT NULL COMMENT '
    observed sex based on field observations (ornamentation, behaviour, etc.):<br>
    <b>M</b> (male), <br>
-   <b>M?</b> (male, but uncertain), <br>
+   <b>MU</b> (male, but uncertain), <br>
    <b>F</b> (female), <br>
-   <b>F?</b> (fmale, but uncertain), <br>
+   <b>FU</b> (fmale, but uncertain), <br>
    <b>U</b> (unknown, e.g., for chicks and juveniles)',
 
   age ENUM('A','J','C') DEFAULT                 NULL COMMENT '
@@ -397,14 +398,6 @@ CREATE TABLE EGGS (
       <b>suspended</b> <br>
       <b>surface</b>',
 
-  cam_id varchar(10) DEFAULT NULL COMMENT 'ID of your field camera',
-
-  photo_start varchar(255) DEFAULT NULL COMMENT 'image filename for the first photo of the sequence',
-
-  photo_end varchar(255) DEFAULT NULL COMMENT 'image filename for the last photo of the sequence',
-
-  harddrive_id smallint unsigned DEFAULT NULL COMMENT 'harddrive ID where photos were uploaded after returning from the field',
-
   comments text DEFAULT NULL COMMENT 'Comments',
 
   observer_upload varchar(3) DEFAULT NULL COMMENT 'Initials of the person uploading to the database (see OBSERVERS table)',
@@ -543,6 +536,16 @@ CREATE TABLE NESTS (
   photo_start varchar(255) DEFAULT NULL COMMENT 'image filename for the first photo of the sequence',
 
   photo_end varchar(255) DEFAULT NULL COMMENT 'image filename for the last photo of the sequence',
+  
+  nest_photo ENUM('0','1') DEFAULT        NULL COMMENT '
+    Was the clutch photographed in the scrape? <br>
+    <b>0</b> (no) or <br>
+    <b>1</b> (yes)',
+  
+  tent_photo ENUM('0','1') DEFAULT        NULL COMMENT '
+    Was the clutch photographed in the tent? <br>
+    <b>0</b> (no) or <br>
+    <b>1</b> (yes)',
 
   comments text DEFAULT NULL COMMENT 'Comments',
 
@@ -701,16 +704,18 @@ CREATE TABLE RESIGHTINGS (
       a 6-character string: SSXXYY, Where SS is the species (the first two letters of the species name), <br>
       XX = your GPS number (01 to 11)           <br>
       YY = your running nest number (01 to 99).      <br>
-      Note if a brood was found of unknown origin, the nest_id is coded as a <b>negative</b> (e.g., -BA0903).',
+      Note if a brood was found of unknown origin, the nest_id is coded as a <b>negative</b> (e.g., -BA0903). <br>
+      Only required when: <br>
+      1) <b> behav </b> is <b>IN</b> or <b>NM</b> AND <br>
+      2) bird does not need to be captured (e.g., already banded) AND <br>
+      3) resighting is the first observation of the bird associating with the nest (i.e., to establish social parentage)',
 
   cam_id varchar(10) DEFAULT NULL COMMENT 'ID of your field camera',
 
   photo_start varchar(255) DEFAULT NULL COMMENT 'image filename for the first photo of the sequence',
 
   photo_end varchar(255) DEFAULT NULL COMMENT 'image filename for the last photo of the sequence',
-
-  harddrive_id smallint unsigned DEFAULT NULL COMMENT 'harddrive ID where photos/videos were uploaded after returning from the field',
-
+  
   comments text DEFAULT NULL COMMENT 'Comments',
 
   falcon_upload tinyint(1) unsigned DEFAULT NULL COMMENT '
