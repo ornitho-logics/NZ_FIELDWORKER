@@ -943,13 +943,13 @@ VALUES
 CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.CAPTURES_active AS
 SELECT site, lat, lon ,date ,cap_start ,capture_method ,nest_id,observer,field_sex ,age  ,ring ,UL   ,LL   ,UR   ,LR   ,tag_id ,tag_action ,tag_type,NULL harness_size,culmen  ,tarsus ,total_head ,head_white,head_black     ,rufous_band ,wing ,weight ,moult,fat
 FROM FIELD_2026_BADOatNZ.CAPTURES c LEFT JOIN FIELD_2026_BADOatNZ.GPS_POINTS g 
-on c.gps_id = g.gps_id and c.gps_point = g.gps_point
+on c.gps_id = g.gps_id and c.gps_point = g.gps_point;
 
 
 
 CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.CAPTURES_ARCHIVE AS
 
-SELECT
+SELECT DISTINCT
   CONVERT(c.species USING utf8mb4) COLLATE utf8mb4_unicode_ci AS species,
   CONVERT(c.site USING utf8mb4) COLLATE utf8mb4_unicode_ci AS site,
   g.lat,
@@ -998,13 +998,13 @@ SELECT
   c.falcon_upload,
   c.nov
 FROM FIELD_2024_BADOatNZ.CAPTURES c
-LEFT JOIN FIELD_2025_BADOatNZ.GPS_POINTS g
+LEFT JOIN FIELD_2024_BADOatNZ.GPS_POINTS g
   ON c.gps_id = g.gps_id
  AND c.gps_point = g.gps_point
 
 UNION ALL
 
-SELECT
+SELECT DISTINCT
   CONVERT(c.species USING utf8mb4) COLLATE utf8mb4_unicode_ci AS species,
   CONVERT(c.site USING utf8mb4) COLLATE utf8mb4_unicode_ci AS site,
   g.lat,
