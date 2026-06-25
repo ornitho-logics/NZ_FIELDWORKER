@@ -57,6 +57,7 @@ bs4Dash::dashboardPage(
     box(
       title = "Reference date" |> bttl(),
       width = 12,
+      overlay = FALSE,
       collapsible = FALSE,
       dateInput(
         inputId = 'refdate',
@@ -129,12 +130,10 @@ bs4Dash::dashboardPage(
       tabItem(
         tabName = "overview",
         box(
-          collapsible = FALSE,
-          title = "Season overview",
-          icon = icon("gauge-high"),
-          width = 12,
-          spinner(
-            plotOutput("overview_show")
+          width = 11,
+          plotOutput(
+            "overview_show",
+            width = "80%"
           )
         )
       ),

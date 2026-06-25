@@ -7,9 +7,11 @@ shinyServer(function(input, output, session) {
     HTML(ref_date_message(input$refdate))
   })
 
-  output$overview_show <- renderPlot({
-    try_else(overview_graph, sys_graph)
-  })
+  output$overview_show <- renderPlot(
+    {
+      try_else(overview_graph, sys_graph)
+    }
+  )
 
   output$new_data <- renderUI({
     entry_classes <- fifelse(
