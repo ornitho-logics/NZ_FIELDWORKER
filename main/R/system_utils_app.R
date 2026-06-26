@@ -168,78 +168,15 @@ ref_date_message <- function(refdate) {
 }
 
 
-render_todo_table <- function(data) {
-  DT::renderDataTable(
-    {
-      x <- data()
-      shiny::req(x)
-
-      x[, data.table::let(lat = NULL, lon = NULL)]
-      x
-    },
-    server = FALSE,
-    rownames = TRUE,
-    escape = FALSE,
-    extensions = c("Scroller", "Buttons"),
-    options = list(
-      dom = "Blfrtip",
-      buttons = list(
-        "copy",
-        list(
-          extend = "collection",
-          buttons = c("excel", "pdf"),
-          text = "Download"
-        )
-      ),
-      scrollX = "600px",
-      deferRender = TRUE,
-      scrollY = 900,
-      scroller = TRUE,
-      searching = TRUE,
-      columnDefs = list(list(className = "dt-center", targets = "_all"))
-    ),
-    class = c("compact", "stripe", "order-column", "hover")
-  )
-}
-
-
-current_nests <- function(main_tab, refdate) {
-  nest_tabs <- c("nests_map", "live_nest_map", "todo_list", "todo_map")
-
-  if (!main_tab %chin% nest_tabs) {
-    return(NULL)
-  }
-
-  n <- tryCatch(
-    NESTS(.refdate = refdate),
-    error = function(e) {
-      ErrToast(glue(
-        "Error fetching nests data. Maybe there are no nests on {refdate}?"
-      ))
-      NULL
+# download handlers
+download_gt_pdf <- function(filename, table) {
+  shiny::downloadHandler(
+    filename = filename,
+    content = function(file) {
+      gt::gtsave(
+        data = table(),
+        filename = file
+      )
     }
   )
-
-  if (is.null(n) || nrow(n) == 0) {
-    ErrToast(glue("No nests found on {refdate}."))
-    return(NULL)
-  }
-
-  nolat <- n[is.na(lat)]
-  if (nrow(nolat) > 0) {
-    ErrToast(glue(
-      "{paste(nolat$nest, collapse = ';')} without coordinates. Did you download all GPS units?"
-    ))
-  }
-
-  n[, N := .N, nest]
-
-  doubleEntry <- n[N > 1]
-  if (nrow(doubleEntry) > 0) {
-    WarnToast(glue(
-      "Nests with inconsistent states: {paste(unique(doubleEntry$nest), collapse = ';')}"
-    ))
-  }
-
-  n
 }

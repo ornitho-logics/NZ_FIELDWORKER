@@ -1,18 +1,14 @@
 #TODO
 
-NESTS <- function(.refdate = input$refdate) {
-  if (!exists("input", envir = .GlobalEnv)) {
+prepare_nests <- function(.refdate = input$refdate) {
+  if (missing(.refdate)) {
     .refdate <- as.character(Sys.Date())
-    warning("input not found, using ", Sys.Date() |> dQuote(), " as reference.")
+    warning("Using ", Sys.Date() |> dQuote(), " as reference.")
   }
 
   x <- DBq(
     glue("SELECT * FROM NESTS WHERE date <= {shQuote(.refdate)}")
   )
-
-  if (nrow(x) == 0) {
-    return(data.table())
-  }
 
   x[, pk := NULL]
   x <- unique(x)
@@ -204,4 +200,38 @@ NESTS <- function(.refdate = input$refdate) {
   o[, let(F_nest = NA_character_, M_nest = NA_character_)]
 
   o
+}
+
+
+NESTS <- function(main_tab, refdate) {
+  nest_tabs <- c("nests_map", "live_nest_map", "todo_list", "todo_map")
+
+  if (!main_tab %chin% nest_tabs) {
+    return(NULL)
+  }
+
+  n <- prepare_nests(.refdate = refdate)
+
+  if (is.null(n) || nrow(n) == 0) {
+    ErrToast(glue("No nests found on {refdate}."))
+    return(NULL)
+  }
+
+  nolat <- n[is.na(lat)]
+  if (nrow(nolat) > 0) {
+    ErrToast(glue(
+      "{paste(nolat$nest, collapse = ';')} without coordinates. Did you download all GPS units?"
+    ))
+  }
+
+  n[, N := .N, nest]
+
+  doubleEntry <- n[N > 1]
+  if (nrow(doubleEntry) > 0) {
+    WarnToast(glue(
+      "Nests with inconsistent states: {paste(unique(doubleEntry$nest), collapse = ';')}"
+    ))
+  }
+
+  n
 }

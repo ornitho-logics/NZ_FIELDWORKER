@@ -1,4 +1,4 @@
-leaflet_map <- function() {
+leaflet_map <- function(fail = NULL) {
   stusi <-
     study_site_loader()
 
@@ -9,7 +9,8 @@ leaflet_map <- function() {
     st_coordinates() |>
     as.numeric()
 
-  leaflet(options = leafletOptions(zoomControl = TRUE)) |>
+  m <-
+    leaflet(options = leafletOptions(zoomControl = TRUE)) |>
     addProviderTiles(providers$Esri.WorldImagery, group = "Satellite") |>
     addProviderTiles(providers$OpenStreetMap, group = "Street Map") |>
     addProviderTiles(providers$OpenTopoMap, group = "Topo Map") |>
@@ -59,5 +60,25 @@ leaflet_map <- function() {
         position = "topleft"
       )
     )
+
+  if (!is.null(fail)) {
+    m <-
+      m |>
+      addControl(
+        html = htmltools::tags$div(
+          style = paste(
+            "background: rgba(255, 255, 255, 0.92);",
+            "padding: 8px 10px;",
+            "border-radius: 4px;",
+            "font-weight: 700;",
+            "color: #b00020;",
+            "box-shadow: 0 1px 5px rgba(0, 0, 0, 0.35);"
+          ),
+          fail
+        ),
+        position = "topright"
+      )
+  }
+
+  m
 }
-#' leaflet_map()
