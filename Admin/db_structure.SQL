@@ -951,24 +951,15 @@ CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.CAPTURES_ARCHIVE AS
 
 SELECT
 ring,
-  CONCAT_WS('-',
-    NULLIF(UL, ''),
-    NULLIF(LL, ''),
-    NULLIF(UR, ''),
-    NULLIF(LR, '')
-  ) AS combo,
+mark
 date,
-calender_year,
 study_year,
 site_code,
+capture_status,
 latitude,
 longitude,
-capture_status,
 field_sex,
-nest_id,
 age,
-observer,
-
 tarsus,
 culmen,
 wing,
