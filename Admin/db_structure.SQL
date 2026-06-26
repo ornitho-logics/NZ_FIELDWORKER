@@ -951,7 +951,7 @@ CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.CAPTURES_ARCHIVE AS
 
 SELECT
 ring,
-mark
+mark,
 date,
 study_year,
 site_code,
