@@ -274,8 +274,10 @@ CREATE TABLE CAPTURES (
     <b>0</b> (no) or <br>
     <b>1</b> (yes)',
 
-  moult varchar(255) DEFAULT                    NULL COMMENT 'primary molt score of captured individual. Scored as a the stage of the moult and the number of feathers at that stage. If all 10 primaries are old feathers with no moult, it would be scored as "0(10)". See Ringers Manual, British Trust for Ornithology, Thetford for more details.',
-
+  moult_right VARCHAR(20) DEFAULT                    NULL COMMENT 'Right wing primary molt score of captured individual. Scored as a the stage of the moult and the number of feathers at that stage. If all 10 primaries are old feathers with no moult, it would be scored as "0(10)". See Ringers Manual, British Trust for Ornithology, Thetford for more details.',
+  
+  moult_left VARCHAR(20) DEFAULT               NULL COMMENT 'Left wing primary molt score of captured individual. Scored as a the stage of the moult and the number of feathers at that stage. If all 10 primaries are old feathers with no moult, it would be scored as "0(10)". See Ringers Manual, British Trust for Ornithology, Thetford for more details.',
+  
   fat int(1) unsigned DEFAULT                   NULL COMMENT 'fat score of captured individual, scored as the amount of visible fat in the furcular region or tracheal pit. See <i>Ringers Manual, British Trust for Ornithology, Thetford for more details.</i>',
 
   breast_samp ENUM('0','1') DEFAULT             NULL COMMENT '
