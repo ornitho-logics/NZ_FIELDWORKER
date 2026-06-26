@@ -7,8 +7,8 @@ CREATE DATABASE IF NOT EXISTS FIELD_2026_BADOatNZ;
 
 USE FIELD_2026_BADOatNZ;
 
-DROP TABLE IF EXISTS OBSERVERS ;
-CREATE TABLE OBSERVERS (
+-- -- DROP TABLE IF EXISTS OBSERVERS ;
+CREATE TABLE IF NOT EXISTS OBSERVERS (
   name text DEFAULT NULL COMMENT 'Your full name.',
   observer varchar(3) DEFAULT NULL COMMENT 'Your initials. Use two or three letters. This is what you will use when entering data.',
   start date                   DEFAULT NULL COMMENT 'Start of work (YYYY-MM-DD)',
@@ -18,16 +18,12 @@ CREATE TABLE OBSERVERS (
   nznbbs_number CHAR(4) DEFAULT NULL COMMENT 'Your 4-character New Zealand National Bird Banding Scheme (NZNBBS) certification number'
 ) ENGINE=InnoDB ;
 
-INSERT INTO OBSERVERS (name, observer, START, STOP, gps_id, cam_id)
-VALUES
-  (NULL, NULL, NULL, NULL, NULL, NULL),
-  (NULL, NULL, NULL, NULL, NULL, NULL),
-  (NULL, NULL, NULL, NULL, NULL, NULL);
+-- INSERT INTO OBSERVERS (name, observer, START, STOP, gps_id, cam_id)
+-- VALUES (NULL, NULL, NULL, NULL, NULL, NULL), (NULL, NULL, NULL, NULL, NULL, NULL), (NULL, NULL, NULL, NULL, NULL, NULL);
 
 
-
-DROP TABLE IF EXISTS CAPTURES;
-CREATE TABLE CAPTURES (
+-- DROP TABLE IF EXISTS CAPTURES;
+CREATE TABLE IF NOT EXISTS CAPTURES (
   date date DEFAULT                             NULL COMMENT 'Date caught YYYY-MM-DD (local, NZDT or NZST)',
 
   cap_start time DEFAULT                        NULL COMMENT 'hh:mm capture start (when you set the trap or commenced trapping with the mistnet)',
@@ -360,8 +356,8 @@ CREATE TABLE CAPTURES (
 ) ENGINE=InnoDB ;
 
 
-DROP TABLE IF EXISTS EGGS ;
-CREATE TABLE EGGS (
+-- DROP TABLE IF EXISTS EGGS ;
+CREATE TABLE IF NOT EXISTS EGGS (
   species char(4) DEFAULT NULL COMMENT '
     4-letter species code: <br>
       <b>BADO</b> (Banded Dotterel) <br>
@@ -411,8 +407,8 @@ CREATE TABLE EGGS (
 ) ENGINE=InnoDB ;
 
 
-DROP TABLE IF EXISTS GPS_POINTS ;
-CREATE TABLE GPS_POINTS (
+-- DROP TABLE IF EXISTS GPS_POINTS ;
+CREATE TABLE IF NOT EXISTS GPS_POINTS (
   gps_id tinyint unsigned NOT NULL COMMENT 'gps id',
   gps_point int unsigned NOT NULL COMMENT 'gps point',
   datetime_ datetime NOT NULL COMMENT 'gps date-time (NZST / NZDT)',
@@ -426,8 +422,8 @@ CREATE TABLE GPS_POINTS (
 ) ENGINE=InnoDB  ;
 
 
-DROP TABLE IF EXISTS GPS_TRACKS ;
-CREATE TABLE GPS_TRACKS (
+-- DROP TABLE IF EXISTS GPS_TRACKS ;
+CREATE TABLE IF NOT EXISTS GPS_TRACKS (
   gps_id tinyint unsigned NOT NULL COMMENT 'gps id',
   seg_id int unsigned NOT NULL COMMENT 'segment id',
   seg_point_id int unsigned NOT NULL COMMENT 'segment point id',
@@ -442,8 +438,8 @@ CREATE TABLE GPS_TRACKS (
 ) ENGINE=InnoDB  ;
 
 
-DROP TABLE IF EXISTS NESTS ;
-CREATE TABLE NESTS (
+-- DROP TABLE IF EXISTS NESTS ;
+CREATE TABLE IF NOT EXISTS NESTS (
   species char(4) DEFAULT NULL COMMENT '
   4-letter species code: <br>
   <b>BADO</b> (Banded Dotterel) <br>
@@ -559,8 +555,8 @@ CREATE TABLE NESTS (
 ) ENGINE=InnoDB ;
 
 
-DROP TABLE IF EXISTS RESIGHTINGS ;
-CREATE TABLE RESIGHTINGS (
+-- DROP TABLE IF EXISTS RESIGHTINGS ;
+CREATE TABLE IF NOT EXISTS RESIGHTINGS (
 
   species char(4) DEFAULT NULL COMMENT '
   4-letter species code: <br>
@@ -734,8 +730,8 @@ CREATE TABLE RESIGHTINGS (
 ) ENGINE=InnoDB  ;
 
 
-DROP TABLE IF EXISTS RESIGHTINGS_PUBLIC ;
-CREATE TABLE RESIGHTINGS_PUBLIC (
+-- DROP TABLE IF EXISTS RESIGHTINGS_PUBLIC ;
+CREATE TABLE IF NOT EXISTS RESIGHTINGS_PUBLIC (
   species char(4) DEFAULT NULL COMMENT '
   4-letter species code: <br>
   <b>BADO</b> (Banded Dotterel) <br>
@@ -895,7 +891,7 @@ CREATE TABLE RESIGHTINGS_PUBLIC (
 ) ENGINE=InnoDB  ;
 
 
---- DROP TABLE IF EXISTS inspectors; 
+-- --- DROP TABLE IF EXISTS inspectors; 
 
 CREATE TABLE IF NOT EXISTS inspectors (
   table_name varchar(128) NOT NULL
@@ -913,7 +909,7 @@ inspector longtext NOT NULL
 );
 
 
---- DROP TABLE IF EXISTS artifacts; 
+-- --- DROP TABLE IF EXISTS artifacts; 
 CREATE TABLE IF NOT EXISTS artifacts (
   artifact_name varchar(128) NOT NULL
     COMMENT 'This is the value the app uses to load the relevant saved code, WKT, map plot code, or todo list code.',
@@ -929,13 +925,7 @@ CREATE TABLE IF NOT EXISTS artifacts (
   PRIMARY KEY (artifact_name)
 );
 
-INSERT IGNORE INTO artifacts (artifact_name, artifact, comments)
-VALUES
-  ('study_area', NULL, NULL),
-  ('nests_map', NULL, NULL),
-  ('daily_todo', NULL, NULL),
-  ('resightings_map', NULL, NULL);
-
+-- INSERT IGNORE INTO artifacts (artifact_name, artifact, comments) VALUES ('study_area', NULL, NULL)
 
 
 -- VIEWS 
@@ -951,7 +941,35 @@ CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.CAPTURES_ARCHIVE AS
 
 SELECT
 ring,
-mark
+UL,
+  LL,
+  UR,
+  LR,
+  CONCAT(
+    COALESCE(
+      NULLIF(
+        CONCAT_WS(
+          '.',
+          CASE WHEN NULLIF(TRIM(UL), '') NOT IN ('X', 'M') THEN TRIM(UL) END,
+          CASE WHEN NULLIF(TRIM(LL), '') NOT IN ('X', 'M') THEN TRIM(LL) END
+        ),
+        ''
+      ),
+      'X'
+    ),
+    '-',
+    COALESCE(
+      NULLIF(
+        CONCAT_WS(
+          '.',
+          CASE WHEN NULLIF(TRIM(UR), '') NOT IN ('X', 'M') THEN TRIM(UR) END,
+          CASE WHEN NULLIF(TRIM(LR), '') NOT IN ('X', 'M') THEN TRIM(LR) END
+        ),
+        ''
+      ),
+      'X'
+    )
+  ) AS mark,
 date,
 study_year,
 site_code,
