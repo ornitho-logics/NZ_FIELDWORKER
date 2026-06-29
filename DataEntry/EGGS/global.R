@@ -11,11 +11,7 @@ exclude_columns <- c("pk", "nov")
 n_empty_lines <- 20
 
 observers <-
-  db_get("SELECT observer FROM OBSERVERS")$observer |>
-  as.character() |>
-  trimws() |>
-  unique() |>
-  sort()
+  db_get("SELECT COALESCE( (SELECT observer FROM OBSERVERS), '??') AS o;")$o
 
 
 prefilled <- list(
