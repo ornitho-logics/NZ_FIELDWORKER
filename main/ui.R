@@ -128,11 +128,12 @@ bs4Dash::dashboardPage(
       # Overview tab (first tab)
       tabItem(
         tabName = "overview",
-        box(
-          width = 11,
+        bs4Dash::box(
+          width = 12,
+          height = "50vh",
+          style = "overflow: hidden;",
           plotOutput(
-            "overview_show",
-            width = "80%"
+            "overview_show"
           )
         )
       ),
