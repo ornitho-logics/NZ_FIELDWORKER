@@ -17,8 +17,7 @@ observers <-
 prefilled <- list(
   date = format(Sys.Date(), "%Y-%m-%d"),
   species = "BADO",
-  site = "CR",
-  observer = observers
+  site = "CR"
 )
 
 dropdowns <- list(
