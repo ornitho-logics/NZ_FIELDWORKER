@@ -4,7 +4,7 @@ require(DataEntry)
 
 table_name <- "EGGS"
 
-group <- "nz_fieldworker_ts"
+group <- "nz_fieldworker"
 
 exclude_columns <- c("pk", "nov")
 
