@@ -130,7 +130,7 @@ CREATE TABLE IF NOT EXISTS CAPTURES (
 
   ring varchar(50) DEFAULT    NULL COMMENT 'alpha-numeric code of metal ring assigned to captured individual',
 
-  UL_in varchar(4) DEFAULT    NULL COMMENT '
+  UL_in varchar(10) DEFAULT    NULL COMMENT '
   AT CAPTURE/BEFORE HANDLING (leave blank if combo not changed);
   code for the color/type of band(s) assigned to the left tibia (upper band listed first if more than one band assigned):<br>
       <b>X</b> (blank)              <br>
@@ -144,7 +144,7 @@ CREATE TABLE IF NOT EXISTS CAPTURES (
       <b>M</b> (metal)              <br>
       FXYZ (flag with colour X and 2-character code YZ; use the same colour letters as above and include at least one letter)',
 
-  LL_in varchar(4) DEFAULT   NULL COMMENT '
+  LL_in varchar(10) DEFAULT   NULL COMMENT '
   AT CAPTURE/BEFORE HANDLING (leave blank if combo not changed);
   code for the color/type of band(s) assigned to the left tarsus (upper band listed first if more than one band assigned): <br>
       <b>X</b> (blank)            <br>
@@ -158,7 +158,7 @@ CREATE TABLE IF NOT EXISTS CAPTURES (
       <b>M</b> (metal)            <br>
    No flag assigned to tarsi',
 
-  UR_in varchar(4) DEFAULT                         NULL COMMENT '
+  UR_in varchar(10) DEFAULT                         NULL COMMENT '
   AT CAPTURE/BEFORE HANDLING (leave blank if combo not changed);
   code for the color/type of band(s) assigned to the right tibia (upper band listed first if more than one band     assigned):<br>
       <b>X</b> (blank)              <br>
@@ -173,7 +173,7 @@ CREATE TABLE IF NOT EXISTS CAPTURES (
       <b>T</b> (tag; if used, also complete tag_id) <br>
       FXYZ (flag with colour X and 2-character code YZ; use the same colour letters as above and include at least one letter).',
 
-  LR_in varchar(4) DEFAULT                         NULL COMMENT '
+  LR_in varchar(10) DEFAULT                         NULL COMMENT '
   AT CAPTURE/BEFORE HANDLING (leave blank if combo not changed);
   code for the color/type of band(s) assigned to the right tarsus (upper band listed first if more than one     band assigned): <br>
       <b>X</b> (blank)              <br>
@@ -187,7 +187,7 @@ CREATE TABLE IF NOT EXISTS CAPTURES (
       <b>M</b> (metal)              <br>
    No flag assigned to tarsi.',
    
-   UL varchar(4) DEFAULT    NULL COMMENT '
+   UL varchar(10) DEFAULT    NULL COMMENT '
   AT RELEASE/AFTER HANDLING (leave blank if combo not changed);
   code for the color/type of band(s) assigned to the left tibia (upper band listed first if more than one band assigned):<br>
       <b>X</b> (blank)              <br>
@@ -201,7 +201,7 @@ CREATE TABLE IF NOT EXISTS CAPTURES (
       <b>M</b> (metal)              <br>
       FXYZ (flag with colour X and 2-character code YZ; use the same colour letters as above and include at least one letter)',
 
-  LL varchar(4) DEFAULT   NULL COMMENT '
+  LL varchar(10) DEFAULT   NULL COMMENT '
   AT RELEASE/AFTER HANDLING (leave blank if combo not changed);
   code for the color/type of band(s) assigned to the left tarsus (upper band listed first if more than one band assigned): <br>
       <b>X</b> (blank)            <br>
@@ -215,7 +215,7 @@ CREATE TABLE IF NOT EXISTS CAPTURES (
       <b>M</b> (metal)            <br>
    No flag assigned to tarsi',
 
-  UR varchar(4) DEFAULT                         NULL COMMENT '
+  UR varchar(10) DEFAULT                         NULL COMMENT '
   AT RELEASE/AFTER HANDLING (leave blank if combo not changed);
   code for the color/type of band(s) assigned to the right tibia (upper band listed first if more than one band     assigned):<br>
       <b>X</b> (blank)              <br>
@@ -230,7 +230,7 @@ CREATE TABLE IF NOT EXISTS CAPTURES (
       <b>T</b> (tag; if used, also complete tag_id) <br>
       FXYZ (flag with colour X and 2-character code YZ; use the same colour letters as above and include at least one letter).',
 
-  LR varchar(4) DEFAULT                         NULL COMMENT '
+  LR varchar(10) DEFAULT                         NULL COMMENT '
   AT RELEASE/AFTER HANDLING (leave blank if combo not changed);
   code for the color/type of band(s) assigned to the right tarsus (upper band listed first if more than one     band assigned): <br>
       <b>X</b> (blank)              <br>
@@ -386,7 +386,7 @@ CREATE TABLE IF NOT EXISTS EGGS (
       <b>3</b> (third egg) <br>
       <b>4</b> (fourth egg)',
 
-  float_angle tinyint unsigned DEFAULT NULL COMMENT 'Egg floating angle (degrees, minimum 20, maximum 90)',
+  float_angle tinyint unsigned DEFAULT NULL COMMENT 'Egg floating angle (degrees, minimum 0, maximum 90)',
 
   float_surface tinyint unsigned DEFAULT NULL COMMENT 'Height of egg above water surface (mm)',
 
@@ -612,7 +612,7 @@ CREATE TABLE IF NOT EXISTS RESIGHTINGS (
       <b>P</b> (photography session) <br>
       <b>H</b> (hiding-spot photo observation)',
 
-  UL varchar(4) DEFAULT NULL COMMENT '
+  UL varchar(10) DEFAULT NULL COMMENT '
   code for the color/type of band(s) observed on the left tibia (upper band listed first if more than one band assigned):<br>
       <b>X</b> (blank)              <br>
       <b>O</b> (orange)             <br>
@@ -625,7 +625,7 @@ CREATE TABLE IF NOT EXISTS RESIGHTINGS (
       <b>M</b> (metal)              <br>
       FXYZ (flag with colour X and 2-character code YZ; use the same colour letters as above and include at least one letter)',
 
-  LL varchar(4) DEFAULT NULL COMMENT '
+  LL varchar(10) DEFAULT NULL COMMENT '
   code for the color/type of band(s) observed on the left tarsus (upper band listed first if more than one band assigned): <br>
       <b>X</b> (blank)            <br>
       <b>O</b> (orange)           <br>
@@ -638,7 +638,7 @@ CREATE TABLE IF NOT EXISTS RESIGHTINGS (
       <b>M</b> (metal)            <br>
    No flag assigned to tarsi',
 
-  UR varchar(4) DEFAULT NULL COMMENT '
+  UR varchar(10) DEFAULT NULL COMMENT '
   code for the color/type of band(s) observed on the right tibia (upper band listed first if more than one band assigned):<br>
       <b>X</b> (blank)              <br>
       <b>O</b> (orange)             <br>
@@ -652,7 +652,7 @@ CREATE TABLE IF NOT EXISTS RESIGHTINGS (
       <b>T</b> (tag; if used, also complete tag_id) <br>
       FXYZ (flag with colour X and 2-character code YZ; use the same colour letters as above and include at least one letter).',
 
-  LR varchar(4) DEFAULT NULL COMMENT '
+  LR varchar(10) DEFAULT NULL COMMENT '
   code for the color/type of band(s) observed on the right tarsus (upper band listed first if more than one band assigned): <br>
       <b>X</b> (blank)              <br>
       <b>O</b> (orange)             <br>
@@ -763,7 +763,7 @@ CREATE TABLE IF NOT EXISTS RESIGHTINGS_PUBLIC (
    <b>F?</b> (female, but uncertain), <br>
    <b>U</b> (unknown)',
 
-  UL varchar(4) DEFAULT NULL COMMENT '
+  UL varchar(10) DEFAULT NULL COMMENT '
   code for the color/type of band(s) observed on the left tibia (upper band listed first if more than one band assigned):<br>
       <b>X</b> (blank)              <br>
       <b>O</b> (orange)             <br>
@@ -776,7 +776,7 @@ CREATE TABLE IF NOT EXISTS RESIGHTINGS_PUBLIC (
       <b>M</b> (metal)              <br>
       FXYZ (flag with colour X and 2-character code YZ; use the same colour letters as above and include at least one letter)',
 
-  LL varchar(4) DEFAULT NULL COMMENT '
+  LL varchar(10) DEFAULT NULL COMMENT '
   code for the color/type of band(s) observed on the left tarsus (upper band listed first if more than one band assigned): <br>
       <b>X</b> (blank)            <br>
       <b>O</b> (orange)           <br>
@@ -789,7 +789,7 @@ CREATE TABLE IF NOT EXISTS RESIGHTINGS_PUBLIC (
       <b>M</b> (metal)            <br>
    No flag assigned to tarsi',
 
-  UR varchar(4) DEFAULT NULL COMMENT '
+  UR varchar(10) DEFAULT NULL COMMENT '
   code for the color/type of band(s) observed on the right tibia (upper band listed first if more than one band assigned):<br>
       <b>X</b> (blank)              <br>
       <b>O</b> (orange)             <br>
@@ -803,7 +803,7 @@ CREATE TABLE IF NOT EXISTS RESIGHTINGS_PUBLIC (
       <b>T</b> (tag; if used, also complete tag_id) <br>
       FXYZ (flag with colour X and 2-character code YZ; use the same colour letters as above and include at least one letter).',
 
-  LR varchar(4) DEFAULT NULL COMMENT '
+  LR varchar(10) DEFAULT NULL COMMENT '
   code for the color/type of band(s) observed on the right tarsus (upper band listed first if more than one band assigned): <br>
       <b>X</b> (blank)              <br>
       <b>O</b> (orange)             <br>
@@ -933,7 +933,7 @@ CREATE TABLE IF NOT EXISTS artifacts (
 -- VIEWS 
 
 CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.CAPTURES_active AS
-SELECT site, lat, lon ,date ,cap_start ,capture_method ,nest_id,observer,field_sex ,age  ,ring ,UL   ,LL   ,UR   ,LR   ,tag_id ,tag_action ,tag_type,NULL harness_size,culmen  ,tarsus ,total_head ,head_white,head_black     ,rufous_band ,wing ,weight ,moult,fat
+SELECT site, lat, lon ,date ,cap_start ,capture_method ,nest_id,observer,field_sex ,age  ,ring ,UL   ,LL   ,UR   ,LR   ,tag_id ,tag_action ,tag_type,NULL harness_size,culmen  ,tarsus ,total_head ,head_white,head_black     ,rufous_band ,wing ,weight ,moult_left,fat
 FROM FIELD_2026_BADOatNZ.CAPTURES c LEFT JOIN FIELD_2026_BADOatNZ.GPS_POINTS g 
 on c.gps_id = g.gps_id and c.gps_point = g.gps_point;
 
