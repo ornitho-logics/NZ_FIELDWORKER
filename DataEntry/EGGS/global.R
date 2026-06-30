@@ -4,14 +4,13 @@ require(DataEntry)
 
 table_name <- "EGGS"
 
-group <- "nz_fieldworker"
+group <- "nz_fieldworker_ts"
 
 exclude_columns <- c("pk", "nov")
 
 n_empty_lines <- 20
 
-observers <-
-  db_get("SELECT COALESCE( (SELECT observer FROM OBSERVERS), '??') AS o;")$o
+observers <- prepare_for_dropdown('OBSERVERS', 'observer')
 
 prefilled <- list(
   date = format(Sys.Date(), "%Y-%m-%d"),

@@ -41,8 +41,8 @@ sites <- c(
   "WS"
 )
 
-observers <-
-  db_get("SELECT COALESCE( (SELECT observer FROM OBSERVERS), '??') AS o;")$o
+observers <- prepare_for_dropdown('OBSERVERS', 'observer')
+
 
 prefilled <- list(
   date = format(Sys.Date(), "%Y-%m-%d"),

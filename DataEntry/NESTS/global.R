@@ -11,8 +11,7 @@ exclude_columns <- c("pk", "nov")
 
 n_empty_lines <- 10
 
-observers <-
-  db_get("SELECT COALESCE( (SELECT observer FROM OBSERVERS), '??') AS o;")$o
+observers <- prepare_for_dropdown('OBSERVERS', 'observer')
 
 
 prefilled <- list(
