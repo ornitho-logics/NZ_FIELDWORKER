@@ -173,3 +173,7 @@ scratch/
 *.out
 *.err
 .Rproj.user
+
+
+
+ADMIN_on_server
