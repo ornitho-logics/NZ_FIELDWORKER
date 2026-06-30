@@ -17,13 +17,11 @@ observers <-
   unique() |>
   sort()
 
-observers <- NULL
 
 prefilled <- list(
   date = format(Sys.Date(), "%Y-%m-%d"),
   species = "BADO",
-  observer = observers,
-  site = "CR"
+  observer = observers
 )
 
 
