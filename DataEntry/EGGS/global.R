@@ -14,14 +14,12 @@ observers <- prepare_for_dropdown('OBSERVERS', 'observer')
 
 prefilled <- list(
   date = format(Sys.Date(), "%Y-%m-%d"),
-  species = "BADO",
-  site = "CR"
+  species = "BADO"
 )
 
 dropdowns <- list(
   species = c("BADO", "WRYB", "SNZD", "BFDO"),
   egg_id = as.character(1:4),
   float_location = c("bottom", "suspended", "surface"),
-  observer = observers,
-  observer_upload = observers
+  observer = observers
 )
