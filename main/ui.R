@@ -33,7 +33,6 @@ bs4Dash::dashboardPage(
         icon = icon("broadcast-tower")
       ),
       menuItem("To-Do list", tabName = "todo_list", icon = icon("tasks")),
-      menuItem("To-Do map", tabName = "todo_map", icon = icon("street-view")),
       menuItem("Hatching", tabName = "hatching_est", icon = icon("egg")),
       HR(),
       menuItem(
@@ -104,7 +103,7 @@ bs4Dash::dashboardPage(
 
       downloadBttn(
         outputId = "map_nests_pdf",
-        label = "All nests",
+        label = "Nests",
         icon = icon("file-pdf")
       ),
       downloadBttn(
@@ -129,11 +128,12 @@ bs4Dash::dashboardPage(
       # Overview tab (first tab)
       tabItem(
         tabName = "overview",
-        box(
-          width = 11,
+        bs4Dash::box(
+          width = 12,
+          height = "50vh",
+          style = "overflow: hidden;",
           plotOutput(
-            "overview_show",
-            width = "80%"
+            "overview_show"
           )
         )
       ),
@@ -195,7 +195,7 @@ bs4Dash::dashboardPage(
 
             spinner(
               leafletOutput(
-                outputId = "nest_dynmap_show",
+                outputId = "map_nest_leaflet_show",
                 width = "100%",
                 height = "calc(99vh - 1px)"
               )
@@ -210,20 +210,7 @@ bs4Dash::dashboardPage(
           DT::DTOutput(outputId = "todo_list_show")
         )
       ),
-      # To-Do map tab
-      tabItem(
-        tabName = "todo_map",
-        fluidRow(
-          box(
-            width = 12,
-            maximizable = TRUE,
 
-            spinner(
-              plotOutput("map_todo_show")
-            )
-          )
-        )
-      ),
       # Hatching tab
       tabItem(
         tabName = "hatching_est",

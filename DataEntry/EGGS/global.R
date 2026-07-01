@@ -10,20 +10,12 @@ exclude_columns <- c("pk", "nov")
 
 n_empty_lines <- 20
 
-observers <-
-  db_get("SELECT observer FROM OBSERVERS")$observer |>
-  as.character() |>
-  trimws() |>
-  unique() |>
-  sort()
-
+observers <- prepare_for_dropdown('OBSERVERS', 'observer')
 
 prefilled <- list(
   date = format(Sys.Date(), "%Y-%m-%d"),
-  species = "BADO",
-  observer = observers
+  species = "BADO"
 )
-
 
 dropdowns <- list(
   species = c("BADO", "WRYB", "SNZD", "BFDO"),

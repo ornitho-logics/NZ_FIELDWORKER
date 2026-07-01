@@ -1,3 +1,5 @@
+# from artifacts table
+
 study_site_loader <- function(
   lon = 170.507560,
   lat = -43.881055,

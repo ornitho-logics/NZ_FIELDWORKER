@@ -11,24 +11,13 @@ exclude_columns <- c("pk", "nov")
 
 n_empty_lines <- 10
 
-observer_opts <-
-  db_get(
-    "SELECT observer FROM OBSERVERS WHERE observer IS NOT NULL AND observer <> ''"
-  )[["observer"]] |>
-  as.character() |>
-  trimws() |>
-  unique() |>
-  sort()
+observers <- prepare_for_dropdown('OBSERVERS', 'observer')
 
 prefilled <- list(
   date = format(Sys.Date(), "%Y-%m-%d"),
   species = "BADO",
   site = "CR"
 )
-
-if (length(observer_opts) == 1) {
-  prefilled$observer <- observer_opts
-}
 
 dropdowns <- list(
   species = c("BADO", "WRYB", "SNZD", "BFDO"),
@@ -63,9 +52,6 @@ dropdowns <- list(
   rclass = c("C", "V", "R", "P", "H"),
   sex = c("M", "M?", "F", "F?", "U"),
   age = c("A", "J", "C"),
-  falcon_upload = c("0", "1")
+  falcon_upload = c("0", "1"),
+  observer = observers
 )
-
-if (length(observer_opts) > 1) {
-  dropdowns$observer <- observer_opts
-}

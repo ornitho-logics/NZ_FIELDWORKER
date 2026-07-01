@@ -1,6 +1,6 @@
 #+ NOTE:
 #' list.files('./main/R/', full.names = TRUE) |> lapply(source) |> invisible(); source('main/global.R')
-#' ss = function() shiny::runApp("main", launch.browser = TRUE )
+#'  shiny::startApp("./main", launch.browser = TRUE )
 
 #! PACKAGES & DATA
 sapply(
@@ -15,6 +15,7 @@ sapply(
     "ggplot2",
     "ggrepel",
     "ggtext",
+    "gt",
     "patchwork",
     "ggpubr",
     "ggbeeswarm",

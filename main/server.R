@@ -1,7 +1,7 @@
 shinyServer(function(input, output, session) {
-  # observe({
-  #   on.exit(assign("input", reactiveValuesToList(input), envir = .GlobalEnv))
-  # })
+  observe({
+    on.exit(assign("input", reactiveValuesToList(input), envir = .GlobalEnv))
+  })
 
   output$ref_date_text <- renderUI({
     HTML(ref_date_message(input$refdate))
@@ -9,7 +9,11 @@ shinyServer(function(input, output, session) {
 
   output$overview_show <- renderPlot(
     {
-      try_else(overview_graph, sys_graph)
+      try_else(
+        overview_graph(),
+        fallback_ggplot,
+        fail = 'overview_graph() failed!'
+      )
     }
   )
 
@@ -46,85 +50,90 @@ shinyServer(function(input, output, session) {
   })
 
   N <- reactive({
-    current_nests(
+    NESTS(
       main_tab = input$main,
       refdate = input$refdate
     )
   })
 
   output$map_nests_show <- renderPlot({
-    n <- N()
-    req(n)
-    map_nests(
-      n[nest_state %in% input$nest_state],
-      size = input$nest_size,
-      grandTotal = nrow(n),
-      .refdate = input$refdate
+    try_else(
+      {
+        n <- N()
+        req(n)
+
+        map_nests(
+          n[nest_state %in% input$nest_state],
+          size = input$nest_size,
+          grandTotal = nrow(n),
+          .refdate = input$refdate
+        )
+      },
+      fallback_ggplot,
+      fail = "map_nests() failed!"
     )
   })
 
   output$map_nests_pdf <- download_plot_pdf(
     filename = "map_nests.pdf",
     plot = function() {
-      n <- N()
-      req(n)
+      try_else(
+        {
+          n <- N()
+          req(n)
 
-      map_nests(
-        n[nest_state %in% input$nest_state],
-        size = input$nest_size,
-        grandTotal = nrow(n),
-        .refdate = input$refdate
+          map_nests(
+            n[nest_state %in% input$nest_state],
+            size = input$nest_size,
+            grandTotal = nrow(n),
+            .refdate = input$refdate
+          )
+        },
+        fallback_ggplot,
+        fail = "map_nests() failed!"
       )
     }
   )
 
-  output$nest_dynmap_show <- {
-    leafmap <- leaflet_map()
-    renderLeaflet(leafmap)
-  }
+  output$map_nest_leaflet_show <- renderLeaflet({
+    try_else(
+      {
+        n <- N()
+        req(n)
 
-  observeEvent(input$main, {
-    if (input$main == "live_nest_map") {
-      n <- N()
-      req(n)
-      n <- st_as_sf(n[!is.na(lat)], coords = c("lon", "lat"), crs = 4326)
-      if (nrow(n) > 0) {
-        leafletProxy(mapId = "nest_dynmap_show") |>
-          clearGroup("live_nest_markers") |>
-          addCircleMarkers(
-            group = "live_nest_markers",
-            data = n,
-            fillOpacity = 0.5,
-            opacity = 0.5,
-            radius = ~3,
-            label = ~nest
-          )
-      }
-    }
+        live_nest_leaflet(n)
+      },
+      fallback_leaflet,
+      fail = "live_nest_leaflet() failed!"
+    )
   })
 
-  todo_data <- reactive({
-    n <- N()
-    req(n)
+  output$todo_list_show <- render_todo_table({
+    try_else(
+      {
+        n <- N()
+        req(n)
 
-    extract_TODO(n, .refdate = input$refdate)
+        todo_list(n, .refdate = input$refdate)
+      },
+      fallback_dt,
+      fail = "todo_list() failed!"
+    )
   })
 
-  output$todo_list_show <- render_todo_table(todo_data)
-
-  output$map_todo_show <- renderPlot({
-    n <- N()
-    req(n)
-    map_todo(n, size = input$nest_size, .refdate = input$refdate)
-  })
-
-  output$todo_pdf <- download_plot_pdf(
+  output$todo_pdf <- download_gt_pdf(
     filename = "todo.pdf",
-    plot = function() {
-      n <- N()
-      req(n)
+    table = function() {
+      try_else(
+        {
+          n <- N()
+          req(n)
 
-      todo(n, size = input$nest_size, .refdate = input$refdate)
+          todo_pdf_table(n, .refdate = input$refdate)
+        },
+        fallback_gt,
+        fail = "todo_pdf_table() failed!"
+      )
     }
   )
 

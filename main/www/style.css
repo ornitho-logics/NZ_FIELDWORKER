@@ -8,8 +8,22 @@
   height: calc(93vh - 1px) !important;
 }
 
+
 #overview_show {
-  height: calc(93vh - 1px) !important;
+  height: 50vh !important;
+  max-height: 50vh !important;
+  overflow: hidden;
+}
+
+#overview_show img {
+  height: 100% !important;
+  max-height: 100% !important;
+  object-fit: contain;
+}
+
+.overview-box .card-body {
+  padding: 0.1rem;
+  overflow: hidden;
 }
 
 /* dataTable wrap */

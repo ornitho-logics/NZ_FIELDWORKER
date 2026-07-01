@@ -1,9 +1,6 @@
 #TODO
 
-#' x = NESTS(DB = yr2dbnam(2024), .refdate = "2024-04-25")
-#' x = NESTS()
-#' z = extract_TODO(x,.refdate = input$refdate)
-extract_TODO <- function(x, .refdate = input$refdate) {
+prepare_todo_list <- function(x, .refdate = input$refdate) {
   #! ALL_RULES
   # "catch M", "catch F", "nest check", "hatch check" # and combinations of it
 
@@ -130,4 +127,18 @@ extract_TODO <- function(x, .refdate = input$refdate) {
 
   setorder(out, todo_catch, todo_check, na.last = TRUE)
   out
+}
+
+
+todo_list <- function(n, .refdate = Sys.Date()) {
+  x <- prepare_todo_list(n, .refdate = .refdate) |>
+    data.table()
+
+  cols <- intersect(c("lat", "lon"), names(x))
+
+  if (length(cols)) {
+    x[, (cols) := NULL]
+  }
+
+  x
 }

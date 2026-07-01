@@ -163,7 +163,7 @@ download_plot_pdf <- function(filename, plot, width = 11, height = 8.5) {
 
 try_else <- function(primary, fallback, ...) {
   tryCatch(
-    primary(),
+    primary,
     error = function(e) fallback(...)
   )
 }

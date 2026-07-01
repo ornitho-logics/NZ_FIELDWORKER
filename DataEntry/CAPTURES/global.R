@@ -41,25 +41,14 @@ sites <- c(
   "WS"
 )
 
-observer_opts <-
-  db_get(
-    "SELECT observer FROM OBSERVERS WHERE observer IS NOT NULL AND observer <> ''"
-  )[["observer"]] |>
-  as.character() |>
-  trimws() |>
-  unique() |>
-  sort()
+observers <- prepare_for_dropdown('OBSERVERS', 'observer')
+
 
 prefilled <- list(
   date = format(Sys.Date(), "%Y-%m-%d"),
   species = "BADO",
   site = "CR"
 )
-
-if (length(observer_opts) == 1) {
-  prefilled$observer <- observer_opts
-  prefilled$observer_upload <- observer_opts
-}
 
 dropdowns <- list(
   species = species_opts,
@@ -84,17 +73,6 @@ dropdowns <- list(
   wing_photo = c("0", "1"),
   chick_tent_photo = c("0", "1"),
   chick_hide_photo = c("0", "1"),
-  falcon_upload = c("0", "1")
-)
-
-if (length(observer_opts) > 1) {
-  dropdowns$observer <- observer_opts
-  dropdowns$observer_upload <- observer_opts
-}
-
-
-#####
-shinyApp(
-  ui = ui_append_rows(table_name = table_name),
-  server = server_append_rows
+  falcon_upload = c("0", "1"),
+  observer_upload = observers
 )

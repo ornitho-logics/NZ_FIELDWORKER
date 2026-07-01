@@ -1,4 +1,4 @@
-map_empty <- function() {
+ggplot_map <- function() {
   stusi <- study_site_loader()
 
   g <- ggplot()
