@@ -41,8 +41,7 @@ sites <- c(
   "WS"
 )
 
-observers <- prepare_for_dropdown('OBSERVERS', 'observer')
-
+observers <- prepare_for_dropdown("OBSERVERS", "observer")
 
 prefilled <- list(
   date = format(Sys.Date(), "%Y-%m-%d"),
@@ -56,7 +55,7 @@ dropdowns <- list(
   capture_status = c("F", "R", "C", "D"),
   capture_method = c("HA", "TB", "TN", "SM", "MM", "O"),
   parents = c("MF", "F", "M", "U1", "U2", "O"),
-  field_sex = c("M", "M?", "F", "F?", "U"),
+  field_sex = c("M", "MU", "F", "FU", "U"),
   age = c("A", "J", "C"),
 
   brood_patch = c("0", "1"),
@@ -73,6 +72,16 @@ dropdowns <- list(
   wing_photo = c("0", "1"),
   chick_tent_photo = c("0", "1"),
   chick_hide_photo = c("0", "1"),
-  falcon_upload = c("0", "1"),
-  observer_upload = observers
+  falcon_upload = c("0", "1")
+)
+
+if (length(observers) > 1) {
+  dropdowns$observer <- observers
+  dropdowns$observer_upload <- observers
+}
+
+#####
+shinyApp(
+  ui = ui_append_rows(table_name = table_name),
+  server = server_append_rows
 )
