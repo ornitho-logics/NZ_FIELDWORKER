@@ -72,6 +72,7 @@ prepare_nests <- function(.refdate = input$refdate) {
         n.gps_id,
         n.gps_point,
         CONCAT_WS(" ", n.date, n.time_visit) datetime_found,
+        n.nest_state,
         n.nest_id nest,
         g.lat,
         g.lon
@@ -80,13 +81,20 @@ prepare_nests <- function(.refdate = input$refdate) {
         ON n.gps_id = g.gps_id
        AND n.gps_point = g.gps_point
       WHERE n.gps_id IS NOT NULL
-        AND n.nest_state = "F"
+        AND n.nest_state IN ("S", "F")
         AND n.date <= {shQuote(.refdate)}
       '
     )
   )
   if (nrow(gps) > 0) {
     gps[, datetime_ := as.POSIXct(datetime_found)]
+    # Prefer scrape coordinates when available; otherwise fall back to found rows.
+    gps[, state_rank := fifelse(nest_state == "S", 1L, 2L)]
+    gps[, state_rank := min(state_rank), by = nest]
+    gps <- gps[
+      (nest_state == "S" & state_rank == 1L) |
+        (nest_state == "F" & state_rank == 2L)
+    ]
     gps <- gps[,
       .(lat = mean(lat), lon = mean(lon), datetime_found = min(datetime_found)),
       .(nest)
