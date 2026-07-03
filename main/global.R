@@ -43,7 +43,7 @@ sapply(
 #! OPTIONS
 app_nam <- "NZ_FIELDWORKER"
 
-group <- "nz_fieldworker"
+group <- "nz_fieldworker_ts"
 
 
 db <- "FIELD_2026_BADOatNZ"

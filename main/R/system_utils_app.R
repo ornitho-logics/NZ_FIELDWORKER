@@ -118,7 +118,7 @@ S <- function(x = "-------", z = 1) {
 }
 
 # box title style
-bttl <- function(text, color = "#8a2d02", weight = "bold", icon = NULL) {
+bttl <- function(text, color = "#021518", weight = "bold", icon = NULL) {
   icon_html <- if (!is.null(icon)) {
     sprintf("<i class='fas fa-%s'></i> ", icon)
   } else {

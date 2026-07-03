@@ -34,6 +34,7 @@ bs4Dash::dashboardPage(
       ),
       menuItem("To-Do list", tabName = "todo_list", icon = icon("tasks")),
       menuItem("Hatching", tabName = "hatching_est", icon = icon("egg")),
+      menuItem("Downloads", tabName = "downloads", icon = icon("download")),
       HR(),
       menuItem(
         text = "",
@@ -94,22 +95,6 @@ bs4Dash::dashboardPage(
           "Other" = "O"
         ),
         selected = c("S", "F", "I", "H", "pP", "pD", "P", "D", "notA", "O")
-      )
-    ),
-
-    box(
-      title = "Download" |> bttl(),
-      width = 12,
-
-      downloadBttn(
-        outputId = "map_nests_pdf",
-        label = "Nests",
-        icon = icon("file-pdf")
-      ),
-      downloadBttn(
-        outputId = "todo_pdf",
-        label = "To-do",
-        icon = icon("file-pdf")
       )
     )
   ),
@@ -243,6 +228,34 @@ bs4Dash::dashboardPage(
             spinner(
               plotOutput(outputId = "hatching_est_plot")
             )
+          )
+        )
+      ),
+      # Download tab
+      tabItem(
+        tabName = "downloads",
+        box(
+          title = "Download" |> bttl(),
+          width = 11,
+
+          downloadBttn(
+            outputId = "map_nests_pdf",
+            label = "Download Nests PDF",
+            icon = icon("file-pdf"),
+            size = "lg",
+            block = TRUE,
+            style = "material-flat",
+            color = "primary"
+          ),
+          br(),
+          downloadBttn(
+            outputId = "todo_pdf",
+            label = "Download To-do PDF",
+            icon = icon("file-pdf"),
+            size = "lg",
+            block = TRUE,
+            style = "material-flat",
+            color = "primary"
           )
         )
       )

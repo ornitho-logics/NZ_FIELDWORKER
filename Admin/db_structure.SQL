@@ -1,13 +1,26 @@
 
--- COMMENT-s can be styled with html markup.
+/* COMMENT-s can be styled with html markup. */
 
 -- DROP DATABASE IF EXISTS FIELD_2026_BADOatNZ;
+-- DROP TABLE IF EXISTS OBSERVERS ;
+-- DROP TABLE IF EXISTS CAPTURES;
+-- DROP TABLE IF EXISTS EGGS ;
+-- DROP TABLE IF EXISTS GPS_POINTS ;
+-- DROP TABLE IF EXISTS GPS_TRACKS ;
+-- DROP TABLE IF EXISTS NESTS ;
+-- DROP TABLE IF EXISTS RESIGHTINGS ;
+-- DROP TABLE IF EXISTS RESIGHTINGS_PUBLIC ;
+-- DROP TABLE IF EXISTS inspectors; 
+-- DROP TABLE IF EXISTS artifacts; 
+
+
+
+
 
 CREATE DATABASE IF NOT EXISTS FIELD_2026_BADOatNZ;
 
 USE FIELD_2026_BADOatNZ;
 
--- -- DROP TABLE IF EXISTS OBSERVERS ;
 CREATE TABLE IF NOT EXISTS OBSERVERS (
   name text DEFAULT NULL COMMENT 'Your full name.',
   observer varchar(3) DEFAULT NULL COMMENT 'Your initials. Use two or three letters. This is what you will use when entering data.',
@@ -18,11 +31,7 @@ CREATE TABLE IF NOT EXISTS OBSERVERS (
   nznbbs_number CHAR(4) DEFAULT NULL COMMENT 'Your 4-character New Zealand National Bird Banding Scheme (NZNBBS) certification number'
 ) ENGINE=InnoDB ;
 
--- INSERT INTO OBSERVERS (name, observer, START, STOP, gps_id, cam_id)
--- VALUES (NULL, NULL, NULL, NULL, NULL, NULL), (NULL, NULL, NULL, NULL, NULL, NULL), (NULL, NULL, NULL, NULL, NULL, NULL);
 
-
--- DROP TABLE IF EXISTS CAPTURES;
 CREATE TABLE `CAPTURES` (
   `date` date DEFAULT NULL COMMENT 'Date caught YYYY-MM-DD (local, NZDT or NZST)',
   `cap_start` time DEFAULT NULL COMMENT 'hh:mm capture start (when you set the trap or commenced trapping with the mistnet)',
@@ -88,10 +97,9 @@ CREATE TABLE `CAPTURES` (
   PRIMARY KEY (`pk`),
   KEY `ID` (`ring`),
   KEY `gps` (`gps_id`,`gps_point`)
-) ENGINE=InnoDB AUTO_INCREMENT=170 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
 
--- DROP TABLE IF EXISTS EGGS ;
 CREATE TABLE `EGGS` (
   `species` char(4) DEFAULT NULL COMMENT '4-letter species code: <br>      <b>BADO</b> (Banded Dotterel) <br>      <b>WRYB</b> (Wrybill) <br>       <b>SNZD</b> (Southern New Zealand Dotterel) <br>       <b>BFDO</b> (Black-fronted Dotterel)',
   `observer` varchar(3) DEFAULT NULL COMMENT '2- or 3-character initials of the observer (see OBSERVERS table)',
@@ -110,10 +118,9 @@ CREATE TABLE `EGGS` (
   KEY `nest` (`nest_id`),
   KEY `nest_egg` (`nest_id`,`egg_id`),
   KEY `date` (`date`)
-) ENGINE=InnoDB AUTO_INCREMENT=101 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
 
--- DROP TABLE IF EXISTS GPS_POINTS ;
 CREATE TABLE IF NOT EXISTS GPS_POINTS (
   gps_id tinyint unsigned NOT NULL COMMENT 'gps id',
   gps_point int unsigned NOT NULL COMMENT 'gps point',
@@ -128,7 +135,6 @@ CREATE TABLE IF NOT EXISTS GPS_POINTS (
 ) ENGINE=InnoDB  ;
 
 
--- DROP TABLE IF EXISTS GPS_TRACKS ;
 CREATE TABLE IF NOT EXISTS GPS_TRACKS (
   gps_id tinyint unsigned NOT NULL COMMENT 'gps id',
   seg_id int unsigned NOT NULL COMMENT 'segment id',
@@ -144,7 +150,6 @@ CREATE TABLE IF NOT EXISTS GPS_TRACKS (
 ) ENGINE=InnoDB  ;
 
 
--- DROP TABLE IF EXISTS NESTS ;
 CREATE TABLE `NESTS` (
   `species` char(4) DEFAULT NULL COMMENT '4-letter species code: <br>  <b>BADO</b> (Banded Dotterel) <br>  <b>WRYB</b> (Wrybill) <br>   <b>SNZD</b> (Southern New Zealand Dotterel) <br> <b>BFDO</b> (Black-fronted Dotterel)',
   `site` varchar(2) DEFAULT NULL COMMENT 'Sites:<br> <b>AR</b> (Aparima River)<br> <b>AU</b> (Upper Ashburton)<br>  <b>CH</b> (Chathams)<br>  <b>CL</b> (Clarence River)<br> <b>CR</b> (Cass River)<br> <b>HC</b> (Hawkes Bay Coast)<br> <b>HR</b> (Hawkes Bay Rivers)<br>  <b>KK</b> (Kaikoura)<br> <b>KP</b> (Kina Peninsula)<br> <b>KT</b> (Kaitorete Spit)<br> <b>MB</b> (Maryburn)<br> <b>MR</b> (Macaulay River)<br> <b>MS</b> (Motueka Spit)<br> <b>OD</b> (Ohau Downs)<br>  <b>OK</b> (Okarito)<br> <b>OM</b> (Old Man Range)<br> <b>PB</b> (Porters Beach)<br> <b>PR</b> (Pisa Range)<br> <b>TA</b> (Te Anau (Upukerora))<br>  <b>TO</b> (Tongariro (Rangipo Desert))<br> <b>TP</b> (Tiwai Point)<br>  <b>TR</b> (Tekapo River)<br>  <b>TS</b> (Tasman River)<br>  <b>WA</b> (Wairarapa)<br> <b>WN</b> (West Coast North)<br> <b>WS</b> (West Coast South)',
@@ -172,10 +177,9 @@ CREATE TABLE `NESTS` (
   KEY `species` (`species`),
   KEY `date` (`date`),
   KEY `gps` (`gps_id`,`gps_point`)
-) ENGINE=InnoDB AUTO_INCREMENT=33 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
 
--- DROP TABLE IF EXISTS RESIGHTINGS ;
 CREATE TABLE `RESIGHTINGS` (
   `species` char(4) DEFAULT NULL COMMENT '  4-letter species code: <br>  <b>BADO</b> (Banded Dotterel) <br>  <b>WRYB</b> (Wrybill) <br>   <b>SNZD</b> (Southern New Zealand Dotterel) <br>   <b>BFDO</b> (Black-fronted Dotterel)',
   `observer` varchar(3) DEFAULT NULL COMMENT '2- or 3-character initials of the observer (see OBSERVERS table)',
@@ -205,10 +209,9 @@ CREATE TABLE `RESIGHTINGS` (
   KEY `species` (`species`),
   KEY `date` (`date`),
   KEY `site` (`site`)
-) ENGINE=InnoDB AUTO_INCREMENT=34 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
 
--- DROP TABLE IF EXISTS RESIGHTINGS_PUBLIC ;
 CREATE TABLE `RESIGHTINGS_PUBLIC` (
   `species` char(4) DEFAULT NULL COMMENT '\n  4-letter species code: <br>\n  <b>BADO</b> (Banded Dotterel) <br>\n  <b>WRYB</b> (Wrybill) <br> \n  <b>SNZD</b> (Southern New Zealand Dotterel) <br> \n  <b>BFDO</b> (Black-fronted Dotterel)',
   `observer` varchar(255) DEFAULT NULL COMMENT 'Name or initials of the observer as provided by the original source',
@@ -238,10 +241,9 @@ CREATE TABLE `RESIGHTINGS_PUBLIC` (
   KEY `species` (`species`),
   KEY `date` (`date`),
   KEY `site` (`site`)
-) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
 
--- --- DROP TABLE IF EXISTS inspectors; 
 
 CREATE TABLE IF NOT EXISTS inspectors (
   table_name varchar(128) NOT NULL
@@ -259,7 +261,6 @@ inspector longtext NOT NULL
 );
 
 
--- --- DROP TABLE IF EXISTS artifacts; 
 CREATE TABLE IF NOT EXISTS artifacts (
   artifact_name varchar(128) NOT NULL
     COMMENT 'This is the value the app uses to load the relevant saved code, WKT, map plot code, or todo list code.',
@@ -275,16 +276,8 @@ CREATE TABLE IF NOT EXISTS artifacts (
   PRIMARY KEY (artifact_name)
 );
 
--- INSERT IGNORE INTO artifacts (artifact_name, artifact, comments) VALUES ('study_area', NULL, NULL)
-
 
 -- VIEWS 
-
-CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.CAPTURES_active AS
-SELECT site, lat, lon ,date ,cap_start ,capture_method ,nest_id,observer,field_sex ,age  ,ring ,UL   ,LL   ,UR   ,LR   ,tag_id ,tag_action ,tag_type,NULL harness_size,culmen  ,tarsus ,total_head ,head_white,head_black     ,rufous_band ,wing ,weight ,moult_left,fat
-FROM FIELD_2026_BADOatNZ.CAPTURES c LEFT JOIN FIELD_2026_BADOatNZ.GPS_POINTS g 
-on c.gps_id = g.gps_id and c.gps_point = g.gps_point;
-
 
 
 CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.CAPTURES_ARCHIVE AS
