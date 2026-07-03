@@ -1,11 +1,11 @@
-TABLE_show <- function(x, session) {
+TABLE_show <- function(x, session, watch = x) {
   DT::renderDataTable(
     {
       get_data <- reactivePoll(
         5000,
         session = session,
         checkFunc = function() {
-          dbtable_is_updated(x)
+          dbtable_is_updated(watch)
         },
         valueFunc = function() {
           if (is.character(x)) {
@@ -152,19 +152,15 @@ spinner <- function(x) {
 
 
 ref_date_message <- function(refdate) {
-  ago <- round(Sys.Date() - as.Date(refdate))
-
-  if (ago == 0) {
-    return(glue(
-      "Reference date: {S(refdate, 1)} today. <i>Todo-s are for tomorrow!</i>"
-    ))
+  if (is.null(refdate) || !length(refdate) || is.na(refdate)) {
+    return("Reference date: not set.")
   }
 
-  if (ago > 0) {
-    return(glue("Reference date: {S(refdate, 2)} {abs(ago)} days ago."))
-  }
-
-  glue("Reference date: {S(refdate, 2)} {abs(ago)} days from now.")
+  refdate <- as.character(as.Date(refdate))
+  glue(
+    'Reference date: {S(refdate, 1)}
+    <span class="ref-date-relative text-muted small ml-2" data-refdate="{refdate}"></span>'
+  )
 }
 
 

@@ -101,14 +101,90 @@ DBq <- function(x) {
 }
 
 
-dbtable_is_updated <- function(tab) {
-  x <- DBq(glue("CHECKSUM TABLE {tab}"))
+DBx <- function(x, params = NULL) {
+  con <- NULL
+  o <- try(
+    {
+      con <- DataEntry::db_con()
+      on.exit(DBI::dbDisconnect(con), add = TRUE)
 
-  if (!"Checksum" %in% names(x)) {
-    return(Sys.time())
+      if (is.null(params)) {
+        DBI::dbExecute(con, x)
+      } else {
+        DBI::dbExecute(con, x, params = params)
+      }
+    },
+    silent = TRUE
+  )
+
+  if (inherits(o, "try-error")) {
+    err <- as.character(attributes(o)$condition)
+    if (shiny::isRunning()) {
+      showNotification(glue("Database write failed: {str_trunc(err, 80)}"), type = "error")
+    }
+    return(FALSE)
   }
 
-  x$Checksum
+  TRUE
+}
+
+
+get_reference_date <- function() {
+  x <- DBq(
+    "SELECT value FROM settings WHERE variable = 'reference_date' LIMIT 1"
+  )
+
+  if ("error" %in% names(x) || nrow(x) == 0 || is.na(x$value[1])) {
+    return(NA_Date_)
+  }
+
+  as.Date(x$value[1])
+}
+
+
+set_reference_date <- function(refdate) {
+  refdate <- as.Date(refdate)
+
+  if (is.na(refdate)) {
+    return(FALSE)
+  }
+
+  DBx(
+    "
+    INSERT INTO settings (variable, value)
+    VALUES ('reference_date', ?)
+    ON DUPLICATE KEY UPDATE
+      value = VALUES(value)
+    ",
+    params = list(as.character(refdate))
+  )
+}
+
+
+dbtable_is_updated <- function(tab) {
+  tab <- as.character(tab)
+  tab <- unique(tab[!is.na(tab) & nzchar(tab)])
+
+  if (!length(tab)) {
+    return(sample.int(.Machine$integer.max, 1))
+  }
+
+  x <- DBq(glue("CHECKSUM TABLE {paste(tab, collapse = ', ')}"))
+
+  if (!"Checksum" %in% names(x)) {
+    return(sample.int(.Machine$integer.max, 1))
+  }
+
+  if (!"Table" %in% names(x)) {
+    x[, Table := tab[seq_len(.N)]]
+  }
+
+  if (!nrow(x) || all(is.na(x$Checksum))) {
+    return(sample.int(.Machine$integer.max, 1))
+  }
+
+  checksum <- ifelse(is.na(x$Checksum), "NA", as.character(x$Checksum))
+  paste(x$`Table`, checksum, collapse = "|")
 }
 
 #' x = showTable('CAPTURES')

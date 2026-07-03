@@ -1,10 +1,37 @@
 shinyServer(function(input, output, session) {
+  reference_date <- reactiveVal(get_reference_date())
+
+  active_refdate <- reactive({
+    refdate <- reference_date()
+    req(!is.na(refdate))
+    refdate
+  })
+
+  observe({
+    refdate <- reference_date()
+    req(!is.na(refdate))
+    updateDateInput(session, "refdate", value = refdate)
+  })
+
+  observeEvent(input$set_refdate, {
+    req(input$refdate)
+
+    refdate <- as.Date(input$refdate)
+
+    if (set_reference_date(refdate)) {
+      reference_date(refdate)
+      WarnToast(glue("Reference date set to {refdate}."))
+    } else {
+      ErrToast("Could not save the reference date.")
+    }
+  })
+
   observe({
     on.exit(assign("input", reactiveValuesToList(input), envir = .GlobalEnv))
   })
 
   output$ref_date_text <- renderUI({
-    HTML(ref_date_message(input$refdate))
+    HTML(ref_date_message(reference_date()))
   })
 
   output$overview_show <- renderPlot(
@@ -45,20 +72,29 @@ shinyServer(function(input, output, session) {
     )
   })
 
-  lapply(dbtabs_view, function(tab) {
+  lapply(dbtabs_show_tables, function(tab) {
     output[[paste0(tab, "_show")]] <- TABLE_show(tab, session)
+  })
+
+  lapply(dbtabs_show_views, function(tab) {
+    output[[paste0(tab, "_show")]] <- TABLE_show(
+      tab,
+      session,
+      watch = dbtabs_show_view_sources[[tab]] %||% tab
+    )
   })
 
   N <- reactive({
     NESTS(
       main_tab = input$main,
-      refdate = input$refdate
+      refdate = active_refdate()
     )
   })
 
   output$map_nests_show <- renderPlot({
     try_else(
       {
+        refdate <- active_refdate()
         n <- N()
         req(n)
 
@@ -66,7 +102,7 @@ shinyServer(function(input, output, session) {
           n[nest_state %in% input$nest_state],
           size = input$nest_size,
           grandTotal = nrow(n),
-          .refdate = input$refdate
+          .refdate = refdate
         )
       },
       fallback_ggplot,
@@ -79,6 +115,7 @@ shinyServer(function(input, output, session) {
     plot = function() {
       try_else(
         {
+          refdate <- active_refdate()
           n <- N()
           req(n)
 
@@ -86,7 +123,7 @@ shinyServer(function(input, output, session) {
             n[nest_state %in% input$nest_state],
             size = input$nest_size,
             grandTotal = nrow(n),
-            .refdate = input$refdate
+            .refdate = refdate
           )
         },
         fallback_ggplot,
@@ -108,87 +145,22 @@ shinyServer(function(input, output, session) {
     )
   })
 
-  output$todo_list_show <- render_todo_table({
-    try_else(
-      {
-        n <- N()
-        req(n)
-
-        todo_list(n, .refdate = input$refdate)
-      },
-      fallback_dt,
-      fail = "todo_list() failed!"
-    )
-  })
-
   output$todo_pdf <- download_gt_pdf(
     filename = "todo.pdf",
     table = function() {
       try_else(
         {
+          refdate <- active_refdate()
           n <- N()
           req(n)
 
-          todo_pdf_table(n, .refdate = input$refdate)
+          todo_pdf_table(n, .refdate = refdate)
         },
         fallback_gt,
         fail = "todo_pdf_table() failed!"
       )
     }
   )
-
-  output$hatching_est_plot <- renderPlot({
-    require(mgcv)
-
-    h <- readRDS(hatch_pred_gam)
-
-    pred <-
-      ggeffects::ggpredict(
-        h,
-        terms = c(
-          glue("float_angle [{input$float_angle}]"),
-          glue("surface [{input$float_height}]")
-        )
-      ) |>
-      data.table()
-    pred <- pred[, .(predicted, conf.low, conf.high)]
-    pred <- melt(pred, measure.vars = names(pred))
-    pred[, date_ := as.Date(input$refdate) + value]
-    pred[, value := round(value, 1)]
-    pred[,
-      variable := factor(
-        variable,
-        labels = c(
-          "Most likely [average]",
-          "Earliest [95%CI-low]",
-          "Latest [95%CI-high]"
-        )
-      )
-    ]
-    setnames(pred, c("", "Days to hatch", "Hatching date"))
-
-    gtab <- ggpubr::ggtexttable(
-      pred,
-      rows = NULL,
-      theme = ggpubr::ttheme(base_size = 12)
-    )
-
-    g1 <-
-      ggplot(h$model, aes(x = float_angle, y = days_to_hatch)) +
-      ggbeeswarm::geom_beeswarm(alpha = 0.5) +
-      geom_smooth() +
-      geom_vline(aes(xintercept = input$float_angle), color = "#df4306") +
-      theme_minimal(base_size = 12)
-
-    g2 <-
-      ggplot(h$model, aes(x = surface, y = days_to_hatch)) +
-      ggbeeswarm::geom_beeswarm(alpha = 0.5) +
-      geom_smooth(method = "loess", span = 1.0) +
-      geom_vline(aes(xintercept = input$float_height), color = "#df4306") +
-      theme_minimal(base_size = 12)
-
-    gtab / (g1 + g2) + plot_layout(axes = "collect", heights = c(1, 2))
-  })
 
   session$allowReconnect(TRUE)
 })

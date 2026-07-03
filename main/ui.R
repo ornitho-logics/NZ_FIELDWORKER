@@ -11,29 +11,35 @@ bs4Dash::dashboardPage(
 
   header = dashboardHeader(
     title = dashboardBrand(
-      title = paste(pagetitle, year(Sys.Date())),
+      title = HTML(
+        '
+        <span style="font-family: Georgia, serif; font-size: 1em; font-weight: 700;">
+          B<span style="font-size: 1.3em;">&#8857;</span>2026
+        </span>
+        '
+      ),
       image = "ICO.png"
     ),
     uiOutput("ref_date_text")
   ),
 
   sidebar = dashboardSidebar(
-    collapsed = TRUE,
+    collapsed = FALSE,
+    width = "180px",
     sidebarMenu(
       id = "main", # Assigning an id here allows input$main to be set
       menuItem("Overview", tabName = "overview", icon = icon("circle-play")),
       menuItem("GPS", tabName = "gps", icon = icon("location-arrow")),
       menuItem("Enter Data", tabName = "enter_data", icon = icon("edit")),
+      menuItem("Show tables", tabName = "show_tables", icon = icon("table")),
+      menuItem("Show Views", tabName = "show_views", icon = icon("eye")),
       menuItem("Database", tabName = "database", icon = icon("database")),
-      menuItem("View Data", tabName = "view_data", icon = icon("table")),
       menuItem("Nests Map", tabName = "nests_map", icon = icon("map")),
       menuItem(
         "Live Nest Map",
         tabName = "live_nest_map",
         icon = icon("broadcast-tower")
       ),
-      menuItem("To-Do list", tabName = "todo_list", icon = icon("tasks")),
-      menuItem("Hatching", tabName = "hatching_est", icon = icon("egg")),
       menuItem("Downloads", tabName = "downloads", icon = icon("download")),
       HR(),
       menuItem(
@@ -50,7 +56,7 @@ bs4Dash::dashboardPage(
   ),
 
   controlbar = dashboardControlbar(
-    width = 400,
+    width = 300,
     overlay = FALSE,
     collapsed = FALSE,
 
@@ -62,7 +68,13 @@ bs4Dash::dashboardPage(
       dateInput(
         inputId = 'refdate',
         label = NULL,
-        value = Sys.time()
+        value = NULL
+      ),
+      actionButton(
+        inputId = "set_refdate",
+        label = "Set",
+        icon = icon("check"),
+        class = "btn-primary btn-sm"
       )
     ),
 
@@ -100,14 +112,7 @@ bs4Dash::dashboardPage(
   ),
   body = dashboardBody(
     includeCSS("./www/style.css"),
-
-    tags$script(HTML(
-      '
-    $(function () {
-      $("[data-toggle=\'popover\']").popover({ html: true });
-    });
-  '
-    )),
+    includeScript("./www/reference_date.js"),
 
     tabItems(
       # Overview tab (first tab)
@@ -141,12 +146,28 @@ bs4Dash::dashboardPage(
         uiOutput("open_db"),
         includeMarkdown("./www/help/database.md")
       ),
-      # View Data tab
+      # Show tables tab
       tabItem(
-        tabName = "view_data",
+        tabName = "show_tables",
         bs4Dash::tabsetPanel(
-          id = "tabset",
-          .list = lapply(dbtabs_view, function(i) {
+          id = "tabset_tables",
+          .list = lapply(dbtabs_show_tables, function(i) {
+            tabPanel(
+              title = paste0("[", i, "]"),
+              active = FALSE,
+              spinner(
+                DT::DTOutput(outputId = paste0(i, "_show"))
+              )
+            )
+          })
+        )
+      ),
+      # Show views tab
+      tabItem(
+        tabName = "show_views",
+        bs4Dash::tabsetPanel(
+          id = "tabset_views",
+          .list = lapply(dbtabs_show_views, function(i) {
             tabPanel(
               title = paste0("[", i, "]"),
               active = FALSE,
@@ -188,49 +209,7 @@ bs4Dash::dashboardPage(
           )
         )
       ),
-      # To-Do list tab
-      tabItem(
-        tabName = "todo_list",
-        spinner(
-          DT::DTOutput(outputId = "todo_list_show")
-        )
-      ),
 
-      # Hatching tab
-      tabItem(
-        tabName = "hatching_est",
-
-        fluidRow(
-          box(
-            title = 'Select flotation ',
-            icon = icon("gears"),
-            width = 2,
-            sliderInput(
-              'float_angle',
-              'Angle:',
-              value = 50,
-              min = 14,
-              max = 90,
-              step = 1
-            ),
-            sliderInput(
-              'float_height',
-              'Height:',
-              value = 2,
-              min = 0,
-              max = 6,
-              step = 1
-            )
-          ),
-
-          box(
-            width = 8,
-            spinner(
-              plotOutput(outputId = "hatching_est_plot")
-            )
-          )
-        )
-      ),
       # Download tab
       tabItem(
         tabName = "downloads",

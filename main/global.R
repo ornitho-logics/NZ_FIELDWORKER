@@ -43,8 +43,7 @@ sapply(
 #! OPTIONS
 app_nam <- "NZ_FIELDWORKER"
 
-group <- "nz_fieldworker_ts"
-
+group <- "nz_fieldworker"
 
 db <- "FIELD_2026_BADOatNZ"
 dbtabs_entry <- c(
@@ -59,18 +58,57 @@ dbtabs_entry <- c(
 )
 
 
-dbtabs_view <- c(
+dbtabs_show_tables <- c(
   "OBSERVERS",
   "CAPTURES",
-  "CAPTURES_active",
-  "CAPTURES_ARCHIVE",
   "NESTS",
   "EGGS",
   "RESIGHTINGS",
   "RESIGHTINGS_PUBLIC",
   "GPS_POINTS",
-  "GPS_TRACKS"
+  "GPS_TRACKS",
+  "settings",
+  "predict_hatching"
 )
+
+
+dbtabs_show_views <- c(
+  "TODO_LIST",
+  "NESTS_LATEST",
+  "CAPTURES_ARCHIVE",
+  "EGGS_HATCH_PREDICTION"
+)
+
+# watch list for View updates
+dbtabs_show_view_sources <- list(
+  TODO_LIST = c(
+    "settings",
+    "NESTS",
+    "GPS_POINTS",
+    "CAPTURES",
+    "EGGS",
+    "predict_hatching",
+    "RESIGHTINGS"
+  ),
+
+  NESTS_LATEST = c(
+    "settings",
+    "NESTS",
+    "GPS_POINTS",
+    "CAPTURES",
+    "EGGS",
+    "predict_hatching"
+  ),
+  CAPTURES_ARCHIVE = c("BADOatNZ.CAPTURES"),
+
+  EGGS_HATCH_PREDICTION = c(
+    "settings",
+    "EGGS",
+    "predict_hatching"
+  )
+)
+
+
 species <- "BADO"
 
 
@@ -101,13 +139,9 @@ todo_symbols <- c(
 )
 
 options(shiny.autoreload = TRUE)
-options(dbo.tz = "Pacific/Auckland")
-options(ggrepel.max.overlaps = Inf)
-
 
 #! UI DEFAULTS
 
 ver <- "v 3.0"
-pagetitle <- "Banded dotterel"
 set_capturedDaysAgo <- 3
 set_seenDaysAgo <- 3
