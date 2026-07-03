@@ -134,14 +134,6 @@ bttl <- function(text, color = "#021518", weight = "bold", icon = NULL) {
 }
 
 
-select_combo_list <- function() {
-  DBq(
-    "SELECT DISTINCT UL, LL, UR, LR FROM CAPTURES where tag_id is not NULL"
-  ) |>
-    make_combo(short = "LR")
-}
-
-
 spinner <- function(x) {
   shinycssloaders::withSpinner(
     x,

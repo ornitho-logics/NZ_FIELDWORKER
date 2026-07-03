@@ -3,14 +3,20 @@
 study_site_loader <- function(
   lon = 170.507560,
   lat = -43.881055,
-  radius_m = 1000,
+  radius_m = 1000000,
   crs = 4326
 ) {
   fallback <- function() {
     msg <- "The study site did not load properly. WKT is faulty. Fix the entry in the artifacts table"
+    session <- shiny::getDefaultReactiveDomain()
 
-    if (shiny::isRunning()) {
-      showNotification(msg, type = "warning", duration = 10)
+    if (!is.null(session) && is.function(session$sendNotification)) {
+      shiny::showNotification(
+        msg,
+        type = "warning",
+        duration = 10,
+        session = session
+      )
     } else {
       warning(msg, call. = FALSE)
     }
@@ -19,11 +25,13 @@ study_site_loader <- function(
       id = "study_site",
       geometry = sf::st_sfc(sf::st_point(c(lon, lat)), crs = 4326)
     ) |>
-      sf::st_buffer(radius_m)
+      sf::st_transform(2193) |>
+      sf::st_buffer(radius_m) |>
+      sf::st_transform(4326)
   }
 
   x <- try(
-    DBq(glue(
+    db_get(glue(
       "SELECT artifact FROM {db}.artifacts WHERE artifact_name = 'study_area'"
     )),
     silent = TRUE

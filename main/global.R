@@ -1,6 +1,6 @@
 #+ NOTE:
 #' list.files('./main/R/', full.names = TRUE) |> lapply(source) |> invisible(); source('main/global.R')
-#'  shiny::startApp("./main", launch.browser = TRUE )
+#'  shiny::runApp("./main", launch.browser = TRUE )
 
 #! PACKAGES & DATA
 sapply(
@@ -9,19 +9,9 @@ sapply(
     "sf",
     "data.table",
     "stringr",
-    "forcats",
-    "zip",
     "glue",
     "ggplot2",
-    "ggrepel",
-    "ggtext",
     "gt",
-    "patchwork",
-    "ggpubr",
-    "ggbeeswarm",
-    "ggeffects",
-    "lubridate",
-    "scales",
 
     "shiny",
     "waiter",
@@ -30,9 +20,7 @@ sapply(
     "bs4Dash",
     "DT",
 
-    "leaflet",
-    "leafem",
-    "leaflet.extras"
+    "leaflet"
   ),
   require,
   character.only = TRUE,
@@ -41,8 +29,6 @@ sapply(
 
 
 #! OPTIONS
-app_nam <- "NZ_FIELDWORKER"
-
 group <- "nz_fieldworker"
 
 db <- "FIELD_2026_BADOatNZ"
@@ -109,12 +95,8 @@ dbtabs_show_view_sources <- list(
 )
 
 
-species <- "BADO"
-
-
-hatch_pred_gam <- "./data/gam_float_to_hach.rds"
-
 nest_state_cols <- c(
+  "S" = "#f38c38",
   "F" = "#00815f",
   "I" = "#fff023",
   "H" = "#1aa9fc",
@@ -127,21 +109,9 @@ nest_state_cols <- c(
   "O" = "#999999"
 )
 
-todo_cols <- c(
-  "catch M" = "#0745cc",
-  "catch F" = "#f33b0c",
-  "catch any" = "#f38c38"
-)
 
-todo_symbols <- c(
-  "nest check" = 2,
-  "hatch check" = 5
-)
-
-options(shiny.autoreload = TRUE)
-
-#! UI DEFAULTS
+#! etc
 
 ver <- "v 3.0"
-set_capturedDaysAgo <- 3
-set_seenDaysAgo <- 3
+
+options(shiny.autoreload = TRUE)

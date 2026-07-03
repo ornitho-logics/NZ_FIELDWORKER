@@ -1,10 +1,27 @@
 shinyServer(function(input, output, session) {
   reference_date <- reactiveVal(get_reference_date())
 
+  db_reference_date <- reactivePoll(
+    5000,
+    session = session,
+    checkFunc = function() {
+      dbtable_is_updated("settings")
+    },
+    valueFunc = get_reference_date
+  )
+
   active_refdate <- reactive({
     refdate <- reference_date()
     req(!is.na(refdate))
     refdate
+  })
+
+  observe({
+    refdate <- db_reference_date()
+
+    if (!identical(as.Date(refdate), as.Date(reference_date()))) {
+      reference_date(refdate)
+    }
   })
 
   observe({
@@ -37,7 +54,7 @@ shinyServer(function(input, output, session) {
   output$overview_show <- renderPlot(
     {
       try_else(
-        overview_graph(),
+        overview_graph(active_refdate()),
         fallback_ggplot,
         fail = 'overview_graph() failed!'
       )
@@ -84,12 +101,16 @@ shinyServer(function(input, output, session) {
     )
   })
 
-  N <- reactive({
-    NESTS(
-      main_tab = input$main,
-      refdate = active_refdate()
-    )
-  })
+  N <- reactivePoll(
+    5000,
+    session = session,
+    checkFunc = function() {
+      dbtable_is_updated(dbtabs_show_view_sources[["NESTS_LATEST"]])
+    },
+    valueFunc = function() {
+      DBq("SELECT * FROM NESTS_LATEST")
+    }
+  )
 
   output$map_nests_show <- renderPlot({
     try_else(

@@ -7,12 +7,6 @@ fallback_ggplot <- function(fail = "Code error!") {
     )
 }
 
-fallback_dt <- function(fail = "Function failed!") {
-  data.table(
-    status = fail
-  )
-}
-
 fallback_gt <- function(fail = "Function failed!") {
   data.table(status = fail) |>
     gt::gt() |>
