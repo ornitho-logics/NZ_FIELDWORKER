@@ -32,7 +32,7 @@ TABLE_show <- function(x, session, watch = x) {
           text = "Download"
         )
       ),
-      scrollX = "600px",
+      scrollX = TRUE,
       deferRender = TRUE,
       scrollY = 900,
       scroller = TRUE,
