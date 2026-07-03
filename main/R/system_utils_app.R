@@ -81,7 +81,7 @@ startApp <- function(labels, hrefs, classes = "btn-primary bttn-primary") {
 
   o <- glue(
     '
-      <a href="{hrefs}" target="blank"
+      <a href="{hrefs}" target="_blank" rel="noopener noreferrer"
         class="btn btn-sm {classes} bttn bttn-fill bttn-md bttn-no-outline"
         role="button">
         <h4>{labels}</h4>
