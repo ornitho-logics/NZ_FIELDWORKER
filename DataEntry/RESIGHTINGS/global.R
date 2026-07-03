@@ -50,7 +50,7 @@ dropdowns <- list(
     "WS"
   ),
   rclass = c("C", "V", "R", "P", "H"),
-  sex = c("M", "M?", "F", "F?", "U"),
+  sex = c("M", "MU", "F", "FU", "U"),
   age = c("A", "J", "C"),
   falcon_upload = c("0", "1"),
   observer = observers

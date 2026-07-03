@@ -17,7 +17,7 @@ prefilled <- list(
 
 dropdowns <- list(
   species = c("BADO", "WRYB", "SNZD", "BFDO"),
-  sex = c("M", "M?", "F", "F?", "U"),
+  sex = c("M", "MU", "F", "FU", "U"),
   country = c("NZ", "AU", "O"),
   site = c(
     "AR",

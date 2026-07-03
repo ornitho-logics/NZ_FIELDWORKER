@@ -82,10 +82,10 @@ bs4Dash::dashboardPage(
         label = "Nest state:",
         multiple = TRUE,
         choices = c(
+          "Scrape" = "S",
           "Found" = "F",
           "Incubated" = "I",
           "Hatched" = "H",
-          "Brood" = "B",
           "possibly Predated" = "pP",
           "possibly Deserted" = "pD",
           "Predated" = "P",
@@ -93,7 +93,7 @@ bs4Dash::dashboardPage(
           "Not Active" = "notA",
           "Other" = "O"
         ),
-        selected = c("F", "I", "H", "B", "pP", "pD", "P", "D", "notA", "O")
+        selected = c("S", "F", "I", "H", "pP", "pD", "P", "D", "notA", "O")
       )
     ),
 
