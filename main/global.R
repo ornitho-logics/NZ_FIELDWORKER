@@ -29,7 +29,6 @@ sapply(
 
 
 #! OPTIONS
-# TODO: set to FALSE before depoy
 # shiny::devmode(TRUE)
 
 group <- "nz_fieldworker"
