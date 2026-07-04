@@ -24,7 +24,7 @@ bs4Dash::dashboardPage(
   ),
 
   sidebar = dashboardSidebar(
-    collapsed = FALSE,
+    collapsed = TRUE,
     width = "180px",
     sidebarMenu(
       id = "main", # Assigning an id here allows input$main to be set
