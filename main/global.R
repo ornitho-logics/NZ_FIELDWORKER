@@ -29,6 +29,10 @@ sapply(
 
 
 #! OPTIONS
+# TODO: set to FALSE before depoy
+options(shiny.autoreload = TRUE)
+
+
 group <- "nz_fieldworker"
 
 db <- "FIELD_2026_BADOatNZ"
@@ -113,5 +117,3 @@ nest_state_cols <- c(
 #! etc
 
 ver <- "v 3.0"
-
-options(shiny.autoreload = TRUE)

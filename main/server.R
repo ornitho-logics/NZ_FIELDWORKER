@@ -102,7 +102,7 @@ shinyServer(function(input, output, session) {
   })
 
   N <- reactivePoll(
-    5000,
+    7000,
     session = session,
     checkFunc = function() {
       dbtable_is_updated(dbtabs_show_view_sources[["NESTS_LATEST"]])
@@ -112,54 +112,24 @@ shinyServer(function(input, output, session) {
     }
   )
 
-  output$map_nests_show <- renderPlot({
-    try_else(
-      {
-        refdate <- active_refdate()
-        n <- N()
-        req(n)
-
-        map_nests(
-          n[nest_state %in% input$nest_state],
-          size = input$nest_size,
-          grandTotal = nrow(n),
-          .refdate = refdate
-        )
-      },
-      fallback_ggplot,
-      fail = "map_nests() failed!"
-    )
-  })
-
-  output$map_nests_pdf <- download_plot_pdf(
-    filename = "map_nests.pdf",
-    plot = function() {
-      try_else(
-        {
-          refdate <- active_refdate()
-          n <- N()
-          req(n)
-
-          map_nests(
-            n[nest_state %in% input$nest_state],
-            size = input$nest_size,
-            grandTotal = nrow(n),
-            .refdate = refdate
-          )
-        },
-        fallback_ggplot,
-        fail = "map_nests() failed!"
-      )
-    }
-  )
-
-  output$map_nest_leaflet_show <- renderLeaflet({
+  output$nest_map_show <- renderLeaflet({
     try_else(
       {
         n <- N()
         req(n)
+        n <- data.table(n)
 
-        live_nest_leaflet(n)
+        selected_states <- input$nest_state
+
+        if (is.null(selected_states) && "nest_state" %in% names(n)) {
+          selected_states <- unique(as.character(n$nest_state))
+        }
+
+        if ("nest_state" %in% names(n)) {
+          n <- n[as.character(nest_state) %in% selected_states]
+        }
+
+        live_nest_leaflet(n, nest_size = input$nest_size)
       },
       fallback_leaflet,
       fail = "live_nest_leaflet() failed!"

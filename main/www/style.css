@@ -1,7 +1,131 @@
 
 
-#map_nests_show {
-  height: calc(93vh - 1px) !important;
+#nest_map_show {
+  height: calc(99vh - 1px) !important;
+  height: calc(99dvh - 1px) !important;
+  min-height: 520px;
+}
+
+#nest_map_show .nest-label {
+  line-height: 1.15;
+}
+
+#nest_map_show .leaflet-popup-content {
+  font-size: 14px;
+}
+
+#nest_map_show .leaflet-popup-content table {
+  margin-bottom: 0;
+}
+
+#nest_map_show .nest-legend-control {
+  background: transparent;
+  box-shadow: none;
+}
+
+#nest_map_show .nest-legend {
+  background: rgba(255, 255, 255, 0.94);
+  border-radius: 4px;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.4);
+  color: #1f2933;
+  font-size: 13px;
+  max-width: min(240px, calc(100vw - 28px));
+  overflow: hidden;
+}
+
+#nest_map_show .nest-legend summary {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  font-weight: 700;
+  gap: 6px;
+  min-height: 36px;
+  padding: 8px 10px;
+  user-select: none;
+}
+
+#nest_map_show .nest-legend summary::-webkit-details-marker {
+  display: none;
+}
+
+#nest_map_show .nest-legend summary::before {
+  border-bottom: 5px solid transparent;
+  border-left: 7px solid #1f2933;
+  border-top: 5px solid transparent;
+  content: "";
+  display: inline-block;
+}
+
+#nest_map_show .nest-legend[open] summary::before {
+  transform: rotate(90deg);
+}
+
+#nest_map_show .nest-legend-items {
+  display: grid;
+  gap: 5px;
+  padding: 0 10px 10px;
+}
+
+#nest_map_show .nest-legend-item {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  line-height: 1.2;
+}
+
+#nest_map_show .nest-legend-swatch {
+  border: 1px solid rgba(31, 41, 51, 0.45);
+  border-radius: 999px;
+  flex: 0 0 auto;
+  height: 14px;
+  width: 14px;
+}
+
+#nest_map_show .nest-legend-label {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 768px), (pointer: coarse) {
+  #nest_map_show {
+    min-height: 580px;
+  }
+
+  #nest_map_show .nest-label {
+    line-height: 1.1;
+    text-shadow: 0 1px 3px #ffffff, 0 0 2px #ffffff !important;
+  }
+
+  #nest_map_show .leaflet-bar a,
+  #nest_map_show .leaflet-control-layers-toggle {
+    height: 44px;
+    line-height: 44px;
+    width: 44px;
+  }
+
+  #nest_map_show .leaflet-control-layers-expanded {
+    font-size: 15px;
+  }
+
+  #nest_map_show .nest-legend {
+    font-size: 15px;
+  }
+
+  #nest_map_show .nest-legend summary {
+    min-height: 44px;
+    padding: 10px 12px;
+  }
+
+  #nest_map_show .nest-legend-swatch {
+    height: 18px;
+    width: 18px;
+  }
+
+  #nest_map_show .leaflet-popup-content {
+    font-size: 16px;
+    margin: 12px 16px;
+    max-height: 62vh;
+    overflow: auto;
+  }
 }
 
 #overview_show {

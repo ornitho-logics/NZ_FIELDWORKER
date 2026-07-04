@@ -34,10 +34,9 @@ bs4Dash::dashboardPage(
       menuItem("Show tables", tabName = "show_tables", icon = icon("table")),
       menuItem("Show Views", tabName = "show_views", icon = icon("eye")),
       menuItem("Database", tabName = "database", icon = icon("database")),
-      menuItem("Nests Map", tabName = "nests_map", icon = icon("map")),
       menuItem(
-        "Live Nest Map",
-        tabName = "live_nest_map",
+        "Nest Map",
+        tabName = "nest_map",
         icon = icon("broadcast-tower")
       ),
       menuItem("Downloads", tabName = "downloads", icon = icon("download")),
@@ -61,7 +60,7 @@ bs4Dash::dashboardPage(
     collapsed = FALSE,
 
     box(
-      title = "Reference date" |> bttl(),
+      title = "Reference date",
       width = 12,
       overlay = FALSE,
       collapsible = FALSE,
@@ -79,7 +78,7 @@ bs4Dash::dashboardPage(
     ),
 
     box(
-      title = "Map settings" |> bttl(),
+      title = "Map settings",
       width = 12,
       sliderInput(
         inputId = "nest_size",
@@ -113,6 +112,7 @@ bs4Dash::dashboardPage(
   body = dashboardBody(
     includeCSS("./www/style.css"),
     includeScript("./www/reference_date.js"),
+    includeScript("./www/live_nest_leaflet.js"),
 
     tabItems(
       # Overview tab (first tab)
@@ -178,22 +178,10 @@ bs4Dash::dashboardPage(
           })
         )
       ),
-      # Nests Map tab
-      tabItem(
-        tabName = "nests_map",
-        fluidRow(
-          box(
-            width = 12,
-            maximizable = TRUE,
-            spinner(
-              plotOutput("map_nests_show")
-            )
-          )
-        )
-      ),
+
       # Live Nest Map tab
       tabItem(
-        tabName = "live_nest_map",
+        tabName = "nest_map",
         fluidRow(
           box(
             width = 12,
@@ -201,7 +189,7 @@ bs4Dash::dashboardPage(
 
             spinner(
               leafletOutput(
-                outputId = "map_nest_leaflet_show",
+                outputId = "nest_map_show",
                 width = "100%",
                 height = "calc(99vh - 1px)"
               )
@@ -214,7 +202,7 @@ bs4Dash::dashboardPage(
       tabItem(
         tabName = "downloads",
         box(
-          title = "Download" |> bttl(),
+          title = "Download",
           width = 11,
 
           downloadBttn(

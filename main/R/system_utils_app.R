@@ -117,22 +117,6 @@ S <- function(x = "-------", z = 1) {
   )
 }
 
-# box title style
-bttl <- function(text, color = "#021518", weight = "bold", icon = NULL) {
-  icon_html <- if (!is.null(icon)) {
-    sprintf("<i class='fas fa-%s'></i> ", icon)
-  } else {
-    ""
-  }
-  HTML(sprintf(
-    "<span style='font-weight: %s; color: %s; '>%s%s</span>",
-    weight,
-    color,
-    icon_html,
-    text
-  ))
-}
-
 
 spinner <- function(x) {
   shinycssloaders::withSpinner(
