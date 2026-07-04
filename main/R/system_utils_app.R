@@ -100,24 +100,6 @@ HR <- function() {
   a(hr(style = "border-top: 1px solid #9aaeb6;"))
 }
 
-S <- function(x = "-------", z = 1) {
-  v <- str_split(x, ":", simplify = TRUE)
-  if (length(v) == 2) {
-    v <- glue("{em(v[1])}:{v[2]}")
-  }
-  v <- HTML(v)
-
-  switch(
-    z,
-    "1" = strong(v, style = "color:#1d3658"),
-    "2" = strong(v, style = "color:#d70427"),
-    "3" = strong(v, style = "color:#ffb6a3"),
-    "4" = strong(v, style = "color:#e8c468"),
-    "5" = strong(v, style = "color:#b8d2ff")
-  )
-}
-
-
 spinner <- function(x) {
   shinycssloaders::withSpinner(
     x,
@@ -127,27 +109,47 @@ spinner <- function(x) {
 }
 
 
-ref_date_message <- function(refdate) {
-  if (is.null(refdate) || !length(refdate) || is.na(refdate)) {
-    return("Reference date: not set.")
-  }
+# download handlers
+download_with_feedback <- function(session, output_id, expr) {
+  on.exit(
+    session$sendCustomMessage("download-ready", output_id),
+    add = TRUE
+  )
 
-  refdate <- as.character(as.Date(refdate))
-  glue(
-    'Reference date: {S(refdate, 1)}
-    <span class="ref-date-relative text-muted small ml-2" data-refdate="{refdate}"></span>'
+  force(expr)
+}
+
+
+download_stamp <- function(time = Sys.time()) {
+  paste0(
+    as.integer(format(time, "%m")),
+    format(time, "%d%H%M")
   )
 }
 
 
-# download handlers
-download_gt_pdf <- function(filename, table) {
+download_filename <- function(prefix, ext, time = Sys.time()) {
+  glue("{prefix}_{download_stamp(time)}.{ext}")
+}
+
+
+download_gt_pdf <- function(filename, table, session, output_id) {
   shiny::downloadHandler(
-    filename = filename,
+    filename = function() {
+      if (is.function(filename)) {
+        filename()
+      } else {
+        filename
+      }
+    },
     content = function(file) {
-      gt::gtsave(
-        data = table(),
-        filename = file
+      download_with_feedback(
+        session,
+        output_id,
+        gt::gtsave(
+          data = table(),
+          filename = file
+        )
       )
     }
   )

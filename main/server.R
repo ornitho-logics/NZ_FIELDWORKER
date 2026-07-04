@@ -1,4 +1,4 @@
-shinyServer(function(input, output, session) {
+function(input, output, session) {
   reference_date <- reactiveVal(get_reference_date())
 
   db_reference_date <- reactivePoll(
@@ -48,7 +48,20 @@ shinyServer(function(input, output, session) {
   })
 
   output$ref_date_text <- renderUI({
-    HTML(ref_date_message(reference_date()))
+    refdate <- reference_date()
+
+    if (is.na(refdate)) {
+      return("Reference date: not set.")
+    }
+
+    refdate <- as.character(as.Date(refdate))
+
+    HTML(
+      glue(
+        'Reference date: {refdate}
+        <span class="ref-date-relative small ml-2" data-refdate="{refdate}"></span>'
+      )
+    )
   })
 
   output$overview_show <- renderPlot(
@@ -121,14 +134,13 @@ shinyServer(function(input, output, session) {
 
         selected_states <- input$nest_state
 
-        if (is.null(selected_states) && "nest_state" %in% names(n)) {
+        if (is.null(selected_states)) {
           selected_states <- unique(as.character(n$nest_state))
         }
 
-        if ("nest_state" %in% names(n)) {
-          n <- n[as.character(nest_state) %in% selected_states]
-        }
+        n <- n[as.character(nest_state) %in% selected_states]
 
+        req(input$nest_size)
         live_nest_leaflet(n, nest_size = input$nest_size)
       },
       fallback_leaflet,
@@ -137,21 +149,57 @@ shinyServer(function(input, output, session) {
   })
 
   output$todo_pdf <- download_gt_pdf(
-    filename = "todo.pdf",
+    filename = function() {
+      download_filename("cass_nests", "pdf")
+    },
     table = function() {
       try_else(
         {
-          refdate <- active_refdate()
-          n <- N()
-          req(n)
+          req(active_refdate())
 
-          todo_pdf_table(n, .refdate = refdate)
+          todo_pdf_table()
         },
         fallback_gt,
         fail = "todo_pdf_table() failed!"
       )
-    }
+    },
+    session = session,
+    output_id = "todo_pdf"
+  )
+
+  output$nest_latest_kmz <- shiny::downloadHandler(
+    filename = function() {
+      download_filename("cass_nests", "kmz")
+    },
+    content = function(file) {
+      download_with_feedback(
+        session,
+        "nest_latest_kmz",
+        {
+          req(active_refdate())
+          kmz_nest_latest(file)
+        }
+      )
+    },
+    contentType = "application/vnd.google-earth.kmz"
+  )
+
+  output$tables_html <- shiny::downloadHandler(
+    filename = function() {
+      download_filename("cass_tables", "html")
+    },
+    content = function(file) {
+      download_with_feedback(
+        session,
+        "tables_html",
+        {
+          req(active_refdate())
+          html_tables(file)
+        }
+      )
+    },
+    contentType = "text/html"
   )
 
   session$allowReconnect(TRUE)
-})
+}

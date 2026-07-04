@@ -28,6 +28,7 @@ bs4Dash::dashboardPage(
     width = "180px",
     sidebarMenu(
       id = "main", # Assigning an id here allows input$main to be set
+      menuItem("Intro", tabName = "intro", icon = icon("circle-info")),
       menuItem("Overview", tabName = "overview", icon = icon("circle-play")),
       menuItem("GPS", tabName = "gps", icon = icon("location-arrow")),
       menuItem("Enter Data", tabName = "enter_data", icon = icon("edit")),
@@ -55,7 +56,7 @@ bs4Dash::dashboardPage(
   ),
 
   controlbar = dashboardControlbar(
-    width = 300,
+    width = 280,
     overlay = FALSE,
     collapsed = FALSE,
 
@@ -112,10 +113,20 @@ bs4Dash::dashboardPage(
   body = dashboardBody(
     includeCSS("./www/style.css"),
     includeScript("./www/reference_date.js"),
+    includeScript("./www/download_feedback.js"),
     includeScript("./www/live_nest_leaflet.js"),
 
     tabItems(
-      # Overview tab (first tab)
+      # Intro tab
+      tabItem(
+        tabName = "intro",
+        div(
+          class = "intro-help",
+          includeMarkdown("./www/help/intro.md")
+        )
+      ),
+
+      # Overview tab
       tabItem(
         tabName = "overview",
         bs4Dash::box(
@@ -127,12 +138,14 @@ bs4Dash::dashboardPage(
           )
         )
       ),
+
       # GPS tab
       tabItem(
         tabName = "gps",
         includeMarkdown("./www/help/gps.md"),
         uiOutput("open_gps")
       ),
+
       # Enter Data tab
       tabItem(
         tabName = "enter_data",
@@ -140,12 +153,14 @@ bs4Dash::dashboardPage(
         hr(),
         includeMarkdown("./www/help/enter_data.md")
       ),
+
       # DB tab
       tabItem(
         tabName = "database",
         uiOutput("open_db"),
         includeMarkdown("./www/help/database.md")
       ),
+
       # Show tables tab
       tabItem(
         tabName = "show_tables",
@@ -162,6 +177,7 @@ bs4Dash::dashboardPage(
           })
         )
       ),
+
       # Show views tab
       tabItem(
         tabName = "show_views",
@@ -202,19 +218,9 @@ bs4Dash::dashboardPage(
       tabItem(
         tabName = "downloads",
         box(
-          title = "Download",
+          title = "Download for offline use",
           width = 11,
 
-          downloadBttn(
-            outputId = "map_nests_pdf",
-            label = "Download Nests PDF",
-            icon = icon("file-pdf"),
-            size = "lg",
-            block = TRUE,
-            style = "material-flat",
-            color = "primary"
-          ),
-          br(),
           downloadBttn(
             outputId = "todo_pdf",
             label = "Download To-do PDF",
@@ -223,7 +229,28 @@ bs4Dash::dashboardPage(
             block = TRUE,
             style = "material-flat",
             color = "primary"
-          )
+          ),
+          br(),
+          downloadBttn(
+            outputId = "nest_latest_kmz",
+            label = "Download Nest KMZ",
+            icon = icon("globe"),
+            size = "lg",
+            block = TRUE,
+            style = "material-flat",
+            color = "primary"
+          ),
+          br(),
+          downloadBttn(
+            outputId = "tables_html",
+            label = "Download Tables HTML",
+            icon = icon("table"),
+            size = "lg",
+            block = TRUE,
+            style = "material-flat",
+            color = "primary"
+          ),
+          br()
         )
       )
     )

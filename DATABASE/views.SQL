@@ -29,7 +29,7 @@ FROM BADOatNZ.CAPTURES;
 
 CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.NESTS_LATEST AS
 
-WITH settings_reference AS (
+WITH sr AS (
   SELECT value AS reference_date
   FROM FIELD_2026_BADOatNZ.settings
   WHERE variable = 'reference_date'
@@ -38,16 +38,16 @@ WITH settings_reference AS (
 latest_visit AS (
   SELECT
     n.*,
-    settings_reference.reference_date,
+    sr.reference_date,
     ROW_NUMBER() OVER (
       PARTITION BY n.nest_id
       ORDER BY n.date DESC, n.time_visit DESC, n.pk DESC
     ) AS row_num
   FROM FIELD_2026_BADOatNZ.NESTS n
-  CROSS JOIN settings_reference
+  CROSS JOIN sr
   WHERE n.nest_id IS NOT NULL
     AND TRIM(n.nest_id) <> ''
-    AND n.date <= settings_reference.reference_date
+    AND n.date <= sr.reference_date
 ),
 latest_clutch AS (
   SELECT
@@ -58,11 +58,11 @@ latest_clutch AS (
       ORDER BY n.date DESC, n.time_visit DESC, n.pk DESC
     ) AS row_num
   FROM FIELD_2026_BADOatNZ.NESTS n
-  CROSS JOIN settings_reference
+  CROSS JOIN sr
   WHERE n.nest_id IS NOT NULL
     AND TRIM(n.nest_id) <> ''
     AND n.clutch_size IS NOT NULL
-    AND n.date <= settings_reference.reference_date
+    AND n.date <= sr.reference_date
 ),
 latest_brood AS (
   SELECT
@@ -73,11 +73,11 @@ latest_brood AS (
       ORDER BY n.date DESC, n.time_visit DESC, n.pk DESC
     ) AS row_num
   FROM FIELD_2026_BADOatNZ.NESTS n
-  CROSS JOIN settings_reference
+  CROSS JOIN sr
   WHERE n.nest_id IS NOT NULL
     AND TRIM(n.nest_id) <> ''
     AND n.brood_size IS NOT NULL
-    AND n.date <= settings_reference.reference_date
+    AND n.date <= sr.reference_date
 ),
 nest_coordinates AS (
   SELECT
@@ -102,12 +102,12 @@ nest_coordinates AS (
   JOIN FIELD_2026_BADOatNZ.GPS_POINTS g
     ON n.gps_id = g.gps_id
    AND n.gps_point = g.gps_point
-  CROSS JOIN settings_reference
+  CROSS JOIN sr
   WHERE n.nest_id IS NOT NULL
     AND TRIM(n.nest_id) <> ''
     AND n.gps_id IS NOT NULL
     AND n.gps_point IS NOT NULL
-    AND n.date <= settings_reference.reference_date
+    AND n.date <= sr.reference_date
 ),
 capture_adult_marks AS (
   SELECT DISTINCT
@@ -115,12 +115,12 @@ capture_adult_marks AS (
     LEFT(c.field_sex, 1) AS sex,
     FIELD_2026_BADOatNZ.format_mark(c.UL, c.LL, c.UR, c.LR) AS mark
   FROM FIELD_2026_BADOatNZ.CAPTURES c
-  CROSS JOIN settings_reference
+  CROSS JOIN sr
   WHERE c.nest_id IS NOT NULL
     AND TRIM(c.nest_id) <> ''
     AND c.age <> 'C'
     AND c.field_sex IN ('M', 'MU', 'F', 'FU')
-    AND c.date <= settings_reference.reference_date
+    AND c.date <= sr.reference_date
 ),
 capture_marks AS (
   SELECT
@@ -157,16 +157,16 @@ calibration_prediction AS (
 egg_hatch_prediction AS (
   SELECT
     e.nest_id,
-    DATEDIFF(settings_reference.reference_date, e.date) AS days_since_float,
+    DATEDIFF(sr.reference_date, e.date) AS days_since_float,
     calibration_hatch_day.hatch_day - calibration_prediction.max_days_since_laying AS min_days_to_hatch_at_float
   FROM FIELD_2026_BADOatNZ.EGGS e
-  CROSS JOIN settings_reference
+  CROSS JOIN sr
   CROSS JOIN calibration_hatch_day
   JOIN calibration_prediction
     ON e.float_angle = calibration_prediction.float_angle
    AND e.float_location = calibration_prediction.float_location
    AND e.float_surface <=> calibration_prediction.float_surface
-  WHERE e.date <= settings_reference.reference_date
+  WHERE e.date <= sr.reference_date
     AND e.float_angle IS NOT NULL
     AND e.float_location IS NOT NULL
 ),
@@ -218,7 +218,7 @@ WHERE n.row_num = 1;
 
 CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.EGGS_HATCH_PREDICTION AS
 
-WITH settings_reference AS (
+WITH sr AS (
   SELECT value AS reference_date
   FROM FIELD_2026_BADOatNZ.settings
   WHERE variable = 'reference_date'
@@ -248,8 +248,8 @@ egg_prediction AS (
     e.nest_id,
     e.egg_id,
     e.date AS float_date,
-    settings_reference.reference_date,
-    DATEDIFF(settings_reference.reference_date, e.date) AS days_since_float,
+    sr.reference_date,
+    DATEDIFF(sr.reference_date, e.date) AS days_since_float,
     e.float_angle,
     e.float_surface,
     e.float_location,
@@ -261,13 +261,13 @@ egg_prediction AS (
     calibration_hatch_day.hatch_day - calibration_prediction.min_days_since_laying AS max_days_to_hatch_at_float,
     calibration_prediction.n_calibration
   FROM FIELD_2026_BADOatNZ.EGGS e
-  CROSS JOIN settings_reference
+  CROSS JOIN sr
   CROSS JOIN calibration_hatch_day
   LEFT JOIN calibration_prediction
     ON e.float_angle = calibration_prediction.float_angle
    AND e.float_location = calibration_prediction.float_location
    AND e.float_surface <=> calibration_prediction.float_surface
-  WHERE e.date <= settings_reference.reference_date
+  WHERE e.date <= sr.reference_date
     AND e.float_angle IS NOT NULL
     AND e.float_location IS NOT NULL
 )
@@ -292,7 +292,7 @@ FROM egg_prediction;
 
 CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.TODO_LIST AS
 
-WITH settings_reference AS (
+WITH sr AS (
   SELECT value AS reference_date
   FROM FIELD_2026_BADOatNZ.settings
   WHERE variable = 'reference_date'
@@ -301,9 +301,9 @@ WITH settings_reference AS (
 active_nests AS (
   SELECT
     n.*,
-    settings_reference.reference_date
+    sr.reference_date
   FROM FIELD_2026_BADOatNZ.NESTS_LATEST n
-  CROSS JOIN settings_reference
+  CROSS JOIN sr
   WHERE n.nest_state IS NULL
     OR n.nest_state NOT IN ('P', 'D', 'notA')
 ),
@@ -311,10 +311,10 @@ nest_history AS (
   SELECT
     n.*
   FROM FIELD_2026_BADOatNZ.NESTS n
-  CROSS JOIN settings_reference
+  CROSS JOIN sr
   WHERE n.nest_id IS NOT NULL
     AND TRIM(n.nest_id) <> ''
-    AND n.date <= settings_reference.reference_date
+    AND n.date <= sr.reference_date
 ),
 first_nest_visit AS (
   SELECT
@@ -339,8 +339,8 @@ float_summary AS (
     MAX(e.date) AS last_float_date,
     COUNT(*) AS n_float_rows
   FROM FIELD_2026_BADOatNZ.EGGS e
-  CROSS JOIN settings_reference
-  WHERE e.date <= settings_reference.reference_date
+  CROSS JOIN sr
+  WHERE e.date <= sr.reference_date
     AND e.float_angle IS NOT NULL
     AND e.float_location IS NOT NULL
   GROUP BY e.nest_id
@@ -404,11 +404,11 @@ chick_captures AS (
     c.nest_id,
     COUNT(*) AS n_chick_captures
   FROM FIELD_2026_BADOatNZ.CAPTURES c
-  CROSS JOIN settings_reference
+  CROSS JOIN sr
   WHERE c.nest_id IS NOT NULL
     AND TRIM(c.nest_id) <> ''
     AND c.age = 'C'
-    AND c.date <= settings_reference.reference_date
+    AND c.date <= sr.reference_date
   GROUP BY c.nest_id
 ),
 hiding_spot_photos AS (
@@ -416,11 +416,11 @@ hiding_spot_photos AS (
     r.nest_id,
     COUNT(*) AS n_hiding_spot_photos
   FROM FIELD_2026_BADOatNZ.RESIGHTINGS r
-  CROSS JOIN settings_reference
+  CROSS JOIN sr
   WHERE r.nest_id IS NOT NULL
     AND TRIM(r.nest_id) <> ''
     AND r.rclass = 'H'
-    AND r.date <= settings_reference.reference_date
+    AND r.date <= sr.reference_date
   GROUP BY r.nest_id
 ),
 todo_untrapped_parent AS (

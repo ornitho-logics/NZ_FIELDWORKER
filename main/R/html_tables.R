@@ -1,0 +1,393 @@
+html_table_sources <- function() {
+  c(
+    CAPTURES = "SELECT * FROM CAPTURES",
+    RESIGHTINGS = "SELECT * FROM RESIGHTINGS",
+    CAPTURES_ARCHIVE = "SELECT * FROM CAPTURES_ARCHIVE",
+    NESTS_LATEST = "SELECT * FROM NESTS_LATEST"
+  )
+}
+
+
+html_tables_fetch <- function(sources = html_table_sources()) {
+  lapply(
+    sources,
+    function(sql) {
+      x <- DBq(sql)
+
+      if ("error" %in% names(x)) {
+        stop(x$error[1])
+      }
+
+      data.table(x)
+    }
+  )
+}
+
+
+html_tables <- function(
+  file,
+  tables = html_tables_fetch(),
+  title = "Cass tables"
+) {
+  payload <- list(
+    title = jsonlite::unbox(title),
+    generated = jsonlite::unbox(format(Sys.time(), "%Y-%m-%d %H:%M")),
+    tables = unname(Map(html_table_payload, names(tables), tables))
+  )
+
+  json <- jsonlite::toJSON(
+    payload,
+    auto_unbox = FALSE,
+    null = "null",
+    na = "null"
+  )
+  json <- gsub("</", "<\\/", as.character(json), fixed = TRUE)
+
+  writeLines(
+    html_tables_document(json),
+    con = file,
+    useBytes = TRUE
+  )
+
+  invisible(file)
+}
+
+
+html_table_payload <- function(name, x) {
+  x <- data.table(x)
+  x <- x[, lapply(.SD, function(col) {
+    col <- as.character(col)
+    col[is.na(col)] <- ""
+    col
+  })]
+
+  rows <- if (nrow(x)) {
+    lapply(seq_len(nrow(x)), function(i) unname(unlist(x[i])))
+  } else {
+    list()
+  }
+
+  list(
+    name = jsonlite::unbox(name),
+    columns = names(x),
+    nrow = jsonlite::unbox(nrow(x)),
+    rows = rows
+  )
+}
+
+
+html_tables_document <- function(json) {
+  paste0(
+    "<!doctype html>\n",
+    "<html lang=\"en\">\n",
+    "<head>\n",
+    "<meta charset=\"utf-8\">\n",
+    "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n",
+    "<title>Cass tables</title>\n",
+    "<style>\n",
+    html_tables_css(),
+    "\n</style>\n",
+    "</head>\n",
+    "<body>\n",
+    "<header>\n",
+    "<h1 id=\"page-title\">Cass tables</h1>\n",
+    "<div id=\"generated\"></div>\n",
+    "</header>\n",
+    "<nav id=\"tabs\" aria-label=\"Tables\"></nav>\n",
+    "<main>\n",
+    "<div class=\"toolbar\">\n",
+    "<input id=\"search\" type=\"search\" placeholder=\"Search current table\" autocomplete=\"off\">\n",
+    "<span id=\"count\"></span>\n",
+    "</div>\n",
+    "<div id=\"table-wrap\"></div>\n",
+    "</main>\n",
+    "<script id=\"table-data\" type=\"application/json\">",
+    json,
+    "</script>\n",
+    "<script>\n",
+    html_tables_js(),
+    "\n</script>\n",
+    "</body>\n",
+    "</html>\n"
+  )
+}
+
+
+html_tables_css <- function() {
+  r"--(
+:root {
+  --border: #cfd8dc;
+  --header: #263238;
+  --muted: #607d8b;
+  --surface: #ffffff;
+  --tab: #eef3f5;
+  --tab-active: #1d3658;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: #f7f9fa;
+  color: #1f2933;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  margin: 0;
+}
+
+header {
+  background: var(--header);
+  color: #ffffff;
+  padding: 14px 16px;
+}
+
+h1 {
+  font-size: 1.25rem;
+  margin: 0;
+}
+
+#generated {
+  color: #d6e2e7;
+  font-size: 0.85rem;
+  margin-top: 4px;
+}
+
+#tabs {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 8px;
+  position: sticky;
+  top: 0;
+  z-index: 4;
+}
+
+.tab {
+  background: var(--tab);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: #1f2933;
+  cursor: pointer;
+  flex: 0 0 auto;
+  font: inherit;
+  font-weight: 700;
+  padding: 8px 10px;
+}
+
+.tab.active {
+  background: var(--tab-active);
+  border-color: var(--tab-active);
+  color: #ffffff;
+}
+
+main {
+  padding: 10px;
+}
+
+.toolbar {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+#search {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  flex: 1 1 auto;
+  font: inherit;
+  max-width: 520px;
+  padding: 9px 10px;
+}
+
+#count {
+  color: var(--muted);
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+#table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  max-height: calc(100vh - 150px);
+  overflow: auto;
+}
+
+table {
+  border-collapse: collapse;
+  font-size: 0.86rem;
+  min-width: 100%;
+}
+
+th,
+td {
+  border-bottom: 1px solid #eceff1;
+  max-width: 360px;
+  padding: 6px 8px;
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+td {
+  color: #263238;
+}
+
+th {
+  background: #e8eef1;
+  border-bottom: 1px solid var(--border);
+  color: #1f2933;
+  cursor: pointer;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+tbody tr:nth-child(even) {
+  background: #fafafa;
+}
+
+.empty {
+  color: var(--muted);
+  padding: 16px;
+}
+)--"
+}
+
+
+html_tables_js <- function() {
+  r"--(
+const payload = JSON.parse(document.getElementById("table-data").textContent);
+const tabs = document.getElementById("tabs");
+const search = document.getElementById("search");
+const count = document.getElementById("count");
+const wrap = document.getElementById("table-wrap");
+const state = payload.tables.map(() => ({ search: "", sortColumn: null, sortDir: 1 }));
+let active = 0;
+
+document.getElementById("page-title").textContent = payload.title;
+document.getElementById("generated").textContent = "Generated " + payload.generated;
+
+function text(value) {
+  return value == null ? "" : String(value);
+}
+
+function renderTabs() {
+  tabs.textContent = "";
+  payload.tables.forEach((table, index) => {
+    const button = document.createElement("button");
+    button.className = "tab" + (index === active ? " active" : "");
+    button.type = "button";
+    button.textContent = `${table.name} (${table.nrow})`;
+    button.addEventListener("click", () => {
+      active = index;
+      search.value = state[active].search;
+      renderTabs();
+      renderTable();
+    });
+    tabs.appendChild(button);
+  });
+}
+
+function matchingRows(table, query) {
+  if (!query) {
+    return table.rows.slice();
+  }
+
+  const needle = query.toLowerCase();
+  return table.rows.filter(row => row.join("\u0001").toLowerCase().includes(needle));
+}
+
+function sortRows(rows) {
+  const tableState = state[active];
+
+  if (tableState.sortColumn === null) {
+    return rows;
+  }
+
+  const col = tableState.sortColumn;
+  const dir = tableState.sortDir;
+
+  return rows.sort((a, b) => {
+    const av = text(a[col]);
+    const bv = text(b[col]);
+
+    if (!av && bv) return 1;
+    if (av && !bv) return -1;
+
+    return dir * av.localeCompare(bv, undefined, {
+      numeric: true,
+      sensitivity: "base"
+    });
+  });
+}
+
+function renderTable() {
+  const tableData = payload.tables[active];
+  const tableState = state[active];
+  const rows = sortRows(matchingRows(tableData, tableState.search));
+  wrap.textContent = "";
+  count.textContent = `${rows.length} of ${tableData.nrow} rows`;
+
+  if (!tableData.columns.length) {
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.textContent = "No columns";
+    wrap.appendChild(empty);
+    return;
+  }
+
+  const table = document.createElement("table");
+  const thead = document.createElement("thead");
+  const headRow = document.createElement("tr");
+
+  tableData.columns.forEach((column, colIndex) => {
+    const th = document.createElement("th");
+    th.textContent = column;
+    th.addEventListener("click", () => {
+      if (tableState.sortColumn === colIndex) {
+        tableState.sortDir = -tableState.sortDir;
+      } else {
+        tableState.sortColumn = colIndex;
+        tableState.sortDir = 1;
+      }
+      renderTable();
+    });
+    headRow.appendChild(th);
+  });
+
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  const fragment = document.createDocumentFragment();
+
+  rows.forEach(row => {
+    const tr = document.createElement("tr");
+
+    tableData.columns.forEach((column, colIndex) => {
+      const td = document.createElement("td");
+      td.textContent = text(row[colIndex]);
+      tr.appendChild(td);
+    });
+
+    fragment.appendChild(tr);
+  });
+
+  tbody.appendChild(fragment);
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+}
+
+search.addEventListener("input", () => {
+  state[active].search = search.value;
+  renderTable();
+});
+
+renderTabs();
+renderTable();
+)--"
+}

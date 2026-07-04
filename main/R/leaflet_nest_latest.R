@@ -4,12 +4,6 @@ live_nest_leaflet <- function(
 ) {
   study_site <- study_site_loader()
 
-  nest_size <- suppressWarnings(as.numeric(nest_size[1]))
-
-  if (!is.finite(nest_size)) {
-    nest_size <- 4
-  }
-
   marker_radius <- pmax(nest_size + 1, 4)
   label_font_size <- pmax(nest_size + 8, 12)
   label_offset <- pmax(round(marker_radius + 4), 8)
@@ -28,8 +22,8 @@ live_nest_leaflet <- function(
       data = study_site,
       group = "Study site",
       fillOpacity = 0,
-      color = "#e24c4c",
-      weight = 2
+      color = "#615050",
+      weight = 1
     ) |>
     setView(
       lng = center[1],
@@ -37,30 +31,27 @@ live_nest_leaflet <- function(
       zoom = 15
     )
 
+  finish_map <- function(map, overlay_groups) {
+    map <- map |>
+      addLayersControl(
+        baseGroups = c("Print Map", "Street Map", "Satellite"),
+        overlayGroups = overlay_groups,
+        options = layersControlOptions(collapsed = TRUE)
+      )
+
+    htmlwidgets::onRender(map, "window.liveNestLeafletRender")
+  }
+
   n <- data.table(n)
 
-  if (nrow(n) == 0 || !"lat" %in% names(n) || !"lon" %in% names(n)) {
-    return(
-      m |>
-        addLayersControl(
-          baseGroups = c("Print Map", "Street Map", "Satellite"),
-          overlayGroups = "Study site",
-          options = layersControlOptions(collapsed = TRUE)
-        )
-    )
+  if (nrow(n) == 0) {
+    return(finish_map(m, "Study site"))
   }
 
   n <- n[!is.na(lat) & !is.na(lon)]
 
   if (nrow(n) == 0) {
-    return(
-      m |>
-        addLayersControl(
-          baseGroups = c("Print Map", "Street Map", "Satellite"),
-          overlayGroups = "Study site",
-          options = layersControlOptions(collapsed = TRUE)
-        )
-    )
+    return(finish_map(m, "Study site"))
   }
 
   n[, marker_col := nest_state_cols[as.character(nest_state)]]
@@ -83,8 +74,7 @@ live_nest_leaflet <- function(
         keep <- vapply(
           row,
           function(value) {
-            length(value) > 0 &&
-              !is.na(value[1]) &&
+            !is.na(value[1]) &&
               nzchar(as.character(value[1]))
           },
           logical(1)
@@ -194,12 +184,5 @@ live_nest_leaflet <- function(
       )
   }
 
-  m <- m |>
-    addLayersControl(
-      baseGroups = c("Print Map", "Street Map", "Satellite"),
-      overlayGroups = c("Study site", "Nests"),
-      options = layersControlOptions(collapsed = TRUE)
-    )
-
-  htmlwidgets::onRender(m, "window.liveNestLeafletMobileSizing")
+  finish_map(m, c("Study site", "Nests"))
 }

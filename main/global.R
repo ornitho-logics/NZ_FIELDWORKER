@@ -30,8 +30,7 @@ sapply(
 
 #! OPTIONS
 # TODO: set to FALSE before depoy
-options(shiny.autoreload = TRUE)
-
+shiny::devmode(TRUE)
 
 group <- "nz_fieldworker"
 
