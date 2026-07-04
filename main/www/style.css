@@ -228,6 +228,25 @@
   object-fit: contain;
 }
 
+#set_refdate.refdate-set-button {
+  align-items: center;
+  border: 0;
+  box-shadow: 0 2px 8px rgba(29, 54, 88, 0.28);
+  display: inline-flex;
+  font-size: 1rem;
+  font-weight: 700;
+  justify-content: center;
+  margin-top: 0.35rem;
+  min-height: 42px;
+  width: 100%;
+}
+
+#set_refdate.refdate-set-button .fa,
+#set_refdate.refdate-set-button .fas,
+#set_refdate.refdate-set-button svg {
+  margin-right: 0.4rem;
+}
+
 .intro-help {
   color: inherit;
   max-width: 860px;

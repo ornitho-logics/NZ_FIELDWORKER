@@ -1,7 +1,7 @@
 
 
 ### Tips
-* Always keep your GPS switched on when you're in the study area!
+* Always keep your GPS switched on when you're in the field!
 
 * Do not delete any points on your GPS!
 

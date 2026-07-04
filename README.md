@@ -15,8 +15,7 @@ __Fieldworker__ is a modular Shiny application for organizing fieldwork.
  ┃ ┣ 📂NESTS
  ┃ ┣ 📂RESIGHTINGS
  ┃ ┣ 📂RESIGHTINGS_PUBLIC
- ┃ ┣ 📂inspectors
- ┃ ┗ 📂artifacts
+ ┃ ┗ 📂inspectors
  ┣ 📂gpxui
  ┃ ┣ 📜global.R
  ┃ ┣ 📜server.R

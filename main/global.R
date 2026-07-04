@@ -11,7 +11,7 @@ sapply(
     "stringr",
     "glue",
     "ggplot2",
-    "gt",
+    "fresh",
 
     "shiny",
     "waiter",
@@ -42,8 +42,7 @@ dbtabs_entry <- c(
   "EGGS",
   "RESIGHTINGS",
   "RESIGHTINGS_PUBLIC",
-  "inspectors",
-  "artifacts"
+  "inspectors"
 )
 
 
@@ -115,4 +114,4 @@ nest_state_cols <- c(
 
 #! etc
 
-ver <- "v 3.0"
+ver <- "v 4.0"

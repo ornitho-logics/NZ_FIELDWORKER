@@ -1,132 +1,114 @@
-todo_pdf_table <- function(todo = DBq("SELECT * FROM TODO_LIST")) {
+todo_pdf_prepare <- function(todo = DBq("SELECT * FROM TODO_LIST")) {
   todo <- data.table(todo)
+  refdate <- as.Date(todo$reference_date[1])
 
-  if ("error" %in% names(todo)) {
-    stop(todo$error[1])
-  }
-
-  refdate <- todo[
-    !is.na(reference_date),
-    as.Date(reference_date[1])
-  ]
-
-  if (!length(refdate) || is.na(refdate)) {
-    refdate <- get_reference_date()
-  }
-
-  title <- if (is.na(refdate)) {
-    "Cass todo"
-  } else {
-    glue("Cass todo ({as.Date(refdate)})")
-  }
-
-  if (!nrow(todo)) {
-    return(
-      data.table(status = "No to-do items") |>
-        gt::gt() |>
-        gt::tab_header(
-          title = gt::md(glue("**{title}**"))
-        ) |>
-        gt::cols_label(status = "Status")
-    )
-  }
-
-  todo_order <- c(
-    "nest check",
-    "Untrapped parent",
-    "Untrapped brood",
-    "Unprocessed nest",
-    "Re-process nest",
-    "Hiding spot photos needed"
-  )
-
-  todo[
-    ,
-    todo_order := match(todo, todo_order)
-  ]
-  todo[
-    is.na(todo_order),
-    todo_order := .Machine$integer.max
-  ]
-
-  todo[
-    ,
-    `:=`(
-      M_print = fifelse(
-        is.na(M_mark) | !nzchar(as.character(M_mark)),
-        "-",
-        as.character(M_mark)
-      ),
-      F_print = fifelse(
-        is.na(F_mark) | !nzchar(as.character(F_mark)),
-        "-",
-        as.character(F_mark)
-      )
-    )
-  ]
-  todo[, parents := paste0("M: ", M_print, "; F: ", F_print)]
-
-  setorder(
-    todo,
-    todo_order,
-    min_days_to_hatch,
-    -last_visit_days_ago,
-    nest_id,
-    na.last = TRUE
-  )
-
-  todo_print <- todo[
+  rows <- todo[
     ,
     .(
-      todo,
-      nest_id,
-      notes,
-      nest_state,
-      clutch_size,
-      brood_size,
-      min_days_to_hatch,
-      last_visit_days_ago,
-      parents
+      Todo = todo,
+      Nest = nest_id,
+      State = nest_state,
+      Clutch = clutch_size,
+      Brood = brood_size,
+      Hatch = min_days_to_hatch,
+      Visit = last_visit_days_ago,
+      M = M_mark,
+      F = F_mark,
+      Notes = notes
     )
   ]
 
-  body_cols <- setdiff(names(todo_print), "todo")
+  rows[
+    ,
+    names(rows) := lapply(.SD, function(x) {
+      x <- as.character(x)
+      x[is.na(x)] <- ""
+      x
+    })
+  ]
 
-  todo_print |>
-    gt::gt(groupname_col = "todo") |>
-    gt::tab_header(
-      title = gt::md(glue("**{title}**"))
-    ) |>
-    gt::cols_label(
-      nest_id = "Nest",
-      notes = "Notes",
-      nest_state = "State",
-      clutch_size = "Clutch",
-      brood_size = "Brood",
-      min_days_to_hatch = "Days to hatch",
-      last_visit_days_ago = "Last visit",
-      parents = "Parents"
-    ) |>
-    gt::sub_missing(
-      columns = body_cols,
-      missing_text = ""
-    ) |>
-    gt::cols_align(
-      align = "center",
-      columns = c(
-        "nest_id",
-        "nest_state",
-        "clutch_size",
-        "brood_size",
-        "min_days_to_hatch",
-        "last_visit_days_ago"
+  list(
+    title = glue("Cass todo ({refdate})"),
+    rows = rows
+  )
+}
+
+
+todo_pdf_r <- function(x) {
+  paste(deparse(x), collapse = "\n")
+}
+
+
+todo_pdf_body <- function(rows) {
+  if (!nrow(rows)) {
+    return("No to-do items.")
+  }
+
+  out <- character()
+  table_cols <- setdiff(names(rows), "Todo")
+
+  for (todo in unique(rows$Todo)) {
+    out <- c(
+      out,
+      glue("## {todo}"),
+      "",
+      "```{r}",
+      glue(
+        "todo_rows[todo_rows$Todo == {todo_pdf_r(todo)}, ",
+        "{todo_pdf_r(table_cols)}, drop = FALSE]"
+      ),
+      "```",
+      ""
+    )
+  }
+
+  out
+}
+
+
+todo_pdf_qmd <- function(pdf, template = file.path("templates", "todo_pdf.qmd")) {
+  body <- todo_pdf_body(pdf$rows)
+  out <- character()
+
+  for (line in readLines(template)) {
+    out <- c(
+      out,
+      switch(
+        line,
+        "{{ title }}" = glue("# {pdf$title}"),
+        "{{ body }}" = body,
+        line
       )
-    ) |>
-    gt::tab_options(
-      table.font.size = gt::px(11),
-      data_row.padding = gt::px(3),
-      heading.title.font.size = gt::px(18),
-      row_group.font.weight = "bold"
-    ) |>
-    gt::opt_row_striping()
+    )
+  }
+
+  out
+}
+
+
+todo_pdf_save <- function(
+  file,
+  todo = DBq("SELECT * FROM TODO_LIST")
+) {
+  pdf <- todo_pdf_prepare(todo)
+  workdir <- tempfile("todo_pdf_")
+  dir.create(workdir)
+  on.exit(unlink(workdir, recursive = TRUE), add = TRUE)
+
+  qmd <- file.path(workdir, "todo.qmd")
+  output <- file.path(workdir, "todo.pdf")
+
+  saveRDS(as.data.frame(pdf$rows), file.path(workdir, "todo_rows.rds"))
+  writeLines(todo_pdf_qmd(pdf), qmd)
+  quarto::quarto_render(
+    input = qmd,
+    output_format = "pdf",
+    output_file = basename(output),
+    quarto_args = c("--output-dir", workdir),
+    execute = TRUE,
+    quiet = TRUE
+  )
+
+  file.copy(output, file, overwrite = TRUE)
+  invisible(file)
 }

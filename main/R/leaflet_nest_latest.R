@@ -2,36 +2,16 @@ live_nest_leaflet <- function(
   n = DBq("SELECT * FROM NESTS_LATEST"),
   nest_size = 4
 ) {
-  study_site <- study_site_loader()
-
   marker_radius <- pmax(nest_size + 1, 4)
   label_font_size <- pmax(nest_size + 8, 12)
   label_offset <- pmax(round(marker_radius + 4), 8)
 
-  center <- study_site |>
-    sf::st_union() |>
-    sf::st_centroid() |>
-    sf::st_coordinates() |>
-    as.numeric()
-
   m <- leaflet(options = leafletOptions(zoomControl = TRUE)) |>
     addProviderTiles(providers$CartoDB.PositronNoLabels, group = "Print Map") |>
     addProviderTiles(providers$OpenStreetMap, group = "Street Map") |>
-    addProviderTiles(providers$Esri.WorldImagery, group = "Satellite") |>
-    addPolygons(
-      data = study_site,
-      group = "Study site",
-      fillOpacity = 0,
-      color = "#615050",
-      weight = 1
-    ) |>
-    setView(
-      lng = center[1],
-      lat = center[2],
-      zoom = 15
-    )
+    addProviderTiles(providers$Esri.WorldImagery, group = "Satellite")
 
-  finish_map <- function(map, overlay_groups) {
+  finish_map <- function(map, overlay_groups = character()) {
     map <- map |>
       addLayersControl(
         baseGroups = c("Print Map", "Street Map", "Satellite"),
@@ -45,13 +25,13 @@ live_nest_leaflet <- function(
   n <- data.table(n)
 
   if (nrow(n) == 0) {
-    return(finish_map(m, "Study site"))
+    return(finish_map(m))
   }
 
   n <- n[!is.na(lat) & !is.na(lon)]
 
   if (nrow(n) == 0) {
-    return(finish_map(m, "Study site"))
+    return(finish_map(m))
   }
 
   n[, marker_col := nest_state_cols[as.character(nest_state)]]
@@ -147,6 +127,23 @@ live_nest_leaflet <- function(
       options = pathOptions(className = "nest-circle-marker")
     )
 
+  if (nrow(n) == 1) {
+    m <- m |>
+      setView(
+        lng = n$lon[1],
+        lat = n$lat[1],
+        zoom = 15
+      )
+  } else {
+    m <- m |>
+      fitBounds(
+        lng1 = min(n$lon),
+        lat1 = min(n$lat),
+        lng2 = max(n$lon),
+        lat2 = max(n$lat)
+      )
+  }
+
   if (nrow(state_cols) > 0) {
     legend_html <- htmltools::tags$details(
       class = "nest-legend",
@@ -184,5 +181,5 @@ live_nest_leaflet <- function(
       )
   }
 
-  finish_map(m, c("Study site", "Nests"))
+  finish_map(m, "Nests")
 }

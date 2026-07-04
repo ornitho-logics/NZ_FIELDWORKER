@@ -7,13 +7,6 @@ fallback_ggplot <- function(fail = "Code error!") {
     )
 }
 
-fallback_gt <- function(fail = "Function failed!") {
-  data.table(status = fail) |>
-    gt::gt() |>
-    gt::tab_header(title = gt::md("**Error**"))
-}
-
-
 fallback_leaflet <- function(
   fail = "Leaflet map failed!",
   lon = 170.507560,

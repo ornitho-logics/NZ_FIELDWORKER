@@ -1,10 +1,12 @@
 bs4Dash::dashboardPage(
   scrollToTop = TRUE,
-  dark = FALSE,
+  dark = NULL,
+  freshTheme = fieldworker_theme,
+  fullscreen = TRUE,
   help = NULL,
   preloader = list(
-    html = waiter::spin_loaders(id = 16, color = "#1e3d24"),
-    color = '#2f6fa3de'
+    html = waiter::spin_loaders(id = 16, color = "#2f6fa3"),
+    color = "#f8fafc"
   ),
 
   title = glue('FIELDWORKER {ver}'),
@@ -20,12 +22,16 @@ bs4Dash::dashboardPage(
       ),
       image = "ICO.png"
     ),
-    uiOutput("ref_date_text")
+    uiOutput("ref_date_text"),
+    skin = "light",
+    status = "white"
   ),
 
   sidebar = dashboardSidebar(
     collapsed = TRUE,
     width = "180px",
+    skin = "light",
+    status = "primary",
     sidebarMenu(
       id = "main", # Assigning an id here allows input$main to be set
       menuItem("Intro", tabName = "intro", icon = icon("circle-info")),
@@ -59,6 +65,7 @@ bs4Dash::dashboardPage(
     width = 280,
     overlay = FALSE,
     collapsed = FALSE,
+    skin = "light",
 
     box(
       title = "Reference date",
@@ -74,7 +81,7 @@ bs4Dash::dashboardPage(
         inputId = "set_refdate",
         label = "Set",
         icon = icon("check"),
-        class = "btn-primary btn-sm"
+        class = "btn-primary refdate-set-button"
       )
     ),
 

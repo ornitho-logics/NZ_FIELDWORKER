@@ -25,8 +25,7 @@ kmz_nest_latest <- function(
     icon_href = paste0("icons/nest_", kmz_safe_id(states), ".png")
   )
 
-  state_styles[
-    ,
+  state_styles[,
     color := unname(kmz_nest_state_cols[state])
   ]
   state_styles[
@@ -85,7 +84,6 @@ kmz_nest_latest <- function(
   invisible(file)
 }
 
-
 kmz_nest_state_cols <- c(
   "S" = "#f7b267",
   "F" = "#65cdaa",
@@ -101,20 +99,17 @@ kmz_nest_state_cols <- c(
   "unknown" = "#c7c7c7"
 )
 
-
 kmz_nest_state_key <- function(x) {
   x <- as.character(x)
   x[is.na(x) | !nzchar(trimws(x))] <- "unknown"
   trimws(x)
 }
 
-
 kmz_safe_id <- function(x) {
   x <- gsub("[^A-Za-z0-9_-]+", "_", as.character(x))
   x[!nzchar(x)] <- "unknown"
   x
 }
-
 
 kmz_xml_escape <- function(x) {
   x <- as.character(x)
@@ -127,13 +122,11 @@ kmz_xml_escape <- function(x) {
   x
 }
 
-
 kmz_html_escape <- function(x) {
   x <- kmz_xml_escape(x)
   x <- gsub("\r\n|\r|\n", "<br/>", x)
   x
 }
-
 
 kmz_popup_value <- function(x) {
   x <- as.character(x)
@@ -144,7 +137,6 @@ kmz_popup_value <- function(x) {
 
   x
 }
-
 
 kmz_popup_html <- function(row) {
   popup_cols <- setdiff(
@@ -185,20 +177,22 @@ kmz_popup_html <- function(row) {
   )
 }
 
-
 kmz_kml_style <- function(id, icon_href) {
   paste0(
-    "<Style id=\"", kmz_xml_escape(id), "\">",
+    "<Style id=\"",
+    kmz_xml_escape(id),
+    "\">",
     "<IconStyle>",
     "<scale>1.1</scale>",
-    "<Icon><href>", kmz_xml_escape(icon_href), "</href></Icon>",
+    "<Icon><href>",
+    kmz_xml_escape(icon_href),
+    "</href></Icon>",
     "<hotSpot x=\"0.5\" y=\"0.06\" xunits=\"fraction\" yunits=\"fraction\"/>",
     "</IconStyle>",
     "<LabelStyle><scale>0.75</scale></LabelStyle>",
     "</Style>"
   )
 }
-
 
 kmz_kml_placemark <- function(row) {
   nest_name <- kmz_popup_value(row$nest_id)
@@ -211,9 +205,15 @@ kmz_kml_placemark <- function(row) {
 
   paste0(
     "<Placemark>",
-    "<name>", kmz_xml_escape(nest_name), "</name>",
-    "<styleUrl>#", kmz_xml_escape(row$kmz_style), "</styleUrl>",
-    "<description>", description, "</description>",
+    "<name>",
+    kmz_xml_escape(nest_name),
+    "</name>",
+    "<styleUrl>#",
+    kmz_xml_escape(row$kmz_style),
+    "</styleUrl>",
+    "<description>",
+    description,
+    "</description>",
     "<Point>",
     "<coordinates>",
     sprintf("%.8f,%.8f,0", row$lon, row$lat),
@@ -222,7 +222,6 @@ kmz_kml_placemark <- function(row) {
     "</Placemark>"
   )
 }
-
 
 kmz_write_pin_icon <- function(file, fill, outline = "#455a64") {
   grDevices::png(
@@ -265,7 +264,6 @@ kmz_write_pin_icon <- function(file, fill, outline = "#455a64") {
     lwd = 2
   )
 }
-
 
 kmz_zip <- function(file, files, root) {
   unlink(file)

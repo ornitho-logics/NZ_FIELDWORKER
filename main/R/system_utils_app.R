@@ -133,24 +133,78 @@ download_filename <- function(prefix, ext, time = Sys.time()) {
 }
 
 
-download_gt_pdf <- function(filename, table, session, output_id) {
-  shiny::downloadHandler(
-    filename = function() {
-      if (is.function(filename)) {
-        filename()
-      } else {
-        filename
-      }
-    },
-    content = function(file) {
-      download_with_feedback(
-        session,
-        output_id,
-        gt::gtsave(
-          data = table(),
-          filename = file
-        )
-      )
-    }
+# UI theme
+fieldworker_theme <- fresh::create_theme(
+  fresh::bs4dash_vars(
+    body_bg = "#f8fafc",
+    body_color = "#1f2933",
+    border_color = "#d8e1e8",
+    card_bg = "#ffffff",
+    card_cap_bg = "#f3f7fa",
+    card_border_color = "#d8e1e8",
+    card_shadow = "0 0.35rem 1rem rgba(15, 23, 42, 0.08)",
+    input_bg = "#ffffff",
+    input_color = "#1f2933",
+    input_border_color = "#cbd5e1",
+    input_focus_border_color = "#2f6fa3",
+    input_placeholder_color = "#64748b",
+    link_color = "#2f6fa3",
+    link_hover_color = "#1d3658",
+    main_header_bottom_border_color = "#d8e1e8",
+    navbar_light_active_color = "#1d3658",
+    navbar_light_color = "#334155",
+    navbar_light_hover_color = "#1d3658",
+    table_border_color = "#e2e8f0",
+    table_head_bg = "#eef3f5",
+    table_head_color = "#1f2933",
+    text_muted = "#64748b"
+  ),
+  fresh::bs4dash_layout(
+    main_bg = "#f8fafc",
+    content_padding_x = ".65rem",
+    content_padding_y = ".65rem"
+  ),
+  fresh::bs4dash_sidebar_light(
+    bg = "#ffffff",
+    color = "#334155",
+    hover_bg = "#eef6fb",
+    hover_color = "#1d3658",
+    active_color = "#1d3658",
+    submenu_bg = "#f8fafc",
+    submenu_color = "#475569",
+    submenu_hover_bg = "#eef6fb",
+    submenu_hover_color = "#1d3658",
+    submenu_active_bg = "#e2eff7",
+    submenu_active_color = "#1d3658",
+    header_color = "#64748b"
+  ),
+  fresh::bs4dash_status(
+    primary = "#2f6fa3",
+    secondary = "#64748b",
+    success = "#00815f",
+    info = "#1aa9fc",
+    warning = "#e8c468",
+    danger = "#d70427",
+    light = "#f8fafc",
+    dark = "#1f2933"
+  ),
+  fresh::bs4dash_color(
+    blue = "#2f6fa3",
+    lightblue = "#1aa9fc",
+    navy = "#1d3658",
+    green = "#00815f",
+    orange = "#f38c38",
+    red = "#d70427",
+    gray_x_light = "#eef3f5",
+    gray_600 = "#64748b",
+    gray_800 = "#334155",
+    gray_900 = "#1f2933",
+    white = "#ffffff",
+    black = "#111827"
+  ),
+  fresh::bs4dash_yiq(
+    contrasted_threshold = 160,
+    text_dark = "#1f2933",
+    text_light = "#ffffff"
   )
-}
+)

@@ -76,7 +76,7 @@ function(input, output, session) {
 
   output$new_data <- renderUI({
     entry_classes <- fifelse(
-      dbtabs_entry %in% c("inspectors", "artifacts"),
+      dbtabs_entry %in% "inspectors",
       "btn-danger bttn-danger",
       "btn-primary bttn-primary"
     )
@@ -148,23 +148,22 @@ function(input, output, session) {
     )
   })
 
-  output$todo_pdf <- download_gt_pdf(
+  output$todo_pdf <- shiny::downloadHandler(
     filename = function() {
       download_filename("cass_nests", "pdf")
     },
-    table = function() {
-      try_else(
+    content = function(file) {
+      download_with_feedback(
+        session,
+        "todo_pdf",
         {
           req(active_refdate())
 
-          todo_pdf_table()
-        },
-        fallback_gt,
-        fail = "todo_pdf_table() failed!"
+          todo_pdf_save(file)
+        }
       )
     },
-    session = session,
-    output_id = "todo_pdf"
+    contentType = "application/pdf"
   )
 
   output$nest_latest_kmz <- shiny::downloadHandler(
