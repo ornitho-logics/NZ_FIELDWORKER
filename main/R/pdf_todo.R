@@ -2,8 +2,7 @@ todo_pdf_prepare <- function(todo = DBq("SELECT * FROM TODO_LIST")) {
   todo <- data.table(todo)
   refdate <- as.Date(todo$reference_date[1])
 
-  rows <- todo[
-    ,
+  rows <- todo[,
     .(
       Todo = todo,
       Nest = nest_id,
@@ -18,8 +17,7 @@ todo_pdf_prepare <- function(todo = DBq("SELECT * FROM TODO_LIST")) {
     )
   ]
 
-  rows[
-    ,
+  rows[,
     names(rows) := lapply(.SD, function(x) {
       x <- as.character(x)
       x[is.na(x)] <- ""
@@ -66,7 +64,10 @@ todo_pdf_body <- function(rows) {
 }
 
 
-todo_pdf_qmd <- function(pdf, template = file.path("templates", "todo_pdf.qmd")) {
+todo_pdf_qmd <- function(
+  pdf,
+  template = file.path("templates", "todo_pdf.qmd")
+) {
   body <- todo_pdf_body(pdf$rows)
   out <- character()
 
@@ -106,7 +107,7 @@ todo_pdf_save <- function(
     output_file = basename(output),
     quarto_args = c("--output-dir", workdir),
     execute = TRUE,
-    quiet = TRUE
+    quiet = FALSE
   )
 
   file.copy(output, file, overwrite = TRUE)

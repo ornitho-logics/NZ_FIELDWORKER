@@ -40,6 +40,16 @@
     }, fallbackMs);
   }
 
+  function showLocationNotice() {
+    var notice = document.getElementById("download_location_notice");
+
+    if (!notice) {
+      return;
+    }
+
+    notice.classList.remove("d-none");
+  }
+
   function clearBusy(id) {
     var button = visibleButton(id);
 
@@ -67,6 +77,7 @@
     }
 
     setBusy(downloadId(button));
+    showLocationNotice();
   });
 
   if (window.Shiny) {

@@ -1,6 +1,6 @@
 #+ NOTE:
 #' list.files('./main/R/', full.names = TRUE) |> lapply(source) |> invisible(); source('main/global.R')
-#'  shiny::runApp("./main", launch.browser = TRUE )
+#' shiny::devmode(TRUE);shiny::runApp("./main", launch.browser = TRUE )
 
 #! PACKAGES & DATA
 sapply(
@@ -29,7 +29,6 @@ sapply(
 
 
 #! OPTIONS
-# shiny::devmode(TRUE)
 
 group <- "nz_fieldworker"
 
@@ -108,6 +107,22 @@ nest_state_cols <- c(
   "D" = "#6A51A3",
   "notA" = "#4b4b4b",
   "O" = "#999999"
+)
+
+
+kmz_nest_state_cols <- c(
+  S = "#f7b267",
+  F = "#65cdaa",
+  I = "#fff58f",
+  H = "#78d6ff",
+  B = "#76d7bd",
+  pP = "#e37882",
+  P = "#b78be7",
+  pD = "#edadd3",
+  D = "#b9a1dc",
+  notA = "#9b9b9b",
+  O = "#d0d0d0",
+  unknown = "#c7c7c7"
 )
 
 

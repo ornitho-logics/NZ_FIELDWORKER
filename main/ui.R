@@ -34,6 +34,7 @@ bs4Dash::dashboardPage(
     status = "primary",
     sidebarMenu(
       id = "main", # Assigning an id here allows input$main to be set
+      menuItem("Downloads", tabName = "downloads", icon = icon("download")),
       menuItem("Intro", tabName = "intro", icon = icon("circle-info")),
       menuItem("Overview", tabName = "overview", icon = icon("circle-play")),
       menuItem("GPS", tabName = "gps", icon = icon("location-arrow")),
@@ -46,7 +47,6 @@ bs4Dash::dashboardPage(
         tabName = "nest_map",
         icon = icon("broadcast-tower")
       ),
-      menuItem("Downloads", tabName = "downloads", icon = icon("download")),
       HR(),
       menuItem(
         text = "",
@@ -64,7 +64,7 @@ bs4Dash::dashboardPage(
   controlbar = dashboardControlbar(
     width = 280,
     overlay = FALSE,
-    collapsed = FALSE,
+    collapsed = TRUE,
     skin = "light",
 
     box(
@@ -118,18 +118,87 @@ bs4Dash::dashboardPage(
     )
   ),
   body = dashboardBody(
+    tags$head(
+      tags$link(rel = "manifest", href = "manifest.webmanifest"),
+      tags$meta(name = "theme-color", content = "#2f6fa3"),
+      tags$meta(name = "mobile-web-app-capable", content = "yes"),
+      tags$meta(name = "apple-mobile-web-app-capable", content = "yes"),
+      tags$meta(name = "apple-mobile-web-app-title", content = "Fieldworker"),
+      tags$link(rel = "apple-touch-icon", href = "icons/icon-192.png")
+    ),
     includeCSS("./www/style.css"),
     includeScript("./www/reference_date.js"),
     includeScript("./www/download_feedback.js"),
     includeScript("./www/live_nest_leaflet.js"),
+    includeScript("./www/pwa_install.js"),
 
     tabItems(
+      # Download tab
+      tabItem(
+        tabName = "downloads",
+        box(
+          title = "Install and downloads",
+          width = 11,
+
+          tags$button(
+            id = "install_mobile",
+            type = "button",
+            class = "btn btn-success btn-lg btn-block mb-3",
+            icon("mobile-alt"),
+            "Install app on this device"
+          ),
+          tags$p(
+            class = "small text-muted mb-2",
+            "Downloaded files are saved by the browser or installed app. ",
+            "On Android or iPhone/iPad, open the Files app and check Downloads or Recent."
+          ),
+          tags$p(
+            id = "download_location_notice",
+            class = "small font-weight-bold mb-3 d-none",
+            "Download started. After it finishes, push Open or check Downloads or Recent in the Files app."
+          ),
+          downloadBttn(
+            outputId = "todo_pdf",
+            label = "Download To-do PDF",
+            icon = icon("file-pdf"),
+            size = "lg",
+            block = TRUE,
+            style = "material-flat",
+            color = "primary"
+          ),
+          br(),
+          downloadBttn(
+            outputId = "nest_latest_kmz",
+            label = "Download Offline Nest KMZ",
+            icon = icon("globe"),
+            size = "lg",
+            block = TRUE,
+            style = "material-flat",
+            color = "primary"
+          ),
+          br(),
+          downloadBttn(
+            outputId = "tables_html",
+            label = "Download Offline Interactive Tables",
+            icon = icon("table"),
+            size = "lg",
+            block = TRUE,
+            style = "material-flat",
+            color = "primary"
+          ),
+          br()
+        )
+      ),
+
       # Intro tab
       tabItem(
         tabName = "intro",
-        div(
-          class = "intro-help",
-          includeMarkdown("./www/help/intro.md")
+        bs4Dash::bs4Card(
+          title = "Fieldworker at a glance",
+          width = 8,
+          collapsible = TRUE,
+
+          includeHTML("./www/help/intro.html")
         )
       ),
 
@@ -218,46 +287,6 @@ bs4Dash::dashboardPage(
               )
             )
           )
-        )
-      ),
-
-      # Download tab
-      tabItem(
-        tabName = "downloads",
-        box(
-          title = "Download for offline use",
-          width = 11,
-
-          downloadBttn(
-            outputId = "todo_pdf",
-            label = "Download To-do PDF",
-            icon = icon("file-pdf"),
-            size = "lg",
-            block = TRUE,
-            style = "material-flat",
-            color = "primary"
-          ),
-          br(),
-          downloadBttn(
-            outputId = "nest_latest_kmz",
-            label = "Download Nest KMZ",
-            icon = icon("globe"),
-            size = "lg",
-            block = TRUE,
-            style = "material-flat",
-            color = "primary"
-          ),
-          br(),
-          downloadBttn(
-            outputId = "tables_html",
-            label = "Download Tables HTML",
-            icon = icon("table"),
-            size = "lg",
-            block = TRUE,
-            style = "material-flat",
-            color = "primary"
-          ),
-          br()
         )
       )
     )
