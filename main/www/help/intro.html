@@ -1,42 +1,75 @@
 <div class="list-group list-group-flush">
   <div class="list-group-item px-0">
+    <h5 class="mb-1 text-primary font-weight-bold">Fieldwork order</h5>
+    <p class="mb-0">
+      Download and upload GPS tracks first, then enter observations. After saving, use views, the nest map,
+      and downloads to check what the database now says.
+    </p>
+  </div>
+
+  <div class="list-group-item px-0">
     <h5 class="mb-1 text-primary font-weight-bold">
       <i class="fas fa-table-cells mr-2" role="presentation" aria-label="table-cells icon"></i>Controlbar (upper right)
     </h5>
     <p class="mb-2">
-      Set the <code>reference date</code>, adjust nest map text and symbol size, and filter nest
-      states.
+      Set the <code>reference date</code>, change nest map text and symbol size, and filter nest states.
     </p>
     <p class="mb-0 font-weight-bold">
-      When you pres <kbd>Set</kbd> The <code>reference date</code> is saved in the database, and all database views are
-      defined relative to it.
+      Press <kbd>Set</kbd> after changing the date. The date is saved in the database, and all database views use it.
+    </p>
+  </div>
+
+  <div class="list-group-item px-0">
+    <h5 class="mb-1 text-primary font-weight-bold">Downloads</h5>
+    <p class="mb-0">
+      Install the app on this device, download the to-do PDF, export an offline nest KMZ,
+      export offline interactive tables, or download the full database as an <code>*.RDS</code> file.
+    </p>
+  </div>
+
+  <div class="list-group-item px-0">
+    <h5 class="mb-1 text-primary font-weight-bold">Overview</h5>
+    <p class="mb-0">
+      Check the season summary plot. It uses the current <code>reference date</code>.
     </p>
   </div>
 
   <div class="list-group-item px-0">
     <h5 class="mb-1 text-primary font-weight-bold">GPS</h5>
-    <p class="mb-0">Upload or download GPS tracks and check GPS setup.</p>
+    <p class="mb-0">
+      Open the GPS upload/download app. Use it before data entry so GPS tracks can be matched to observations.
+    </p>
   </div>
 
   <div class="list-group-item px-0">
     <h5 class="mb-1 text-primary font-weight-bold">Enter Data</h5>
-    <p class="mb-0">Enter new field observations.</p>
+    <p class="mb-2">
+      Enter new field observations, check validation issues, and save them to the remote database.
+    </p>
+    <p class="mb-0">
+      Apps: <code>OBSERVERS</code> for observer names/codes; <code>CAPTURES</code> for captures,
+      measurements, tags, samples, and photos; <code>NESTS</code> for nest visits and states;
+      <code>EGGS</code> for egg records; <code>RESIGHTINGS</code> for field resightings;
+      <code>RESIGHTINGS_PUBLIC</code> for external/public resightings; <code>inspectors</code>
+      for validation rules.
+    </p>
   </div>
 
   <div class="list-group-item px-0">
     <h5 class="mb-1 text-primary font-weight-bold">Show Tables</h5>
-    <p class="mb-0">Inspect raw database tables.</p>
+    <p class="mb-0">
+      Inspect raw database tables. Use this when you need to check exactly what was saved after entry.
+    </p>
   </div>
 
   <div class="list-group-item px-0">
     <h5 class="mb-1 text-primary font-weight-bold">Show Views</h5>
     <p class="mb-0">
-      Views are virtual tables. They are only a structure, and contain no data.
-      Views combine, clean, and reshape data into tables we use for fieldwork.
+      Views are virtual tables. They contain no data themselves. They combine, clean, and reshape saved data for fieldwork.
       They feed the to-do PDF, nest map, KMZ export, and offline tables export.
       Source:
       <a
-        href="https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/DATABASE/views.SQL"
+        href="https://github.com/mpio-be/NZ_FIELDWORKER/blob/main/DATABASE/views.SQL"
         target="_blank"
         rel="noopener noreferrer"
       >views.SQL</a>.
@@ -45,16 +78,16 @@
 
   <div class="list-group-item px-0">
     <h5 class="mb-1 text-primary font-weight-bold">Database</h5>
-    <p class="mb-0">Open the database interface for edits.</p>
+    <p class="mb-0">
+      Open the database interface when existing saved data needs a direct edit. Use Enter Data for new records.
+    </p>
   </div>
 
   <div class="list-group-item px-0">
     <h5 class="mb-1 text-primary font-weight-bold">Nest Map</h5>
-    <p class="mb-0">View latest nest locations.</p>
-  </div>
-
-  <div class="list-group-item px-0">
-    <h5 class="mb-1 text-primary font-weight-bold">Downloads</h5>
-    <p class="mb-0">Export the to-do PDF, offline nest KMZ, and tables HTML.</p>
+    <p class="mb-0">
+      View the latest nest locations from <code>NESTS_LATEST</code>. In the controlbar, use
+      <code>Nest state</code> to filter nests and <code>Text and symbol size</code> to change map labels and symbols.
+    </p>
   </div>
 </div>

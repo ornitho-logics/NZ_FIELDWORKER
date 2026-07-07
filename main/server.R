@@ -43,9 +43,11 @@ function(input, output, session) {
     }
   })
 
-  observe({
-    on.exit(assign("input", reactiveValuesToList(input), envir = .GlobalEnv))
-  })
+  if (isTRUE(getOption("fieldworker.debug_input", FALSE))) {
+    observe({
+      assign("input", reactiveValuesToList(input), envir = .GlobalEnv)
+    })
+  }
 
   output$ref_date_text <- renderUI({
     refdate <- reference_date()
@@ -83,22 +85,36 @@ function(input, output, session) {
 
     startApp(
       hrefs = glue("../DataEntry/{dbtabs_entry}/"),
-      labels = paste(icon("pencil"), dbtabs_entry),
+      labels = fifelse(
+        dbtabs_entry %in% "inspectors",
+        paste(icon("user-check"), dbtabs_entry),
+        paste(icon("pencil"), dbtabs_entry)
+      ),
       classes = entry_classes
     )
   })
 
   output$open_gps <- renderUI({
-    startApp(
-      hrefs = "../gpxui/",
-      labels = paste(icon("location-crosshairs"), "GPS upload/download")
+    a(
+      href = "../gpxui/",
+      target = "_blank",
+      rel = "noopener noreferrer",
+      class = "btn btn-primary field-standalone-button",
+      role = "button",
+      icon("location-crosshairs"),
+      "GPS upload/download"
     )
   })
 
   output$open_db <- renderUI({
-    startApp(
-      hrefs = "../../../db_ui/field_db.php",
-      labels = paste(icon("database"), "Database interface")
+    a(
+      href = "../../../db_ui/field_db.php",
+      target = "_blank",
+      rel = "noopener noreferrer",
+      class = "btn btn-primary field-standalone-button",
+      role = "button",
+      icon("database"),
+      "Database interface"
     )
   })
 
@@ -125,6 +141,21 @@ function(input, output, session) {
     }
   )
 
+  nest_size <- debounce(
+    reactive({
+      req(input$nest_size)
+      input$nest_size
+    }),
+    300
+  )
+
+  selected_nest_states <- debounce(
+    reactive({
+      input$nest_state
+    }),
+    300
+  )
+
   output$nest_map_show <- renderLeaflet({
     try_else(
       {
@@ -132,7 +163,7 @@ function(input, output, session) {
         req(n)
         n <- data.table(n)
 
-        selected_states <- input$nest_state
+        selected_states <- selected_nest_states()
 
         if (is.null(selected_states)) {
           selected_states <- unique(as.character(n$nest_state))
@@ -140,8 +171,7 @@ function(input, output, session) {
 
         n <- n[as.character(nest_state) %in% selected_states]
 
-        req(input$nest_size)
-        live_nest_leaflet(n, nest_size = input$nest_size)
+        live_nest_leaflet(n, nest_size = nest_size())
       },
       fallback_leaflet,
       fail = "live_nest_leaflet() failed!"

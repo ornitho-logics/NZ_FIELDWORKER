@@ -6,19 +6,14 @@
 sapply(
   c(
     "DataEntry",
-    "sf",
     "data.table",
     "stringr",
     "glue",
     "ggplot2",
-    "fresh",
 
     "shiny",
-    "waiter",
     "shinyWidgets",
-    "shinycssloaders",
     "bs4Dash",
-    "DT",
 
     "leaflet"
   ),
@@ -128,4 +123,4 @@ kmz_nest_state_cols <- c(
 
 #! etc
 
-ver <- "v 4.0"
+ver <- "v 4.1"

@@ -47,16 +47,13 @@ bs4Dash::dashboardPage(
         tabName = "nest_map",
         icon = icon("broadcast-tower")
       ),
-      HR(),
+
+      hr(),
+
       menuItem(
-        text = "",
-        icon = icon("github", style = "color: gray;"),
+        text = ver,
+        icon = icon("code-branch", style = "color: gray;"),
         href = "https://github.com/mpio-be/NZ_FIELDWORKER"
-      ),
-      menuItem(
-        text = "",
-        icon = icon("at", style = "color: gray;"),
-        href = "mailto:mihai.valcu@bi.mpg.de?subject=Complain"
       )
     )
   ),
@@ -157,34 +154,36 @@ bs4Dash::dashboardPage(
             class = "small font-weight-bold mb-3 d-none",
             "Download started. After it finishes, push Open or check Downloads or Recent in the Files app."
           ),
-          downloadBttn(
+          downloadLink(
             outputId = "todo_pdf",
-            label = "Download To-do PDF",
-            icon = icon("file-pdf"),
-            size = "lg",
-            block = TRUE,
-            style = "material-flat",
-            color = "primary"
+            label = tagList(icon("file-pdf"), "Download To-do PDF"),
+            class = "btn btn-primary btn-lg btn-block field-download-button"
           ),
           br(),
-          downloadBttn(
+          downloadLink(
             outputId = "nest_latest_kmz",
-            label = "Download Offline Nest KMZ",
-            icon = icon("globe"),
-            size = "lg",
-            block = TRUE,
-            style = "material-flat",
-            color = "primary"
+            label = tagList(icon("globe"), "Download Offline Nest KMZ"),
+            class = "btn btn-primary btn-lg btn-block field-download-button"
           ),
           br(),
-          downloadBttn(
+          downloadLink(
             outputId = "tables_html",
-            label = "Download Offline Interactive Tables",
-            icon = icon("table"),
-            size = "lg",
-            block = TRUE,
-            style = "material-flat",
-            color = "primary"
+            label = tagList(
+              icon("table"),
+              "Download Offline Interactive Tables"
+            ),
+            class = "btn btn-primary btn-lg btn-block field-download-button"
+          ),
+          br(),
+          tags$a(
+            href = glue(
+              "https://behavioural-ecology.orn.mpg.de/api/dump?schema={db}"
+            ),
+            target = "_blank",
+            rel = "noopener",
+            class = "btn btn-warning btn-lg btn-block",
+            icon("database"),
+            "Download Database as RDS"
           ),
           br()
         )
@@ -218,8 +217,9 @@ bs4Dash::dashboardPage(
       # GPS tab
       tabItem(
         tabName = "gps",
-        includeMarkdown("./www/help/gps.md"),
-        uiOutput("open_gps")
+        uiOutput("open_gps"),
+        hr(),
+        includeHTML("./www/help/gps.html")
       ),
 
       # Enter Data tab
@@ -227,14 +227,14 @@ bs4Dash::dashboardPage(
         tabName = "enter_data",
         uiOutput("new_data"),
         hr(),
-        includeMarkdown("./www/help/enter_data.md")
+        includeHTML("./www/help/enter_data.html")
       ),
 
       # DB tab
       tabItem(
         tabName = "database",
         uiOutput("open_db"),
-        includeMarkdown("./www/help/database.md")
+        includeHTML("./www/help/database.html")
       ),
 
       # Show tables tab
