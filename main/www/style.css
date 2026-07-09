@@ -71,6 +71,18 @@ body {
   box-shadow: 0 0.35rem 1rem rgba(15, 23, 42, 0.06);
 }
 
+#toastsContainerTopRight {
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  width: min(90vw, 520px);
+}
+
+#toastsContainerTopRight .toast {
+  max-width: 100%;
+  width: 100%;
+}
+
 .card {
   border: var(--panel-border);
   border-radius: var(--panel-radius);

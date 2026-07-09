@@ -26,6 +26,7 @@ sapply(
 #! OPTIONS
 
 group <- "nz_fieldworker"
+preferred_timezone <- "Pacific/Auckland"
 
 db <- "FIELD_2026_BADOatNZ"
 dbtabs_entry <- c(

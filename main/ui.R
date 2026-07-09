@@ -65,6 +65,25 @@ bs4Dash::dashboardPage(
     skin = "light",
 
     box(
+      title = "Fieldwork datetime",
+      width = 12,
+      overlay = FALSE,
+      collapsible = FALSE,
+      tags$div(
+        class = "preferred-timezone-clock",
+        `data-timezone` = preferred_timezone,
+        tags$div(
+          class = "preferred-timezone-name",
+          preferred_timezone
+        ),
+        tags$div(
+          class = "preferred-timezone-value",
+          "--"
+        )
+      )
+    ),
+
+    box(
       title = "Reference date",
       width = 12,
       overlay = FALSE,

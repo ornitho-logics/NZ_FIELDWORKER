@@ -67,10 +67,10 @@ WarnToast <- function(msg) {
     body = msg |> a(class = "text-primary font-weight-bold") |> h4(),
 
     options = list(
-      delay = 10000,
+      delay = 30000,
       autohide = TRUE,
       close = TRUE,
-      position = "bottomRight",
+      position = "topRight",
       icon = "fa-solid fa-face-sad-tear"
     )
   )

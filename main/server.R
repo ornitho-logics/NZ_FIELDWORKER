@@ -1,5 +1,11 @@
 function(input, output, session) {
   reference_date <- reactiveVal(get_reference_date())
+  pending_refdate <- reactiveVal(NULL)
+  refdate_today_notice_shown <- reactiveVal(FALSE)
+
+  same_refdate <- function(x, y) {
+    identical(as.Date(x), as.Date(y))
+  }
 
   db_reference_date <- reactivePoll(
     5000,
@@ -16,13 +22,39 @@ function(input, output, session) {
     refdate
   })
 
-  observe({
-    refdate <- db_reference_date()
+  observeEvent(reference_date(), {
+    req(!isTRUE(refdate_today_notice_shown()))
 
-    if (!identical(as.Date(refdate), as.Date(reference_date()))) {
+    refdate <- as.Date(reference_date())
+    req(!is.na(refdate))
+
+    preferred_today <- as.Date(Sys.time(), tz = preferred_timezone)
+
+    if (!same_refdate(refdate, preferred_today)) {
+      refdate_today_notice_shown(TRUE)
+      WarnToast(glue(
+        "Reference date is {refdate}, but today in ",
+        "{preferred_timezone} is {preferred_today}."
+      ))
+    }
+  }, ignoreInit = FALSE)
+
+  observeEvent(db_reference_date(), {
+    refdate <- as.Date(db_reference_date())
+    pending <- pending_refdate()
+
+    if (!is.null(pending) && !same_refdate(refdate, pending)) {
+      return()
+    }
+
+    if (!is.null(pending)) {
+      pending_refdate(NULL)
+    }
+
+    if (!same_refdate(refdate, isolate(reference_date()))) {
       reference_date(refdate)
     }
-  })
+  }, ignoreInit = FALSE)
 
   observe({
     refdate <- reference_date()
@@ -34,13 +66,27 @@ function(input, output, session) {
     req(input$refdate)
 
     refdate <- as.Date(input$refdate)
+    req(!is.na(refdate))
 
-    if (set_reference_date(refdate)) {
-      reference_date(refdate)
-      WarnToast(glue("Reference date set to {refdate}."))
-    } else {
-      ErrToast("Could not save the reference date.")
-    }
+    previous_refdate <- isolate(reference_date())
+
+    pending_refdate(refdate)
+    reference_date(refdate)
+
+    later::later(
+      function() {
+        shiny::withReactiveDomain(session, {
+          if (set_reference_date(refdate)) {
+            WarnToast(glue("Reference date set to {refdate}."))
+          } else {
+            pending_refdate(NULL)
+            reference_date(previous_refdate)
+            ErrToast("Could not save the reference date.")
+          }
+        })
+      },
+      delay = 0
+    )
   })
 
   if (isTRUE(getOption("fieldworker.debug_input", FALSE))) {
