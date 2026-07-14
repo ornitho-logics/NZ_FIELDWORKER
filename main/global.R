@@ -1,38 +1,21 @@
 #+ NOTE:
 #' list.files('./main/R/', full.names = TRUE) |> lapply(source) |> invisible(); source('main/global.R')
-#'  shiny::startApp("./main", launch.browser = TRUE )
+#' shiny::devmode(TRUE);shiny::runApp("./main", launch.browser = TRUE )
 
 #! PACKAGES & DATA
 sapply(
   c(
     "DataEntry",
-    "sf",
     "data.table",
     "stringr",
-    "forcats",
-    "zip",
     "glue",
     "ggplot2",
-    "ggrepel",
-    "ggtext",
-    "gt",
-    "patchwork",
-    "ggpubr",
-    "ggbeeswarm",
-    "ggeffects",
-    "lubridate",
-    "scales",
 
     "shiny",
-    "waiter",
     "shinyWidgets",
-    "shinycssloaders",
     "bs4Dash",
-    "DT",
 
-    "leaflet",
-    "leafem",
-    "leaflet.extras"
+    "leaflet"
   ),
   require,
   character.only = TRUE,
@@ -41,10 +24,9 @@ sapply(
 
 
 #! OPTIONS
-app_nam <- "NZ_FIELDWORKER"
 
 group <- "nz_fieldworker"
-
+preferred_timezone <- "Pacific/Auckland"
 
 db <- "FIELD_2026_BADOatNZ"
 dbtabs_entry <- c(
@@ -54,29 +36,63 @@ dbtabs_entry <- c(
   "EGGS",
   "RESIGHTINGS",
   "RESIGHTINGS_PUBLIC",
-  "inspectors",
-  "artifacts"
+  "inspectors"
 )
 
 
-dbtabs_view <- c(
+dbtabs_show_tables <- c(
   "OBSERVERS",
   "CAPTURES",
-  "CAPTURES_active",
-  "CAPTURES_ARCHIVE",
   "NESTS",
   "EGGS",
   "RESIGHTINGS",
   "RESIGHTINGS_PUBLIC",
   "GPS_POINTS",
-  "GPS_TRACKS"
+  "GPS_TRACKS",
+  "settings",
+  "predict_hatching"
 )
-species <- "BADO"
 
 
-hatch_pred_gam <- "./data/gam_float_to_hach.rds"
+dbtabs_show_views <- c(
+  "TODO_LIST",
+  "NESTS_LATEST",
+  "CAPTURES_ARCHIVE",
+  "EGGS_HATCH_PREDICTION"
+)
+
+# watch list for View updates
+dbtabs_show_view_sources <- list(
+  TODO_LIST = c(
+    "settings",
+    "NESTS",
+    "GPS_POINTS",
+    "CAPTURES",
+    "EGGS",
+    "predict_hatching",
+    "RESIGHTINGS"
+  ),
+
+  NESTS_LATEST = c(
+    "settings",
+    "NESTS",
+    "GPS_POINTS",
+    "CAPTURES",
+    "EGGS",
+    "predict_hatching"
+  ),
+  CAPTURES_ARCHIVE = c("BADOatNZ.CAPTURES"),
+
+  EGGS_HATCH_PREDICTION = c(
+    "settings",
+    "EGGS",
+    "predict_hatching"
+  )
+)
+
 
 nest_state_cols <- c(
+  "S" = "#f38c38",
   "F" = "#00815f",
   "I" = "#fff023",
   "H" = "#1aa9fc",
@@ -89,25 +105,23 @@ nest_state_cols <- c(
   "O" = "#999999"
 )
 
-todo_cols <- c(
-  "catch M" = "#0745cc",
-  "catch F" = "#f33b0c",
-  "catch any" = "#f38c38"
+
+kmz_nest_state_cols <- c(
+  S = "#f7b267",
+  F = "#65cdaa",
+  I = "#fff58f",
+  H = "#78d6ff",
+  B = "#76d7bd",
+  pP = "#e37882",
+  P = "#b78be7",
+  pD = "#edadd3",
+  D = "#b9a1dc",
+  notA = "#9b9b9b",
+  O = "#d0d0d0",
+  unknown = "#c7c7c7"
 )
 
-todo_symbols <- c(
-  "nest check" = 2,
-  "hatch check" = 5
-)
 
-options(shiny.autoreload = TRUE)
-options(dbo.tz = "Pacific/Auckland")
-options(ggrepel.max.overlaps = Inf)
+#! etc
 
-
-#! UI DEFAULTS
-
-ver <- "v 3.0"
-pagetitle <- "Banded dotterel"
-set_capturedDaysAgo <- 3
-set_seenDaysAgo <- 3
+ver <- "v 4.1"

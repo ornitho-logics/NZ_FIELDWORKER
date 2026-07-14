@@ -1,72 +1,108 @@
 bs4Dash::dashboardPage(
   scrollToTop = TRUE,
-  dark = FALSE,
+  dark = NULL,
+  freshTheme = fieldworker_theme,
+  fullscreen = TRUE,
   help = NULL,
   preloader = list(
-    html = waiter::spin_loaders(id = 16, color = "#1e3d24"),
-    color = '#2f6fa3de'
+    html = waiter::spin_loaders(id = 16, color = "#2f6fa3"),
+    color = "#f8fafc"
   ),
 
   title = glue('FIELDWORKER {ver}'),
 
   header = dashboardHeader(
     title = dashboardBrand(
-      title = paste(pagetitle, year(Sys.Date())),
+      title = HTML(
+        '
+        <span style="font-family: Georgia, serif; font-size: 1em; font-weight: 700;">
+          B<span style="font-size: 1.3em;">&#8857;</span>2026
+        </span>
+        '
+      ),
       image = "ICO.png"
     ),
-    uiOutput("ref_date_text")
+    uiOutput("ref_date_text"),
+    skin = "light",
+    status = "white"
   ),
 
   sidebar = dashboardSidebar(
     collapsed = TRUE,
+    width = "180px",
+    skin = "light",
+    status = "primary",
     sidebarMenu(
       id = "main", # Assigning an id here allows input$main to be set
+      menuItem("Downloads", tabName = "downloads", icon = icon("download")),
+      menuItem("Intro", tabName = "intro", icon = icon("circle-info")),
       menuItem("Overview", tabName = "overview", icon = icon("circle-play")),
       menuItem("GPS", tabName = "gps", icon = icon("location-arrow")),
       menuItem("Enter Data", tabName = "enter_data", icon = icon("edit")),
+      menuItem("Show tables", tabName = "show_tables", icon = icon("table")),
+      menuItem("Show Views", tabName = "show_views", icon = icon("eye")),
       menuItem("Database", tabName = "database", icon = icon("database")),
-      menuItem("View Data", tabName = "view_data", icon = icon("table")),
-      menuItem("Nests Map", tabName = "nests_map", icon = icon("map")),
       menuItem(
-        "Live Nest Map",
-        tabName = "live_nest_map",
+        "Nest Map",
+        tabName = "nest_map",
         icon = icon("broadcast-tower")
       ),
-      menuItem("To-Do list", tabName = "todo_list", icon = icon("tasks")),
-      menuItem("Hatching", tabName = "hatching_est", icon = icon("egg")),
-      HR(),
+
+      hr(),
+
       menuItem(
-        text = "",
-        icon = icon("github", style = "color: gray;"),
+        text = ver,
+        icon = icon("code-branch", style = "color: gray;"),
         href = "https://github.com/mpio-be/NZ_FIELDWORKER"
-      ),
-      menuItem(
-        text = "",
-        icon = icon("at", style = "color: gray;"),
-        href = "mailto:mihai.valcu@bi.mpg.de?subject=Complain"
       )
     )
   ),
 
   controlbar = dashboardControlbar(
-    width = 400,
+    width = 280,
     overlay = FALSE,
-    collapsed = FALSE,
+    collapsed = TRUE,
+    skin = "light",
 
     box(
-      title = "Reference date" |> bttl(),
+      title = "Fieldwork datetime",
+      width = 12,
+      overlay = FALSE,
+      collapsible = FALSE,
+      tags$div(
+        class = "preferred-timezone-clock",
+        `data-timezone` = preferred_timezone,
+        tags$div(
+          class = "preferred-timezone-name",
+          preferred_timezone
+        ),
+        tags$div(
+          class = "preferred-timezone-value",
+          "--"
+        )
+      )
+    ),
+
+    box(
+      title = "Reference date",
       width = 12,
       overlay = FALSE,
       collapsible = FALSE,
       dateInput(
         inputId = 'refdate',
         label = NULL,
-        value = Sys.time()
+        value = NULL
+      ),
+      actionButton(
+        inputId = "set_refdate",
+        label = "Set",
+        icon = icon("check"),
+        class = "btn-primary refdate-set-button"
       )
     ),
 
     box(
-      title = "Map settings" |> bttl(),
+      title = "Map settings",
       width = 12,
       sliderInput(
         inputId = "nest_size",
@@ -95,37 +131,96 @@ bs4Dash::dashboardPage(
         ),
         selected = c("S", "F", "I", "H", "pP", "pD", "P", "D", "notA", "O")
       )
-    ),
-
-    box(
-      title = "Download" |> bttl(),
-      width = 12,
-
-      downloadBttn(
-        outputId = "map_nests_pdf",
-        label = "Nests",
-        icon = icon("file-pdf")
-      ),
-      downloadBttn(
-        outputId = "todo_pdf",
-        label = "To-do",
-        icon = icon("file-pdf")
-      )
     )
   ),
   body = dashboardBody(
+    tags$head(
+      tags$link(rel = "manifest", href = "manifest.webmanifest"),
+      tags$meta(name = "theme-color", content = "#2f6fa3"),
+      tags$meta(name = "mobile-web-app-capable", content = "yes"),
+      tags$meta(name = "apple-mobile-web-app-capable", content = "yes"),
+      tags$meta(name = "apple-mobile-web-app-title", content = "Fieldworker"),
+      tags$link(rel = "apple-touch-icon", href = "icons/icon-192.png")
+    ),
     includeCSS("./www/style.css"),
-
-    tags$script(HTML(
-      '
-    $(function () {
-      $("[data-toggle=\'popover\']").popover({ html: true });
-    });
-  '
-    )),
+    includeScript("./www/reference_date.js"),
+    includeScript("./www/download_feedback.js"),
+    includeScript("./www/live_nest_leaflet.js"),
+    includeScript("./www/pwa_install.js"),
 
     tabItems(
-      # Overview tab (first tab)
+      # Download tab
+      tabItem(
+        tabName = "downloads",
+        box(
+          title = "Install and downloads",
+          width = 11,
+
+          tags$button(
+            id = "install_mobile",
+            type = "button",
+            class = "btn btn-success btn-lg btn-block mb-3",
+            icon("mobile-alt"),
+            "Install app on this device"
+          ),
+          tags$p(
+            class = "small text-muted mb-2",
+            "Downloaded files are saved by the browser or installed app. ",
+            "On Android or iPhone/iPad, open the Files app and check Downloads or Recent."
+          ),
+          tags$p(
+            id = "download_location_notice",
+            class = "small font-weight-bold mb-3 d-none",
+            "Download started. After it finishes, push Open or check Downloads or Recent in the Files app."
+          ),
+          downloadLink(
+            outputId = "todo_pdf",
+            label = tagList(icon("file-pdf"), "Download To-do PDF"),
+            class = "btn btn-primary btn-lg btn-block field-download-button"
+          ),
+          br(),
+          downloadLink(
+            outputId = "nest_latest_kmz",
+            label = tagList(icon("globe"), "Download Offline Nest KMZ"),
+            class = "btn btn-primary btn-lg btn-block field-download-button"
+          ),
+          br(),
+          downloadLink(
+            outputId = "tables_html",
+            label = tagList(
+              icon("table"),
+              "Download Offline Interactive Tables"
+            ),
+            class = "btn btn-primary btn-lg btn-block field-download-button"
+          ),
+          br(),
+          tags$a(
+            href = glue(
+              "https://behavioural-ecology.orn.mpg.de/api/dump?schema={db}"
+            ),
+            target = "_blank",
+            rel = "noopener",
+            class = "btn btn-warning btn-lg btn-block",
+            icon("database"),
+            "Download Database as RDS"
+          ),
+          br()
+        )
+      ),
+
+      # Intro tab
+      tabItem(
+        tabName = "intro",
+        bs4Dash::bs4Card(
+          title = "Fieldworker at a glance",
+          width = 8,
+          collapsible = TRUE,
+
+          includeHTML("./www/help/intro.html")
+        )
+      ),
+
+      # Overview tab
       tabItem(
         tabName = "overview",
         bs4Dash::box(
@@ -137,31 +232,36 @@ bs4Dash::dashboardPage(
           )
         )
       ),
+
       # GPS tab
       tabItem(
         tabName = "gps",
-        includeMarkdown("./www/help/gps.md"),
-        uiOutput("open_gps")
+        uiOutput("open_gps"),
+        hr(),
+        includeHTML("./www/help/gps.html")
       ),
+
       # Enter Data tab
       tabItem(
         tabName = "enter_data",
         uiOutput("new_data"),
         hr(),
-        includeMarkdown("./www/help/enter_data.md")
+        includeHTML("./www/help/enter_data.html")
       ),
+
       # DB tab
       tabItem(
         tabName = "database",
         uiOutput("open_db"),
-        includeMarkdown("./www/help/database.md")
+        includeHTML("./www/help/database.html")
       ),
-      # View Data tab
+
+      # Show tables tab
       tabItem(
-        tabName = "view_data",
+        tabName = "show_tables",
         bs4Dash::tabsetPanel(
-          id = "tabset",
-          .list = lapply(dbtabs_view, function(i) {
+          id = "tabset_tables",
+          .list = lapply(dbtabs_show_tables, function(i) {
             tabPanel(
               title = paste0("[", i, "]"),
               active = FALSE,
@@ -172,22 +272,27 @@ bs4Dash::dashboardPage(
           })
         )
       ),
-      # Nests Map tab
+
+      # Show views tab
       tabItem(
-        tabName = "nests_map",
-        fluidRow(
-          box(
-            width = 12,
-            maximizable = TRUE,
-            spinner(
-              plotOutput("map_nests_show")
+        tabName = "show_views",
+        bs4Dash::tabsetPanel(
+          id = "tabset_views",
+          .list = lapply(dbtabs_show_views, function(i) {
+            tabPanel(
+              title = paste0("[", i, "]"),
+              active = FALSE,
+              spinner(
+                DT::DTOutput(outputId = paste0(i, "_show"))
+              )
             )
-          )
+          })
         )
       ),
+
       # Live Nest Map tab
       tabItem(
-        tabName = "live_nest_map",
+        tabName = "nest_map",
         fluidRow(
           box(
             width = 12,
@@ -195,53 +300,10 @@ bs4Dash::dashboardPage(
 
             spinner(
               leafletOutput(
-                outputId = "map_nest_leaflet_show",
+                outputId = "nest_map_show",
                 width = "100%",
                 height = "calc(99vh - 1px)"
               )
-            )
-          )
-        )
-      ),
-      # To-Do list tab
-      tabItem(
-        tabName = "todo_list",
-        spinner(
-          DT::DTOutput(outputId = "todo_list_show")
-        )
-      ),
-
-      # Hatching tab
-      tabItem(
-        tabName = "hatching_est",
-
-        fluidRow(
-          box(
-            title = 'Select flotation ',
-            icon = icon("gears"),
-            width = 2,
-            sliderInput(
-              'float_angle',
-              'Angle:',
-              value = 50,
-              min = 14,
-              max = 90,
-              step = 1
-            ),
-            sliderInput(
-              'float_height',
-              'Height:',
-              value = 2,
-              min = 0,
-              max = 6,
-              step = 1
-            )
-          ),
-
-          box(
-            width = 8,
-            spinner(
-              plotOutput(outputId = "hatching_est_plot")
             )
           )
         )

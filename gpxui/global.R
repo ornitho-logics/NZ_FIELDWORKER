@@ -1,28 +1,13 @@
-
-# ==========================================================================
 # UI for fetching, visualizing and exporting GPS data
-#     ~/github/mpio-be/gpxui/inst/Garmin65s
-#' shiny::runApp('./gpxui', launch.browser =  TRUE)
-# ==========================================================================
+#' shiny::devmode(TRUE);shiny::runApp('./gpxui', launch.browser =  TRUE)
 
 #! Packages, functions
-    sapply(c( 
-      "gpxui",
-      "leaflet",
-      "gridlayout",
-      "bslib", 
-      "sf",
-      "dbo"
-    ), require, character.only = TRUE, quietly = TRUE)
-
+require(gpxui)
 
 #! Options
-  options(shiny.autoreload = TRUE)
-  options(shiny.maxRequestSize = 10 * 1024^4)
-  options(dbo.tz = "Pacific/Auckland")
+options(shiny.maxRequestSize = 10 * 1024^4)
 
 #* Variables
-  SERVER        = "nz_fieldworker"
-  DB            = "FIELD_2025_BADOatNZ"
-  GPS_IDS       = 1:15
-  EXPORT_TABLES = c("nest_locations")
+GPS_IDS <- 1:15
+cnf_path <- Sys.getenv("GPXUI_CNF")
+group <- "nz_fieldworker"

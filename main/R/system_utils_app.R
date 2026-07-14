@@ -1,11 +1,11 @@
-TABLE_show <- function(x, session) {
+TABLE_show <- function(x, session, watch = x) {
   DT::renderDataTable(
     {
       get_data <- reactivePoll(
         5000,
         session = session,
         checkFunc = function() {
-          dbtable_is_updated(x)
+          dbtable_is_updated(watch)
         },
         valueFunc = function() {
           if (is.character(x)) {
@@ -32,7 +32,7 @@ TABLE_show <- function(x, session) {
           text = "Download"
         )
       ),
-      scrollX = "600px",
+      scrollX = TRUE,
       deferRender = TRUE,
       scrollY = 900,
       scroller = TRUE,
@@ -67,10 +67,10 @@ WarnToast <- function(msg) {
     body = msg |> a(class = "text-primary font-weight-bold") |> h4(),
 
     options = list(
-      delay = 10000,
+      delay = 30000,
       autohide = TRUE,
       close = TRUE,
-      position = "bottomRight",
+      position = "topRight",
       icon = "fa-solid fa-face-sad-tear"
     )
   )
@@ -81,7 +81,7 @@ startApp <- function(labels, hrefs, classes = "btn-primary bttn-primary") {
 
   o <- glue(
     '
-      <a href="{hrefs}" target="blank"
+      <a href="{hrefs}" target="_blank" rel="noopener noreferrer"
         class="btn btn-sm {classes} bttn bttn-fill bttn-md bttn-no-outline"
         role="button">
         <h4>{labels}</h4>
@@ -100,48 +100,6 @@ HR <- function() {
   a(hr(style = "border-top: 1px solid #9aaeb6;"))
 }
 
-S <- function(x = "-------", z = 1) {
-  v <- str_split(x, ":", simplify = TRUE)
-  if (length(v) == 2) {
-    v <- glue("{em(v[1])}:{v[2]}")
-  }
-  v <- HTML(v)
-
-  switch(
-    z,
-    "1" = strong(v, style = "color:#1d3658"),
-    "2" = strong(v, style = "color:#d70427"),
-    "3" = strong(v, style = "color:#ffb6a3"),
-    "4" = strong(v, style = "color:#e8c468"),
-    "5" = strong(v, style = "color:#b8d2ff")
-  )
-}
-
-# box title style
-bttl <- function(text, color = "#8a2d02", weight = "bold", icon = NULL) {
-  icon_html <- if (!is.null(icon)) {
-    sprintf("<i class='fas fa-%s'></i> ", icon)
-  } else {
-    ""
-  }
-  HTML(sprintf(
-    "<span style='font-weight: %s; color: %s; '>%s%s</span>",
-    weight,
-    color,
-    icon_html,
-    text
-  ))
-}
-
-
-select_combo_list <- function() {
-  DBq(
-    "SELECT DISTINCT UL, LL, UR, LR FROM CAPTURES where tag_id is not NULL"
-  ) |>
-    make_combo(short = "LR")
-}
-
-
 spinner <- function(x) {
   shinycssloaders::withSpinner(
     x,
@@ -151,32 +109,102 @@ spinner <- function(x) {
 }
 
 
-ref_date_message <- function(refdate) {
-  ago <- round(Sys.Date() - as.Date(refdate))
+# download handlers
+download_with_feedback <- function(session, output_id, expr) {
+  on.exit(
+    session$sendCustomMessage("download-ready", output_id),
+    add = TRUE
+  )
 
-  if (ago == 0) {
-    return(glue(
-      "Reference date: {S(refdate, 1)} today. <i>Todo-s are for tomorrow!</i>"
-    ))
-  }
-
-  if (ago > 0) {
-    return(glue("Reference date: {S(refdate, 2)} {abs(ago)} days ago."))
-  }
-
-  glue("Reference date: {S(refdate, 2)} {abs(ago)} days from now.")
+  force(expr)
 }
 
 
-# download handlers
-download_gt_pdf <- function(filename, table) {
-  shiny::downloadHandler(
-    filename = filename,
-    content = function(file) {
-      gt::gtsave(
-        data = table(),
-        filename = file
-      )
-    }
+download_stamp <- function(time = Sys.time()) {
+  paste0(
+    as.integer(format(time, "%m")),
+    format(time, "%d%H%M")
   )
 }
+
+
+download_filename <- function(prefix, ext, time = Sys.time()) {
+  glue("{prefix}_{download_stamp(time)}.{ext}")
+}
+
+
+# UI theme
+fieldworker_theme <- fresh::create_theme(
+  fresh::bs4dash_vars(
+    body_bg = "#f8fafc",
+    body_color = "#1f2933",
+    border_color = "#d8e1e8",
+    card_bg = "#ffffff",
+    card_cap_bg = "#f3f7fa",
+    card_border_color = "#d8e1e8",
+    card_shadow = "0 0.35rem 1rem rgba(15, 23, 42, 0.08)",
+    input_bg = "#ffffff",
+    input_color = "#1f2933",
+    input_border_color = "#cbd5e1",
+    input_focus_border_color = "#2f6fa3",
+    input_placeholder_color = "#64748b",
+    link_color = "#2f6fa3",
+    link_hover_color = "#1d3658",
+    main_header_bottom_border_color = "#d8e1e8",
+    navbar_light_active_color = "#1d3658",
+    navbar_light_color = "#334155",
+    navbar_light_hover_color = "#1d3658",
+    table_border_color = "#e2e8f0",
+    table_head_bg = "#eef3f5",
+    table_head_color = "#1f2933",
+    text_muted = "#64748b"
+  ),
+  fresh::bs4dash_layout(
+    main_bg = "#f8fafc",
+    content_padding_x = ".65rem",
+    content_padding_y = ".65rem"
+  ),
+  fresh::bs4dash_sidebar_light(
+    bg = "#ffffff",
+    color = "#334155",
+    hover_bg = "#eef6fb",
+    hover_color = "#1d3658",
+    active_color = "#1d3658",
+    submenu_bg = "#f8fafc",
+    submenu_color = "#475569",
+    submenu_hover_bg = "#eef6fb",
+    submenu_hover_color = "#1d3658",
+    submenu_active_bg = "#e2eff7",
+    submenu_active_color = "#1d3658",
+    header_color = "#64748b"
+  ),
+  fresh::bs4dash_status(
+    primary = "#2f6fa3",
+    secondary = "#64748b",
+    success = "#00815f",
+    info = "#1aa9fc",
+    warning = "#e8c468",
+    danger = "#d70427",
+    light = "#f8fafc",
+    dark = "#1f2933"
+  ),
+  fresh::bs4dash_color(
+    blue = "#2f6fa3",
+    lightblue = "#1aa9fc",
+    navy = "#1d3658",
+    green = "#00815f",
+    orange = "#f38c38",
+    red = "#d70427",
+    gray_x_light = "#eef3f5",
+    gray_600 = "#64748b",
+    gray_800 = "#334155",
+    gray_900 = "#1f2933",
+    white = "#ffffff",
+    black = "#111827"
+  ),
+  fresh::bs4dash_yiq(
+    contrasted_threshold = 160,
+    text_dark = "#1f2933",
+    text_light = "#ffffff"
+  )
+)

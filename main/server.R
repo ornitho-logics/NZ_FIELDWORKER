@@ -1,16 +1,121 @@
-shinyServer(function(input, output, session) {
-  observe({
-    on.exit(assign("input", reactiveValuesToList(input), envir = .GlobalEnv))
+function(input, output, session) {
+  reference_date <- reactiveVal(get_reference_date())
+  pending_refdate <- reactiveVal(NULL)
+  refdate_today_notice_shown <- reactiveVal(FALSE)
+
+  same_refdate <- function(x, y) {
+    identical(as.Date(x), as.Date(y))
+  }
+
+  db_reference_date <- reactivePoll(
+    5000,
+    session = session,
+    checkFunc = function() {
+      dbtable_is_updated("settings")
+    },
+    valueFunc = get_reference_date
+  )
+
+  active_refdate <- reactive({
+    refdate <- reference_date()
+    req(!is.na(refdate))
+    refdate
   })
 
+  observeEvent(reference_date(), {
+    req(!isTRUE(refdate_today_notice_shown()))
+
+    refdate <- as.Date(reference_date())
+    req(!is.na(refdate))
+
+    preferred_today <- as.Date(Sys.time(), tz = preferred_timezone)
+
+    if (!same_refdate(refdate, preferred_today)) {
+      refdate_today_notice_shown(TRUE)
+      WarnToast(glue(
+        "Reference date is {refdate}, but today in ",
+        "{preferred_timezone} is {preferred_today}."
+      ))
+    }
+  }, ignoreInit = FALSE)
+
+  observeEvent(db_reference_date(), {
+    refdate <- as.Date(db_reference_date())
+    pending <- pending_refdate()
+
+    if (!is.null(pending) && !same_refdate(refdate, pending)) {
+      return()
+    }
+
+    if (!is.null(pending)) {
+      pending_refdate(NULL)
+    }
+
+    if (!same_refdate(refdate, isolate(reference_date()))) {
+      reference_date(refdate)
+    }
+  }, ignoreInit = FALSE)
+
+  observe({
+    refdate <- reference_date()
+    req(!is.na(refdate))
+    updateDateInput(session, "refdate", value = refdate)
+  })
+
+  observeEvent(input$set_refdate, {
+    req(input$refdate)
+
+    refdate <- as.Date(input$refdate)
+    req(!is.na(refdate))
+
+    previous_refdate <- isolate(reference_date())
+
+    pending_refdate(refdate)
+    reference_date(refdate)
+
+    later::later(
+      function() {
+        shiny::withReactiveDomain(session, {
+          if (set_reference_date(refdate)) {
+            WarnToast(glue("Reference date set to {refdate}."))
+          } else {
+            pending_refdate(NULL)
+            reference_date(previous_refdate)
+            ErrToast("Could not save the reference date.")
+          }
+        })
+      },
+      delay = 0
+    )
+  })
+
+  if (isTRUE(getOption("fieldworker.debug_input", FALSE))) {
+    observe({
+      assign("input", reactiveValuesToList(input), envir = .GlobalEnv)
+    })
+  }
+
   output$ref_date_text <- renderUI({
-    HTML(ref_date_message(input$refdate))
+    refdate <- reference_date()
+
+    if (is.na(refdate)) {
+      return("Reference date: not set.")
+    }
+
+    refdate <- as.character(as.Date(refdate))
+
+    HTML(
+      glue(
+        'Reference date: {refdate}
+        <span class="ref-date-relative small ml-2" data-refdate="{refdate}"></span>'
+      )
+    )
   })
 
   output$overview_show <- renderPlot(
     {
       try_else(
-        overview_graph(),
+        overview_graph(active_refdate()),
         fallback_ggplot,
         fail = 'overview_graph() failed!'
       )
@@ -19,176 +124,157 @@ shinyServer(function(input, output, session) {
 
   output$new_data <- renderUI({
     entry_classes <- fifelse(
-      dbtabs_entry %in% c("inspectors", "artifacts"),
+      dbtabs_entry %in% "inspectors",
       "btn-danger bttn-danger",
       "btn-primary bttn-primary"
     )
 
     startApp(
       hrefs = glue("../DataEntry/{dbtabs_entry}/"),
-      labels = paste(icon("pencil"), dbtabs_entry),
+      labels = fifelse(
+        dbtabs_entry %in% "inspectors",
+        paste(icon("user-check"), dbtabs_entry),
+        paste(icon("pencil"), dbtabs_entry)
+      ),
       classes = entry_classes
     )
   })
 
   output$open_gps <- renderUI({
-    startApp(
-      hrefs = "../gpxui/",
-      labels = paste(icon("location-crosshairs"), "GPS upload/download")
+    a(
+      href = "../gpxui/",
+      target = "_blank",
+      rel = "noopener noreferrer",
+      class = "btn btn-primary field-standalone-button",
+      role = "button",
+      icon("location-crosshairs"),
+      "GPS upload/download"
     )
   })
 
   output$open_db <- renderUI({
-    startApp(
-      hrefs = "../../../db_ui/field_db.php",
-      labels = paste(icon("database"), "Database interface")
+    a(
+      href = "../../../db_ui/field_db.php",
+      target = "_blank",
+      rel = "noopener noreferrer",
+      class = "btn btn-primary field-standalone-button",
+      role = "button",
+      icon("database"),
+      "Database interface"
     )
   })
 
-  lapply(dbtabs_view, function(tab) {
+  lapply(dbtabs_show_tables, function(tab) {
     output[[paste0(tab, "_show")]] <- TABLE_show(tab, session)
   })
 
-  N <- reactive({
-    NESTS(
-      main_tab = input$main,
-      refdate = input$refdate
+  lapply(dbtabs_show_views, function(tab) {
+    output[[paste0(tab, "_show")]] <- TABLE_show(
+      tab,
+      session,
+      watch = dbtabs_show_view_sources[[tab]] %||% tab
     )
   })
 
-  output$map_nests_show <- renderPlot({
-    try_else(
-      {
-        n <- N()
-        req(n)
-
-        map_nests(
-          n[nest_state %in% input$nest_state],
-          size = input$nest_size,
-          grandTotal = nrow(n),
-          .refdate = input$refdate
-        )
-      },
-      fallback_ggplot,
-      fail = "map_nests() failed!"
-    )
-  })
-
-  output$map_nests_pdf <- download_plot_pdf(
-    filename = "map_nests.pdf",
-    plot = function() {
-      try_else(
-        {
-          n <- N()
-          req(n)
-
-          map_nests(
-            n[nest_state %in% input$nest_state],
-            size = input$nest_size,
-            grandTotal = nrow(n),
-            .refdate = input$refdate
-          )
-        },
-        fallback_ggplot,
-        fail = "map_nests() failed!"
-      )
+  N <- reactivePoll(
+    7000,
+    session = session,
+    checkFunc = function() {
+      dbtable_is_updated(dbtabs_show_view_sources[["NESTS_LATEST"]])
+    },
+    valueFunc = function() {
+      DBq("SELECT * FROM NESTS_LATEST")
     }
   )
 
-  output$map_nest_leaflet_show <- renderLeaflet({
+  nest_size <- debounce(
+    reactive({
+      req(input$nest_size)
+      input$nest_size
+    }),
+    300
+  )
+
+  selected_nest_states <- debounce(
+    reactive({
+      input$nest_state
+    }),
+    300
+  )
+
+  output$nest_map_show <- renderLeaflet({
     try_else(
       {
         n <- N()
         req(n)
+        n <- data.table(n)
 
-        live_nest_leaflet(n)
+        selected_states <- selected_nest_states()
+
+        if (is.null(selected_states)) {
+          selected_states <- unique(as.character(n$nest_state))
+        }
+
+        n <- n[as.character(nest_state) %in% selected_states]
+
+        live_nest_leaflet(n, nest_size = nest_size())
       },
       fallback_leaflet,
       fail = "live_nest_leaflet() failed!"
     )
   })
 
-  output$todo_list_show <- render_todo_table({
-    try_else(
-      {
-        n <- N()
-        req(n)
-
-        todo_list(n, .refdate = input$refdate)
-      },
-      fallback_dt,
-      fail = "todo_list() failed!"
-    )
-  })
-
-  output$todo_pdf <- download_gt_pdf(
-    filename = "todo.pdf",
-    table = function() {
-      try_else(
+  output$todo_pdf <- shiny::downloadHandler(
+    filename = function() {
+      download_filename("cass_nests", "pdf")
+    },
+    content = function(file) {
+      download_with_feedback(
+        session,
+        "todo_pdf",
         {
-          n <- N()
-          req(n)
+          req(active_refdate())
 
-          todo_pdf_table(n, .refdate = input$refdate)
-        },
-        fallback_gt,
-        fail = "todo_pdf_table() failed!"
+          todo_pdf_save(file)
+        }
       )
-    }
+    },
+    contentType = "application/pdf"
   )
 
-  output$hatching_est_plot <- renderPlot({
-    require(mgcv)
-
-    h <- readRDS(hatch_pred_gam)
-
-    pred <-
-      ggeffects::ggpredict(
-        h,
-        terms = c(
-          glue("float_angle [{input$float_angle}]"),
-          glue("surface [{input$float_height}]")
-        )
-      ) |>
-      data.table()
-    pred <- pred[, .(predicted, conf.low, conf.high)]
-    pred <- melt(pred, measure.vars = names(pred))
-    pred[, date_ := as.Date(input$refdate) + value]
-    pred[, value := round(value, 1)]
-    pred[,
-      variable := factor(
-        variable,
-        labels = c(
-          "Most likely [average]",
-          "Earliest [95%CI-low]",
-          "Latest [95%CI-high]"
-        )
+  output$nest_latest_kmz <- shiny::downloadHandler(
+    filename = function() {
+      download_filename("cass_nests", "kmz")
+    },
+    content = function(file) {
+      download_with_feedback(
+        session,
+        "nest_latest_kmz",
+        {
+          req(active_refdate())
+          kmz_nest_latest(file)
+        }
       )
-    ]
-    setnames(pred, c("", "Days to hatch", "Hatching date"))
+    },
+    contentType = "application/vnd.google-earth.kmz"
+  )
 
-    gtab <- ggpubr::ggtexttable(
-      pred,
-      rows = NULL,
-      theme = ggpubr::ttheme(base_size = 12)
-    )
-
-    g1 <-
-      ggplot(h$model, aes(x = float_angle, y = days_to_hatch)) +
-      ggbeeswarm::geom_beeswarm(alpha = 0.5) +
-      geom_smooth() +
-      geom_vline(aes(xintercept = input$float_angle), color = "#df4306") +
-      theme_minimal(base_size = 12)
-
-    g2 <-
-      ggplot(h$model, aes(x = surface, y = days_to_hatch)) +
-      ggbeeswarm::geom_beeswarm(alpha = 0.5) +
-      geom_smooth(method = "loess", span = 1.0) +
-      geom_vline(aes(xintercept = input$float_height), color = "#df4306") +
-      theme_minimal(base_size = 12)
-
-    gtab / (g1 + g2) + plot_layout(axes = "collect", heights = c(1, 2))
-  })
+  output$tables_html <- shiny::downloadHandler(
+    filename = function() {
+      download_filename("cass_tables", "html")
+    },
+    content = function(file) {
+      download_with_feedback(
+        session,
+        "tables_html",
+        {
+          req(active_refdate())
+          html_tables(file)
+        }
+      )
+    },
+    contentType = "text/html"
+  )
 
   session$allowReconnect(TRUE)
-})
+}
