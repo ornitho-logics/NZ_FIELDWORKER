@@ -147,28 +147,70 @@ calibration_prediction AS (
     p.float_angle,
     p.float_surface,
     p.float_location,
-    CAST(MAX(p.days_since_laying) AS DECIMAL(5,1)) AS max_days_since_laying
+    CAST(MIN(p.days_since_laying) AS DECIMAL(5,1)) AS min_days_since_laying,
+    CAST(MAX(p.days_since_laying) AS DECIMAL(5,1)) AS max_days_since_laying,
+    COUNT(*) AS n_calibration
   FROM FIELD_2026_BADOatNZ.predict_hatching p
   GROUP BY
     p.float_angle,
     p.float_surface,
     p.float_location
 ),
-egg_hatch_prediction AS (
+egg_calibration_candidates AS (
   SELECT
+    e.pk AS egg_pk,
     e.nest_id,
     DATEDIFF(sr.reference_date, e.date) AS days_since_float,
-    calibration_hatch_day.hatch_day - calibration_prediction.max_days_since_laying AS min_days_to_hatch_at_float
+    calibration_prediction.min_days_since_laying,
+    calibration_prediction.max_days_since_laying,
+    calibration_prediction.n_calibration,
+    CASE
+      WHEN e.float_angle = calibration_prediction.float_angle
+       AND e.float_surface <=> calibration_prediction.float_surface
+      THEN 'exact'
+      ELSE 'nearest'
+    END AS calibration_match_type,
+    ABS(e.float_angle - calibration_prediction.float_angle) AS angle_diff,
+    CASE
+      WHEN e.float_surface IS NULL AND calibration_prediction.float_surface IS NULL THEN 0
+      WHEN e.float_surface IS NULL OR calibration_prediction.float_surface IS NULL THEN 9999
+      ELSE ABS(e.float_surface - calibration_prediction.float_surface)
+    END AS surface_diff,
+    ROW_NUMBER() OVER (
+      PARTITION BY e.pk
+      ORDER BY
+        CASE
+          WHEN e.float_angle = calibration_prediction.float_angle
+           AND e.float_surface <=> calibration_prediction.float_surface
+          THEN 0
+          ELSE 1
+        END,
+        ABS(e.float_angle - calibration_prediction.float_angle),
+        CASE
+          WHEN e.float_surface IS NULL AND calibration_prediction.float_surface IS NULL THEN 0
+          WHEN e.float_surface IS NULL OR calibration_prediction.float_surface IS NULL THEN 9999
+          ELSE ABS(e.float_surface - calibration_prediction.float_surface)
+        END,
+        calibration_prediction.n_calibration DESC,
+        calibration_prediction.float_angle,
+        calibration_prediction.float_surface
+    ) AS row_num
   FROM FIELD_2026_BADOatNZ.EGGS e
   CROSS JOIN sr
-  CROSS JOIN calibration_hatch_day
   JOIN calibration_prediction
-    ON e.float_angle = calibration_prediction.float_angle
-   AND e.float_location = calibration_prediction.float_location
-   AND e.float_surface <=> calibration_prediction.float_surface
+    ON e.float_location = calibration_prediction.float_location
   WHERE e.date <= sr.reference_date
     AND e.float_angle IS NOT NULL
     AND e.float_location IS NOT NULL
+),
+egg_hatch_prediction AS (
+  SELECT
+    egg_calibration_candidates.nest_id,
+    egg_calibration_candidates.days_since_float,
+    calibration_hatch_day.hatch_day - egg_calibration_candidates.max_days_since_laying AS min_days_to_hatch_at_float
+  FROM egg_calibration_candidates
+  CROSS JOIN calibration_hatch_day
+  WHERE egg_calibration_candidates.row_num = 1
 ),
 nest_hatch_prediction AS (
   SELECT
@@ -243,8 +285,9 @@ calibration_prediction AS (
     p.float_surface,
     p.float_location
 ),
-egg_prediction AS (
+egg_calibration_candidates AS (
   SELECT
+    e.pk AS egg_pk,
     e.nest_id,
     e.egg_id,
     e.date AS float_date,
@@ -253,23 +296,78 @@ egg_prediction AS (
     e.float_angle,
     e.float_surface,
     e.float_location,
+    calibration_prediction.float_angle AS matched_float_angle,
+    calibration_prediction.float_surface AS matched_float_surface,
+    calibration_prediction.float_location AS matched_float_location,
     calibration_prediction.predicted_days_since_laying,
     calibration_prediction.min_days_since_laying,
     calibration_prediction.max_days_since_laying,
-    calibration_hatch_day.hatch_day - calibration_prediction.predicted_days_since_laying AS days_to_hatch_at_float,
-    calibration_hatch_day.hatch_day - calibration_prediction.max_days_since_laying AS min_days_to_hatch_at_float,
-    calibration_hatch_day.hatch_day - calibration_prediction.min_days_since_laying AS max_days_to_hatch_at_float,
-    calibration_prediction.n_calibration
+    calibration_prediction.n_calibration,
+    CASE
+      WHEN e.float_angle = calibration_prediction.float_angle
+       AND e.float_surface <=> calibration_prediction.float_surface
+      THEN 'exact'
+      ELSE 'nearest'
+    END AS calibration_match_type,
+    ABS(e.float_angle - calibration_prediction.float_angle) AS angle_diff,
+    CASE
+      WHEN e.float_surface IS NULL AND calibration_prediction.float_surface IS NULL THEN 0
+      WHEN e.float_surface IS NULL OR calibration_prediction.float_surface IS NULL THEN 9999
+      ELSE ABS(e.float_surface - calibration_prediction.float_surface)
+    END AS surface_diff,
+    ROW_NUMBER() OVER (
+      PARTITION BY e.pk
+      ORDER BY
+        CASE
+          WHEN e.float_angle = calibration_prediction.float_angle
+           AND e.float_surface <=> calibration_prediction.float_surface
+          THEN 0
+          ELSE 1
+        END,
+        ABS(e.float_angle - calibration_prediction.float_angle),
+        CASE
+          WHEN e.float_surface IS NULL AND calibration_prediction.float_surface IS NULL THEN 0
+          WHEN e.float_surface IS NULL OR calibration_prediction.float_surface IS NULL THEN 9999
+          ELSE ABS(e.float_surface - calibration_prediction.float_surface)
+        END,
+        calibration_prediction.n_calibration DESC,
+        calibration_prediction.float_angle,
+        calibration_prediction.float_surface
+    ) AS row_num
   FROM FIELD_2026_BADOatNZ.EGGS e
   CROSS JOIN sr
-  CROSS JOIN calibration_hatch_day
-  LEFT JOIN calibration_prediction
-    ON e.float_angle = calibration_prediction.float_angle
-   AND e.float_location = calibration_prediction.float_location
-   AND e.float_surface <=> calibration_prediction.float_surface
+  JOIN calibration_prediction
+    ON e.float_location = calibration_prediction.float_location
   WHERE e.date <= sr.reference_date
     AND e.float_angle IS NOT NULL
     AND e.float_location IS NOT NULL
+),
+egg_prediction AS (
+  SELECT
+    egg_calibration_candidates.nest_id,
+    egg_calibration_candidates.egg_id,
+    egg_calibration_candidates.float_date,
+    egg_calibration_candidates.reference_date,
+    egg_calibration_candidates.days_since_float,
+    egg_calibration_candidates.float_angle,
+    egg_calibration_candidates.float_surface,
+    egg_calibration_candidates.float_location,
+    egg_calibration_candidates.matched_float_angle,
+    egg_calibration_candidates.matched_float_surface,
+    egg_calibration_candidates.matched_float_location,
+    egg_calibration_candidates.calibration_match_type,
+    egg_calibration_candidates.angle_diff,
+    egg_calibration_candidates.surface_diff,
+    egg_calibration_candidates.predicted_days_since_laying,
+    egg_calibration_candidates.min_days_since_laying,
+    egg_calibration_candidates.max_days_since_laying,
+    calibration_hatch_day.hatch_day - egg_calibration_candidates.predicted_days_since_laying AS days_to_hatch_at_float,
+    calibration_hatch_day.hatch_day - egg_calibration_candidates.max_days_since_laying AS min_days_to_hatch_at_float,
+    calibration_hatch_day.hatch_day - egg_calibration_candidates.min_days_since_laying AS max_days_to_hatch_at_float,
+    egg_calibration_candidates.n_calibration
+  FROM egg_calibration_candidates
+  CROSS JOIN calibration_hatch_day
+  WHERE egg_calibration_candidates.row_num = 1
 )
 SELECT
   nest_id,
@@ -280,6 +378,12 @@ SELECT
   float_angle,
   float_surface,
   float_location,
+  matched_float_angle,
+  matched_float_surface,
+  matched_float_location,
+  calibration_match_type,
+  angle_diff,
+  surface_diff,
   predicted_days_since_laying,
   days_to_hatch_at_float,
   days_to_hatch_at_float - days_since_float AS days_to_hatch,
@@ -423,28 +527,127 @@ hiding_spot_photos AS (
     AND r.date <= sr.reference_date
   GROUP BY r.nest_id
 ),
+adult_capture_latest AS (
+  SELECT
+    x.nest_id,
+    x.sex,
+    x.mark,
+    x.has_geo,
+    CASE
+      WHEN x.non_x_non_m_count = 1
+       AND x.plain_colour_count = 1
+       AND x.metal_count >= 1
+      THEN 1
+      ELSE 0
+    END AS is_single_colour_recruit
+  FROM (
+    SELECT
+      c.nest_id,
+      LEFT(c.field_sex, 1) AS sex,
+      FIELD_2026_BADOatNZ.format_mark(
+        COALESCE(NULLIF(TRIM(c.UL), ''), NULLIF(TRIM(c.UL_in), '')),
+        COALESCE(NULLIF(TRIM(c.LL), ''), NULLIF(TRIM(c.LL_in), '')),
+        COALESCE(NULLIF(TRIM(c.UR), ''), NULLIF(TRIM(c.UR_in), '')),
+        COALESCE(NULLIF(TRIM(c.LR), ''), NULLIF(TRIM(c.LR_in), ''))
+      ) AS mark,
+      CASE
+        WHEN c.tag_type = 'GEO'
+         AND c.tag_action IN ('D', 'S', 'N')
+         AND NULLIF(TRIM(c.tag_id), '') IS NOT NULL
+        THEN 1
+        ELSE 0
+      END AS has_geo,
+      (
+        CASE WHEN COALESCE(NULLIF(TRIM(c.UL), ''), NULLIF(TRIM(c.UL_in), '')) NOT IN ('X', 'M') THEN 1 ELSE 0 END +
+        CASE WHEN COALESCE(NULLIF(TRIM(c.LL), ''), NULLIF(TRIM(c.LL_in), '')) NOT IN ('X', 'M') THEN 1 ELSE 0 END +
+        CASE WHEN COALESCE(NULLIF(TRIM(c.UR), ''), NULLIF(TRIM(c.UR_in), '')) NOT IN ('X', 'M') THEN 1 ELSE 0 END +
+        CASE WHEN COALESCE(NULLIF(TRIM(c.LR), ''), NULLIF(TRIM(c.LR_in), '')) NOT IN ('X', 'M') THEN 1 ELSE 0 END
+      ) AS non_x_non_m_count,
+      (
+        CASE WHEN COALESCE(NULLIF(TRIM(c.UL), ''), NULLIF(TRIM(c.UL_in), '')) REGEXP '^[OYWBRGL]$' THEN 1 ELSE 0 END +
+        CASE WHEN COALESCE(NULLIF(TRIM(c.LL), ''), NULLIF(TRIM(c.LL_in), '')) REGEXP '^[OYWBRGL]$' THEN 1 ELSE 0 END +
+        CASE WHEN COALESCE(NULLIF(TRIM(c.UR), ''), NULLIF(TRIM(c.UR_in), '')) REGEXP '^[OYWBRGL]$' THEN 1 ELSE 0 END +
+        CASE WHEN COALESCE(NULLIF(TRIM(c.LR), ''), NULLIF(TRIM(c.LR_in), '')) REGEXP '^[OYWBRGL]$' THEN 1 ELSE 0 END
+      ) AS plain_colour_count,
+      (
+        CASE WHEN COALESCE(NULLIF(TRIM(c.UL), ''), NULLIF(TRIM(c.UL_in), '')) = 'M' THEN 1 ELSE 0 END +
+        CASE WHEN COALESCE(NULLIF(TRIM(c.LL), ''), NULLIF(TRIM(c.LL_in), '')) = 'M' THEN 1 ELSE 0 END +
+        CASE WHEN COALESCE(NULLIF(TRIM(c.UR), ''), NULLIF(TRIM(c.UR_in), '')) = 'M' THEN 1 ELSE 0 END +
+        CASE WHEN COALESCE(NULLIF(TRIM(c.LR), ''), NULLIF(TRIM(c.LR_in), '')) = 'M' THEN 1 ELSE 0 END
+      ) AS metal_count,
+      ROW_NUMBER() OVER (
+        PARTITION BY c.nest_id, LEFT(c.field_sex, 1)
+        ORDER BY
+          c.date DESC,
+          COALESCE(c.released, c.caught, c.cap_start, '00:00:00') DESC,
+          c.pk DESC
+      ) AS row_num
+    FROM FIELD_2026_BADOatNZ.CAPTURES c
+    CROSS JOIN sr
+    WHERE c.nest_id IS NOT NULL
+      AND TRIM(c.nest_id) <> ''
+      AND c.age = 'A'
+      AND c.field_sex IN ('M', 'MU', 'F', 'FU')
+      AND c.date <= sr.reference_date
+  ) x
+  WHERE x.row_num = 1
+),
+adult_capture_status AS (
+  SELECT
+    nest_id,
+    MAX(CASE WHEN sex = 'M' THEN mark END) AS M_mark_latest,
+    MAX(CASE WHEN sex = 'F' THEN mark END) AS F_mark_latest,
+    MAX(CASE WHEN sex = 'M' THEN has_geo END) AS M_has_geo,
+    MAX(CASE WHEN sex = 'F' THEN has_geo END) AS F_has_geo,
+    MAX(CASE WHEN sex = 'M' THEN is_single_colour_recruit END) AS M_single_colour_recruit,
+    MAX(CASE WHEN sex = 'F' THEN is_single_colour_recruit END) AS F_single_colour_recruit
+  FROM adult_capture_latest
+  GROUP BY nest_id
+),
 todo_untrapped_parent AS (
   SELECT
     active_nests.nest_id,
     active_nests.reference_date,
     'Untrapped parent' AS todo,
     CASE
-      WHEN active_nests.M_mark IS NULL AND active_nests.F_mark IS NULL THEN 'catch any'
-      WHEN active_nests.M_mark IS NULL THEN 'catch M'
-      WHEN active_nests.F_mark IS NULL THEN 'catch F'
+      WHEN adult_capture_status.M_mark_latest IS NULL
+       AND adult_capture_status.F_mark_latest IS NULL THEN 'catch any'
+      WHEN adult_capture_status.M_mark_latest IS NULL
+       AND COALESCE(adult_capture_status.F_has_geo, 0) = 1 THEN 'catch M (mate of GEO bird)'
+      WHEN adult_capture_status.F_mark_latest IS NULL
+       AND COALESCE(adult_capture_status.M_has_geo, 0) = 1 THEN 'catch F (mate of GEO bird)'
+      WHEN adult_capture_status.M_mark_latest IS NULL THEN 'catch M'
+      WHEN adult_capture_status.F_mark_latest IS NULL THEN 'catch F'
+      WHEN COALESCE(adult_capture_status.M_has_geo, 0) = 1
+       AND COALESCE(adult_capture_status.F_has_geo, 0) = 0 THEN 'catch F (non-GEO mate)'
+      WHEN COALESCE(adult_capture_status.F_has_geo, 0) = 1
+       AND COALESCE(adult_capture_status.M_has_geo, 0) = 0 THEN 'catch M (non-GEO mate)'
+      WHEN COALESCE(adult_capture_status.M_single_colour_recruit, 0) = 1
+       AND COALESCE(adult_capture_status.F_single_colour_recruit, 0) = 1 THEN 'catch any recruit for full colour marks'
+      WHEN COALESCE(adult_capture_status.M_single_colour_recruit, 0) = 1 THEN 'catch M recruit for full colour marks'
+      WHEN COALESCE(adult_capture_status.F_single_colour_recruit, 0) = 1 THEN 'catch F recruit for full colour marks'
     END AS notes,
     active_nests.min_days_to_hatch,
     active_nests.days_ago AS last_visit_days_ago,
     active_nests.nest_state,
     active_nests.clutch_size,
     active_nests.brood_size,
-    active_nests.M_mark,
-    active_nests.F_mark,
+    COALESCE(adult_capture_status.M_mark_latest, active_nests.M_mark) AS M_mark,
+    COALESCE(adult_capture_status.F_mark_latest, active_nests.F_mark) AS F_mark,
     active_nests.lat,
     active_nests.lon
   FROM active_nests
+  LEFT JOIN adult_capture_status
+    ON active_nests.nest_id = adult_capture_status.nest_id
   WHERE active_nests.nest_state <> 'H'
-    AND (active_nests.M_mark IS NULL OR active_nests.F_mark IS NULL)
+    AND (
+      adult_capture_status.M_mark_latest IS NULL
+      OR adult_capture_status.F_mark_latest IS NULL
+      OR (COALESCE(adult_capture_status.M_has_geo, 0) = 1 AND COALESCE(adult_capture_status.F_has_geo, 0) = 0)
+      OR (COALESCE(adult_capture_status.F_has_geo, 0) = 1 AND COALESCE(adult_capture_status.M_has_geo, 0) = 0)
+      OR COALESCE(adult_capture_status.M_single_colour_recruit, 0) = 1
+      OR COALESCE(adult_capture_status.F_single_colour_recruit, 0) = 1
+    )
 ),
 todo_unprocessed_nest AS (
   SELECT
