@@ -407,7 +407,7 @@ active_nests AS (
   FROM FIELD_2026_BADOatNZ.NESTS_LATEST n
   CROSS JOIN sr
   WHERE n.nest_state IS NULL
-    OR n.nest_state NOT IN ('P', 'D', 'notA')
+    OR n.nest_state NOT IN ('pP', 'pD', 'P', 'D', 'notA')
 ),
 nest_history AS (
   SELECT
@@ -421,7 +421,10 @@ nest_history AS (
 first_processable_visit AS (
   SELECT
     nest_id,
-    MIN(date) AS first_processable_date
+    MIN(date) AS first_processable_date,
+    MIN(
+      CAST(CONCAT(date, ' ', COALESCE(time_visit, '00:00:00')) AS DATETIME)
+    ) AS first_processable_datetime
   FROM nest_history
   WHERE nest_state IN ('F', 'I')
   GROUP BY nest_id
@@ -436,6 +439,22 @@ photo_summary AS (
   WHERE nest_photo = '1'
     OR tent_photo = '1'
   GROUP BY nest_id
+),
+processing_photo_summary AS (
+  SELECT
+    n.nest_id,
+    MAX(n.date) AS last_photo_date,
+    MAX(
+      CAST(CONCAT(n.date, ' ', COALESCE(n.time_visit, '00:00:00')) AS DATETIME)
+    ) AS last_photo_datetime,
+    COUNT(*) AS n_photo_rows
+  FROM nest_history n
+  JOIN first_processable_visit
+    ON n.nest_id = first_processable_visit.nest_id
+  WHERE (n.nest_photo = '1' OR n.tent_photo = '1')
+    AND CAST(CONCAT(n.date, ' ', COALESCE(n.time_visit, '00:00:00')) AS DATETIME)
+        >= first_processable_visit.first_processable_datetime
+  GROUP BY n.nest_id
 ),
 float_summary AS (
   SELECT
@@ -454,21 +473,21 @@ processing_summary AS (
   SELECT
     first_processable_visit.nest_id,
     first_processable_visit.first_processable_date,
-    photo_summary.last_photo_date,
-    photo_summary.last_photo_datetime,
+    processing_photo_summary.last_photo_date,
+    processing_photo_summary.last_photo_datetime,
     float_summary.last_float_date,
     float_summary.last_float_datetime,
-    COALESCE(photo_summary.n_photo_rows, 0) AS n_photo_rows,
+    COALESCE(processing_photo_summary.n_photo_rows, 0) AS n_photo_rows,
     COALESCE(float_summary.n_float_rows, 0) AS n_float_rows,
     CASE
-      WHEN COALESCE(photo_summary.n_photo_rows, 0) > 0
+      WHEN COALESCE(processing_photo_summary.n_photo_rows, 0) > 0
        AND COALESCE(float_summary.n_float_rows, 0) > 0
-      THEN GREATEST(photo_summary.last_photo_datetime, float_summary.last_float_datetime)
+      THEN GREATEST(processing_photo_summary.last_photo_datetime, float_summary.last_float_datetime)
       ELSE NULL
     END AS last_processed_datetime
   FROM first_processable_visit
-  LEFT JOIN photo_summary
-    ON first_processable_visit.nest_id = photo_summary.nest_id
+  LEFT JOIN processing_photo_summary
+    ON first_processable_visit.nest_id = processing_photo_summary.nest_id
   LEFT JOIN float_summary
     ON first_processable_visit.nest_id = float_summary.nest_id
 ),
@@ -530,6 +549,19 @@ brood_followup_nests AS (
   JOIN hatched_nests
     ON n.nest_id = hatched_nests.nest_id
   WHERE n.nest_state IN ('H', 'notA')
+),
+nota_followup_nests AS (
+  SELECT
+    n.*,
+    sr.reference_date
+  FROM FIELD_2026_BADOatNZ.NESTS_LATEST n
+  CROSS JOIN sr
+  WHERE n.nest_state IN ('pP', 'pD', 'P', 'D')
+     OR (
+       n.nest_state = 'H'
+       AND COALESCE(n.clutch_size, 0) = 0
+       AND COALESCE(n.brood_size, 0) > 0
+     )
 ),
 chick_captures AS (
   SELECT
@@ -811,7 +843,7 @@ todo_untrapped_parent AS (
     ON active_nests.nest_id = adult_parent_status.nest_id
   LEFT JOIN nest_discovery
     ON active_nests.nest_id = nest_discovery.nest_id
-  WHERE active_nests.nest_state <> 'H'
+  WHERE active_nests.nest_state IN ('F', 'I')
     AND (
       adult_parent_status.M_confirmed_unbanded = 1
       OR adult_parent_status.F_confirmed_unbanded = 1
@@ -853,6 +885,37 @@ todo_unprocessed_nest AS (
       processing_summary.n_float_rows = 0
       OR processing_summary.n_photo_rows = 0
     )
+),
+todo_take_scrape_photos AS (
+  SELECT
+    active_nests.nest_id,
+    active_nests.reference_date,
+    'take scrape photos' AS todo,
+    'scrape photos needed' AS notes,
+    DATEDIFF(
+      active_nests.reference_date,
+      nest_discovery.first_found_date
+    ) AS days_overdue,
+    150 + DATEDIFF(
+      active_nests.reference_date,
+      nest_discovery.first_found_date
+    ) AS priority,
+    active_nests.min_days_to_hatch,
+    active_nests.days_ago AS last_visit_days_ago,
+    active_nests.nest_state,
+    active_nests.clutch_size,
+    active_nests.brood_size,
+    active_nests.M_mark,
+    active_nests.F_mark,
+    active_nests.lat,
+    active_nests.lon
+  FROM active_nests
+  LEFT JOIN photo_summary
+    ON active_nests.nest_id = photo_summary.nest_id
+  JOIN nest_discovery
+    ON active_nests.nest_id = nest_discovery.nest_id
+  WHERE active_nests.nest_state = 'S'
+    AND COALESCE(photo_summary.n_photo_rows, 0) = 0
 ),
 todo_reprocess_nest AS (
   SELECT
@@ -988,28 +1051,68 @@ todo_untrapped_brood AS (
 ),
 todo_hiding_spot_photos AS (
   SELECT
-    active_nests.nest_id,
-    active_nests.reference_date,
+    brood_followup_nests.nest_id,
+    brood_followup_nests.reference_date,
     'Hiding spot photos needed' AS todo,
-    'need H observations' AS notes,
-    GREATEST(0, DATEDIFF(active_nests.reference_date, hatched_nests.hatch_date) - 1) AS days_overdue,
-    400 + GREATEST(0, DATEDIFF(active_nests.reference_date, hatched_nests.hatch_date) - 1) AS priority,
-    active_nests.min_days_to_hatch,
-    active_nests.days_ago AS last_visit_days_ago,
-    active_nests.nest_state,
-    active_nests.clutch_size,
-    active_nests.brood_size,
-    active_nests.M_mark,
-    active_nests.F_mark,
-    active_nests.lat,
-    active_nests.lon
-  FROM active_nests
-  JOIN hatched_nests
-    ON active_nests.nest_id = hatched_nests.nest_id
+    'need H resightings' AS notes,
+    GREATEST(
+      0,
+      DATEDIFF(
+        brood_followup_nests.reference_date,
+        brood_followup_nests.hatch_date
+      ) - 1
+    ) AS days_overdue,
+    400 + GREATEST(
+      0,
+      DATEDIFF(
+        brood_followup_nests.reference_date,
+        brood_followup_nests.hatch_date
+      ) - 1
+    ) AS priority,
+    brood_followup_nests.min_days_to_hatch,
+    brood_followup_nests.days_ago AS last_visit_days_ago,
+    brood_followup_nests.nest_state,
+    brood_followup_nests.clutch_size,
+    brood_followup_nests.brood_size,
+    brood_followup_nests.M_mark,
+    brood_followup_nests.F_mark,
+    brood_followup_nests.lat,
+    brood_followup_nests.lon
+  FROM brood_followup_nests
   LEFT JOIN hiding_spot_photos
-    ON active_nests.nest_id = hiding_spot_photos.nest_id
-  WHERE DATEDIFF(active_nests.reference_date, hatched_nests.hatch_date) BETWEEN 1 AND 6
+    ON brood_followup_nests.nest_id = hiding_spot_photos.nest_id
+  WHERE DATEDIFF(
+          brood_followup_nests.reference_date,
+          brood_followup_nests.hatch_date
+        ) BETWEEN 1 AND 6
     AND COALESCE(hiding_spot_photos.n_hiding_spot_photos, 0) = 0
+),
+todo_nota_nest_check AS (
+  SELECT
+    nota_followup_nests.nest_id,
+    nota_followup_nests.reference_date,
+    'notA nest-check' AS todo,
+    CASE
+      WHEN nota_followup_nests.nest_state IN ('pP', 'pD')
+      THEN 'confirm fate + remove nest marks'
+      WHEN nota_followup_nests.nest_state = 'H'
+       AND COALESCE(nota_followup_nests.clutch_size, 0) = 0
+       AND COALESCE(nota_followup_nests.brood_size, 0) > 0
+      THEN 'brood away; remove nest marks + enter notA'
+      ELSE 'remove nest marks + enter notA'
+    END AS notes,
+    nota_followup_nests.days_ago AS days_overdue,
+    325 + nota_followup_nests.days_ago AS priority,
+    nota_followup_nests.min_days_to_hatch,
+    nota_followup_nests.days_ago AS last_visit_days_ago,
+    nota_followup_nests.nest_state,
+    nota_followup_nests.clutch_size,
+    nota_followup_nests.brood_size,
+    nota_followup_nests.M_mark,
+    nota_followup_nests.F_mark,
+    nota_followup_nests.lat,
+    nota_followup_nests.lon
+  FROM nota_followup_nests
 )
 SELECT
   t.*,
@@ -1027,6 +1130,8 @@ FROM (
   UNION ALL
   SELECT * FROM todo_unprocessed_nest
   UNION ALL
+  SELECT * FROM todo_take_scrape_photos
+  UNION ALL
   SELECT * FROM todo_reprocess_nest
   UNION ALL
   SELECT * FROM todo_nest_check
@@ -1034,4 +1139,6 @@ FROM (
   SELECT * FROM todo_untrapped_brood
   UNION ALL
   SELECT * FROM todo_hiding_spot_photos
+  UNION ALL
+  SELECT * FROM todo_nota_nest_check
 ) t;
