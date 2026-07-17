@@ -430,6 +430,7 @@ photo_summary AS (
   SELECT
     nest_id,
     MAX(date) AS last_photo_date,
+    MAX(CAST(CONCAT(date, ' ', COALESCE(time_visit, '00:00:00')) AS DATETIME)) AS last_photo_datetime,
     COUNT(*) AS n_photo_rows
   FROM nest_history
   WHERE nest_photo = '1'
@@ -440,6 +441,7 @@ float_summary AS (
   SELECT
     e.nest_id,
     MAX(e.date) AS last_float_date,
+    MAX(CAST(CONCAT(e.date, ' ', COALESCE(e.time_visit, '00:00:00')) AS DATETIME)) AS last_float_datetime,
     COUNT(*) AS n_float_rows
   FROM FIELD_2026_BADOatNZ.EGGS e
   CROSS JOIN sr
@@ -453,15 +455,17 @@ processing_summary AS (
     first_processable_visit.nest_id,
     first_processable_visit.first_processable_date,
     photo_summary.last_photo_date,
+    photo_summary.last_photo_datetime,
     float_summary.last_float_date,
+    float_summary.last_float_datetime,
     COALESCE(photo_summary.n_photo_rows, 0) AS n_photo_rows,
     COALESCE(float_summary.n_float_rows, 0) AS n_float_rows,
     CASE
-      WHEN photo_summary.last_photo_date IS NULL THEN float_summary.last_float_date
-      WHEN float_summary.last_float_date IS NULL THEN photo_summary.last_photo_date
-      WHEN photo_summary.last_photo_date >= float_summary.last_float_date THEN photo_summary.last_photo_date
-      ELSE float_summary.last_float_date
-    END AS last_processed_date
+      WHEN COALESCE(photo_summary.n_photo_rows, 0) > 0
+       AND COALESCE(float_summary.n_float_rows, 0) > 0
+      THEN GREATEST(photo_summary.last_photo_datetime, float_summary.last_float_datetime)
+      ELSE NULL
+    END AS last_processed_datetime
   FROM first_processable_visit
   LEFT JOIN photo_summary
     ON first_processable_visit.nest_id = photo_summary.nest_id
@@ -484,6 +488,7 @@ latest_clutch_history AS (
     n.nest_id,
     n.clutch_size,
     n.date AS clutch_date,
+    CAST(CONCAT(n.date, ' ', COALESCE(n.time_visit, '00:00:00')) AS DATETIME) AS clutch_datetime,
     ROW_NUMBER() OVER (
       PARTITION BY n.nest_id
       ORDER BY n.date DESC, n.time_visit DESC, n.pk DESC
@@ -502,7 +507,9 @@ clutch_at_processing AS (
   FROM nest_history n
   JOIN processing_summary
     ON n.nest_id = processing_summary.nest_id
-   AND n.date <= processing_summary.last_processed_date
+   AND processing_summary.last_processed_datetime IS NOT NULL
+   AND CAST(CONCAT(n.date, ' ', COALESCE(n.time_visit, '00:00:00')) AS DATETIME)
+       <= processing_summary.last_processed_datetime
   WHERE n.clutch_size IS NOT NULL
 ),
 hatched_nests AS (
@@ -862,12 +869,29 @@ todo_reprocess_nest AS (
   LEFT JOIN clutch_at_processing
     ON active_nests.nest_id = clutch_at_processing.nest_id
    AND clutch_at_processing.row_num = 1
-  WHERE processing_summary.last_processed_date IS NOT NULL
+  WHERE processing_summary.last_processed_datetime IS NOT NULL
     AND active_nests.nest_state IN ('F', 'I')
     AND COALESCE(active_nests.brood_size, 0) = 0
-    AND latest_clutch_history.clutch_date > processing_summary.last_processed_date
+    AND latest_clutch_history.clutch_datetime > processing_summary.last_processed_datetime
     AND clutch_at_processing.clutch_size IS NOT NULL
     AND latest_clutch_history.clutch_size > clutch_at_processing.clutch_size
+),
+nest_check_rules AS (
+  SELECT
+    20 AS start_day_after_completion,
+    2 AS repeat_interval_days
+),
+nest_check_schedule AS (
+  SELECT
+    e.nest_id,
+    MAX(
+      DATE_SUB(
+        e.float_date,
+        INTERVAL ROUND(e.predicted_days_since_laying) DAY
+      )
+    ) AS estimated_clutch_completion_date
+  FROM FIELD_2026_BADOatNZ.EGGS_HATCH_PREDICTION e
+  GROUP BY e.nest_id
 ),
 todo_nest_check AS (
   SELECT
@@ -876,15 +900,25 @@ todo_nest_check AS (
     'nest check' AS todo,
     CASE
       WHEN active_nests.hatch_signs_present = 1 THEN 'hatch signs present'
-      ELSE 'nest check'
+      ELSE 'pre-hatch nest check'
     END AS notes,
     CASE
       WHEN active_nests.hatch_signs_present = 1 THEN GREATEST(0, active_nests.days_ago - 1)
-      ELSE GREATEST(0, active_nests.days_ago - 2)
+      ELSE GREATEST(0, active_nests.days_ago - nest_check_rules.repeat_interval_days)
     END AS days_overdue,
     CASE
-      WHEN active_nests.hatch_signs_present = 1 THEN 500 + GREATEST(0, active_nests.days_ago - 1)
-      ELSE 300 + GREATEST(0, active_nests.days_ago - 2)
+      WHEN active_nests.hatch_signs_present = 1 THEN
+        500 + GREATEST(0, active_nests.days_ago - 1)
+      ELSE
+        300
+        + GREATEST(0, active_nests.days_ago - nest_check_rules.repeat_interval_days)
+        + GREATEST(
+            0,
+            DATEDIFF(
+              active_nests.reference_date,
+              nest_check_schedule.estimated_clutch_completion_date
+            ) - nest_check_rules.start_day_after_completion
+          )
     END AS priority,
     active_nests.min_days_to_hatch,
     active_nests.days_ago AS last_visit_days_ago,
@@ -896,14 +930,21 @@ todo_nest_check AS (
     active_nests.lat,
     active_nests.lon
   FROM active_nests
+  CROSS JOIN nest_check_rules
+  LEFT JOIN nest_check_schedule
+    ON active_nests.nest_id = nest_check_schedule.nest_id
   WHERE (
       active_nests.hatch_signs_present = 1
       AND active_nests.days_ago >= 1
     )
     OR (
       active_nests.nest_state = 'I'
-      AND active_nests.min_days_to_hatch <= 10
-      AND active_nests.days_ago >= 2
+      AND nest_check_schedule.estimated_clutch_completion_date IS NOT NULL
+      AND DATEDIFF(
+            active_nests.reference_date,
+            nest_check_schedule.estimated_clutch_completion_date
+          ) >= nest_check_rules.start_day_after_completion
+      AND active_nests.days_ago >= nest_check_rules.repeat_interval_days
     )
 ),
 todo_untrapped_brood AS (
