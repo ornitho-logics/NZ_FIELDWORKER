@@ -520,6 +520,17 @@ hatched_nests AS (
   WHERE nest_state = 'H'
   GROUP BY nest_id
 ),
+brood_followup_nests AS (
+  SELECT
+    n.*,
+    sr.reference_date,
+    hatched_nests.hatch_date
+  FROM FIELD_2026_BADOatNZ.NESTS_LATEST n
+  CROSS JOIN sr
+  JOIN hatched_nests
+    ON n.nest_id = hatched_nests.nest_id
+  WHERE n.nest_state IN ('H', 'notA')
+),
 chick_captures AS (
   SELECT
     c.nest_id,
@@ -949,28 +960,31 @@ todo_nest_check AS (
 ),
 todo_untrapped_brood AS (
   SELECT
-    active_nests.nest_id,
-    active_nests.reference_date,
+    brood_followup_nests.nest_id,
+    brood_followup_nests.reference_date,
     'Untrapped brood' AS todo,
     'no chick captures' AS notes,
-    DATEDIFF(active_nests.reference_date, hatched_nests.hatch_date) AS days_overdue,
-    450 + DATEDIFF(active_nests.reference_date, hatched_nests.hatch_date) AS priority,
-    active_nests.min_days_to_hatch,
-    active_nests.days_ago AS last_visit_days_ago,
-    active_nests.nest_state,
-    active_nests.clutch_size,
-    active_nests.brood_size,
-    active_nests.M_mark,
-    active_nests.F_mark,
-    active_nests.lat,
-    active_nests.lon
-  FROM active_nests
-  JOIN hatched_nests
-    ON active_nests.nest_id = hatched_nests.nest_id
+    DATEDIFF(
+      brood_followup_nests.reference_date,
+      brood_followup_nests.hatch_date
+    ) AS days_overdue,
+    450 + DATEDIFF(
+      brood_followup_nests.reference_date,
+      brood_followup_nests.hatch_date
+    ) AS priority,
+    brood_followup_nests.min_days_to_hatch,
+    brood_followup_nests.days_ago AS last_visit_days_ago,
+    brood_followup_nests.nest_state,
+    brood_followup_nests.clutch_size,
+    brood_followup_nests.brood_size,
+    brood_followup_nests.M_mark,
+    brood_followup_nests.F_mark,
+    brood_followup_nests.lat,
+    brood_followup_nests.lon
+  FROM brood_followup_nests
   LEFT JOIN chick_captures
-    ON active_nests.nest_id = chick_captures.nest_id
-  WHERE active_nests.nest_state = 'H'
-    AND COALESCE(chick_captures.n_chick_captures, 0) = 0
+    ON brood_followup_nests.nest_id = chick_captures.nest_id
+  WHERE COALESCE(chick_captures.n_chick_captures, 0) = 0
 ),
 todo_hiding_spot_photos AS (
   SELECT
