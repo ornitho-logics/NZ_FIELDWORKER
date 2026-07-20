@@ -121,10 +121,7 @@ download_with_feedback <- function(session, output_id, expr) {
 
 
 download_stamp <- function(time = Sys.time()) {
-  paste0(
-    as.integer(format(time, "%m")),
-    format(time, "%d%H%M")
-  )
+  glue("{as.integer(format(time, '%m'))}{format(time, '%d%H%M')}")
 }
 
 

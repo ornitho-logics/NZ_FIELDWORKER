@@ -88,7 +88,7 @@ dbtable_is_updated <- function(tab) {
     return(sample.int(.Machine$integer.max, 1))
   }
 
-  x <- DBq(glue("CHECKSUM TABLE {paste(tab, collapse = ', ')}"))
+  x <- DBq(glue("CHECKSUM TABLE {glue_collapse(tab, sep = ', ')}"))
 
   if (!"Checksum" %in% names(x)) {
     return(sample.int(.Machine$integer.max, 1))
@@ -112,7 +112,7 @@ showTable <- function(tab, exclude = c("pk", "nov"), formatDate = TRUE) {
   cc <- cc[!Field %in% exclude]
 
   o <- DBq(
-    glue("SELECT DISTINCT {paste(cc$Field, collapse = ', ')} FROM {tab};")
+    glue("SELECT DISTINCT {glue_collapse(cc$Field, sep = ', ')} FROM {tab};")
   )
 
   if (formatDate && "date" %in% cc$Field) {
@@ -154,6 +154,40 @@ download_plot_pdf <- function(filename, plot, width = 11, height = 8.5) {
     }
   )
 }
+
+
+mariadb_dump <- function(file, database) {
+  # mariadb-dump needs standard group [client]
+
+  cnf <- ini::read.ini(path.expand(Sys.getenv("DATAENTRY_CNF")))
+  client <- cnf[group]
+  client[[1]][c("database", "dbname")] <- NULL
+  names(client) <- "client"
+
+  client_cnf <- tempfile(fileext = ".cnf")
+  on.exit(unlink(client_cnf), add = TRUE)
+  ini::write.ini(client, client_cnf)
+  Sys.chmod(client_cnf, "0600")
+
+  status <- system2(
+    "mariadb-dump",
+    args = c(
+      glue("--defaults-extra-file={client_cnf}"),
+      "--single-transaction",
+      "--routines",
+      "--events",
+      "--triggers",
+      "--databases",
+      database,
+      glue("--result-file={file}")
+    )
+  )
+
+  if (status != 0L) {
+    stop(glue("mariadb-dump failed with exit status {status}."), call. = FALSE)
+  }
+}
+
 
 try_else <- function(primary, fallback, ...) {
   tryCatch(

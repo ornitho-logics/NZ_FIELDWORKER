@@ -79,7 +79,7 @@ live_nest_leaflet <- function(
 
         glue(
           "<table class='table table-sm table-striped mb-0'>",
-          "{paste(rows, collapse = '')}",
+          "{glue_collapse(rows)}",
           "</table>"
         )
       },
@@ -112,7 +112,7 @@ live_nest_leaflet <- function(
         textOnly = TRUE,
         style = list(
           "font-weight" = "700",
-          "font-size" = paste0(label_font_size, "px"),
+          "font-size" = glue("{label_font_size}px"),
           "color" = "#1f2933",
           "text-shadow" = "0 1px 2px #ffffff"
         )

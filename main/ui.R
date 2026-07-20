@@ -204,6 +204,12 @@ bs4Dash::dashboardPage(
             icon("database"),
             "Download Database as RDS"
           ),
+          br(),
+          downloadLink(
+            outputId = "database_copy",
+            label = tagList(icon("database"), "Download Database Copy"),
+            class = "btn btn-warning btn-lg btn-block field-download-button"
+          ),
           br()
         )
       ),
@@ -263,10 +269,10 @@ bs4Dash::dashboardPage(
           id = "tabset_tables",
           .list = lapply(dbtabs_show_tables, function(i) {
             tabPanel(
-              title = paste0("[", i, "]"),
+              title = glue("[{i}]"),
               active = FALSE,
               spinner(
-                DT::DTOutput(outputId = paste0(i, "_show"))
+                DT::DTOutput(outputId = glue("{i}_show"))
               )
             )
           })
@@ -280,10 +286,10 @@ bs4Dash::dashboardPage(
           id = "tabset_views",
           .list = lapply(dbtabs_show_views, function(i) {
             tabPanel(
-              title = paste0("[", i, "]"),
+              title = glue("[{i}]"),
               active = FALSE,
               spinner(
-                DT::DTOutput(outputId = paste0(i, "_show"))
+                DT::DTOutput(outputId = glue("{i}_show"))
               )
             )
           })

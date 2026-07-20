@@ -36,6 +36,7 @@ dbtabs_entry <- c(
   "EGGS",
   "RESIGHTINGS",
   "RESIGHTINGS_PUBLIC",
+  "spatial_objects",
   "inspectors"
 )
 
@@ -124,4 +125,4 @@ kmz_nest_state_cols <- c(
 
 #! etc
 
-ver <- "v 4.1"
+ver <- "v 4.2"

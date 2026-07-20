@@ -1,4 +1,4 @@
-const CACHE_VERSION = "2026-07-09-7";
+const CACHE_VERSION = "2026-07-09-20";
 const PRECACHE_NAME = "nz-fieldworker-precache-" + CACHE_VERSION;
 const RUNTIME_CACHE_NAME = "nz-fieldworker-runtime-" + CACHE_VERSION;
 const OFFLINE_URL = "offline.html";
