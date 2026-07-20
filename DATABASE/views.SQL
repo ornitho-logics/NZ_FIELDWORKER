@@ -168,11 +168,17 @@ egg_calibration_candidates AS (
       THEN 'exact'
       ELSE 'nearest'
     END AS calibration_match_type,
-    ABS(e.float_angle - calibration_prediction.float_angle) AS angle_diff,
+    ABS(
+      CAST(e.float_angle AS SIGNED) -
+      CAST(calibration_prediction.float_angle AS SIGNED)
+    ) AS angle_diff,
     CASE
       WHEN e.float_surface IS NULL AND calibration_prediction.float_surface IS NULL THEN 0
       WHEN e.float_surface IS NULL OR calibration_prediction.float_surface IS NULL THEN 9999
-      ELSE ABS(e.float_surface - calibration_prediction.float_surface)
+      ELSE ABS(
+        CAST(e.float_surface AS SIGNED) -
+        CAST(calibration_prediction.float_surface AS SIGNED)
+      )
     END AS surface_diff,
     ROW_NUMBER() OVER (
       PARTITION BY e.pk
@@ -183,11 +189,17 @@ egg_calibration_candidates AS (
           THEN 0
           ELSE 1
         END,
-        ABS(e.float_angle - calibration_prediction.float_angle),
+        ABS(
+          CAST(e.float_angle AS SIGNED) -
+          CAST(calibration_prediction.float_angle AS SIGNED)
+        ),
         CASE
           WHEN e.float_surface IS NULL AND calibration_prediction.float_surface IS NULL THEN 0
           WHEN e.float_surface IS NULL OR calibration_prediction.float_surface IS NULL THEN 9999
-          ELSE ABS(e.float_surface - calibration_prediction.float_surface)
+          ELSE ABS(
+            CAST(e.float_surface AS SIGNED) -
+            CAST(calibration_prediction.float_surface AS SIGNED)
+          )
         END,
         calibration_prediction.n_calibration DESC,
         calibration_prediction.float_angle,
@@ -307,11 +319,17 @@ egg_calibration_candidates AS (
       THEN 'exact'
       ELSE 'nearest'
     END AS calibration_match_type,
-    ABS(e.float_angle - calibration_prediction.float_angle) AS angle_diff,
+    ABS(
+      CAST(e.float_angle AS SIGNED) -
+      CAST(calibration_prediction.float_angle AS SIGNED)
+    ) AS angle_diff,
     CASE
       WHEN e.float_surface IS NULL AND calibration_prediction.float_surface IS NULL THEN 0
       WHEN e.float_surface IS NULL OR calibration_prediction.float_surface IS NULL THEN 9999
-      ELSE ABS(e.float_surface - calibration_prediction.float_surface)
+      ELSE ABS(
+        CAST(e.float_surface AS SIGNED) -
+        CAST(calibration_prediction.float_surface AS SIGNED)
+      )
     END AS surface_diff,
     ROW_NUMBER() OVER (
       PARTITION BY e.pk
@@ -322,11 +340,17 @@ egg_calibration_candidates AS (
           THEN 0
           ELSE 1
         END,
-        ABS(e.float_angle - calibration_prediction.float_angle),
+        ABS(
+          CAST(e.float_angle AS SIGNED) -
+          CAST(calibration_prediction.float_angle AS SIGNED)
+        ),
         CASE
           WHEN e.float_surface IS NULL AND calibration_prediction.float_surface IS NULL THEN 0
           WHEN e.float_surface IS NULL OR calibration_prediction.float_surface IS NULL THEN 9999
-          ELSE ABS(e.float_surface - calibration_prediction.float_surface)
+          ELSE ABS(
+            CAST(e.float_surface AS SIGNED) -
+            CAST(calibration_prediction.float_surface AS SIGNED)
+          )
         END,
         calibration_prediction.n_calibration DESC,
         calibration_prediction.float_angle,
