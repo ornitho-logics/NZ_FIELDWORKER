@@ -5,7 +5,7 @@ dashboardPage(
   fullscreen = TRUE,
   help = NULL,
   preloader = list(
-    html = spin_loaders(id = 16, color = "#2f6fa3"),
+    html = spin_loaders(id = 16, color = "#3480be"),
     color = "#f8fafc"
   ),
 
@@ -164,6 +164,7 @@ dashboardPage(
         bs4Dash::box(
           title = "Install and downloads",
           width = 11,
+          collapsible = FALSE,
 
           tags$button(
             id = "install_mobile",
@@ -228,8 +229,8 @@ dashboardPage(
         tabName = "intro",
         bs4Card(
           title = "Fieldworker at a glance",
-          width = 8,
-          collapsible = TRUE,
+          width = 12,
+          collapsible = FALSE,
 
           includeHTML("./www/help/intro.html")
         )
@@ -240,6 +241,7 @@ dashboardPage(
         tabName = "overview",
         bs4Dash::box(
           width = 12,
+          collapsible = FALSE,
           height = "50vh",
           style = "overflow: hidden;",
           plotOutput(
@@ -311,6 +313,7 @@ dashboardPage(
         fluidRow(
           bs4Dash::box(
             width = 12,
+            collapsible = FALSE,
             maximizable = TRUE,
 
             spinner(

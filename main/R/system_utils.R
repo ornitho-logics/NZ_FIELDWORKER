@@ -8,7 +8,7 @@ DBq <- function(x) {
   if (inherits(o, "try-error")) {
     err <- as.character(attributes(o)$condition)
     if (isRunning()) {
-      showNotification(glue("⚠ {str_trunc(x, 30)}"), type = "error")
+      showNotification(str_trunc(x, 30), type = "error")
     }
     return(data.table(error = err))
   } else {

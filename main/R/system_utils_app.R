@@ -47,31 +47,27 @@ TABLE_show <- function(x, session, watch = x) {
 
 ErrToast <- function(msg) {
   toast(
-    title = "Oops!",
-
-    body = msg |> a(class = "text-primary font-weight-bold") |> h5(),
+    title = NULL,
+    body = msg |> a(class = "text-primary font-weight-bold"),
 
     options = list(
       autohide = FALSE,
       close = TRUE,
-      position = "topRight",
-      icon = "fa-solid fa-face-sad-tear"
+      position = "topRight"
     )
   )
 }
 
 WarnToast <- function(msg) {
   toast(
-    title = "Hi!",
-
-    body = msg |> a(class = "text-primary font-weight-bold") |> h4(),
+    title = NULL,
+    body = msg |> a(class = "text-primary font-weight-bold"),
 
     options = list(
       delay = 30000,
       autohide = TRUE,
       close = TRUE,
-      position = "topRight",
-      icon = "fa-solid fa-face-sad-tear"
+      position = "topRight"
     )
   )
 }

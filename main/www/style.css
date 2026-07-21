@@ -56,7 +56,17 @@ body {
 }
 
 .content {
-  padding: 0.75rem !important;
+  padding: 0.30rem !important;
+}
+
+.content .row {
+  margin-right: -0.15rem;
+  margin-left: -0.15rem;
+}
+
+.content [class*="col-"] {
+  padding-right: 0.15rem;
+  padding-left: 0.15rem;
 }
 
 .main-header.navbar,
@@ -71,24 +81,16 @@ body {
   box-shadow: 0 0.35rem 1rem rgba(15, 23, 42, 0.06);
 }
 
-#toastsContainerTopRight {
-  left: 50%;
-  right: auto;
-  transform: translateX(-50%);
-  width: min(90vw, 520px);
-}
-
-#toastsContainerTopRight .toast {
-  max-width: 100%;
-  width: 100%;
-}
-
 .card {
   border: var(--panel-border);
   border-radius: var(--panel-radius);
   background: var(--panel-bg);
   box-shadow: var(--panel-shadow);
   overflow: hidden;
+}
+
+.card.bs4Dash {
+  margin-bottom: 0.5rem;
 }
 
 .card-header {

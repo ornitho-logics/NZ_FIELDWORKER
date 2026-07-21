@@ -138,7 +138,7 @@ kmz_nest_state_cols <- c(
 
 #! etc
 
-ver <- "v 4.2.1"
+ver <- "v 4.2.2"
 
 
 test_results_files <- c(
