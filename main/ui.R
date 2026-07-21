@@ -1,11 +1,11 @@
-bs4Dash::dashboardPage(
+dashboardPage(
   scrollToTop = TRUE,
   dark = NULL,
   freshTheme = fieldworker_theme,
   fullscreen = TRUE,
   help = NULL,
   preloader = list(
-    html = waiter::spin_loaders(id = 16, color = "#2f6fa3"),
+    html = spin_loaders(id = 16, color = "#3480be"),
     color = "#f8fafc"
   ),
 
@@ -54,6 +54,15 @@ bs4Dash::dashboardPage(
         text = ver,
         icon = icon("code-branch", style = "color: gray;"),
         href = "https://github.com/mpio-be/NZ_FIELDWORKER"
+      ),
+      menuItem(
+        text = app_test_status$text,
+        icon = icon(
+          app_test_status$icon,
+          style = glue("color: {app_test_status$icon_color};")
+        ),
+        badgeLabel = app_test_status$badge,
+        badgeColor = app_test_status$badge_color
       )
     )
   ),
@@ -64,7 +73,7 @@ bs4Dash::dashboardPage(
     collapsed = TRUE,
     skin = "light",
 
-    box(
+    bs4Dash::box(
       title = "Fieldwork datetime",
       width = 12,
       overlay = FALSE,
@@ -83,7 +92,7 @@ bs4Dash::dashboardPage(
       )
     ),
 
-    box(
+    bs4Dash::box(
       title = "Reference date",
       width = 12,
       overlay = FALSE,
@@ -101,7 +110,7 @@ bs4Dash::dashboardPage(
       )
     ),
 
-    box(
+    bs4Dash::box(
       title = "Map settings",
       width = 12,
       sliderInput(
@@ -152,9 +161,10 @@ bs4Dash::dashboardPage(
       # Download tab
       tabItem(
         tabName = "downloads",
-        box(
+        bs4Dash::box(
           title = "Install and downloads",
           width = 11,
+          collapsible = FALSE,
 
           tags$button(
             id = "install_mobile",
@@ -204,6 +214,12 @@ bs4Dash::dashboardPage(
             icon("database"),
             "Download Database as RDS"
           ),
+          br(),
+          downloadLink(
+            outputId = "database_copy",
+            label = tagList(icon("database"), "Download Database Copy"),
+            class = "btn btn-warning btn-lg btn-block field-download-button"
+          ),
           br()
         )
       ),
@@ -211,10 +227,10 @@ bs4Dash::dashboardPage(
       # Intro tab
       tabItem(
         tabName = "intro",
-        bs4Dash::bs4Card(
+        bs4Card(
           title = "Fieldworker at a glance",
-          width = 8,
-          collapsible = TRUE,
+          width = 12,
+          collapsible = FALSE,
 
           includeHTML("./www/help/intro.html")
         )
@@ -225,6 +241,7 @@ bs4Dash::dashboardPage(
         tabName = "overview",
         bs4Dash::box(
           width = 12,
+          collapsible = FALSE,
           height = "50vh",
           style = "overflow: hidden;",
           plotOutput(
@@ -263,10 +280,10 @@ bs4Dash::dashboardPage(
           id = "tabset_tables",
           .list = lapply(dbtabs_show_tables, function(i) {
             tabPanel(
-              title = paste0("[", i, "]"),
+              title = glue("[{i}]"),
               active = FALSE,
               spinner(
-                DT::DTOutput(outputId = paste0(i, "_show"))
+                DTOutput(outputId = glue("{i}_show"))
               )
             )
           })
@@ -280,10 +297,10 @@ bs4Dash::dashboardPage(
           id = "tabset_views",
           .list = lapply(dbtabs_show_views, function(i) {
             tabPanel(
-              title = paste0("[", i, "]"),
+              title = glue("[{i}]"),
               active = FALSE,
               spinner(
-                DT::DTOutput(outputId = paste0(i, "_show"))
+                DTOutput(outputId = glue("{i}_show"))
               )
             )
           })
@@ -294,8 +311,9 @@ bs4Dash::dashboardPage(
       tabItem(
         tabName = "nest_map",
         fluidRow(
-          box(
+          bs4Dash::box(
             width = 12,
+            collapsible = FALSE,
             maximizable = TRUE,
 
             spinner(

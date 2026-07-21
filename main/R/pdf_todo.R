@@ -126,7 +126,7 @@ todo_pdf_save <- function(
   
   saveRDS(as.data.frame(pdf$rows), file.path(workdir, "todo_rows.rds"))
   writeLines(todo_pdf_qmd(pdf), qmd)
-  quarto::quarto_render(
+  quarto_render(
     input = qmd,
     output_format = "pdf",
     output_file = basename(output),

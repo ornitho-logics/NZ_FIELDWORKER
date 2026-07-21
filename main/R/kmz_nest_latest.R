@@ -28,7 +28,7 @@
     return(NA_character_)
   }
 
-  x <- x[1L]
+  x <- x[1]
 
   if (is.na(x)) {
     return(NA_character_)
@@ -177,7 +177,7 @@
   unlink(file)
 
   if (requireNamespace("zip", quietly = TRUE)) {
-    zip::zipr(
+    zipr(
       zipfile = file,
       files = files,
       root = root,
@@ -194,7 +194,7 @@
       flags = "-r9Xq"
     )
 
-    if (!is.null(status) && !identical(status, 0L)) {
+    if (!is.null(status) && status != 0) {
       stop("Could not create KMZ archive.", call. = FALSE)
     }
   }
@@ -220,7 +220,7 @@ kmz_nest_latest <- function(
     stop(n$error[1], call. = FALSE)
   }
 
-  n <- data.table::copy(data.table::as.data.table(n))
+  n <- copy(as.data.table(n))
 
   bad_coord <- n[
     is.na(lat) | is.na(lon) | !is.finite(lat) | !is.finite(lon),
@@ -253,7 +253,7 @@ kmz_nest_latest <- function(
   ]
 
   icon_styles <- unique(n[, .(state = kmz_state, icon_text = kmz_icon_text, style_id = kmz_style)])
-  data.table::setorder(icon_styles, state, icon_text)
+  setorder(icon_styles, state, icon_text)
 
   icon_styles[,
     let(

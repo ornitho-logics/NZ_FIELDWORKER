@@ -73,9 +73,9 @@ function(input, output, session) {
     pending_refdate(refdate)
     reference_date(refdate)
 
-    later::later(
+    later(
       function() {
-        shiny::withReactiveDomain(session, {
+        withReactiveDomain(session, {
           if (set_reference_date(refdate)) {
             WarnToast(glue("Reference date set to {refdate}."))
           } else {
@@ -124,7 +124,7 @@ function(input, output, session) {
 
   output$new_data <- renderUI({
     entry_classes <- fifelse(
-      dbtabs_entry %in% "inspectors",
+      dbtabs_entry %in% c("inspectors", "spatial_objects"),
       "btn-danger bttn-danger",
       "btn-primary bttn-primary"
     )
@@ -133,8 +133,12 @@ function(input, output, session) {
       hrefs = glue("../DataEntry/{dbtabs_entry}/"),
       labels = fifelse(
         dbtabs_entry %in% "inspectors",
-        paste(icon("user-check"), dbtabs_entry),
-        paste(icon("pencil"), dbtabs_entry)
+        glue("{icon('user-check')} {dbtabs_entry}"),
+        fifelse(
+          dbtabs_entry %in% "spatial_objects",
+          glue("{icon('draw-polygon')} {dbtabs_entry}"),
+          glue("{icon('pencil')} {dbtabs_entry}")
+        )
       ),
       classes = entry_classes
     )
@@ -165,11 +169,11 @@ function(input, output, session) {
   })
 
   lapply(dbtabs_show_tables, function(tab) {
-    output[[paste0(tab, "_show")]] <- TABLE_show(tab, session)
+    output[[glue("{tab}_show")]] <- TABLE_show(tab, session)
   })
 
   lapply(dbtabs_show_views, function(tab) {
-    output[[paste0(tab, "_show")]] <- TABLE_show(
+    output[[glue("{tab}_show")]] <- TABLE_show(
       tab,
       session,
       watch = dbtabs_show_view_sources[[tab]] %||% tab
@@ -224,7 +228,7 @@ function(input, output, session) {
     )
   })
 
-  output$todo_pdf <- shiny::downloadHandler(
+  output$todo_pdf <- downloadHandler(
     filename = function() {
       download_filename("cass_nests", "pdf")
     },
@@ -242,7 +246,7 @@ function(input, output, session) {
     contentType = "application/pdf"
   )
 
-  output$nest_latest_kmz <- shiny::downloadHandler(
+  output$nest_latest_kmz <- downloadHandler(
     filename = function() {
       download_filename("cass_nests", "kmz")
     },
@@ -259,7 +263,7 @@ function(input, output, session) {
     contentType = "application/vnd.google-earth.kmz"
   )
 
-  output$tables_html <- shiny::downloadHandler(
+  output$tables_html <- downloadHandler(
     filename = function() {
       download_filename("cass_tables", "html")
     },
@@ -274,6 +278,20 @@ function(input, output, session) {
       )
     },
     contentType = "text/html"
+  )
+
+  output$database_copy <- downloadHandler(
+    filename = function() {
+      download_filename(db, "sql")
+    },
+    content = function(file) {
+      download_with_feedback(
+        session,
+        "database_copy",
+        mariadb_dump(file, database = db)
+      )
+    },
+    contentType = "application/sql"
   )
 
   session$allowReconnect(TRUE)

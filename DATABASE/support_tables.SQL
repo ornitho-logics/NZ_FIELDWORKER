@@ -7,6 +7,17 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 
 
+CREATE TABLE IF NOT EXISTS spatial_objects (
+  variable varchar(128) NOT NULL
+    COMMENT 'Readable name such as study_area, plot_01, or access_zone',
+
+  value longtext NOT NULL
+    COMMENT 'Polygon stored as human-readable WKT, for example POLYGON((longitude latitude, ...))',
+
+  PRIMARY KEY (variable)
+);
+
+
 CREATE TABLE IF NOT EXISTS inspectors (
   table_name varchar(128) NOT NULL
     COMMENT '<strong>Inspected table</strong><br>Name of the database table this inspector applies to. This value is used by <code>inspector_loader(table_name)</code> to find the validation logic for that table.',

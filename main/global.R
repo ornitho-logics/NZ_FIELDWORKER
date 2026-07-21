@@ -1,19 +1,32 @@
 #+ NOTE:
 #' list.files('./main/R/', full.names = TRUE) |> lapply(source) |> invisible(); source('main/global.R')
-#' shiny::devmode(TRUE);shiny::runApp("./main", launch.browser = TRUE )
+#' devmode(TRUE);runApp("./main", launch.browser = TRUE )
 
 #! PACKAGES & DATA
 sapply(
   c(
     "DataEntry",
+    "DBI",
+    "DT",
     "data.table",
     "stringr",
     "glue",
     "ggplot2",
+    "htmltools",
+    "htmlwidgets",
+    "ini",
+    "jsonlite",
+    "quarto",
+    "sf",
+    "zip",
 
     "shiny",
     "shinyWidgets",
+    "shinycssloaders",
     "bs4Dash",
+    "fresh",
+    "later",
+    "waiter",
 
     "leaflet"
   ),
@@ -36,6 +49,7 @@ dbtabs_entry <- c(
   "EGGS",
   "RESIGHTINGS",
   "RESIGHTINGS_PUBLIC",
+  "spatial_objects",
   "inspectors"
 )
 
@@ -124,4 +138,43 @@ kmz_nest_state_cols <- c(
 
 #! etc
 
-ver <- "v 4.1"
+ver <- "v 4.2.2"
+
+
+test_results_files <- c(
+  file.path("..", "tests", "test-results.csv"),
+  file.path("tests", "test-results.csv")
+)
+test_results_file <- test_results_files[file.exists(test_results_files)][1]
+
+app_test_status <- list(
+  text = "Tests unavailable",
+  badge = "unknown",
+  badge_color = "warning",
+  icon = "circle-question",
+  icon_color = "#e8c468"
+)
+
+if (length(test_results_file) && !is.na(test_results_file)) {
+  test_results <- try(read.csv(test_results_file), silent = TRUE)
+
+  if (
+    !inherits(test_results, "try-error") &&
+      nrow(test_results) > 0 &&
+      all(c("passed", "failed") %in% names(test_results)) &&
+      is.finite(test_results$passed[1]) &&
+      is.finite(test_results$failed[1])
+  ) {
+    tests_passed <- test_results$passed[1]
+    tests_failed <- test_results$failed[1]
+    tests_ok <- tests_failed == 0
+
+    app_test_status <- list(
+      text = as.character(glue("{tests_passed} tests passed")),
+      badge = as.character(glue("{tests_failed} failed")),
+      badge_color = if (tests_ok) "success" else "danger",
+      icon = if (tests_ok) "circle-check" else "circle-xmark",
+      icon_color = if (tests_ok) "#00815f" else "#d70427"
+    )
+  }
+}
