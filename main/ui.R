@@ -1,11 +1,11 @@
-bs4Dash::dashboardPage(
+dashboardPage(
   scrollToTop = TRUE,
   dark = NULL,
   freshTheme = fieldworker_theme,
   fullscreen = TRUE,
   help = NULL,
   preloader = list(
-    html = waiter::spin_loaders(id = 16, color = "#2f6fa3"),
+    html = spin_loaders(id = 16, color = "#2f6fa3"),
     color = "#f8fafc"
   ),
 
@@ -54,6 +54,15 @@ bs4Dash::dashboardPage(
         text = ver,
         icon = icon("code-branch", style = "color: gray;"),
         href = "https://github.com/mpio-be/NZ_FIELDWORKER"
+      ),
+      menuItem(
+        text = app_test_status$text,
+        icon = icon(
+          app_test_status$icon,
+          style = glue("color: {app_test_status$icon_color};")
+        ),
+        badgeLabel = app_test_status$badge,
+        badgeColor = app_test_status$badge_color
       )
     )
   ),
@@ -64,7 +73,7 @@ bs4Dash::dashboardPage(
     collapsed = TRUE,
     skin = "light",
 
-    box(
+    bs4Dash::box(
       title = "Fieldwork datetime",
       width = 12,
       overlay = FALSE,
@@ -83,7 +92,7 @@ bs4Dash::dashboardPage(
       )
     ),
 
-    box(
+    bs4Dash::box(
       title = "Reference date",
       width = 12,
       overlay = FALSE,
@@ -101,7 +110,7 @@ bs4Dash::dashboardPage(
       )
     ),
 
-    box(
+    bs4Dash::box(
       title = "Map settings",
       width = 12,
       sliderInput(
@@ -152,7 +161,7 @@ bs4Dash::dashboardPage(
       # Download tab
       tabItem(
         tabName = "downloads",
-        box(
+        bs4Dash::box(
           title = "Install and downloads",
           width = 11,
 
@@ -217,7 +226,7 @@ bs4Dash::dashboardPage(
       # Intro tab
       tabItem(
         tabName = "intro",
-        bs4Dash::bs4Card(
+        bs4Card(
           title = "Fieldworker at a glance",
           width = 8,
           collapsible = TRUE,
@@ -272,7 +281,7 @@ bs4Dash::dashboardPage(
               title = glue("[{i}]"),
               active = FALSE,
               spinner(
-                DT::DTOutput(outputId = glue("{i}_show"))
+                DTOutput(outputId = glue("{i}_show"))
               )
             )
           })
@@ -289,7 +298,7 @@ bs4Dash::dashboardPage(
               title = glue("[{i}]"),
               active = FALSE,
               spinner(
-                DT::DTOutput(outputId = glue("{i}_show"))
+                DTOutput(outputId = glue("{i}_show"))
               )
             )
           })
@@ -300,7 +309,7 @@ bs4Dash::dashboardPage(
       tabItem(
         tabName = "nest_map",
         fluidRow(
-          box(
+          bs4Dash::box(
             width = 12,
             maximizable = TRUE,
 

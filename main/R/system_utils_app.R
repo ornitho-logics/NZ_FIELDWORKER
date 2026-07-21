@@ -46,7 +46,7 @@ TABLE_show <- function(x, session, watch = x) {
 }
 
 ErrToast <- function(msg) {
-  bs4Dash::toast(
+  toast(
     title = "Oops!",
 
     body = msg |> a(class = "text-primary font-weight-bold") |> h5(),
@@ -61,7 +61,7 @@ ErrToast <- function(msg) {
 }
 
 WarnToast <- function(msg) {
-  bs4Dash::toast(
+  toast(
     title = "Hi!",
 
     body = msg |> a(class = "text-primary font-weight-bold") |> h4(),
@@ -101,7 +101,7 @@ HR <- function() {
 }
 
 spinner <- function(x) {
-  shinycssloaders::withSpinner(
+  withSpinner(
     x,
     image = 'animated_ICO.png',
     image.width = "100cqw"
@@ -131,8 +131,8 @@ download_filename <- function(prefix, ext, time = Sys.time()) {
 
 
 # UI theme
-fieldworker_theme <- fresh::create_theme(
-  fresh::bs4dash_vars(
+fieldworker_theme <- create_theme(
+  bs4dash_vars(
     body_bg = "#f8fafc",
     body_color = "#1f2933",
     border_color = "#d8e1e8",
@@ -156,12 +156,12 @@ fieldworker_theme <- fresh::create_theme(
     table_head_color = "#1f2933",
     text_muted = "#64748b"
   ),
-  fresh::bs4dash_layout(
+  bs4dash_layout(
     main_bg = "#f8fafc",
     content_padding_x = ".65rem",
     content_padding_y = ".65rem"
   ),
-  fresh::bs4dash_sidebar_light(
+  bs4dash_sidebar_light(
     bg = "#ffffff",
     color = "#334155",
     hover_bg = "#eef6fb",
@@ -175,7 +175,7 @@ fieldworker_theme <- fresh::create_theme(
     submenu_active_color = "#1d3658",
     header_color = "#64748b"
   ),
-  fresh::bs4dash_status(
+  bs4dash_status(
     primary = "#2f6fa3",
     secondary = "#64748b",
     success = "#00815f",
@@ -185,7 +185,7 @@ fieldworker_theme <- fresh::create_theme(
     light = "#f8fafc",
     dark = "#1f2933"
   ),
-  fresh::bs4dash_color(
+  bs4dash_color(
     blue = "#2f6fa3",
     lightblue = "#1aa9fc",
     navy = "#1d3658",
@@ -199,7 +199,7 @@ fieldworker_theme <- fresh::create_theme(
     white = "#ffffff",
     black = "#111827"
   ),
-  fresh::bs4dash_yiq(
+  bs4dash_yiq(
     contrasted_threshold = 160,
     text_dark = "#1f2933",
     text_light = "#ffffff"

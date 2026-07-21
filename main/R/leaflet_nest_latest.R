@@ -1,10 +1,33 @@
+.prepare_plots <- function(plots) {
+  empty_plots <- st_sf(
+    plot_name = character(),
+    geometry = st_sfc(crs = 4326)
+  )
+
+  tryCatch(
+    {
+      plot_wkt <- eval(parse(text = plots$value[1]))
+
+      st_sf(
+        plot_name = names(plot_wkt),
+        geometry = st_as_sfc(unlist(plot_wkt), crs = 4326)
+      )
+    },
+    error = function(e) empty_plots
+  )
+}
+
+
 live_nest_leaflet <- function(
   n = DBq("SELECT * FROM NESTS_LATEST"),
+  plots = DBq("SELECT * FROM spatial_objects where variable = 'study_area' "),
   nest_size = 4
 ) {
   marker_radius <- pmax(nest_size + 1, 4)
   label_font_size <- pmax(nest_size + 8, 12)
   label_offset <- pmax(round(marker_radius + 4), 8)
+  plots <- .prepare_plots(plots)
+  overlay_groups <- character()
 
   m <- leaflet(options = leafletOptions(zoomControl = TRUE)) |>
     addProviderTiles(providers$CartoDB.PositronNoLabels, group = "Print Map") |>
@@ -19,19 +42,72 @@ live_nest_leaflet <- function(
         options = layersControlOptions(collapsed = TRUE)
       )
 
-    htmlwidgets::onRender(map, "window.liveNestLeafletRender")
+    onRender(map, "window.liveNestLeafletRender")
+  }
+
+  if (nrow(plots)) {
+    m <- m |>
+      addPolygons(
+        data = plots,
+        group = "Plots",
+        label = ~plot_name,
+        labelOptions = labelOptions(
+          permanent = TRUE,
+          direction = "center",
+          textOnly = TRUE,
+          opacity = 0.55,
+          style = list(
+            "color" = "#64748b",
+            "font-size" = "10px",
+            "font-weight" = "500",
+            "letter-spacing" = "0.03em",
+            "pointer-events" = "none",
+            "text-shadow" = "0 0 3px rgba(255, 255, 255, 0.95)"
+          )
+        ),
+        color = "#d70427",
+        weight = 1,
+        opacity = 0.65,
+        dashArray = "4 4",
+        fill = FALSE,
+        options = pathOptions(className = "plot-boundary")
+      )
+
+    overlay_groups <- c(overlay_groups, "Plots")
   }
 
   n <- data.table(n)
 
   if (nrow(n) == 0) {
-    return(finish_map(m))
+    if (nrow(plots)) {
+      plot_bounds <- st_bbox(plots)
+      m <- m |>
+        fitBounds(
+          lng1 = plot_bounds[["xmin"]],
+          lat1 = plot_bounds[["ymin"]],
+          lng2 = plot_bounds[["xmax"]],
+          lat2 = plot_bounds[["ymax"]]
+        )
+    }
+
+    return(finish_map(m, overlay_groups))
   }
 
   n <- n[!is.na(lat) & !is.na(lon)]
 
   if (nrow(n) == 0) {
-    return(finish_map(m))
+    if (nrow(plots)) {
+      plot_bounds <- st_bbox(plots)
+      m <- m |>
+        fitBounds(
+          lng1 = plot_bounds[["xmin"]],
+          lat1 = plot_bounds[["ymin"]],
+          lng2 = plot_bounds[["xmax"]],
+          lat2 = plot_bounds[["ymax"]]
+        )
+    }
+
+    return(finish_map(m, overlay_groups))
   }
 
   n[, marker_col := nest_state_cols[as.character(nest_state)]]
@@ -69,8 +145,8 @@ live_nest_leaflet <- function(
         rows <- Map(
           function(field, value) {
             glue(
-              "<tr><th>{htmltools::htmlEscape(field)}</th>",
-              "<td>{htmltools::htmlEscape(as.character(value[1]))}</td></tr>"
+              "<tr><th>{htmlEscape(field)}</th>",
+              "<td>{htmlEscape(as.character(value[1]))}</td></tr>"
             )
           },
           names(row),
@@ -126,6 +202,7 @@ live_nest_leaflet <- function(
       fillOpacity = 0.8,
       options = pathOptions(className = "nest-circle-marker")
     )
+  overlay_groups <- c(overlay_groups, "Nests")
 
   if (nrow(n) == 1) {
     m <- m |>
@@ -145,22 +222,22 @@ live_nest_leaflet <- function(
   }
 
   if (nrow(state_cols) > 0) {
-    legend_html <- htmltools::tags$details(
+    legend_html <- tags$details(
       class = "nest-legend",
-      htmltools::tags$summary(
-        htmltools::tags$span(class = "nest-legend-title", "Nest state")
+      tags$summary(
+        tags$span(class = "nest-legend-title", "State")
       ),
-      htmltools::tags$div(
+      tags$div(
         class = "nest-legend-items",
         Map(
           function(label, col) {
-            htmltools::tags$div(
+            tags$div(
               class = "nest-legend-item",
-              htmltools::tags$span(
+              tags$span(
                 class = "nest-legend-swatch",
-                style = htmltools::css(background = col)
+                style = css(background = col)
               ),
-              htmltools::tags$span(
+              tags$span(
                 class = "nest-legend-label",
                 as.character(label)
               )
@@ -181,5 +258,5 @@ live_nest_leaflet <- function(
       )
   }
 
-  finish_map(m, "Nests")
+  finish_map(m, overlay_groups)
 }

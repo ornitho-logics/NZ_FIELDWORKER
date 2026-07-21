@@ -22,7 +22,7 @@ fallback_leaflet <- function(
       zoom = zoom
     ) |>
     addControl(
-      html = htmltools::tags$div(
+      html = tags$div(
         style = paste(
           "background: rgba(255, 255, 255, 0.94);",
           "padding: 8px 10px;",

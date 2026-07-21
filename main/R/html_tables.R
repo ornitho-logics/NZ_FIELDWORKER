@@ -30,12 +30,12 @@ html_tables <- function(
   title = "Cass tables"
 ) {
   payload <- list(
-    title = jsonlite::unbox(title),
-    generated = jsonlite::unbox(format(Sys.time(), "%Y-%m-%d %H:%M")),
+    title = unbox(title),
+    generated = unbox(format(Sys.time(), "%Y-%m-%d %H:%M")),
     tables = unname(Map(html_table_payload, names(tables), tables))
   )
 
-  json <- jsonlite::toJSON(
+  json <- toJSON(
     payload,
     auto_unbox = FALSE,
     null = "null",
@@ -68,9 +68,9 @@ html_table_payload <- function(name, x) {
   }
 
   list(
-    name = jsonlite::unbox(name),
+    name = unbox(name),
     columns = names(x),
-    nrow = jsonlite::unbox(nrow(x)),
+    nrow = unbox(nrow(x)),
     rows = rows
   )
 }

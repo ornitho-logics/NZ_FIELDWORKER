@@ -3,11 +3,11 @@
 }
 
 DBq <- function(x) {
-  o <- try(DataEntry::db_get(x), silent = TRUE)
+  o <- try(db_get(x), silent = TRUE)
 
   if (inherits(o, "try-error")) {
     err <- as.character(attributes(o)$condition)
-    if (shiny::isRunning()) {
+    if (isRunning()) {
       showNotification(glue("⚠ {str_trunc(x, 30)}"), type = "error")
     }
     return(data.table(error = err))
@@ -21,13 +21,13 @@ DBx <- function(x, params = NULL) {
   con <- NULL
   o <- try(
     {
-      con <- DataEntry::db_con()
-      on.exit(DBI::dbDisconnect(con), add = TRUE)
+      con <- db_con()
+      on.exit(dbDisconnect(con), add = TRUE)
 
       if (is.null(params)) {
-        DBI::dbExecute(con, x)
+        dbExecute(con, x)
       } else {
-        DBI::dbExecute(con, x, params = params)
+        dbExecute(con, x, params = params)
       }
     },
     silent = TRUE
@@ -35,7 +35,7 @@ DBx <- function(x, params = NULL) {
 
   if (inherits(o, "try-error")) {
     err <- as.character(attributes(o)$condition)
-    if (shiny::isRunning()) {
+    if (isRunning()) {
       showNotification(
         glue("Database write failed: {str_trunc(err, 80)}"),
         type = "error"
@@ -126,7 +126,7 @@ showTable <- function(tab, exclude = c("pk", "nov"), formatDate = TRUE) {
         .SD,
         HTML(
           '<span class="custom-tooltip" 
-        data-tooltip="{htmltools::htmlEscape(
+        data-tooltip="{htmlEscape(
           str_replace_all(comments, "(;|\\\\.)\\\\s|(;|\\\\.)$", "\\n"), 
           attribute = TRUE)}">
         {str_trunc(comments, 10, "right")}
@@ -141,11 +141,11 @@ showTable <- function(tab, exclude = c("pk", "nov"), formatDate = TRUE) {
 }
 
 download_plot_pdf <- function(filename, plot, width = 11, height = 8.5) {
-  shiny::downloadHandler(
+  downloadHandler(
     filename = filename,
     content = function(file) {
-      grDevices::cairo_pdf(file = file, width = width, height = height)
-      on.exit(grDevices::dev.off(), add = TRUE)
+      cairo_pdf(file = file, width = width, height = height)
+      on.exit(dev.off(), add = TRUE)
 
       p <- plot()
       if (!is.null(p)) {
@@ -159,14 +159,14 @@ download_plot_pdf <- function(filename, plot, width = 11, height = 8.5) {
 mariadb_dump <- function(file, database) {
   # mariadb-dump needs standard group [client]
 
-  cnf <- ini::read.ini(path.expand(Sys.getenv("DATAENTRY_CNF")))
+  cnf <- read.ini(path.expand(Sys.getenv("DATAENTRY_CNF")))
   client <- cnf[group]
   client[[1]][c("database", "dbname")] <- NULL
   names(client) <- "client"
 
   client_cnf <- tempfile(fileext = ".cnf")
   on.exit(unlink(client_cnf), add = TRUE)
-  ini::write.ini(client, client_cnf)
+  write.ini(client, client_cnf)
   Sys.chmod(client_cnf, "0600")
 
   status <- system2(
@@ -183,7 +183,7 @@ mariadb_dump <- function(file, database) {
     )
   )
 
-  if (status != 0L) {
+  if (status != 0) {
     stop(glue("mariadb-dump failed with exit status {status}."), call. = FALSE)
   }
 }

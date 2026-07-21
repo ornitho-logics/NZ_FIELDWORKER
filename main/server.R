@@ -73,9 +73,9 @@ function(input, output, session) {
     pending_refdate(refdate)
     reference_date(refdate)
 
-    later::later(
+    later(
       function() {
-        shiny::withReactiveDomain(session, {
+        withReactiveDomain(session, {
           if (set_reference_date(refdate)) {
             WarnToast(glue("Reference date set to {refdate}."))
           } else {
@@ -228,7 +228,7 @@ function(input, output, session) {
     )
   })
 
-  output$todo_pdf <- shiny::downloadHandler(
+  output$todo_pdf <- downloadHandler(
     filename = function() {
       download_filename("cass_nests", "pdf")
     },
@@ -246,7 +246,7 @@ function(input, output, session) {
     contentType = "application/pdf"
   )
 
-  output$nest_latest_kmz <- shiny::downloadHandler(
+  output$nest_latest_kmz <- downloadHandler(
     filename = function() {
       download_filename("cass_nests", "kmz")
     },
@@ -263,7 +263,7 @@ function(input, output, session) {
     contentType = "application/vnd.google-earth.kmz"
   )
 
-  output$tables_html <- shiny::downloadHandler(
+  output$tables_html <- downloadHandler(
     filename = function() {
       download_filename("cass_tables", "html")
     },
@@ -280,7 +280,7 @@ function(input, output, session) {
     contentType = "text/html"
   )
 
-  output$database_copy <- shiny::downloadHandler(
+  output$database_copy <- downloadHandler(
     filename = function() {
       download_filename(db, "sql")
     },
