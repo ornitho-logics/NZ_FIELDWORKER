@@ -851,29 +851,29 @@ todo_untrapped_parent AS (
     'Untrapped parent' AS todo,
     CASE
       WHEN adult_parent_status.M_confirmed_unbanded = 1
-       AND adult_parent_status.F_confirmed_unbanded = 1 THEN 'catch any (both X-X)'
+       AND adult_parent_status.F_confirmed_unbanded = 1 THEN 'target any (both X-X)'
       WHEN adult_parent_status.M_confirmed_unbanded = 1
-       AND adult_parent_status.F_has_geo = 1 THEN 'catch M (X-X mate of GEO bird)'
+       AND adult_parent_status.F_has_geo = 1 THEN 'target M (X-X mate of GEO bird)'
       WHEN adult_parent_status.F_confirmed_unbanded = 1
-       AND adult_parent_status.M_has_geo = 1 THEN 'catch F (X-X mate of GEO bird)'
+       AND adult_parent_status.M_has_geo = 1 THEN 'target F (X-X mate of GEO bird)'
       WHEN adult_parent_status.M_unknown_status = 1
-       AND adult_parent_status.F_has_geo = 1 THEN 'catch M (unknown mate of GEO bird)'
+       AND adult_parent_status.F_has_geo = 1 THEN 'target M (unknown mate of GEO bird)'
       WHEN adult_parent_status.F_unknown_status = 1
-       AND adult_parent_status.M_has_geo = 1 THEN 'catch F (unknown mate of GEO bird)'
-      WHEN adult_parent_status.M_confirmed_unbanded = 1 THEN 'catch M (X-X)'
-      WHEN adult_parent_status.F_confirmed_unbanded = 1 THEN 'catch F (X-X)'
+       AND adult_parent_status.M_has_geo = 1 THEN 'target F (unknown mate of GEO bird)'
+      WHEN adult_parent_status.M_confirmed_unbanded = 1 THEN 'target M (X-X)'
+      WHEN adult_parent_status.F_confirmed_unbanded = 1 THEN 'target F (X-X)'
       WHEN adult_parent_status.M_unknown_status = 1
-       AND adult_parent_status.F_unknown_status = 1 THEN 'catch any (status unknown)'
-      WHEN adult_parent_status.M_unknown_status = 1 THEN 'catch M (status unknown)'
-      WHEN adult_parent_status.F_unknown_status = 1 THEN 'catch F (status unknown)'
+       AND adult_parent_status.F_unknown_status = 1 THEN 'target any (status unknown)'
+      WHEN adult_parent_status.M_unknown_status = 1 THEN 'target M (status unknown)'
+      WHEN adult_parent_status.F_unknown_status = 1 THEN 'target F (status unknown)'
       WHEN adult_parent_status.M_has_geo = 1
-       AND adult_parent_status.F_has_geo = 0 THEN 'catch F (non-GEO mate)'
+       AND adult_parent_status.F_has_geo = 0 THEN 'target F (non-GEO mate)'
       WHEN adult_parent_status.F_has_geo = 1
-       AND adult_parent_status.M_has_geo = 0 THEN 'catch M (non-GEO mate)'
+       AND adult_parent_status.M_has_geo = 0 THEN 'target M (non-GEO mate)'
       WHEN adult_parent_status.M_single_colour_recruit = 1
-       AND adult_parent_status.F_single_colour_recruit = 1 THEN 'catch any recruit for full colour marks'
-      WHEN adult_parent_status.M_single_colour_recruit = 1 THEN 'catch M recruit for full colour marks'
-      WHEN adult_parent_status.F_single_colour_recruit = 1 THEN 'catch F recruit for full colour marks'
+       AND adult_parent_status.F_single_colour_recruit = 1 THEN 'target any recruit for full colour marks'
+      WHEN adult_parent_status.M_single_colour_recruit = 1 THEN 'target M recruit for full colour marks'
+      WHEN adult_parent_status.F_single_colour_recruit = 1 THEN 'target F recruit for full colour marks'
     END AS notes,
     DATEDIFF(
       active_nests.reference_date,

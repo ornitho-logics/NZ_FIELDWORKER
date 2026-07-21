@@ -50,7 +50,7 @@ todo_pdf_prepare <- function(todo = DBq("SELECT * FROM TODO_LIST")) {
   ]
   
   list(
-    title = glue("Cass todo ({refdate})"),
+    title = glue("Cass To-Dos for {refdate}"),
     rows = rows
   )
 }
@@ -107,15 +107,41 @@ todo_pdf_table_latex <- function(todo_name, x) {
   )
 }
 
+todo_pdf_title <- function(title) {
+  c(
+    "\\begin{center}",
+    paste0("\\LARGE\\textbf{", todo_pdf_escape_latex(title), "}"),
+    "\\end{center}"
+  )
+}
+
 todo_pdf_heading <- function(todo_name) {
   switch(
     todo_name,
-    "Hiding spot photos needed" = "Broods to photograph: find these broods and take in-situ and tent photos",
-    "Unprocessed nest" = "Nests to process: egg photos and floatation needed",
-    "Untrapped parent" = "Nests with parents to capture or resight: band unmarked parents or determine identity with resighting",
-    "nest check" = "Nests to check for potential hatch",
-    "notA nest-check" = "Nests requiring a 'notA' closure visit",
-    todo_name
+    "Hiding spot photos needed" = list(
+      title = "Broods to photograph",
+      subtitle = "find these broods and take in-situ and tent photos"
+    ),
+    "Unprocessed nest" = list(
+      title = "Nests to process",
+      subtitle = "egg photos and/or floatation needed"
+    ),
+    "Untrapped parent" = list(
+      title = "Nests with parents to capture or resight",
+      subtitle = "band unmarked parents or determine identity with resighting"
+    ),
+    "nest check" = list(
+      title = "Nests to check for potential hatch",
+      subtitle = NULL
+    ),
+    "notA nest-check" = list(
+      title = "Nests requiring a 'notA' closure visit",
+      subtitle = NULL
+    ),
+    list(
+      title = todo_name,
+      subtitle = NULL
+    )
   )
 }
 
@@ -129,10 +155,23 @@ todo_pdf_body <- function(rows) {
   
   for (todo in unique(rows$Todo)) {
     todo_rows <- as.data.frame(rows[Todo == todo, ..table_cols])
+    heading <- todo_pdf_heading(todo)
     out <- c(
       out,
-      glue("## {todo_pdf_heading(todo)}"),
-      "",
+      glue("## {heading$title}"),
+      ""
+    )
+    
+    if (!is.null(heading$subtitle)) {
+      out <- c(
+        out,
+        glue("*{heading$subtitle}*"),
+        ""
+      )
+    }
+    
+    out <- c(
+      out,
       todo_pdf_table_latex(todo, todo_rows),
       ""
     )
@@ -154,7 +193,7 @@ todo_pdf_qmd <- function(
       out,
       switch(
         line,
-        "{{ title }}" = glue("# {pdf$title}"),
+        "{{ title }}" = todo_pdf_title(pdf$title),
         "{{ body }}" = body,
         line
       )
