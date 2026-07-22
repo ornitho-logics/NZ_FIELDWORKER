@@ -5,9 +5,14 @@ format:
     pdf-engine: pdflatex
     papersize: a4
     geometry:
-      - margin=0.7in
+      - margin=1.5cm
     fontsize: 9pt
-df-print: kable
+header-includes:
+  - \usepackage{graphicx}
+  - \usepackage{longtable}
+  - \usepackage{booktabs}
+  - \usepackage{array}
+  - \usepackage{ragged2e}
 execute:
   echo: false
   warning: false
@@ -15,9 +20,5 @@ execute:
 ---
 
 {{ title }}
-
-```{r}
-todo_rows <- readRDS("todo_rows.rds")
-```
 
 {{ body }}

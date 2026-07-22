@@ -1,28 +1,39 @@
 CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.CAPTURES_ARCHIVE AS
 
 SELECT
-ring,
-UL,
-  LL,
-  UR,
-  LR,
-  FIELD_2026_BADOatNZ.format_mark(UL, LL, UR, LR) AS mark,
-date,
-study_year,
-site_code,
-capture_status,
-latitude,
-longitude,
-field_sex,
-age,
-tarsus,
-culmen,
-wing,
-weight,
-moult_left,
-tag_id,
-tag_type
-FROM BADOatNZ.CAPTURES;
+  c.ring,
+  c.UL,
+  c.LL,
+  c.UR,
+  c.LR,
+  FIELD_2026_BADOatNZ.format_mark(c.UL, c.LL, c.UR, c.LR) AS mark,
+  c.date,
+  c.study_year,
+  c.site_code,
+  c.capture_status,
+  c.latitude,
+  c.longitude,
+  c.field_sex,
+  sex_lookup.gen_sex,
+  c.age,
+  c.tarsus,
+  c.culmen,
+  c.wing,
+  c.weight,
+  c.moult_left,
+  c.tag_id,
+  c.tag_type
+FROM BADOatNZ.CAPTURES c
+LEFT JOIN (
+  SELECT
+    TRIM(ring) AS ring,
+    MAX(NULLIF(TRIM(gen_sex), '')) AS gen_sex
+  FROM BADOatNZ.SEX
+  WHERE ring IS NOT NULL
+    AND TRIM(ring) <> ''
+  GROUP BY ring
+) sex_lookup
+  ON TRIM(c.ring) = sex_lookup.ring;
 
 
 CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.NESTS_LATEST AS
@@ -168,11 +179,17 @@ egg_calibration_candidates AS (
       THEN 'exact'
       ELSE 'nearest'
     END AS calibration_match_type,
-    ABS(e.float_angle - calibration_prediction.float_angle) AS angle_diff,
+    ABS(
+      CAST(e.float_angle AS SIGNED) -
+      CAST(calibration_prediction.float_angle AS SIGNED)
+    ) AS angle_diff,
     CASE
       WHEN e.float_surface IS NULL AND calibration_prediction.float_surface IS NULL THEN 0
       WHEN e.float_surface IS NULL OR calibration_prediction.float_surface IS NULL THEN 9999
-      ELSE ABS(e.float_surface - calibration_prediction.float_surface)
+      ELSE ABS(
+        CAST(e.float_surface AS SIGNED) -
+        CAST(calibration_prediction.float_surface AS SIGNED)
+      )
     END AS surface_diff,
     ROW_NUMBER() OVER (
       PARTITION BY e.pk
@@ -183,11 +200,17 @@ egg_calibration_candidates AS (
           THEN 0
           ELSE 1
         END,
-        ABS(e.float_angle - calibration_prediction.float_angle),
+        ABS(
+          CAST(e.float_angle AS SIGNED) -
+          CAST(calibration_prediction.float_angle AS SIGNED)
+        ),
         CASE
           WHEN e.float_surface IS NULL AND calibration_prediction.float_surface IS NULL THEN 0
           WHEN e.float_surface IS NULL OR calibration_prediction.float_surface IS NULL THEN 9999
-          ELSE ABS(e.float_surface - calibration_prediction.float_surface)
+          ELSE ABS(
+            CAST(e.float_surface AS SIGNED) -
+            CAST(calibration_prediction.float_surface AS SIGNED)
+          )
         END,
         calibration_prediction.n_calibration DESC,
         calibration_prediction.float_angle,
@@ -307,11 +330,17 @@ egg_calibration_candidates AS (
       THEN 'exact'
       ELSE 'nearest'
     END AS calibration_match_type,
-    ABS(e.float_angle - calibration_prediction.float_angle) AS angle_diff,
+    ABS(
+      CAST(e.float_angle AS SIGNED) -
+      CAST(calibration_prediction.float_angle AS SIGNED)
+    ) AS angle_diff,
     CASE
       WHEN e.float_surface IS NULL AND calibration_prediction.float_surface IS NULL THEN 0
       WHEN e.float_surface IS NULL OR calibration_prediction.float_surface IS NULL THEN 9999
-      ELSE ABS(e.float_surface - calibration_prediction.float_surface)
+      ELSE ABS(
+        CAST(e.float_surface AS SIGNED) -
+        CAST(calibration_prediction.float_surface AS SIGNED)
+      )
     END AS surface_diff,
     ROW_NUMBER() OVER (
       PARTITION BY e.pk
@@ -322,11 +351,17 @@ egg_calibration_candidates AS (
           THEN 0
           ELSE 1
         END,
-        ABS(e.float_angle - calibration_prediction.float_angle),
+        ABS(
+          CAST(e.float_angle AS SIGNED) -
+          CAST(calibration_prediction.float_angle AS SIGNED)
+        ),
         CASE
           WHEN e.float_surface IS NULL AND calibration_prediction.float_surface IS NULL THEN 0
           WHEN e.float_surface IS NULL OR calibration_prediction.float_surface IS NULL THEN 9999
-          ELSE ABS(e.float_surface - calibration_prediction.float_surface)
+          ELSE ABS(
+            CAST(e.float_surface AS SIGNED) -
+            CAST(calibration_prediction.float_surface AS SIGNED)
+          )
         END,
         calibration_prediction.n_calibration DESC,
         calibration_prediction.float_angle,
@@ -400,12 +435,17 @@ WITH sr AS (
   WHERE variable = 'reference_date'
     AND value IS NOT NULL
 ),
-active_nests AS (
+latest_nests AS (
   SELECT
     n.*,
     sr.reference_date
   FROM FIELD_2026_BADOatNZ.NESTS_LATEST n
   CROSS JOIN sr
+),
+active_nests AS (
+  SELECT
+    n.*
+  FROM latest_nests n
   WHERE n.nest_state IS NULL
     OR n.nest_state NOT IN ('pP', 'pD', 'P', 'D', 'notA')
 ),
@@ -542,20 +582,16 @@ hatched_nests AS (
 brood_followup_nests AS (
   SELECT
     n.*,
-    sr.reference_date,
     hatched_nests.hatch_date
-  FROM FIELD_2026_BADOatNZ.NESTS_LATEST n
-  CROSS JOIN sr
+  FROM latest_nests n
   JOIN hatched_nests
     ON n.nest_id = hatched_nests.nest_id
   WHERE n.nest_state IN ('H', 'notA')
 ),
 nota_followup_nests AS (
   SELECT
-    n.*,
-    sr.reference_date
-  FROM FIELD_2026_BADOatNZ.NESTS_LATEST n
-  CROSS JOIN sr
+    n.*
+  FROM latest_nests n
   WHERE n.nest_state IN ('pP', 'pD', 'P', 'D')
      OR (
        n.nest_state = 'H'
@@ -740,18 +776,44 @@ adult_resighting_status AS (
   FROM adult_resighting_latest
   GROUP BY nest_id
 ),
+todo_parent_source AS (
+  SELECT
+    nest_id,
+    MAX(M_mark) AS M_mark,
+    MAX(F_mark) AS F_mark
+  FROM (
+    SELECT
+      active_nests.nest_id,
+      active_nests.M_mark,
+      active_nests.F_mark
+    FROM active_nests
+    UNION ALL
+    SELECT
+      brood_followup_nests.nest_id,
+      brood_followup_nests.M_mark,
+      brood_followup_nests.F_mark
+    FROM brood_followup_nests
+    UNION ALL
+    SELECT
+      nota_followup_nests.nest_id,
+      nota_followup_nests.M_mark,
+      nota_followup_nests.F_mark
+    FROM nota_followup_nests
+  ) todo_parent_rows
+  GROUP BY nest_id
+),
 adult_parent_status AS (
   SELECT
-    active_nests.nest_id,
+    todo_parent_source.nest_id,
     COALESCE(
       adult_capture_status.M_mark_latest,
       adult_resighting_status.M_mark_resight,
-      active_nests.M_mark
+      todo_parent_source.M_mark
     ) AS M_parent_mark,
     COALESCE(
       adult_capture_status.F_mark_latest,
       adult_resighting_status.F_mark_resight,
-      active_nests.F_mark
+      todo_parent_source.F_mark
     ) AS F_parent_mark,
     COALESCE(adult_capture_status.M_has_geo, 0) AS M_has_geo,
     COALESCE(adult_capture_status.F_has_geo, 0) AS F_has_geo,
@@ -771,21 +833,27 @@ adult_parent_status AS (
     END AS F_confirmed_unbanded,
     CASE
       WHEN adult_capture_status.M_mark_latest IS NULL
-       AND COALESCE(adult_resighting_status.M_mark_resight, active_nests.M_mark) IS NULL
+       AND COALESCE(
+             adult_resighting_status.M_mark_resight,
+             todo_parent_source.M_mark
+           ) IS NULL
       THEN 1
       ELSE 0
     END AS M_unknown_status,
     CASE
       WHEN adult_capture_status.F_mark_latest IS NULL
-       AND COALESCE(adult_resighting_status.F_mark_resight, active_nests.F_mark) IS NULL
+       AND COALESCE(
+             adult_resighting_status.F_mark_resight,
+             todo_parent_source.F_mark
+           ) IS NULL
       THEN 1
       ELSE 0
     END AS F_unknown_status
-  FROM active_nests
+  FROM todo_parent_source
   LEFT JOIN adult_capture_status
-    ON active_nests.nest_id = adult_capture_status.nest_id
+    ON todo_parent_source.nest_id = adult_capture_status.nest_id
   LEFT JOIN adult_resighting_status
-    ON active_nests.nest_id = adult_resighting_status.nest_id
+    ON todo_parent_source.nest_id = adult_resighting_status.nest_id
 ),
 todo_untrapped_parent AS (
   SELECT
@@ -794,29 +862,29 @@ todo_untrapped_parent AS (
     'Untrapped parent' AS todo,
     CASE
       WHEN adult_parent_status.M_confirmed_unbanded = 1
-       AND adult_parent_status.F_confirmed_unbanded = 1 THEN 'catch any (both X-X)'
+       AND adult_parent_status.F_confirmed_unbanded = 1 THEN 'target any (both X-X)'
       WHEN adult_parent_status.M_confirmed_unbanded = 1
-       AND adult_parent_status.F_has_geo = 1 THEN 'catch M (X-X mate of GEO bird)'
+       AND adult_parent_status.F_has_geo = 1 THEN 'target M (X-X mate of GEO bird)'
       WHEN adult_parent_status.F_confirmed_unbanded = 1
-       AND adult_parent_status.M_has_geo = 1 THEN 'catch F (X-X mate of GEO bird)'
+       AND adult_parent_status.M_has_geo = 1 THEN 'target F (X-X mate of GEO bird)'
       WHEN adult_parent_status.M_unknown_status = 1
-       AND adult_parent_status.F_has_geo = 1 THEN 'catch M (unknown mate of GEO bird)'
+       AND adult_parent_status.F_has_geo = 1 THEN 'target M (unknown mate of GEO bird)'
       WHEN adult_parent_status.F_unknown_status = 1
-       AND adult_parent_status.M_has_geo = 1 THEN 'catch F (unknown mate of GEO bird)'
-      WHEN adult_parent_status.M_confirmed_unbanded = 1 THEN 'catch M (X-X)'
-      WHEN adult_parent_status.F_confirmed_unbanded = 1 THEN 'catch F (X-X)'
+       AND adult_parent_status.M_has_geo = 1 THEN 'target F (unknown mate of GEO bird)'
+      WHEN adult_parent_status.M_confirmed_unbanded = 1 THEN 'target M (X-X)'
+      WHEN adult_parent_status.F_confirmed_unbanded = 1 THEN 'target F (X-X)'
       WHEN adult_parent_status.M_unknown_status = 1
-       AND adult_parent_status.F_unknown_status = 1 THEN 'catch any (status unknown)'
-      WHEN adult_parent_status.M_unknown_status = 1 THEN 'catch M (status unknown)'
-      WHEN adult_parent_status.F_unknown_status = 1 THEN 'catch F (status unknown)'
+       AND adult_parent_status.F_unknown_status = 1 THEN 'target any (status unknown)'
+      WHEN adult_parent_status.M_unknown_status = 1 THEN 'target M (status unknown)'
+      WHEN adult_parent_status.F_unknown_status = 1 THEN 'target F (status unknown)'
       WHEN adult_parent_status.M_has_geo = 1
-       AND adult_parent_status.F_has_geo = 0 THEN 'catch F (non-GEO mate)'
+       AND adult_parent_status.F_has_geo = 0 THEN 'target F (non-GEO mate)'
       WHEN adult_parent_status.F_has_geo = 1
-       AND adult_parent_status.M_has_geo = 0 THEN 'catch M (non-GEO mate)'
+       AND adult_parent_status.M_has_geo = 0 THEN 'target M (non-GEO mate)'
       WHEN adult_parent_status.M_single_colour_recruit = 1
-       AND adult_parent_status.F_single_colour_recruit = 1 THEN 'catch any recruit for full colour marks'
-      WHEN adult_parent_status.M_single_colour_recruit = 1 THEN 'catch M recruit for full colour marks'
-      WHEN adult_parent_status.F_single_colour_recruit = 1 THEN 'catch F recruit for full colour marks'
+       AND adult_parent_status.F_single_colour_recruit = 1 THEN 'target any recruit for full colour marks'
+      WHEN adult_parent_status.M_single_colour_recruit = 1 THEN 'target M recruit for full colour marks'
+      WHEN adult_parent_status.F_single_colour_recruit = 1 THEN 'target F recruit for full colour marks'
     END AS notes,
     DATEDIFF(
       active_nests.reference_date,
@@ -873,13 +941,15 @@ todo_unprocessed_nest AS (
     active_nests.nest_state,
     active_nests.clutch_size,
     active_nests.brood_size,
-    active_nests.M_mark,
-    active_nests.F_mark,
+    adult_parent_status.M_parent_mark AS M_mark,
+    adult_parent_status.F_parent_mark AS F_mark,
     active_nests.lat,
     active_nests.lon
   FROM active_nests
   JOIN processing_summary
     ON active_nests.nest_id = processing_summary.nest_id
+  LEFT JOIN adult_parent_status
+    ON active_nests.nest_id = adult_parent_status.nest_id
   WHERE active_nests.nest_state IN ('F', 'I')
     AND (
       processing_summary.n_float_rows = 0
@@ -905,8 +975,8 @@ todo_take_scrape_photos AS (
     active_nests.nest_state,
     active_nests.clutch_size,
     active_nests.brood_size,
-    active_nests.M_mark,
-    active_nests.F_mark,
+    adult_parent_status.M_parent_mark AS M_mark,
+    adult_parent_status.F_parent_mark AS F_mark,
     active_nests.lat,
     active_nests.lon
   FROM active_nests
@@ -914,6 +984,8 @@ todo_take_scrape_photos AS (
     ON active_nests.nest_id = photo_summary.nest_id
   JOIN nest_discovery
     ON active_nests.nest_id = nest_discovery.nest_id
+  LEFT JOIN adult_parent_status
+    ON active_nests.nest_id = adult_parent_status.nest_id
   WHERE active_nests.nest_state = 'S'
     AND COALESCE(photo_summary.n_photo_rows, 0) = 0
 ),
@@ -930,8 +1002,8 @@ todo_reprocess_nest AS (
     active_nests.nest_state,
     active_nests.clutch_size,
     active_nests.brood_size,
-    active_nests.M_mark,
-    active_nests.F_mark,
+    adult_parent_status.M_parent_mark AS M_mark,
+    adult_parent_status.F_parent_mark AS F_mark,
     active_nests.lat,
     active_nests.lon
   FROM active_nests
@@ -943,6 +1015,8 @@ todo_reprocess_nest AS (
   LEFT JOIN clutch_at_processing
     ON active_nests.nest_id = clutch_at_processing.nest_id
    AND clutch_at_processing.row_num = 1
+  LEFT JOIN adult_parent_status
+    ON active_nests.nest_id = adult_parent_status.nest_id
   WHERE processing_summary.last_processed_datetime IS NOT NULL
     AND active_nests.nest_state IN ('F', 'I')
     AND COALESCE(active_nests.brood_size, 0) = 0
@@ -955,6 +1029,12 @@ nest_check_rules AS (
     20 AS start_day_after_completion,
     2 AS repeat_interval_days
 ),
+nest_check_target_nests AS (
+  SELECT
+    nest_id
+  FROM active_nests
+  WHERE nest_state = 'I'
+),
 nest_check_schedule AS (
   SELECT
     e.nest_id,
@@ -965,6 +1045,8 @@ nest_check_schedule AS (
       )
     ) AS estimated_clutch_completion_date
   FROM FIELD_2026_BADOatNZ.EGGS_HATCH_PREDICTION e
+  JOIN nest_check_target_nests
+    ON e.nest_id = nest_check_target_nests.nest_id
   GROUP BY e.nest_id
 ),
 todo_nest_check AS (
@@ -999,14 +1081,16 @@ todo_nest_check AS (
     active_nests.nest_state,
     active_nests.clutch_size,
     active_nests.brood_size,
-    active_nests.M_mark,
-    active_nests.F_mark,
+    adult_parent_status.M_parent_mark AS M_mark,
+    adult_parent_status.F_parent_mark AS F_mark,
     active_nests.lat,
     active_nests.lon
   FROM active_nests
   CROSS JOIN nest_check_rules
   LEFT JOIN nest_check_schedule
     ON active_nests.nest_id = nest_check_schedule.nest_id
+  LEFT JOIN adult_parent_status
+    ON active_nests.nest_id = adult_parent_status.nest_id
   WHERE (
       active_nests.hatch_signs_present = 1
       AND active_nests.days_ago >= 1
@@ -1040,13 +1124,15 @@ todo_untrapped_brood AS (
     brood_followup_nests.nest_state,
     brood_followup_nests.clutch_size,
     brood_followup_nests.brood_size,
-    brood_followup_nests.M_mark,
-    brood_followup_nests.F_mark,
+    adult_parent_status.M_parent_mark AS M_mark,
+    adult_parent_status.F_parent_mark AS F_mark,
     brood_followup_nests.lat,
     brood_followup_nests.lon
   FROM brood_followup_nests
   LEFT JOIN chick_captures
     ON brood_followup_nests.nest_id = chick_captures.nest_id
+  LEFT JOIN adult_parent_status
+    ON brood_followup_nests.nest_id = adult_parent_status.nest_id
   WHERE COALESCE(chick_captures.n_chick_captures, 0) = 0
 ),
 todo_hiding_spot_photos AS (
@@ -1074,13 +1160,15 @@ todo_hiding_spot_photos AS (
     brood_followup_nests.nest_state,
     brood_followup_nests.clutch_size,
     brood_followup_nests.brood_size,
-    brood_followup_nests.M_mark,
-    brood_followup_nests.F_mark,
+    adult_parent_status.M_parent_mark AS M_mark,
+    adult_parent_status.F_parent_mark AS F_mark,
     brood_followup_nests.lat,
     brood_followup_nests.lon
   FROM brood_followup_nests
   LEFT JOIN hiding_spot_photos
     ON brood_followup_nests.nest_id = hiding_spot_photos.nest_id
+  LEFT JOIN adult_parent_status
+    ON brood_followup_nests.nest_id = adult_parent_status.nest_id
   WHERE DATEDIFF(
           brood_followup_nests.reference_date,
           brood_followup_nests.hatch_date
@@ -1108,11 +1196,13 @@ todo_nota_nest_check AS (
     nota_followup_nests.nest_state,
     nota_followup_nests.clutch_size,
     nota_followup_nests.brood_size,
-    nota_followup_nests.M_mark,
-    nota_followup_nests.F_mark,
+    adult_parent_status.M_parent_mark AS M_mark,
+    adult_parent_status.F_parent_mark AS F_mark,
     nota_followup_nests.lat,
     nota_followup_nests.lon
   FROM nota_followup_nests
+  LEFT JOIN adult_parent_status
+    ON nota_followup_nests.nest_id = adult_parent_status.nest_id
 )
 SELECT
   t.*,
