@@ -130,7 +130,6 @@ todo_pdf_body <- function(rows) {
   out
 }
 
-
 todo_pdf_qmd <- function(
   pdf,
   template = file.path("templates", "todo_pdf.qmd")
@@ -152,7 +151,6 @@ todo_pdf_qmd <- function(
 
   out
 }
-
 
 todo_pdf_save <- function(
   file,
