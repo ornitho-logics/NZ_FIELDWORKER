@@ -1,28 +1,39 @@
 CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.CAPTURES_ARCHIVE AS
 
 SELECT
-ring,
-UL,
-  LL,
-  UR,
-  LR,
-  FIELD_2026_BADOatNZ.format_mark(UL, LL, UR, LR) AS mark,
-date,
-study_year,
-site_code,
-capture_status,
-latitude,
-longitude,
-field_sex,
-age,
-tarsus,
-culmen,
-wing,
-weight,
-moult_left,
-tag_id,
-tag_type
-FROM BADOatNZ.CAPTURES;
+  c.ring,
+  c.UL,
+  c.LL,
+  c.UR,
+  c.LR,
+  FIELD_2026_BADOatNZ.format_mark(c.UL, c.LL, c.UR, c.LR) AS mark,
+  c.date,
+  c.study_year,
+  c.site_code,
+  c.capture_status,
+  c.latitude,
+  c.longitude,
+  c.field_sex,
+  sex_lookup.gen_sex,
+  c.age,
+  c.tarsus,
+  c.culmen,
+  c.wing,
+  c.weight,
+  c.moult_left,
+  c.tag_id,
+  c.tag_type
+FROM BADOatNZ.CAPTURES c
+LEFT JOIN (
+  SELECT
+    TRIM(ring) AS ring,
+    MAX(NULLIF(TRIM(gen_sex), '')) AS gen_sex
+  FROM BADOatNZ.SEX
+  WHERE ring IS NOT NULL
+    AND TRIM(ring) <> ''
+  GROUP BY ring
+) sex_lookup
+  ON TRIM(c.ring) = sex_lookup.ring;
 
 
 CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.NESTS_LATEST AS
