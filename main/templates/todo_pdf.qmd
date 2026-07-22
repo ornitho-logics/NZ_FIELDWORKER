@@ -1,24 +1,16 @@
 ---
+{{ title }}
 format:
-  pdf:
-    documentclass: article
-    pdf-engine: pdflatex
+  typst:
     papersize: a4
-    geometry:
-      - margin=1.5cm
+    margin:
+      x: 1.5cm
+      y: 1.5cm
     fontsize: 9pt
-header-includes:
-  - \usepackage{graphicx}
-  - \usepackage{longtable}
-  - \usepackage{booktabs}
-  - \usepackage{array}
-  - \usepackage{ragged2e}
 execute:
   echo: false
   warning: false
   message: false
 ---
-
-{{ title }}
 
 {{ body }}

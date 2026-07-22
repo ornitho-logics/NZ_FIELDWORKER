@@ -249,45 +249,6 @@ dashboardPage(
           plotOutput(
             "overview_show"
           )
-        ),
-        bs4Dash::box(
-          title = "Recent GPS track intensity",
-          width = 12,
-          collapsible = TRUE,
-          collapsed = TRUE,
-          maximizable = TRUE,
-          tags$p(
-            class = "small text-muted mb-3",
-            "Mock panel for Overview architecture. Uses fake GPS tracks and fake observers only."
-          ),
-          fluidRow(
-            column(
-              width = 4,
-              sliderInput(
-                inputId = "overview_gps_days_back",
-                label = "Days back:",
-                min = 1,
-                max = 30,
-                value = 7,
-                step = 1
-              )
-            ),
-            column(
-              width = 4,
-              uiOutput("overview_gps_refdate_text")
-            ),
-            column(
-              width = 4,
-              uiOutput("overview_gps_observers_ui")
-            )
-          ),
-          spinner(
-            leafletOutput(
-              outputId = "overview_gps_heatmap_show",
-              width = "100%",
-              height = "55vh"
-            )
-          )
         )
       ),
 
