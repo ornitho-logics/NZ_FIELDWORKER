@@ -251,6 +251,28 @@ dashboardPage(
           )
         ),
         bs4Dash::box(
+          title = "Seasonal progression in geolocator deployments",
+          width = 12,
+          collapsible = TRUE,
+          collapsed = FALSE,
+          height = "50vh",
+          style = "overflow: hidden;",
+          plotOutput(
+            "overview_geolocator_show"
+          )
+        ),
+        bs4Dash::box(
+          title = "Seasonal progression in lay date",
+          width = 12,
+          collapsible = TRUE,
+          collapsed = FALSE,
+          height = "50vh",
+          style = "overflow: hidden;",
+          plotOutput(
+            "overview_lay_date_show"
+          )
+        ),
+        bs4Dash::box(
           title = "Recent GPS track intensity",
           width = 12,
           collapsible = TRUE,

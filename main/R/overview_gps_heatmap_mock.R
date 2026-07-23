@@ -207,12 +207,12 @@ overview_gps_heatmap_leaflet_mock <- function(
     domain = cells$n_points
   )
 
-  cells[, popup := glue(
+  cells$popup <- as.character(glue(
     "<strong>Mock 50 m cell</strong><br>",
-    "Track points: {n_points}<br>",
-    "Observers: {htmlEscape(observers)}<br>",
-    "GPS units: {htmlEscape(gps_ids)}"
-  )]
+    "Track points: {cells$n_points}<br>",
+    "Observers: {htmlEscape(cells$observers)}<br>",
+    "GPS units: {htmlEscape(cells$gps_ids)}"
+  ))
 
   m <- m |>
     addPolygons(

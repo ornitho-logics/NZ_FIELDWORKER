@@ -51,10 +51,9 @@ The project currently includes:
 * `main/`: main Shiny dashboard, including Overview, GPS, data-entry launchers, database browser, view-data outputs, nest maps, live nest map, to-do list, hatching estimates, local test status, PWA/offline assets, and database-copy download paths;
 * `DataEntry/`: table-specific data-entry apps using the external `DataEntry` package;
 * `DataEntry/inspectors/`: central inspector/validator management app for DB-stored validators;
-* `DataEntry/spatial_objects/`: data-entry app for spatial object support records;
-* `DataEntry/artifacts/`: data-entry app for artifact/support records;
+* `DataEntry/spatial_objects/`: support/admin app for spatial object records used to display vector shapes in app maps and to support plot-linked mock-data generation;
 * `gpxui/`: GPS waypoint/track upload interface using the external `gpxui` package;
-* `DATABASE/`: current SQL source-of-truth folder for base tables, support tables, views, functions, reset logic, and hatching prediction support;
+* `DATABASE/`: current SQL source-of-truth folder for base tables, support tables, views, functions, reset logic, hatching prediction support, and the latest safe local mock-data dump used for local tests;
 * `tests/testthat/`: repo-visible tests for app wiring and server/data-entry behavior;
 * `notes/codex_proposals/`: ignored local Codex planning and proposal files;
 * `notes/codex_logs/`: ignored local logs if used;
@@ -68,8 +67,6 @@ The immediate development goals are:
 4. expand the existing Overview panel into a more dynamic dashboard for users;
 5. preserve full human control over all code and database changes;
 6. avoid leakage of confidential raw data, credentials, GPS locations, or field records.
-
-QField export work is currently paused. It may be revisited later, but it is not the active near-term direction.
 
 ## Absolute human-control rule
 
@@ -177,21 +174,25 @@ Do not write database config paths into tracked repository files unless explicit
 
 No thread should assume the live database matches the local SQL source files unless the user explicitly approves a narrow, read-only inspection.
 
-## Off-limits local artifacts
+## Local artifacts and mock-data files
 
-Unless the user explicitly approves a narrow task, Codex should not inspect:
+Some local artifacts are safe for threads to inspect when they are useful for the current task.
 
-* `.Rproj.user/`;
-* `.Rhistory`;
-* `.Renviron`;
+This may include:
+
+* `DATABASE/FIELD_2026_BADOatNZ.rds` when a thread needs a safe local mock-data dump for tests or read-only workflow tracing;
+* `.Rproj.user/` when a narrow repo-behavior or local-environment task genuinely depends on it;
+* `tests/test-results.csv` when a thread only needs local test-status context.
+
+These files are not the source of truth over the repository structure or SQL logic. Prefer current tracked source files first.
+
+Codex must still avoid:
+
 * local `.cnf` files;
-* local database snapshots such as `DATABASE/FIELD_2026_BADOatNZ.rds`;
 * credentials or config artifacts;
 * confidential raw data;
 * real GPS coordinate exports;
 * generated files that might contain real field records.
-
-`tests/test-results.csv`, if present, should be treated as a local/generated status artifact, not as a source of biological data.
 
 ## Git and logging policy
 
@@ -362,7 +363,7 @@ Schema-change proposals should be written in plain language first, then SQL.
 
 The schema is now split across the `DATABASE/` directory.
 
-Treat the `DATABASE/` folder as the current repo-visible SQL source of truth.
+Treat the `DATABASE/` folder as a whole as important for the structure of the data used in the app.
 
 Important files include:
 
@@ -375,7 +376,18 @@ DATABASE/predict_hatching.SQL
 DATABASE/_reset.SQL
 ```
 
+Use these files as follows:
+
+* `main_tables.SQL`: DDL for the core database tables;
+* `views.SQL`: DDL for the views built from those tables;
+* `support_tables.SQL`: DDL for support and admin tables used by the app;
+* `functions.SQL`: SQL helper functions required by views or downstream logic;
+* `predict_hatching.SQL`: DDL and seed data for the stable support table `predict_hatching`;
+* `_reset.SQL`: local reset/rebuild workflow file.
+
 Current base tables, support tables, views, and SQL functions should be checked from these files, not from older `Admin/db_structure.SQL` references.
+
+Much of the app depends on the SQL in `views.SQL`, so those views should be treated as part of the active schema layer, not as optional extras.
 
 Important current schema-layer objects include, but are not limited to:
 
@@ -401,6 +413,8 @@ TODO_LIST
 ```
 
 SQL functions, such as `format_mark`, may be required by views and should be reviewed before changing dependent schema or view logic.
+
+Historical compatibility views such as `CAPTURES_ARCHIVE` are part of schema-review scope whenever they affect how the current app uses older data.
 
 ## Current repository structure
 
@@ -451,7 +465,7 @@ main/R/system_utils.R
 main/R/system_utils_app.R
 ```
 
-Do not assume older helper names such as `DATA_todos.R`, `MAP_main.R`, or `DATA_mainSets.R` exist unless confirmed in the current branch.
+Do not assume older helper names or pre-merge path conventions still exist unless confirmed in the current branch.
 
 ### `DataEntry/`
 
@@ -512,6 +526,8 @@ and edited through the central `DataEntry/inspectors/` app.
 `DataEntry/spatial_objects/` is now a first-class support/admin module for managing spatial object records.
 
 It should be treated as part of the DB-facing app surface.
+
+Its records are used to visualize vector shapes in app maps and, in the case of plot polygons, to support mock-data generation workflows where mock `nest_id` naming is aligned to plot names.
 
 ### `gpxui/`
 
@@ -718,13 +734,31 @@ Current inferred behavior:
 
 Multiple inspector rows per table are now a working pattern in this project, especially for separating hard, warning, and residual/format lists.
 
+Live biological data-entry tables should now be organized into only two inspector types:
+
+```text
+TABLE_hard
+TABLE_warning
+```
+
+Interpret these as follows:
+
+* `TABLE_hard` maps to protocol `hard_rules` and produces save-blocking `error` conditions;
+* `TABLE_warning` maps to protocol `warning_rules` and produces non-blocking `warning` conditions.
+
+There should be no permanent third live inspector type such as `TABLE_residual` or `TABLE_format_residual`.
+Any legacy regex, syntax, format, or migration-era validator should be reassigned into either
+`TABLE_hard` or `TABLE_warning` based on whether it represents a true save-time error or a review-level warning.
+
 Do not update this table unless explicitly instructed.
 
 ### spatial_objects
 
 `spatial_objects` is a support table and has its own `DataEntry/spatial_objects/` app.
 
-Treat it as part of the current schema/app contract.
+It is not one of the main biological field tables, but it is an important support table in the app database structure and should be treated as a real dependency.
+
+Its records support vector overlays in maps and, for plot polygons, help keep mock-data naming schemes aligned with plot names.
 
 ### settings
 
@@ -734,9 +768,9 @@ Review it when dashboard behavior, reference dates, app settings, or runtime con
 
 ### predict_hatching
 
-`predict_hatching` is a support/calibration object used by hatching prediction logic.
+`predict_hatching` is a stable support table used by hatching prediction logic.
 
-Treat it as important but biologically sensitive. Do not assume the hatching model is final or universally valid without user confirmation.
+Treat it as important but biologically sensitive. Do not assume the hatching model is universally valid without user confirmation.
 
 ## Identifier rules
 
@@ -815,7 +849,7 @@ Only after local mock testing should a validator expression be pasted into the `
 
 ## Validator protocol
 
-Thread 3 now uses a machine-readable validator protocol as a working spec-of-record, subject to user approval.
+Thread 3 now uses a machine-readable validator protocol as the official spec-of-record for validator behavior.
 
 Current local protocol path:
 
@@ -831,7 +865,14 @@ protocol_version: 1.0.1
 generated_on: 2026-07-21
 ```
 
-The protocol distinguishes:
+Use the latest downloaded local database snapshot in `DATABASE/` as a read-only alignment reference for
+mock-data generation and protocol review when relevant. At the time of writing, the latest example is:
+
+```text
+/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/DATABASE/FIELD_2026_BADOatNZ_7230743.sql
+```
+
+The protocol distinguishes four rule classes:
 
 ```text
 error
@@ -844,8 +885,27 @@ Important rules:
 
 * `mock_generation_only` rules must never be translated into live save-time validators;
 * `post_save_qa` logic should not be moved into save-time inspectors unless explicitly approved;
+* rules listed under protocol `hard_rules` should be implemented as `error`;
+* rules listed under protocol `warning_rules` should be implemented as `warning`;
 * adding extra columns such as `type` or `severity` to validator output will not automatically make them appear in the FIELDWORKER portal unless package-side/UI behavior supports it;
+* the current portal validator table does not yet surface a visible `type` column; adding that feature is a future UI/package iteration;
 * parser checks, local mock workbook checks, and paste-test checks should happen before any validator is pasted into the live `inspectors` table.
+
+## Mock validator workflow
+
+Thread 3 should use connected fake/mock datasets rather than tiny isolated examples whenever cross-table
+rules are being developed or debugged.
+
+Preferred workflow:
+
+1. maintain the protocol in `bdot_dataentry_validator_protocol.yaml`;
+2. maintain the connected mock workbook and per-table CSV exports used for paste-tests;
+3. test validator logic locally against mock data first;
+4. triage any `variable = NA` or broken-inspector failures before proposing live inspector edits;
+5. only after approval, sync the validated scratch outputs into `bdot_db/data/working/`.
+
+Mock-generation targets and tendencies belong in protocol `mock_generation_only_rules`.
+They must shape or audit the fake datasets only and must not be compiled into live portal validation.
 
 ## Post-submission QA
 
@@ -901,9 +961,9 @@ main/R/pdf_todo.R
 main/templates/todo_pdf.qmd
 ```
 
-`TODO_LIST` should be treated as a core operational view and the likely authoritative task source for FIELDWORKER to-do outputs.
+`TODO_LIST` should be treated as a core operational view and the authoritative task source for FIELDWORKER to-do outputs.
 
-Current to-do classes may include:
+Current implemented to-do classes include:
 
 ```text
 Untrapped parent
@@ -916,9 +976,7 @@ Hiding spot photos needed
 notA nest-check
 ```
 
-Use current SQL and app code as source of truth for exact task names and logic.
-
-QField export is paused. Do not frame current to-do work as primarily a QField export workflow unless the user explicitly reactivates that goal.
+Current `nest check` tasks may carry note-level distinctions such as pre-hatch nest checks versus hatch-sign follow-up. Use current SQL and app code as source of truth for exact task names, note text, and cadence.
 
 When testing to-do/list/PDF behavior, prefer local `.rds` snapshots or fake/mock data over live database queries.
 
@@ -1023,7 +1081,8 @@ Restrictions:
 * no edits to tracked files;
 * no database connections;
 * no app runs unless explicitly approved and confirmed read-only;
-* no inspection of credentials, `.cnf` files, local `.rds` database snapshots, `.Rproj.user/`, or real data.
+* no inspection of credentials, local `.cnf` files, or real confidential data unless explicitly approved;
+* local `.rds` snapshots, `.Rproj.user/`, and `tests/test-results.csv` may be inspected when relevant, but they should not override tracked source files as the source of truth.
 
 Expected output:
 
@@ -1048,12 +1107,20 @@ Responsibilities:
   * `functions.SQL`;
   * `predict_hatching.SQL`;
   * `_reset.SQL`;
-* compare schema objects to current app needs, data-entry modules, dashboard logic, validation architecture, GPS linkage, and future export needs;
+* treat `DATABASE/main_tables.SQL` as the lead DDL file for the core database tables;
+* compare schema objects to current app needs, data-entry modules, dashboard logic, validation architecture, GPS linkage, and current export/report needs;
 * review dependencies between base tables, support tables, SQL functions, and views;
+* include historical compatibility views such as `CAPTURES_ARCHIVE` in schema review when they affect current app behavior;
 * identify schema gaps affecting validators, to-do logic, hatching logic, spatial objects, DB browser views, GPS linkage, and dashboard outputs;
 * propose SQL only after explaining the change in plain language;
 * identify safe indexes, constraints, compatibility risks, migration risks, and rollback steps;
 * flag inconsistencies between AGENTS assumptions and the current SQL source of truth.
+
+Scope note:
+
+* Thread 2 is the lead agent for changes to `DATABASE/main_tables.SQL`.
+* Other agents may change other SQL files in `DATABASE/` when their workflow depends on them.
+* In particular, threads working on app logic such as to-do generation may need to change `DATABASE/views.SQL` when necessary.
 
 Restrictions:
 
@@ -1079,10 +1146,18 @@ Purpose: maintain and refine the DB-stored FIELDWORKER validation system, includ
 Responsibilities:
 
 * maintain the current DataEntry validator contract and inspector architecture;
-* author and troubleshoot DB-stored inspectors as non-overlapping hard, warning, and residual/format lists where useful;
+* maintain protocol-aligned DB-stored inspectors using only two live inspector types per table:
+
+  * `TABLE_hard`
+  * `TABLE_warning`
+
+* keep `TABLE_hard` aligned with protocol `hard_rules`;
+* keep `TABLE_warning` aligned with protocol `warning_rules`;
+* reassign any legacy or format-only validator into either `TABLE_hard` or `TABLE_warning` rather than maintaining a third live category;
 * maintain the machine-readable validator protocol and keep it aligned with agreed field logic;
 * use connected multi-table mock workbooks and per-table CSV exports to test cross-table rules before any live inspector paste;
 * distinguish save-time blockers from warning-level rules, post-save QA logic, and mock-generation-only targets;
+* keep approved scratch outputs synchronized into `bdot_db/data/working/` when requested;
 * preserve working validators where possible;
 * write short fieldworker-facing messages;
 * investigate `variable = NA` or broken-inspector failures using mock data and parser checks before live edits.
@@ -1112,6 +1187,7 @@ Responsibilities:
 
 * inspect and patch proposals for `DATABASE/views.SQL`, especially `NESTS_LATEST`, `EGGS_HATCH_PREDICTION`, and `TODO_LIST`;
 * trace how `NESTS`, `EGGS`, `CAPTURES`, `RESIGHTINGS`, and `GPS_POINTS` flow into FIELDWORKER to-do outputs;
+* treat `TODO_LIST` as the authoritative task engine for FIELDWORKER task outputs and keep downstream app/PDF behavior aligned with it;
 * keep SQL outputs consistent with `main/server.R`, `main/global.R`, `main/R/pdf_todo.R`, and related app outputs;
 * diagnose missing marks, stale labels, join failures, filtering issues, coordinate-linkage problems, and PDF-rendering mismatches;
 * use local `.rds` snapshots and mock data for read-only smoke tests;
@@ -1122,7 +1198,6 @@ Restrictions:
 * no live database writes or schema changes;
 * no live view rebuilds unless explicitly approved;
 * no real coordinate output;
-* no QField export work unless Luke explicitly reactivates it;
 * no broad real-record dumps in diagnostics.
 
 Expected output:
@@ -1164,7 +1239,6 @@ Restrictions:
 * no real GPS coordinate output;
 * no new package dependencies unless justified and approved;
 * no schema/view changes without Thread 2-style review;
-* no QField work unless re-scoped.
 
 Expected output:
 
@@ -1177,7 +1251,7 @@ Expected output:
 
 ### Thread 6 — QA/reproducibility reviewer
 
-Purpose: keep the project safe, reproducible, and reviewable.
+Purpose: keep the project safe, reproducible, reviewable, and clear about post-submission QA ownership.
 
 Responsibilities:
 
@@ -1188,7 +1262,7 @@ Responsibilities:
 * check whether proposals are minimally invasive;
 * check whether rollback notes are adequate;
 * review local artifact hygiene around `AGENTS.md`, `notes/`, `tmp/`, local `.rds` snapshots, and test-status artifacts;
-* review post-submission QA proposals when they are not clearly owned by Thread 4.
+* review post-submission QA and data-cleaning proposals that are outside Thread 3 save-time validation and Thread 4 FIELDWORKER task-generation logic.
 
 Restrictions:
 
@@ -1213,7 +1287,7 @@ Responsibilities:
 
 * explain unfamiliar concepts plainly;
 * summarize what other threads found;
-* explain terms such as validator, inspector, `rowid`, `nov`, unit tests, CI, schema migrations, soft deletes, indexes, constraints, joins, views, SQL functions, GeoPackage, QFieldSync, raster heatmaps, projections, CRS, and audit trails;
+* explain terms such as validator, inspector, `rowid`, `nov`, unit tests, CI, schema migrations, soft deletes, indexes, constraints, joins, views, SQL functions, GeoPackage, raster heatmaps, projections, CRS, and audit trails;
 * help the user decide what is worth implementing now versus later;
 * translate technical recommendations into RStudio/manual-edit steps.
 
@@ -1236,6 +1310,7 @@ Expected output:
 * Thread 2 owns schema, views, SQL functions, support tables, and migration-risk reasoning.
 * Thread 3 owns save-time validation and the validator protocol.
 * Thread 4 owns FIELDWORKER to-do/list/map/PDF logic, especially `TODO_LIST`.
+* Thread 6 owns post-submission QA/data-cleaning review when it is not part of Thread 3 validator design or Thread 4 task-generation logic.
 * Thread 5 owns the Overview dashboard and dynamic user-facing panels.
 * Thread 6 reviews safety, reproducibility, ignored artifacts, and PR readiness.
 * Thread 7 translates technical findings into plain-language decisions.

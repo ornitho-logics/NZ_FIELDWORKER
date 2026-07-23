@@ -122,6 +122,26 @@ function(input, output, session) {
     }
   )
 
+  output$overview_geolocator_show <- renderPlot(
+    {
+      try_else(
+        overview_geolocator_graph(active_refdate()),
+        fallback_ggplot,
+        fail = 'overview_geolocator_graph() failed!'
+      )
+    }
+  )
+
+  output$overview_lay_date_show <- renderPlot(
+    {
+      try_else(
+        overview_lay_date_graph(active_refdate()),
+        fallback_ggplot,
+        fail = 'overview_lay_date_graph() failed!'
+      )
+    }
+  )
+
   output$overview_gps_refdate_text <- renderUI({
     days_back <- input$overview_gps_days_back %||% 7
     refdate <- active_refdate()

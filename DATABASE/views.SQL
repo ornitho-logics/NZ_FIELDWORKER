@@ -815,8 +815,30 @@ adult_parent_status AS (
       adult_resighting_status.F_mark_resight,
       todo_parent_source.F_mark
     ) AS F_parent_mark,
-    COALESCE(adult_capture_status.M_has_geo, 0) AS M_has_geo,
-    COALESCE(adult_capture_status.F_has_geo, 0) AS F_has_geo,
+    GREATEST(
+      COALESCE(adult_capture_status.M_has_geo, 0),
+      CASE
+        WHEN COALESCE(
+               adult_capture_status.M_mark_latest,
+               adult_resighting_status.M_mark_resight,
+               todo_parent_source.M_mark
+             ) REGEXP '(^|,)[^,]*-T[A-Z0-9]*[RBGWOLY](\\.|,|$)'
+        THEN 1
+        ELSE 0
+      END
+    ) AS M_has_geo,
+    GREATEST(
+      COALESCE(adult_capture_status.F_has_geo, 0),
+      CASE
+        WHEN COALESCE(
+               adult_capture_status.F_mark_latest,
+               adult_resighting_status.F_mark_resight,
+               todo_parent_source.F_mark
+             ) REGEXP '(^|,)[^,]*-T[A-Z0-9]*[RBGWOLY](\\.|,|$)'
+        THEN 1
+        ELSE 0
+      END
+    ) AS F_has_geo,
     COALESCE(adult_capture_status.M_single_colour_recruit, 0) AS M_single_colour_recruit,
     COALESCE(adult_capture_status.F_single_colour_recruit, 0) AS F_single_colour_recruit,
     CASE
