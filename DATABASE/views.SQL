@@ -1254,3 +1254,208 @@ FROM (
   UNION ALL
   SELECT * FROM todo_nota_nest_check
 ) t;
+
+
+CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.OVERVIEW AS
+
+WITH sr AS (
+  SELECT value AS reference_date
+  FROM FIELD_2026_BADOatNZ.settings
+  WHERE variable = 'reference_date'
+    AND value IS NOT NULL
+),
+capture_summary AS (
+  SELECT
+    COUNT(*) AS n_capture_records,
+    COUNT(CASE WHEN c.field_sex IN ('M', 'MU') THEN 1 END) AS n_males_caught,
+    COUNT(CASE WHEN c.field_sex IN ('F', 'FU') THEN 1 END) AS n_females_caught,
+    COUNT(CASE WHEN c.field_sex = 'U' THEN 1 END) AS n_unknown_sex_caught,
+    COUNT(CASE WHEN c.age = 'C' THEN 1 END) AS n_chicks_caught,
+    COUNT(DISTINCT NULLIF(TRIM(c.ring), '')) AS n_distinct_birds_caught,
+    COUNT(CASE WHEN c.capture_status = 'F' THEN 1 END) AS n_first_captures,
+    COUNT(CASE WHEN c.capture_status IN ('R', 'C') THEN 1 END) AS n_recaptures,
+    COUNT(
+      CASE WHEN NULLIF(TRIM(c.tag_id), '') IS NOT NULL THEN 1 END
+    ) AS n_captures_with_tag
+  FROM FIELD_2026_BADOatNZ.CAPTURES c
+  CROSS JOIN sr
+  WHERE c.date <= sr.reference_date
+),
+nest_summary AS (
+  SELECT
+    COUNT(*) AS n_nest_visits,
+    COUNT(
+      DISTINCT CASE
+        WHEN n.nest_id IS NOT NULL AND TRIM(n.nest_id) <> ''
+        THEN TRIM(n.nest_id)
+      END
+    ) AS n_nests_recorded,
+    COUNT(
+      DISTINCT CASE
+        WHEN n.nest_state = 'F'
+         AND n.nest_id IS NOT NULL
+         AND TRIM(n.nest_id) <> ''
+        THEN TRIM(n.nest_id)
+      END
+    ) AS n_nests_found,
+    COUNT(
+      DISTINCT CASE
+        WHEN n.nest_state = 'H'
+         AND n.nest_id IS NOT NULL
+         AND TRIM(n.nest_id) <> ''
+        THEN TRIM(n.nest_id)
+      END
+    ) AS n_nests_hatched,
+    COUNT(
+      DISTINCT CASE
+        WHEN n.nest_state = 'P'
+         AND n.nest_id IS NOT NULL
+         AND TRIM(n.nest_id) <> ''
+        THEN TRIM(n.nest_id)
+      END
+    ) AS n_nests_predated,
+    COUNT(
+      DISTINCT CASE
+        WHEN n.nest_state = 'D'
+         AND n.nest_id IS NOT NULL
+         AND TRIM(n.nest_id) <> ''
+        THEN TRIM(n.nest_id)
+      END
+    ) AS n_nests_deserted
+  FROM FIELD_2026_BADOatNZ.NESTS n
+  CROSS JOIN sr
+  WHERE n.date <= sr.reference_date
+),
+egg_summary AS (
+  SELECT
+    COUNT(*) AS n_egg_records,
+    COUNT(
+      DISTINCT CASE
+        WHEN e.nest_id IS NOT NULL
+         AND TRIM(e.nest_id) <> ''
+         AND e.egg_id IS NOT NULL
+        THEN CONCAT(TRIM(e.nest_id), '|', e.egg_id)
+      END
+    ) AS n_distinct_eggs,
+    COUNT(
+      DISTINCT CASE
+        WHEN e.nest_id IS NOT NULL
+         AND TRIM(e.nest_id) <> ''
+         AND e.egg_id IS NOT NULL
+         AND e.float_angle IS NOT NULL
+         AND e.float_location IS NOT NULL
+        THEN CONCAT(TRIM(e.nest_id), '|', e.egg_id)
+      END
+    ) AS n_eggs_floated
+  FROM FIELD_2026_BADOatNZ.EGGS e
+  CROSS JOIN sr
+  WHERE e.date <= sr.reference_date
+),
+resighting_summary AS (
+  SELECT
+    COUNT(*) AS n_resighting_records,
+    COUNT(
+      DISTINCT CASE
+        WHEN FIELD_2026_BADOatNZ.format_mark(
+          r.UL,
+          r.LL,
+          r.UR,
+          r.LR
+        ) <> 'X-X'
+        THEN FIELD_2026_BADOatNZ.format_mark(
+          r.UL,
+          r.LL,
+          r.UR,
+          r.LR
+        )
+      END
+    ) AS n_distinct_resightings
+  FROM FIELD_2026_BADOatNZ.RESIGHTINGS r
+  CROSS JOIN sr
+  WHERE r.date <= sr.reference_date
+)
+SELECT
+  overview.section,
+  overview.metric,
+  overview.n
+FROM (
+  SELECT
+    'captures' AS section,
+    'n_males_caught' AS metric,
+    n_males_caught AS n
+  FROM capture_summary
+  UNION ALL
+  SELECT 'captures', 'n_females_caught', n_females_caught
+  FROM capture_summary
+  UNION ALL
+  SELECT 'captures', 'n_unknown_sex_caught', n_unknown_sex_caught
+  FROM capture_summary
+  UNION ALL
+  SELECT 'captures', 'n_chicks_caught', n_chicks_caught
+  FROM capture_summary
+  UNION ALL
+  SELECT 'captures', 'n_distinct_birds_caught', n_distinct_birds_caught
+  FROM capture_summary
+  UNION ALL
+  SELECT 'captures', 'n_capture_records', n_capture_records
+  FROM capture_summary
+  UNION ALL
+  SELECT 'captures', 'n_first_captures', n_first_captures
+  FROM capture_summary
+  UNION ALL
+  SELECT 'captures', 'n_recaptures', n_recaptures
+  FROM capture_summary
+  UNION ALL
+  SELECT 'captures', 'n_captures_with_tag', n_captures_with_tag
+  FROM capture_summary
+  UNION ALL
+  SELECT 'nests', 'n_nests_found', n_nests_found
+  FROM nest_summary
+  UNION ALL
+  SELECT 'nests', 'n_nests_recorded', n_nests_recorded
+  FROM nest_summary
+  UNION ALL
+  SELECT 'nests', 'n_nests_hatched', n_nests_hatched
+  FROM nest_summary
+  UNION ALL
+  SELECT 'nests', 'n_nests_predated', n_nests_predated
+  FROM nest_summary
+  UNION ALL
+  SELECT 'nests', 'n_nests_deserted', n_nests_deserted
+  FROM nest_summary
+  UNION ALL
+  SELECT 'nests', 'n_nest_visits', n_nest_visits
+  FROM nest_summary
+  UNION ALL
+  SELECT 'eggs', 'n_distinct_eggs', n_distinct_eggs
+  FROM egg_summary
+  UNION ALL
+  SELECT 'eggs', 'n_eggs_floated', n_eggs_floated
+  FROM egg_summary
+  UNION ALL
+  SELECT 'eggs', 'n_egg_records', n_egg_records
+  FROM egg_summary
+  UNION ALL
+  SELECT 'resightings', 'n_distinct_resightings', n_distinct_resightings
+  FROM resighting_summary
+  UNION ALL
+  SELECT 'resightings', 'n_resighting_records', n_resighting_records
+  FROM resighting_summary
+) overview;
+
+
+/*
+--- TEST FAULTY VIEW
+CREATE TABLE FIELD_2026_BADOatNZ._overview_fault_source (
+  n INT
+);
+
+CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.OVERVIEW AS
+SELECT
+  'test' AS section,
+  'intentional_failure' AS metric,
+  n
+FROM FIELD_2026_BADOatNZ._overview_fault_source;
+
+DROP TABLE FIELD_2026_BADOatNZ._overview_fault_source;
+*/

@@ -58,8 +58,42 @@ test_that("main app UI and entrypoint load", {
   expect_match(html, 'data-value="enter_data"', fixed = TRUE)
   expect_match(html, 'data-value="nest_map"', fixed = TRUE)
   expect_match(html, 'id="nest_map_show"', fixed = TRUE)
+  expect_match(html, 'id="OVERVIEW_show"', fixed = TRUE)
+  expect_contains(app$env$dbtabs_show_views, "OVERVIEW")
+  expect_identical(tail(app$env$dbtabs_show_views, 1), "OVERVIEW")
+  expect_setequal(
+    app$env$dbtabs_show_view_sources[["OVERVIEW"]],
+    c(
+      "settings",
+      "CAPTURES",
+      "NESTS",
+      "EGGS",
+      "RESIGHTINGS"
+    )
+  )
   expect_match(html, app$env$app_test_status$text, fixed = TRUE)
   expect_match(html, app$env$app_test_status$badge, fixed = TRUE)
+})
+
+
+test_that("database overview view is defined", {
+  views_sql <- paste(
+    readLines(app_file("DATABASE", "views.SQL")),
+    collapse = "\n"
+  )
+
+  expect_match(
+    views_sql,
+    "CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.OVERVIEW AS",
+    fixed = TRUE
+  )
+  expect_match(views_sql, "AS n_males_caught", fixed = TRUE)
+  expect_match(views_sql, "AS n_females_caught", fixed = TRUE)
+  expect_match(views_sql, "AS n_nests_found", fixed = TRUE)
+  expect_match(views_sql, "AS n_distinct_resightings", fixed = TRUE)
+  expect_match(views_sql, "overview.section", fixed = TRUE)
+  expect_match(views_sql, "overview.metric", fixed = TRUE)
+  expect_match(views_sql, "overview.n", fixed = TRUE)
 })
 
 
