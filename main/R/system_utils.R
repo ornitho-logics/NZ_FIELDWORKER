@@ -108,36 +108,62 @@ dbtable_is_updated <- function(tab) {
 
 
 showTable <- function(tab, exclude = c("pk", "nov"), formatDate = TRUE) {
-  cc <- DBq(glue("SHOW COLUMNS FROM {tab};"))
-  cc <- cc[!Field %in% exclude]
+  tryCatch(
+    {
+      cc <- data.table(db_get(glue("SHOW COLUMNS FROM {tab};")))
+      cc <- cc[!Field %in% exclude]
 
-  o <- DBq(
-    glue("SELECT DISTINCT {glue_collapse(cc$Field, sep = ', ')} FROM {tab};")
-  )
-
-  if (formatDate && "date" %in% cc$Field) {
-    o[, date := format(date, "%m-%d")]
-  }
-
-  if ("comments" %in% cc$Field) {
-    o[
-      !is.na(comments),
-      comments := glue_data(
-        .SD,
-        HTML(
-          '<span class="custom-tooltip" 
-        data-tooltip="{htmlEscape(
-          str_replace_all(comments, "(;|\\\\.)\\\\s|(;|\\\\.)$", "\\n"), 
-          attribute = TRUE)}">
-        {str_trunc(comments, 10, "right")}
-      </span>'
+      o <- data.table(
+        db_get(
+          glue("SELECT {glue_collapse(cc$Field, sep = ', ')} FROM {tab};")
         )
-      ),
-      by = .I
-    ]
-  }
+      )
 
-  o
+      if (formatDate && "date" %in% cc$Field) {
+        o[, let(date = format(date, "%m-%d"))]
+      }
+
+      if ("comments" %in% cc$Field) {
+        o[
+          !is.na(comments),
+          let(
+            comments = glue_data(
+              .SD,
+              HTML(
+                '<span class="custom-tooltip"
+              data-tooltip="{htmlEscape(
+                str_replace_all(comments, "(;|\\\\.)\\\\s|(;|\\\\.)$", "\\n"),
+                attribute = TRUE)}">
+              {str_trunc(comments, 10, "right")}
+            </span>'
+              )
+            )
+          ),
+          by = .I
+        ]
+      }
+
+      o
+    },
+    error = function(e) {
+      ddl <- tryCatch(
+        {
+          x <- db_get(glue("SHOW CREATE VIEW {tab};"))
+          as.character(htmlEscape(x[["Create View"]][1]))
+        },
+        error = function(e) NULL
+      )
+
+      if (is.null(ddl)) {
+        return(data.table(error = conditionMessage(e)))
+      }
+
+      data.table(
+        error = conditionMessage(e),
+        ddl = ddl
+      )
+    }
+  )
 }
 
 download_plot_pdf <- function(filename, plot, width = 11, height = 8.5) {

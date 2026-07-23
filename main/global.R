@@ -1,6 +1,6 @@
 #+ NOTE:
 #' list.files('./main/R/', full.names = TRUE) |> lapply(source) |> invisible(); source('main/global.R')
-#' devmode(TRUE);runApp("./main", launch.browser = TRUE )
+#' shiny::devmode(TRUE);shiny::runApp("./main", launch.browser = TRUE )
 
 #! PACKAGES & DATA
 sapply(
@@ -72,11 +72,20 @@ dbtabs_show_views <- c(
   "TODO_LIST",
   "NESTS_LATEST",
   "CAPTURES_ARCHIVE",
-  "EGGS_HATCH_PREDICTION"
+  "EGGS_HATCH_PREDICTION",
+  "OVERVIEW"
 )
 
 # watch list for View updates
 dbtabs_show_view_sources <- list(
+  OVERVIEW = c(
+    "settings",
+    "CAPTURES",
+    "NESTS",
+    "EGGS",
+    "RESIGHTINGS"
+  ),
+
   TODO_LIST = c(
     "settings",
     "NESTS",
@@ -138,4 +147,4 @@ kmz_nest_state_cols <- c(
 
 #! etc
 
-ver <- "v 4.2.2"
+ver <- "v 4.2.3"
