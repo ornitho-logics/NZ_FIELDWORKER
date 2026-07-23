@@ -1,24 +1,22 @@
 # AGENTS.md — NZ_FIELDWORKER / Banded Dotterel Fieldworker Database
 
-## Local-only status of this file
+## Branch-specific status of this file
 
-This `AGENTS.md` file is for Luke’s local Codex workflow only.
+This `AGENTS.md` file documents Luke’s Codex agentic workflow for this project.
 
-It must never be staged, committed, pushed, or included in a pull request.
-
-It should be ignored locally through:
+It is intentionally tracked on Luke’s Codex-integrated working branch:
 
 ```text
-.git/info/exclude
+cass_prep
 ```
 
-Expected local ignore rule:
+The purpose of tracking it on `cass_prep` is transparency: the branch itself should make clear how Codex is being used, what the thread roles are, what safety rules apply, and what local workflow conventions Luke is using.
 
-```text
-AGENTS.md
-```
+`AGENTS.md` is not intended for the upstream collaborator-controlled `main` branch.
 
-Codex must not add, stage, modify, delete, or mention committing `AGENTS.md` unless the user explicitly asks to edit this local-only file.
+Git cannot automatically ignore a tracked file during a merge or pull request. Therefore, `AGENTS.md` must be kept out of any branch intended for merge or PR into `main` by workflow discipline, not by `.gitignore`.
+
+Codex must not add, stage, modify, delete, or mention committing `AGENTS.md` unless the user explicitly asks to edit this file.
 
 The upstream `main` branch should remain under the collaborator’s control.
 
@@ -200,6 +198,8 @@ The user wants accepted code changes to be tracked through Git branches, commits
 
 The collaborator should retain full control over `main`.
 
+`cass_prep` is Luke’s Codex-integrated working branch. It may intentionally contain `AGENTS.md` and other Luke/Codex workflow context that should remain visible there for transparency.
+
 Codex must not commit, push, merge, rebase, or open pull requests unless explicitly instructed.
 
 Prompt and response logging is useful, but risky. By default:
@@ -221,10 +221,42 @@ Before any commit, Codex should remind the user to check:
 ```bash
 git status --short
 git diff --name-status origin/main...HEAD
-git check-ignore -v AGENTS.md
 ```
 
-`AGENTS.md` should remain ignored through `.git/info/exclude`.
+## `cass_prep` -> `main` workflow
+
+Do not open pull requests from `cass_prep` directly.
+
+Because `AGENTS.md` is intentionally tracked on `cass_prep`, any PR branch created directly from `cass_prep` may accidentally carry `AGENTS.md` toward `main`.
+
+Instead, always use a clean PR branch created from `origin/main`, then cherry-pick only the intended commits from `cass_prep`.
+
+Always use this workflow:
+
+```bash
+git fetch origin
+git switch -c pr/<topic> origin/main
+git log --oneline origin/main..cass_prep
+git cherry-pick <wanted-commit-1>
+git cherry-pick <wanted-commit-2>
+git diff --name-status origin/main...HEAD
+```
+
+If `AGENTS.md` appears in that diff, remove it from the PR branch before pushing:
+
+```bash
+git restore --source=origin/main -- AGENTS.md
+git add AGENTS.md
+git commit -m "Remove AGENTS.md from PR branch"
+```
+
+Then push the clean PR branch, not `cass_prep`:
+
+```bash
+git push -u origin pr/<topic>
+```
+
+`cass_prep` should be treated as Luke’s private integration branch with Codex. Branches intended for upstream review should be treated as curated, collaborator-facing branches built from `origin/main`.
 
 ## Expected response format for code, schema, validator, or app work
 
@@ -312,10 +344,13 @@ bird_inc
 float_angle
 float_surface
 float_location
+eggs_handled
 falcon_upload
 observer_upload
 nov
 ```
+
+`observer_upload` is currently a CAPTURES-only field and should not be assumed to exist in other biological tables such as `EGGS`, `NESTS`, or `RESIGHTINGS`.
 
 Avoid introducing camelCase database names such as:
 
@@ -593,6 +628,17 @@ gps_id
 gps_point
 ```
 
+Additional current CAPTURES-specific fields include:
+
+```text
+eggs_handled
+observer_upload
+```
+
+`eggs_handled` is a new CAPTURES field.
+
+`observer_upload` should exist only in `CAPTURES`, not in `EGGS` or other field tables, unless the SQL source of truth is explicitly changed in future.
+
 Do not rename these fields without checking dependent app code, views, validators, tests, and downstream workflows.
 
 ### EGGS
@@ -618,7 +664,6 @@ photo_start
 photo_end
 harddrive_id
 comments
-observer_upload
 nov
 pk
 ```

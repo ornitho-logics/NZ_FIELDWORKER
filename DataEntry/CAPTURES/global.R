@@ -46,7 +46,8 @@ observers <- prepare_for_dropdown("OBSERVERS", "observer")
 prefilled <- list(
   date = format(Sys.Date(), "%Y-%m-%d"),
   species = "BADO",
-  site = "CR"
+  site = "CR",
+  falcon_upload = "0"
 )
 
 dropdowns <- list(

@@ -260,6 +260,40 @@ dashboardPage(
           plotOutput(
             "overview_show"
           )
+        ),
+        bs4Dash::box(
+          title = "Seasonal progression in geolocator deployments",
+          width = 12,
+          collapsible = TRUE,
+          collapsed = FALSE,
+          height = "50vh",
+          style = "overflow: hidden;",
+          plotOutput(
+            "overview_geolocator_show"
+          )
+        ),
+        bs4Dash::box(
+          title = "Seasonal progression in lay date",
+          width = 12,
+          collapsible = TRUE,
+          collapsed = FALSE,
+          height = "50vh",
+          style = "overflow: hidden;",
+          plotOutput(
+            "overview_lay_date_show"
+          )
+        ),
+        bs4Dash::box(
+          title = "Current quotas for manipulations",
+          width = 12,
+          collapsible = TRUE,
+          collapsed = FALSE,
+          height = "40vh",
+          style = "overflow: hidden;",
+          plotOutput(
+            "overview_quota_show",
+            height = "32vh"
+          )
         )
       ),
 

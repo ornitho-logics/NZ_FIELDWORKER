@@ -122,6 +122,36 @@ function(input, output, session) {
     }
   )
 
+  output$overview_geolocator_show <- renderPlot(
+    {
+      try_else(
+        overview_geolocator_graph(active_refdate()),
+        fallback_ggplot,
+        fail = 'overview_geolocator_graph() failed!'
+      )
+    }
+  )
+
+  output$overview_lay_date_show <- renderPlot(
+    {
+      try_else(
+        overview_lay_date_graph(active_refdate()),
+        fallback_ggplot,
+        fail = 'overview_lay_date_graph() failed!'
+      )
+    }
+  )
+
+  output$overview_quota_show <- renderPlot(
+    {
+      try_else(
+        overview_quota_graph(active_refdate()),
+        fallback_ggplot,
+        fail = 'overview_quota_graph() failed!'
+      )
+    }
+  )
+
   output$new_data <- renderUI({
     entry_classes <- fifelse(
       dbtabs_entry %in% c("inspectors", "spatial_objects"),

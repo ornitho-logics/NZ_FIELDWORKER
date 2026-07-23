@@ -139,3 +139,167 @@ overview_lay_date_graph <- function(refdate = get_reference_date()) {
     ylab = "N estimated lay dates"
   )
 }
+
+
+overview_quota_pie_plot <- function(title, value, quota, fill = "#6d7577") {
+  value <- as.integer(value %||% 0L)
+  quota <- as.integer(quota)
+
+  shown_value <- max(value, 0L)
+  filled_value <- min(shown_value, quota)
+
+  x <- data.table(
+    segment = factor(
+      c("filled", "remaining"),
+      levels = c("filled", "remaining")
+    ),
+    n = c(filled_value, quota - filled_value)
+  )
+
+  ggplot(
+    x,
+    aes(x = "", y = n, fill = segment)
+  ) +
+    geom_col(
+      width = 1,
+      color = "#8b9395",
+      linewidth = 0.35
+    ) +
+    coord_polar(theta = "y") +
+    scale_fill_manual(
+      values = c(
+        filled = fill,
+        remaining = "white"
+      )
+    ) +
+    guides(fill = "none") +
+    labs(
+      title = title,
+      subtitle = glue("{shown_value} / {quota}")
+    ) +
+    theme_void(base_size = 16) +
+    theme(
+      plot.title = element_text(
+        hjust = 0.5,
+        face = "bold",
+        size = 16
+      ),
+      plot.subtitle = element_text(
+        hjust = 0.5,
+        face = "bold",
+        size = 13
+      )
+    )
+}
+
+
+overview_quota_graph <- function(refdate = get_reference_date()) {
+  refdate <- as.Date(refdate)
+
+  geolocators <- db_get(
+    "
+    SELECT COUNT(DISTINCT pk) AS n
+    FROM CAPTURES
+    WHERE tag_type = 'GEO'
+      AND tag_action = 'D'
+      AND date IS NOT NULL
+      AND date <= ?
+    ",
+    params = list(as.character(refdate))
+  )
+
+  non_geolocators <- db_get(
+    "
+    SELECT COUNT(DISTINCT pk) AS n
+    FROM CAPTURES
+    WHERE age = 'A'
+      AND date IS NOT NULL
+      AND date <= ?
+      AND (
+        NULLIF(TRIM(blood_samp), '') IS NOT NULL
+        OR breast_samp = '1'
+        OR primary_samp = '1'
+      )
+      AND (
+        NULLIF(TRIM(tag_id), '') IS NULL
+        OR tag_action = 'O'
+      )
+    ",
+    params = list(as.character(refdate))
+  )
+
+  chicks <- db_get(
+    "
+    SELECT COUNT(DISTINCT pk) AS n
+    FROM CAPTURES
+    WHERE age = 'C'
+      AND date IS NOT NULL
+      AND date <= ?
+      AND NULLIF(TRIM(blood_samp), '') IS NOT NULL
+    ",
+    params = list(as.character(refdate))
+  )
+
+  eggs <- db_get(
+    "
+    SELECT COUNT(
+      DISTINCT CONCAT(TRIM(nest_id), '|', egg_id)
+    ) AS n
+    FROM EGGS
+    WHERE date IS NOT NULL
+      AND date <= ?
+      AND NULLIF(TRIM(nest_id), '') IS NOT NULL
+      AND egg_id IS NOT NULL
+    ",
+    params = list(as.character(refdate))
+  )
+
+  quota_counts <- data.table(
+    title = c(
+      "Eggs floated",
+      "Geolocators deployed",
+      "Non-geolocator captures",
+      "Chicks processed"
+    ),
+    value = c(
+      eggs$n[1] %||% 0L,
+      geolocators$n[1] %||% 0L,
+      non_geolocators$n[1] %||% 0L,
+      chicks$n[1] %||% 0L
+    ),
+    quota = c(450L, 100L, 200L, 500L)
+  )
+
+  plots <- lapply(
+    seq_len(nrow(quota_counts)),
+    function(i) {
+      overview_quota_pie_plot(
+        title = quota_counts$title[i],
+        value = quota_counts$value[i],
+        quota = quota_counts$quota[i]
+      )
+    }
+  )
+
+  grid::grid.newpage()
+  grid::pushViewport(
+    grid::viewport(
+      layout = grid::grid.layout(
+        nrow = 1,
+        ncol = length(plots)
+      )
+    )
+  )
+
+  for (i in seq_along(plots)) {
+    print(
+      plots[[i]],
+      vp = grid::viewport(
+        layout.pos.row = 1,
+        layout.pos.col = i
+      )
+    )
+  }
+
+  invisible(plots)
+}
