@@ -1,3 +1,14 @@
+test_results <- read.csv("../tests/test-results.csv")
+tests_ok <- test_results$failed[1] == 0
+
+app_test_status <- list(
+  text = glue::glue("{test_results$passed[1]} tests passed"),
+  badge = glue::glue("{test_results$failed[1]} failed"),
+  badge_color = if (tests_ok) "success" else "danger",
+  icon = if (tests_ok) "circle-check" else "circle-xmark",
+  icon_color = if (tests_ok) "#00815f" else "#d70427"
+)
+
 dashboardPage(
   scrollToTop = TRUE,
   dark = NULL,
@@ -248,67 +259,6 @@ dashboardPage(
           style = "overflow: hidden;",
           plotOutput(
             "overview_show"
-          )
-        ),
-        bs4Dash::box(
-          title = "Seasonal progression in geolocator deployments",
-          width = 12,
-          collapsible = TRUE,
-          collapsed = FALSE,
-          height = "50vh",
-          style = "overflow: hidden;",
-          plotOutput(
-            "overview_geolocator_show"
-          )
-        ),
-        bs4Dash::box(
-          title = "Seasonal progression in lay date",
-          width = 12,
-          collapsible = TRUE,
-          collapsed = FALSE,
-          height = "50vh",
-          style = "overflow: hidden;",
-          plotOutput(
-            "overview_lay_date_show"
-          )
-        ),
-        bs4Dash::box(
-          title = "Recent GPS track intensity",
-          width = 12,
-          collapsible = TRUE,
-          collapsed = TRUE,
-          maximizable = TRUE,
-          tags$p(
-            class = "small text-muted mb-3",
-            "Mock panel for Overview architecture. Uses fake GPS tracks and fake observers only."
-          ),
-          fluidRow(
-            column(
-              width = 4,
-              sliderInput(
-                inputId = "overview_gps_days_back",
-                label = "Days back:",
-                min = 1,
-                max = 30,
-                value = 7,
-                step = 1
-              )
-            ),
-            column(
-              width = 4,
-              uiOutput("overview_gps_refdate_text")
-            ),
-            column(
-              width = 4,
-              uiOutput("overview_gps_observers_ui")
-            )
-          ),
-          spinner(
-            leafletOutput(
-              outputId = "overview_gps_heatmap_show",
-              width = "100%",
-              height = "55vh"
-            )
           )
         )
       ),
