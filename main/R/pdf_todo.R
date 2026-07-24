@@ -73,6 +73,10 @@ todo_pdf_heading <- function(todo_name) {
       title = "Nests to check for potential hatch",
       subtitle = NULL
     ),
+    "take scrape photos" = list(
+      title = "Take scrape photos",
+      subtitle = NULL
+    ),
     "notA nest-check" = list(
       title = "Nests requiring a 'notA' closure visit",
       subtitle = NULL
