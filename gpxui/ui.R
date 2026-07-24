@@ -1,1 +1,1 @@
-gpx_ui()
+gpx_ui(gps_ids = GPS_IDS)
