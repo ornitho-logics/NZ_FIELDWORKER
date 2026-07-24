@@ -58,7 +58,27 @@ test_that("main app UI and entrypoint load", {
   expect_match(html, 'data-value="enter_data"', fixed = TRUE)
   expect_match(html, 'data-value="nest_map"', fixed = TRUE)
   expect_match(html, 'id="nest_map_show"', fixed = TRUE)
-  expect_match(html, 'id="OVERVIEW_show"', fixed = TRUE)
+  expect_match(html, 'id="overview_nests_show"', fixed = TRUE)
+  expect_match(html, 'id="overview_geolocator_show"', fixed = TRUE)
+  expect_match(html, 'id="overview_lay_date_show"', fixed = TRUE)
+  expect_match(html, 'id="overview_quota_show"', fixed = TRUE)
+  expect_true(is.function(app$env$overview_nests_graph))
+
+  for (output_id in c(
+    "overview_nests_show",
+    "overview_geolocator_show",
+    "overview_lay_date_show",
+    "overview_quota_show"
+  )) {
+    expect_equal(
+      htmltools::tagQuery(app$ui)$
+        find(glue::glue("#{output_id}"))$
+        closest(".shiny-spinner-output-container")$
+        length(),
+      1
+    )
+  }
+
   expect_contains(app$env$dbtabs_show_views, "OVERVIEW")
   expect_identical(tail(app$env$dbtabs_show_views, 1), "OVERVIEW")
   expect_setequal(

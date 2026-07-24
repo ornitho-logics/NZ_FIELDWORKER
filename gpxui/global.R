@@ -8,6 +8,6 @@ require(gpxui)
 options(shiny.maxRequestSize = 10 * 1024^4)
 
 #* Variables
-GPS_IDS <- 1:15
+GPS_IDS <- 1:20
 cnf_path <- Sys.getenv("GPXUI_CNF")
 group <- "nz_fieldworker"

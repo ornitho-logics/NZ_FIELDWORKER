@@ -257,8 +257,10 @@ dashboardPage(
           collapsed = FALSE,
           height = "50vh",
           style = "overflow: hidden;",
-          plotOutput(
-            "overview_show"
+          spinner(
+            plotOutput(
+              "overview_nests_show"
+            )
           )
         ),
         bs4Dash::box(
@@ -268,8 +270,10 @@ dashboardPage(
           collapsed = FALSE,
           height = "50vh",
           style = "overflow: hidden;",
-          plotOutput(
-            "overview_geolocator_show"
+          spinner(
+            plotOutput(
+              "overview_geolocator_show"
+            )
           )
         ),
         bs4Dash::box(
@@ -279,8 +283,10 @@ dashboardPage(
           collapsed = FALSE,
           height = "50vh",
           style = "overflow: hidden;",
-          plotOutput(
-            "overview_lay_date_show"
+          spinner(
+            plotOutput(
+              "overview_lay_date_show"
+            )
           )
         ),
         bs4Dash::box(
@@ -290,9 +296,11 @@ dashboardPage(
           collapsed = FALSE,
           height = "40vh",
           style = "overflow: hidden;",
-          plotOutput(
-            "overview_quota_show",
-            height = "32vh"
+          spinner(
+            plotOutput(
+              "overview_quota_show",
+              height = "32vh"
+            )
           )
         )
       ),

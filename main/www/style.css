@@ -708,18 +708,6 @@ body {
   }
 }
 
-#overview_show {
-  height: 50vh !important;
-  max-height: 50vh !important;
-  overflow: hidden;
-}
-
-#overview_show img {
-  height: 100% !important;
-  max-height: 100% !important;
-  object-fit: contain;
-}
-
 #set_refdate.refdate-set-button {
   align-items: center;
   border: 0;
