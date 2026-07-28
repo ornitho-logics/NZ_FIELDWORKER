@@ -127,6 +127,7 @@ capture_adult_marks AS (
   CROSS JOIN sr
   WHERE c.nest_id IS NOT NULL
     AND TRIM(c.nest_id) <> ''
+    AND UPPER(TRIM(c.nest_id)) <> 'NO_NEST'
     AND c.age <> 'C'
     AND c.field_sex IN ('M', 'MU', 'F', 'FU')
     AND c.date <= sr.reference_date
@@ -690,6 +691,7 @@ chick_captures AS (
   CROSS JOIN sr
   WHERE c.nest_id IS NOT NULL
     AND TRIM(c.nest_id) <> ''
+    AND UPPER(TRIM(c.nest_id)) <> 'NO_NEST'
     AND c.age = 'C'
     AND c.date <= sr.reference_date
   GROUP BY c.nest_id
@@ -765,6 +767,7 @@ adult_capture_latest AS (
     CROSS JOIN sr
     WHERE c.nest_id IS NOT NULL
       AND TRIM(c.nest_id) <> ''
+      AND UPPER(TRIM(c.nest_id)) <> 'NO_NEST'
       AND c.age = 'A'
       AND c.field_sex IN ('M', 'MU', 'F', 'FU')
       AND c.date <= sr.reference_date
@@ -800,6 +803,7 @@ adult_capture_timing AS (
   CROSS JOIN sr
   WHERE c.nest_id IS NOT NULL
     AND TRIM(c.nest_id) <> ''
+    AND UPPER(TRIM(c.nest_id)) <> 'NO_NEST'
     AND c.age = 'A'
     AND c.field_sex IN ('M', 'MU', 'F', 'FU')
     AND c.date <= sr.reference_date
@@ -823,6 +827,7 @@ adult_capture_any_timing AS (
   CROSS JOIN sr
   WHERE c.nest_id IS NOT NULL
     AND TRIM(c.nest_id) <> ''
+    AND UPPER(TRIM(c.nest_id)) <> 'NO_NEST'
     AND c.age = 'A'
     AND c.field_sex IN ('M', 'MU', 'F', 'FU', 'U')
     AND c.date <= sr.reference_date
