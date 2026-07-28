@@ -758,7 +758,7 @@ adult_capture_latest AS (
         PARTITION BY c.nest_id, LEFT(c.field_sex, 1)
         ORDER BY
           c.date DESC,
-          COALESCE(c.released, c.caught, c.cap_start, '00:00:00') DESC,
+          COALESCE(c.released, c.caught, '00:00:00') DESC,
           c.pk DESC
       ) AS row_num
     FROM FIELD_2026_BADOatNZ.CAPTURES c
@@ -792,7 +792,7 @@ adult_capture_timing AS (
         CONCAT(
           c.date,
           ' ',
-          COALESCE(c.released, c.caught, c.cap_start, '00:00:00')
+          COALESCE(c.released, c.caught, '00:00:00')
         ) AS DATETIME
       )
     ) AS last_capture_datetime
@@ -815,7 +815,7 @@ adult_capture_any_timing AS (
         CONCAT(
           c.date,
           ' ',
-          COALESCE(c.released, c.caught, c.cap_start, '00:00:00')
+          COALESCE(c.released, c.caught, '00:00:00')
         ) AS DATETIME
       )
     ) AS last_any_adult_capture_datetime
@@ -1359,18 +1359,21 @@ todo_nest_check AS (
     ON active_nests.nest_id = nest_check_schedule.nest_id
   LEFT JOIN adult_parent_status
     ON active_nests.nest_id = adult_parent_status.nest_id
-  WHERE (
-      active_nests.hatch_signs_present = 1
-      AND active_nests.days_ago >= 1
-    )
-    OR (
-      active_nests.nest_state = 'I'
-      AND nest_check_schedule.estimated_clutch_completion_date IS NOT NULL
-      AND DATEDIFF(
-            active_nests.reference_date,
-            nest_check_schedule.estimated_clutch_completion_date
-          ) >= nest_check_rules.start_day_after_completion
-      AND active_nests.days_ago >= nest_check_rules.repeat_interval_days
+  WHERE (active_nests.clutch_size IS NULL OR active_nests.clutch_size > 0)
+    AND (
+      (
+        active_nests.hatch_signs_present = 1
+        AND active_nests.days_ago >= 1
+      )
+      OR (
+        active_nests.nest_state = 'I'
+        AND nest_check_schedule.estimated_clutch_completion_date IS NOT NULL
+        AND DATEDIFF(
+              active_nests.reference_date,
+              nest_check_schedule.estimated_clutch_completion_date
+            ) >= nest_check_rules.start_day_after_completion
+        AND active_nests.days_ago >= nest_check_rules.repeat_interval_days
+      )
     )
 ),
 todo_untrapped_brood AS (
