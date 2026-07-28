@@ -42,7 +42,7 @@ overview_histogram_plot <- function(x, ylab) {
 }
 
 
-overview_graph <- function(refdate = get_reference_date()) {
+overview_nests_graph <- function(refdate = get_reference_date()) {
   refdate <- as.Date(refdate)
 
   x <- db_get(
@@ -142,10 +142,10 @@ overview_lay_date_graph <- function(refdate = get_reference_date()) {
 
 
 overview_quota_pie_plot <- function(title, value, quota, fill = "#6d7577") {
-  value <- as.integer(value %||% 0L)
+  value <- as.integer(value %||% 0)
   quota <- as.integer(quota)
 
-  shown_value <- max(value, 0L)
+  shown_value <- max(value, 0)
   filled_value <- min(shown_value, quota)
 
   x <- data.table(
@@ -198,7 +198,7 @@ overview_quota_graph <- function(refdate = get_reference_date()) {
 
   geolocators <- db_get(
     "
-    SELECT COUNT(DISTINCT pk) AS n
+    SELECT COUNT(DISTINCT NULLIF(TRIM(tag_id), '')) AS n
     FROM CAPTURES
     WHERE tag_type = 'GEO'
       AND tag_action = 'D'
@@ -262,12 +262,12 @@ overview_quota_graph <- function(refdate = get_reference_date()) {
       "Chicks processed"
     ),
     value = c(
-      eggs$n[1] %||% 0L,
-      geolocators$n[1] %||% 0L,
-      non_geolocators$n[1] %||% 0L,
-      chicks$n[1] %||% 0L
+      eggs$n[1] %||% 0,
+      geolocators$n[1] %||% 0,
+      non_geolocators$n[1] %||% 0,
+      chicks$n[1] %||% 0
     ),
-    quota = c(450L, 100L, 200L, 500L)
+    quota = c(450, 100, 200, 500)
   )
 
   plots <- lapply(

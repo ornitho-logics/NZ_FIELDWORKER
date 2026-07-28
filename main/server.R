@@ -22,39 +22,47 @@ function(input, output, session) {
     refdate
   })
 
-  observeEvent(reference_date(), {
-    req(!isTRUE(refdate_today_notice_shown()))
+  observeEvent(
+    reference_date(),
+    {
+      req(!isTRUE(refdate_today_notice_shown()))
 
-    refdate <- as.Date(reference_date())
-    req(!is.na(refdate))
+      refdate <- as.Date(reference_date())
+      req(!is.na(refdate))
 
-    preferred_today <- as.Date(Sys.time(), tz = preferred_timezone)
+      preferred_today <- as.Date(Sys.time(), tz = preferred_timezone)
 
-    if (!same_refdate(refdate, preferred_today)) {
-      refdate_today_notice_shown(TRUE)
-      WarnToast(glue(
-        "Reference date is {refdate}, but today in ",
-        "{preferred_timezone} is {preferred_today}."
-      ))
-    }
-  }, ignoreInit = FALSE)
+      if (!same_refdate(refdate, preferred_today)) {
+        refdate_today_notice_shown(TRUE)
+        WarnToast(glue(
+          "Reference date is {refdate}, but today for time-zone",
+          "{preferred_timezone} is {preferred_today}."
+        ))
+      }
+    },
+    ignoreInit = FALSE
+  )
 
-  observeEvent(db_reference_date(), {
-    refdate <- as.Date(db_reference_date())
-    pending <- pending_refdate()
+  observeEvent(
+    db_reference_date(),
+    {
+      refdate <- as.Date(db_reference_date())
+      pending <- pending_refdate()
 
-    if (!is.null(pending) && !same_refdate(refdate, pending)) {
-      return()
-    }
+      if (!is.null(pending) && !same_refdate(refdate, pending)) {
+        return()
+      }
 
-    if (!is.null(pending)) {
-      pending_refdate(NULL)
-    }
+      if (!is.null(pending)) {
+        pending_refdate(NULL)
+      }
 
-    if (!same_refdate(refdate, isolate(reference_date()))) {
-      reference_date(refdate)
-    }
-  }, ignoreInit = FALSE)
+      if (!same_refdate(refdate, isolate(reference_date()))) {
+        reference_date(refdate)
+      }
+    },
+    ignoreInit = FALSE
+  )
 
   observe({
     refdate <- reference_date()
@@ -112,12 +120,12 @@ function(input, output, session) {
     )
   })
 
-  output$overview_show <- renderPlot(
+  output$overview_nests_show <- renderPlot(
     {
       try_else(
-        overview_graph(active_refdate()),
+        overview_nests_graph(active_refdate()),
         fallback_ggplot,
-        fail = 'overview_graph() failed!'
+        fail = 'overview_nests_graph() failed!'
       )
     }
   )
