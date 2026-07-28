@@ -14,14 +14,6 @@ todo_pdf_prepare <- function(todo = DBq("SELECT * FROM TODO_LIST")) {
     todo_dt[, let(days_overdue = NA_real_)]
   }
 
-  for (nm in c("clutch_size", "brood_size", "min_days_to_hatch", "last_visit_days_ago")) {
-    if (nm %in% names(todo_dt)) {
-      todo_dt[, (nm) := as.numeric(get(nm))]
-    } else {
-      todo_dt[, (nm) := NA_real_]
-    }
-  }
-
   if ("overdue_label" %in% names(todo_dt)) {
     todo_dt[, let(overdue_label = as.character(overdue_label))]
   } else {
