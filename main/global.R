@@ -70,10 +70,13 @@ dbtabs_show_tables <- c(
 
 dbtabs_show_views <- c(
   "TODO_LIST",
+  "AVAILABLE_COMBOS",
   "NESTS_LATEST",
   "CAPTURES_ARCHIVE",
   "EGGS_HATCH_PREDICTION",
-  "OVERVIEW"
+  "OVERVIEW",
+  "VIEW_1",
+  "VIEW_2"
 )
 
 # watch list for View updates
