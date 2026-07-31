@@ -107,6 +107,17 @@ dbtable_is_updated <- function(tab) {
 }
 
 
+dbview_is_updated <- function(view) {
+  sources <- dbtabs_show_view_sources[[view]]
+
+  if (is.null(sources)) {
+    return(glue("{view}:unmapped"))
+  }
+
+  glue("{view}:{dbtable_is_updated(sources)}")
+}
+
+
 showTable <- function(tab, exclude = c("pk", "nov"), formatDate = TRUE) {
   tryCatch(
     {
@@ -146,21 +157,11 @@ showTable <- function(tab, exclude = c("pk", "nov"), formatDate = TRUE) {
       o
     },
     error = function(e) {
-      ddl <- tryCatch(
-        {
-          x <- db_get(glue("SHOW CREATE VIEW {tab};"))
-          as.character(htmlEscape(x[["Create View"]][1]))
-        },
-        error = function(e) NULL
-      )
-
-      if (is.null(ddl)) {
-        return(data.table(error = conditionMessage(e)))
-      }
-
       data.table(
-        error = conditionMessage(e),
-        ddl = ddl
+        error = glue(
+          "Database object '{tab}' is unavailable. ",
+          "Open the database interface to inspect or repair it."
+        )
       )
     }
   )

@@ -1,21 +1,32 @@
-TABLE_show <- function(x, session, watch = x) {
+TABLE_show <- function(x, session, view = FALSE) {
+  get_data <- reactivePoll(
+    10000,
+    session = session,
+    checkFunc = function() {
+      if (view) {
+        return(dbview_is_updated(x))
+      }
+
+      dbtable_is_updated(x)
+    },
+    valueFunc = function() {
+      if (is.character(x)) {
+        return(showTable(x))
+      }
+
+      x
+    }
+  )
+
   DT::renderDataTable(
     {
-      get_data <- reactivePoll(
-        5000,
-        session = session,
-        checkFunc = function() {
-          dbtable_is_updated(watch)
-        },
-        valueFunc = function() {
-          if (is.character(x)) {
-            return(showTable(x))
-          } else {
-            return(x)
-          }
-        }
-      )
-      get_data()
+      o <- get_data()
+
+      if ("error" %in% names(o)) {
+        validate(need(FALSE, o$error[1]))
+      }
+
+      o
     },
     server = FALSE,
     rownames = FALSE,
