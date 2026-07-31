@@ -1,4 +1,47 @@
-todo_pdf_prepare <- function(todo = DBq("SELECT * FROM TODO_LIST")) {
+todo_pdf_prepare_team_marks <- function(available_combos = NULL) {
+  if (is.null(available_combos)) {
+    available_combos <- tryCatch(
+      DBq("
+        SELECT mark
+        FROM AVAILABLE_COMBOS
+        WHERE site_code = 'CR'
+        ORDER BY LL, LR
+      "),
+      error = function(e) data.table(mark = character())
+    )
+  }
+
+  combos_dt <- data.table(available_combos)
+  marks <- if ("mark" %in% names(combos_dt)) {
+    as.character(combos_dt$mark)
+  } else {
+    character()
+  }
+
+  marks <- trimws(marks)
+  marks <- marks[!is.na(marks) & nzchar(marks)]
+  marks <- head(marks, 30)
+
+  if (length(marks) < 30) {
+    marks <- c(marks, rep("", 30 - length(marks)))
+  }
+
+  team_marks <- as.data.table(
+    matrix(marks, nrow = 3, byrow = TRUE)
+  )
+
+  setnames(team_marks, as.character(seq_len(ncol(team_marks))))
+  team_marks[, Team := c("Team 1", "Team 2", "Team 3")]
+  setcolorder(team_marks, c("Team", as.character(seq_len(10))))
+
+  team_marks
+}
+
+
+todo_pdf_prepare <- function(
+  todo = DBq("SELECT * FROM TODO_LIST"),
+  available_combos = NULL
+) {
   todo_dt <- data.table(todo)
   refdate <- as.Date(todo_dt$reference_date[1])
 
@@ -50,7 +93,8 @@ todo_pdf_prepare <- function(todo = DBq("SELECT * FROM TODO_LIST")) {
 
   list(
     title = glue("Cass To-Dos for {refdate}"),
-    rows = rows
+    rows = rows,
+    team_marks = todo_pdf_prepare_team_marks(available_combos)
   )
 }
 
@@ -88,45 +132,61 @@ todo_pdf_heading <- function(todo_name) {
   )
 }
 
-todo_pdf_body <- function(rows) {
-  if (!nrow(rows)) {
-    return("No to-do items.")
-  }
-
+todo_pdf_body <- function(rows, team_marks = NULL) {
   out <- character()
-  table_cols <- setdiff(names(rows), "Todo")
+  if (!nrow(rows)) {
+    out <- c(out, "No to-do items.", "")
+  } else {
+    table_cols <- setdiff(names(rows), "Todo")
 
-  for (todo in unique(rows$Todo)) {
-    todo_rows <- as.data.frame(rows[Todo == todo, ..table_cols])
-    heading <- todo_pdf_heading(todo)
+    for (todo in unique(rows$Todo)) {
+      todo_rows <- as.data.frame(rows[Todo == todo, ..table_cols])
+      heading <- todo_pdf_heading(todo)
 
-    if (!(todo %in% c("notA nest-check", "Hiding spot photos needed"))) {
-      names(todo_rows)[names(todo_rows) == "Hatch"] <- "Est. Hatch"
-    }
+      if (!(todo %in% c("notA nest-check", "Hiding spot photos needed"))) {
+        names(todo_rows)[names(todo_rows) == "Hatch"] <- "Est. Hatch"
+      }
 
-    out <- c(
-      out,
-      glue("## {heading$title}"),
-      ""
-    )
-
-    if (!is.null(heading$subtitle)) {
       out <- c(
         out,
-        glue("*{heading$subtitle}*"),
+        glue("## {heading$title}"),
+        ""
+      )
+
+      if (!is.null(heading$subtitle)) {
+        out <- c(
+          out,
+          glue("*{heading$subtitle}*"),
+          ""
+        )
+      }
+
+      out <- c(
+        out,
+        knitr::kable(
+          todo_rows,
+          format = "pipe",
+          align = c(rep("c", ncol(todo_rows) - 1), "l")
+        ),
+        "",
+        ': {tbl-colwidths="[12,7,5,6,6,8,9,11,11,25]"}',
         ""
       )
     }
+  }
 
+  if (!is.null(team_marks) && nrow(team_marks)) {
     out <- c(
       out,
+      "## Team marks",
+      "",
       knitr::kable(
-        todo_rows,
+        as.data.frame(team_marks),
         format = "pipe",
-        align = c(rep("c", ncol(todo_rows) - 1), "l")
+        align = rep("c", ncol(team_marks))
       ),
       "",
-      ': {tbl-colwidths="[12,7,5,6,6,8,9,11,11,25]"}',
+      ': {tbl-colwidths="[12,8,8,8,8,8,8,8,8,8,8]"}',
       ""
     )
   }
@@ -138,7 +198,7 @@ todo_pdf_qmd <- function(
   pdf,
   template = file.path("templates", "todo_pdf.qmd")
 ) {
-  body <- todo_pdf_body(pdf$rows)
+  body <- todo_pdf_body(pdf$rows, pdf$team_marks)
   out <- character()
 
   for (line in readLines(template)) {
@@ -158,9 +218,10 @@ todo_pdf_qmd <- function(
 
 todo_pdf_save <- function(
   file,
-  todo = DBq("SELECT * FROM TODO_LIST")
+  todo = DBq("SELECT * FROM TODO_LIST"),
+  available_combos = NULL
 ) {
-  pdf <- todo_pdf_prepare(todo)
+  pdf <- todo_pdf_prepare(todo, available_combos)
   workdir <- tempfile("todo_pdf_")
   dir.create(workdir)
   on.exit(unlink(workdir, recursive = TRUE), add = TRUE)

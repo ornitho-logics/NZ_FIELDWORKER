@@ -36,6 +36,220 @@ LEFT JOIN (
   ON TRIM(c.ring) = sex_lookup.ring;
 
 
+CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.USED_COMBOS_DETAIL AS
+
+WITH sr AS (
+  SELECT value AS reference_date
+  FROM FIELD_2026_BADOatNZ.settings
+  WHERE variable = 'reference_date'
+    AND value IS NOT NULL
+),
+historical_used_marks AS (
+  SELECT
+    'CAPTURES_ARCHIVE' AS source_table,
+    'release' AS source_stage,
+    NULLIF(TRIM(ca.ring), '') AS ring,
+    ca.date AS date_,
+    ca.capture_status,
+    NULLIF(UPPER(TRIM(ca.UL)), '') AS UL_raw,
+    NULLIF(UPPER(TRIM(ca.LL)), '') AS LL_raw,
+    NULLIF(UPPER(TRIM(ca.UR)), '') AS UR_raw,
+    NULLIF(UPPER(TRIM(ca.LR)), '') AS LR_raw
+  FROM FIELD_2026_BADOatNZ.CAPTURES_ARCHIVE ca
+  CROSS JOIN sr
+  WHERE ca.date <= sr.reference_date
+     OR ca.date IS NULL
+),
+current_used_marks_release AS (
+  SELECT
+    'CAPTURES' AS source_table,
+    'release' AS source_stage,
+    NULLIF(TRIM(c.ring), '') AS ring,
+    c.date AS date_,
+    c.capture_status,
+    NULLIF(UPPER(TRIM(c.UL)), '') AS UL_raw,
+    NULLIF(UPPER(TRIM(c.LL)), '') AS LL_raw,
+    NULLIF(UPPER(TRIM(c.UR)), '') AS UR_raw,
+    NULLIF(UPPER(TRIM(c.LR)), '') AS LR_raw
+  FROM FIELD_2026_BADOatNZ.CAPTURES c
+  CROSS JOIN sr
+  WHERE c.date <= sr.reference_date
+     OR c.date IS NULL
+),
+current_used_marks_input AS (
+  SELECT
+    'CAPTURES' AS source_table,
+    'input' AS source_stage,
+    NULLIF(TRIM(c.ring), '') AS ring,
+    c.date AS date_,
+    c.capture_status,
+    NULLIF(UPPER(TRIM(c.UL_in)), '') AS UL_raw,
+    NULLIF(UPPER(TRIM(c.LL_in)), '') AS LL_raw,
+    NULLIF(UPPER(TRIM(c.UR_in)), '') AS UR_raw,
+    NULLIF(UPPER(TRIM(c.LR_in)), '') AS LR_raw
+  FROM FIELD_2026_BADOatNZ.CAPTURES c
+  CROSS JOIN sr
+  WHERE c.date <= sr.reference_date
+     OR c.date IS NULL
+),
+used_marks_raw AS (
+  SELECT * FROM historical_used_marks
+  UNION ALL
+  SELECT * FROM current_used_marks_release
+  UNION ALL
+  SELECT * FROM current_used_marks_input
+),
+used_marks_prepped AS (
+  SELECT
+    source_table,
+    source_stage,
+    ring,
+    date_,
+    capture_status,
+    UL_raw,
+    LL_raw,
+    UR_raw,
+    LR_raw,
+    CASE
+      WHEN UR_raw REGEXP '^T[A-Z0-9]*[BGROWLY]$'
+      THEN CONCAT('T', RIGHT(UR_raw, 1))
+      ELSE UR_raw
+    END AS UR_tag_norm
+  FROM used_marks_raw
+  WHERE COALESCE(UL_raw, LL_raw, UR_raw, LR_raw) IS NOT NULL
+),
+used_marks_normalized AS (
+  SELECT
+    source_table,
+    source_stage,
+    ring,
+    date_,
+    capture_status,
+    UL_raw,
+    LL_raw,
+    UR_raw,
+    LR_raw,
+    UR_tag_norm,
+    CASE
+      WHEN UL_raw REGEXP '^[BGROWLY]$'
+       AND LL_raw REGEXP '^[BGROWLY]$'
+      THEN CONCAT(UL_raw, LL_raw)
+      WHEN COALESCE(UL_raw, 'X') IN ('X', 'M')
+       AND LL_raw REGEXP '^[BGROWLY]{2}$'
+      THEN LL_raw
+      WHEN COALESCE(LL_raw, 'X') IN ('X', 'M')
+       AND UL_raw REGEXP '^[BGROWLY]{2}$'
+      THEN UL_raw
+      ELSE NULL
+    END AS LL,
+    CASE
+      WHEN UR_tag_norm REGEXP '^T[BGROWLY]$'
+       AND LR_raw REGEXP '^[BGROWLY]$'
+      THEN CONCAT(SUBSTRING(UR_tag_norm, 2, 1), LR_raw)
+      WHEN UR_tag_norm REGEXP '^[BGROWLY]$'
+       AND LR_raw REGEXP '^[BGROWLY]$'
+      THEN CONCAT(UR_tag_norm, LR_raw)
+      WHEN COALESCE(UR_tag_norm, 'X') IN ('X', 'M')
+       AND LR_raw REGEXP '^[BGROWLY]{2}$'
+      THEN LR_raw
+      WHEN COALESCE(LR_raw, 'X') IN ('X', 'M')
+       AND UR_tag_norm REGEXP '^[BGROWLY]{2}$'
+      THEN UR_tag_norm
+      ELSE NULL
+    END AS LR
+  FROM used_marks_prepped
+)
+SELECT
+  source_table,
+  source_stage,
+  ring,
+  date_,
+  capture_status,
+  UL_raw,
+  LL_raw,
+  UR_raw,
+  LR_raw,
+  UR_tag_norm,
+  LL,
+  LR,
+  CASE
+    WHEN LL REGEXP '^[BGROWLY]{2}$'
+     AND LR REGEXP '^[BGROWLY]{2}$'
+    THEN FIELD_2026_BADOatNZ.format_mark('X', LL, 'X', LR)
+    ELSE NULL
+  END AS mark,
+  CASE
+    WHEN LL REGEXP '^[BGROWLY]{2}$'
+     AND LR REGEXP '^[BGROWLY]{2}$'
+    THEN 1
+    ELSE 0
+  END AS is_normalizable
+FROM used_marks_normalized;
+
+
+CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.AVAILABLE_COMBOS AS
+
+WITH colours AS (
+  SELECT 'B' AS colour
+  UNION ALL SELECT 'G'
+  UNION ALL SELECT 'R'
+  UNION ALL SELECT 'O'
+  UNION ALL SELECT 'W'
+  UNION ALL SELECT 'L'
+  UNION ALL SELECT 'Y'
+),
+lr_pairs AS (
+  SELECT
+    CONCAT(c1.colour, c2.colour) AS LR,
+    c1.colour AS lr_first
+  FROM colours c1
+  CROSS JOIN colours c2
+),
+site_rules AS (
+  SELECT 'CR' AS site_code, 'OY' AS LL, NULL AS lr_first_rule
+  UNION ALL SELECT 'CR', 'YR', NULL
+  UNION ALL SELECT 'CR', 'YO', NULL
+  UNION ALL SELECT 'CR', 'YY', NULL
+  UNION ALL SELECT 'CR', 'LY', NULL
+  UNION ALL SELECT 'CR', 'BY', NULL
+  UNION ALL SELECT 'CR', 'WY', NULL
+  UNION ALL SELECT 'AR', 'BW', NULL
+  UNION ALL SELECT 'WN', 'WO', 'B'
+  UNION ALL SELECT 'WN', 'WO', 'G'
+  UNION ALL SELECT 'WN', 'WO', 'R'
+  UNION ALL SELECT 'WS', 'WO', 'O'
+  UNION ALL SELECT 'WS', 'WO', 'W'
+  UNION ALL SELECT 'WS', 'WO', 'Y'
+),
+candidate_combos AS (
+  SELECT DISTINCT
+    CAST(r.site_code AS CHAR(2)) AS site_code,
+    CAST(r.LL AS CHAR(10)) AS LL,
+    CAST(p.LR AS CHAR(10)) AS LR
+  FROM site_rules r
+  JOIN lr_pairs p
+    ON r.lr_first_rule IS NULL
+    OR p.lr_first = r.lr_first_rule
+),
+used_combos AS (
+  SELECT DISTINCT
+    CAST(ucd.LL AS CHAR(10)) AS LL,
+    CAST(ucd.LR AS CHAR(10)) AS LR
+  FROM FIELD_2026_BADOatNZ.USED_COMBOS_DETAIL ucd
+  WHERE ucd.is_normalizable = 1
+)
+SELECT
+  candidate.site_code,
+  FIELD_2026_BADOatNZ.format_mark('X', candidate.LL, 'X', candidate.LR) AS mark,
+  candidate.LL,
+  candidate.LR
+FROM candidate_combos candidate
+LEFT JOIN used_combos used
+  ON candidate.LL = used.LL
+ AND candidate.LR = used.LR
+WHERE used.LL IS NULL;
+
+
 CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.NESTS_LATEST AS
 
 WITH sr AS (
