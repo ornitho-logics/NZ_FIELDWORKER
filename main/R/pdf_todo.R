@@ -231,6 +231,8 @@ todo_pdf_body <- function(rows, team_marks = NULL) {
       out,
       "## Team marks",
       "",
+      "*Use non-Lime 1.5x bands for the geolocator spacer on the tibia, and 2x bands on the tarsi*",
+      "",
       knitr::kable(
         as.data.frame(team_marks),
         format = "pipe",
