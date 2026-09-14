@@ -80,7 +80,6 @@ test_that("main app UI and entrypoint load", {
   }
 
   expect_contains(app$env$dbtabs_show_views, "OVERVIEW")
-  expect_identical(tail(app$env$dbtabs_show_views, 1), "OVERVIEW")
   expect_setequal(
     app$env$dbtabs_show_view_sources[["OVERVIEW"]],
     c(

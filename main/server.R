@@ -214,7 +214,7 @@ function(input, output, session) {
     output[[glue("{tab}_show")]] <- TABLE_show(
       tab,
       session,
-      watch = dbtabs_show_view_sources[[tab]] %||% tab
+      view = TRUE
     )
   })
 

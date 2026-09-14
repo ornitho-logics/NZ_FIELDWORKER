@@ -62,7 +62,6 @@ dbtabs_show_tables <- c(
   "RESIGHTINGS",
   "RESIGHTINGS_PUBLIC",
   "GPS_POINTS",
-  "GPS_TRACKS",
   "settings",
   "predict_hatching"
 )
@@ -70,10 +69,13 @@ dbtabs_show_tables <- c(
 
 dbtabs_show_views <- c(
   "TODO_LIST",
+  "AVAILABLE_COMBOS",
   "NESTS_LATEST",
   "CAPTURES_ARCHIVE",
   "EGGS_HATCH_PREDICTION",
-  "OVERVIEW"
+  "OVERVIEW",
+  "VIEW_1",
+  "VIEW_2"
 )
 
 # watch list for View updates
@@ -147,4 +149,4 @@ kmz_nest_state_cols <- c(
 
 #! etc
 
-ver <- "v 4.2.3"
+ver <- "v 4.2.5"

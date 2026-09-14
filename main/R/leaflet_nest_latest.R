@@ -30,14 +30,13 @@ live_nest_leaflet <- function(
   overlay_groups <- character()
 
   m <- leaflet(options = leafletOptions(zoomControl = TRUE)) |>
-    addProviderTiles(providers$CartoDB.PositronNoLabels, group = "Print Map") |>
     addProviderTiles(providers$OpenStreetMap, group = "Street Map") |>
     addProviderTiles(providers$Esri.WorldImagery, group = "Satellite")
 
   finish_map <- function(map, overlay_groups = character()) {
     map <- map |>
       addLayersControl(
-        baseGroups = c("Print Map", "Street Map", "Satellite"),
+        baseGroups = c("Street Map", "Satellite"),
         overlayGroups = overlay_groups,
         options = layersControlOptions(collapsed = TRUE)
       )
