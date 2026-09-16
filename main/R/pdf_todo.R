@@ -183,7 +183,7 @@ todo_pdf_note_key <- function() {
   )
 }
 
-todo_pdf_body <- function(rows, team_marks = NULL) {
+todo_pdf_body <- function(rows, team_marks = NULL, map_file = NULL) {
   out <- todo_pdf_note_key()
   if (!nrow(rows)) {
     out <- c(out, "No to-do items.", "")
@@ -244,14 +244,26 @@ todo_pdf_body <- function(rows, team_marks = NULL) {
     )
   }
 
+  if (!is.null(map_file)) {
+    out <- c(
+      out,
+      "```{=typst}",
+      "#pagebreak()",
+      glue('#align(center)[#image("{map_file}", width: 100%)]'),
+      "```",
+      ""
+    )
+  }
+
   out
 }
 
 todo_pdf_qmd <- function(
   pdf,
+  map_file = NULL,
   template = file.path("templates", "todo_pdf.qmd")
 ) {
-  body <- todo_pdf_body(pdf$rows, pdf$team_marks)
+  body <- todo_pdf_body(pdf$rows, pdf$team_marks, map_file)
   out <- character()
 
   for (line in readLines(template)) {
@@ -272,7 +284,8 @@ todo_pdf_qmd <- function(
 todo_pdf_save <- function(
   file,
   todo = DBq("SELECT * FROM TODO_LIST"),
-  available_combos = NULL
+  available_combos = NULL,
+  spatial_objects = NULL
 ) {
   pdf <- todo_pdf_prepare(todo, available_combos)
   workdir <- tempfile("todo_pdf_")
@@ -281,8 +294,21 @@ todo_pdf_save <- function(
 
   qmd <- file.path(workdir, "todo.qmd")
   output <- file.path(workdir, "todo.pdf")
+  map_file <- file.path(workdir, "todo_map.png")
 
-  writeLines(todo_pdf_qmd(pdf), qmd)
+  if (is.null(spatial_objects)) {
+    spatial_objects <- DBq(
+      "SELECT * FROM spatial_objects WHERE variable = 'study_area'"
+    )
+  }
+
+  todo_pdf_map_save(
+    file = map_file,
+    todo = todo,
+    spatial_objects = spatial_objects
+  )
+
+  writeLines(todo_pdf_qmd(pdf, basename(map_file)), qmd)
   quarto_render(
     input = qmd,
     output_format = "typst",
