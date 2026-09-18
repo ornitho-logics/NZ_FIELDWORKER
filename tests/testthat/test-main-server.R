@@ -180,14 +180,37 @@ test_that("overview cumulative ribbons contain no diagonal segments", {
     sex_counts,
     ylab = "Cumulative count",
     sex_split = TRUE,
-    date_limits = as.Date(c("2026-08-01", "2026-08-10"))
+    date_limits = as.Date(c("2026-08-01", "2026-08-10")),
+    summary_label = "Number of females = 2\nNumber of males = 2"
   )
 
   expect_silent(ggplot2::ggplot_build(plot))
   expect_identical(plot$theme$legend.position, "inside")
-  expect_equal(plot$theme$legend.position.inside, c(0.02, 0.98))
+  expect_equal(plot$theme$legend.position.inside, c(0.02, 0.76))
   expect_equal(
     plot$coordinates$limits$x,
     as.Date(c("2026-08-01", "2026-08-10"))
+  )
+  annotation_labels <- unlist(lapply(plot$layers, function(layer) {
+    if (!is.null(layer$aes_params$label)) {
+      return(as.character(layer$aes_params$label))
+    }
+
+    character()
+  }))
+
+  expect_contains(
+    annotation_labels,
+    "Number of females = 2\nNumber of males = 2"
+  )
+  annotation_layer <- plot$layers[[which(vapply(
+    plot$layers,
+    function(layer) !is.null(layer$aes_params$label),
+    logical(1)
+  ))]]
+  expect_equal(annotation_layer$aes_params$vjust, 1.3)
+  expect_identical(
+    app$env$overview_cumulative_total(sex_counts, "Female"),
+    2L
   )
 })

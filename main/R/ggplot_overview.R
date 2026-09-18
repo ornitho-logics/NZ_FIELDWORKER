@@ -168,19 +168,74 @@ overview_step_ribbon_data <- function(x, group_col = NULL) {
 }
 
 
+overview_cumulative_total <- function(
+  x,
+  group_value = NULL,
+  group_col = "sex"
+) {
+  x <- data.table(x)
+
+  if (!nrow(x)) {
+    return(0L)
+  }
+
+  if (!is.null(group_value)) {
+    x <- x[as.character(get(group_col)) == group_value]
+  }
+
+  if (!nrow(x)) {
+    return(0L)
+  }
+
+  as.integer(max(x$cumulative_n, na.rm = TRUE))
+}
+
+
+overview_summary_annotation <- function(label = NULL, annotation_date = NULL) {
+  if (is.null(label) || !nzchar(label)) {
+    return(NULL)
+  }
+
+  if (is.null(annotation_date) || is.na(annotation_date)) {
+    annotation_date <- Sys.Date()
+  }
+
+  annotate(
+    "text",
+    x = as.Date(annotation_date),
+    y = Inf,
+    label = label,
+    hjust = -0.02,
+    vjust = 1.3,
+    size = 5.2,
+    fontface = "bold",
+    lineheight = 1.05
+  )
+}
+
+
 overview_cumulative_plot <- function(
   x,
   ylab,
   sex_split = FALSE,
-  date_limits = NULL
+  date_limits = NULL,
+  summary_label = NULL
 ) {
   x <- data.table(x)
+  annotation_date <- if (!is.null(date_limits)) {
+    as.Date(date_limits)[1]
+  } else if (nrow(x)) {
+    min(x$plot_date)
+  } else {
+    Sys.Date()
+  }
 
   if (!nrow(x)) {
     return(
       overview_cumulative_base(ylab) +
         overview_date_scale() +
-        overview_date_coordinates(date_limits)
+        overview_date_coordinates(date_limits) +
+        overview_summary_annotation(summary_label, annotation_date)
     )
   }
 
@@ -209,6 +264,7 @@ overview_cumulative_plot <- function(
           color = "#4b5254",
           linewidth = 0.9
         ) +
+        overview_summary_annotation(summary_label, annotation_date) +
         overview_date_scale() +
         overview_date_coordinates(date_limits)
     )
@@ -240,6 +296,7 @@ overview_cumulative_plot <- function(
       direction = "hv",
       linewidth = 0.9
     ) +
+    overview_summary_annotation(summary_label, annotation_date) +
     scale_color_manual(
       name = "Sex",
       values = c(Female = "#c43c39", Male = "#2878b5")
@@ -252,7 +309,10 @@ overview_cumulative_plot <- function(
     overview_date_coordinates(date_limits) +
     theme(
       legend.position = "inside",
-      legend.position.inside = c(0.02, 0.98),
+      legend.position.inside = c(
+        0.02,
+        if (is.null(summary_label)) 0.98 else 0.76
+      ),
       legend.justification = c(0, 1)
     )
 }
@@ -369,10 +429,15 @@ overview_nests_graph <- function(
     x <- x[, .SD[1], by = nest_id]
   }
 
+  plot_data <- overview_cumulative_counts(x)
+
   overview_cumulative_plot(
-    x = overview_cumulative_counts(x),
+    x = plot_data,
     ylab = "Cumulative number of found nests",
-    date_limits = date_limits
+    date_limits = date_limits,
+    summary_label = glue(
+      "Total number of nests found = {overview_cumulative_total(plot_data)}"
+    )
   )
 }
 
@@ -419,11 +484,19 @@ overview_geolocator_graph <- function(
     x <- x[!is.na(sex)]
   }
 
+  plot_data <- overview_cumulative_counts(x, group_col = "sex")
+
   overview_cumulative_plot(
-    x = overview_cumulative_counts(x, group_col = "sex"),
+    x = plot_data,
     ylab = "Cumulative number of geolocators deployed",
     sex_split = TRUE,
-    date_limits = date_limits
+    date_limits = date_limits,
+    summary_label = glue(
+      "Number of females with geolocators = ",
+      "{overview_cumulative_total(plot_data, 'Female')}\n",
+      "Number of males with geolocators = ",
+      "{overview_cumulative_total(plot_data, 'Male')}"
+    )
   )
 }
 
@@ -515,11 +588,19 @@ overview_band_combos_graph <- function(
     params = list(as.character(refdate))
   )
 
+  plot_data <- overview_cumulative_counts(x, group_col = "sex")
+
   overview_cumulative_plot(
-    x = overview_cumulative_counts(x, group_col = "sex"),
+    x = plot_data,
     ylab = "Cumulative number of unique band combinations",
     sex_split = TRUE,
-    date_limits = date_limits
+    date_limits = date_limits,
+    summary_label = glue(
+      "Number of females = ",
+      "{overview_cumulative_total(plot_data, 'Female')}\n",
+      "Number of males = ",
+      "{overview_cumulative_total(plot_data, 'Male')}"
+    )
   )
 }
 
