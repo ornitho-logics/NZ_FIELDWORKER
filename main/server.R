@@ -22,6 +22,10 @@ function(input, output, session) {
     refdate
   })
 
+  overview_plot_date_limits <- reactive({
+    overview_date_limits(active_refdate())
+  })
+
   observeEvent(
     reference_date(),
     {
@@ -123,7 +127,10 @@ function(input, output, session) {
   output$overview_nests_show <- renderPlot(
     {
       try_else(
-        overview_nests_graph(active_refdate()),
+        overview_nests_graph(
+          active_refdate(),
+          overview_plot_date_limits()
+        ),
         fallback_ggplot,
         fail = 'overview_nests_graph() failed!'
       )
@@ -133,9 +140,25 @@ function(input, output, session) {
   output$overview_geolocator_show <- renderPlot(
     {
       try_else(
-        overview_geolocator_graph(active_refdate()),
+        overview_geolocator_graph(
+          active_refdate(),
+          overview_plot_date_limits()
+        ),
         fallback_ggplot,
         fail = 'overview_geolocator_graph() failed!'
+      )
+    }
+  )
+
+  output$overview_cr_combos_show <- renderPlot(
+    {
+      try_else(
+        overview_band_combos_graph(
+          active_refdate(),
+          overview_plot_date_limits()
+        ),
+        fallback_ggplot,
+        fail = 'overview_band_combos_graph() failed!'
       )
     }
   )
@@ -143,7 +166,10 @@ function(input, output, session) {
   output$overview_lay_date_show <- renderPlot(
     {
       try_else(
-        overview_lay_date_graph(active_refdate()),
+        overview_lay_date_graph(
+          active_refdate(),
+          overview_plot_date_limits()
+        ),
         fallback_ggplot,
         fail = 'overview_lay_date_graph() failed!'
       )
