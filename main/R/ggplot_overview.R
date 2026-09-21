@@ -574,7 +574,7 @@ overview_band_combos_graph <- function(
       FROM encountered e
       LEFT JOIN archive_sex a
         ON e.mark = a.mark
-      WHERE e.mark NOT IN ('X-X', 'XX-XX')
+      WHERE BINARY e.mark NOT IN ('X-X', 'XX-XX')
       GROUP BY e.mark, a.genetic_sex
     )
     SELECT
