@@ -1386,6 +1386,7 @@ adult_capture_latest AS (
     x.mark,
     x.is_confirmed_xx,
     x.has_geo,
+    x.has_complete_tarsal_pair,
     CASE
       WHEN x.non_x_non_m_count = 1
        AND x.plain_colour_count = 1
@@ -1464,6 +1465,14 @@ adult_capture_latest AS (
         THEN 1
         ELSE 0
       END AS has_geo,
+      CASE
+        WHEN COALESCE(NULLIF(TRIM(c.LL), ''), NULLIF(TRIM(c.LL_in), ''))
+               IS NOT NULL
+         AND COALESCE(NULLIF(TRIM(c.LR), ''), NULLIF(TRIM(c.LR_in), ''))
+               IS NOT NULL
+        THEN 1
+        ELSE 0
+      END AS has_complete_tarsal_pair,
       (
         CASE
           WHEN COALESCE(NULLIF(TRIM(c.UL), ''), NULLIF(TRIM(c.UL_in), ''))
@@ -1592,86 +1601,140 @@ adult_resighting_latest AS (
     x.pk AS event_pk,
     x.mark,
     x.is_confirmed_xx,
-    x.has_geo
+    x.has_geo,
+    x.has_complete_tarsal_pair
   FROM (
     SELECT
-      y.*,
+      z.*,
       ROW_NUMBER() OVER (
-        PARTITION BY y.nest_id, y.sex
+        PARTITION BY z.nest_id, z.sex
         ORDER BY
-          y.has_informative_band_obs DESC,
-          y.obs_date DESC,
-          y.pk DESC
+          CASE
+            WHEN (z.latest_UL_obs IS NULL OR z.UL_obs IS NULL
+                  OR z.latest_UL_obs = z.UL_obs)
+             AND (z.latest_LL_obs IS NULL OR z.LL_obs IS NULL
+                  OR z.latest_LL_obs = z.LL_obs)
+             AND (z.latest_UR_obs IS NULL OR z.UR_obs IS NULL
+                  OR z.latest_UR_obs = z.UR_obs)
+             AND (z.latest_LR_obs IS NULL OR z.LR_obs IS NULL
+                  OR z.latest_LR_obs = z.LR_obs)
+            THEN 1
+            ELSE 0
+          END DESC,
+          z.has_informative_band_obs DESC,
+          z.has_complete_tarsal_pair DESC,
+          z.has_geo DESC,
+          z.observed_segment_count DESC,
+          z.obs_date DESC,
+          z.pk DESC
       ) AS row_num
     FROM (
       SELECT
-        r.nest_id,
-        LEFT(r.sex, 1) AS sex,
-        r.date AS obs_date,
-        r.pk,
+        y.*,
+        FIRST_VALUE(y.UL_obs) OVER (
+          PARTITION BY y.nest_id, y.sex
+          ORDER BY y.obs_date DESC, y.pk DESC
+        ) AS latest_UL_obs,
+        FIRST_VALUE(y.LL_obs) OVER (
+          PARTITION BY y.nest_id, y.sex
+          ORDER BY y.obs_date DESC, y.pk DESC
+        ) AS latest_LL_obs,
+        FIRST_VALUE(y.UR_obs) OVER (
+          PARTITION BY y.nest_id, y.sex
+          ORDER BY y.obs_date DESC, y.pk DESC
+        ) AS latest_UR_obs,
+        FIRST_VALUE(y.LR_obs) OVER (
+          PARTITION BY y.nest_id, y.sex
+          ORDER BY y.obs_date DESC, y.pk DESC
+        ) AS latest_LR_obs
+      FROM (
+        SELECT
+          raw.nest_id,
+          raw.sex,
+          raw.obs_date,
+          raw.pk,
+          raw.UL_obs,
+          raw.LL_obs,
+          raw.UR_obs,
+          raw.LR_obs,
         CASE
-          WHEN UPPER(TRIM(r.LL)) IN ('X', 'XX')
-           AND UPPER(TRIM(r.LR)) IN ('X', 'XX')
+          WHEN raw.LL_obs = 'X' AND raw.LR_obs = 'X'
           THEN 'X-X'
-          WHEN (
-            NULLIF(TRIM(r.UL), '') IS NOT NULL
-            AND UPPER(TRIM(r.UL)) NOT REGEXP '^(X+|M)$'
-          )
-          OR (
-            NULLIF(TRIM(r.LL), '') IS NOT NULL
-            AND UPPER(TRIM(r.LL)) NOT REGEXP '^(X+|M)$'
-          )
-          OR (
-            NULLIF(TRIM(r.UR), '') IS NOT NULL
-            AND UPPER(TRIM(r.UR)) NOT REGEXP '^(X+|M)$'
-          )
-          OR (
-            NULLIF(TRIM(r.LR), '') IS NOT NULL
-            AND UPPER(TRIM(r.LR)) NOT REGEXP '^(X+|M)$'
-          )
+          WHEN (raw.UL_obs IS NOT NULL AND raw.UL_obs NOT REGEXP '^(X|M)$')
+            OR (raw.LL_obs IS NOT NULL AND raw.LL_obs NOT REGEXP '^(X|M)$')
+            OR (raw.UR_obs IS NOT NULL AND raw.UR_obs NOT REGEXP '^(X|M)$')
+            OR (raw.LR_obs IS NOT NULL AND raw.LR_obs NOT REGEXP '^(X|M)$')
           THEN FIELD_2026_BADOatNZ.format_mark(
-            NULLIF(TRIM(r.UL), ''),
-            NULLIF(TRIM(r.LL), ''),
-            NULLIF(TRIM(r.UR), ''),
-            NULLIF(TRIM(r.LR), '')
+            raw.UL_obs,
+            raw.LL_obs,
+            raw.UR_obs,
+            raw.LR_obs
           )
           ELSE NULL
         END AS mark,
         CASE
-          WHEN UPPER(TRIM(r.LL)) IN ('X', 'XX')
-           AND UPPER(TRIM(r.LR)) IN ('X', 'XX')
+          WHEN raw.LL_obs = 'X' AND raw.LR_obs = 'X'
           THEN 1
           ELSE 0
         END AS is_confirmed_xx,
         CASE
-          WHEN UPPER(TRIM(r.LL)) IN ('X', 'XX')
-           AND UPPER(TRIM(r.LR)) IN ('X', 'XX')
+          WHEN raw.LL_obs = 'X' AND raw.LR_obs = 'X'
           THEN 1
-          WHEN NULLIF(TRIM(r.UL), '') IS NOT NULL
-           AND UPPER(TRIM(r.UL)) NOT REGEXP '^(X+|M)$' THEN 1
-          WHEN NULLIF(TRIM(r.LL), '') IS NOT NULL
-           AND UPPER(TRIM(r.LL)) NOT REGEXP '^(X+|M)$' THEN 1
-          WHEN NULLIF(TRIM(r.UR), '') IS NOT NULL
-           AND UPPER(TRIM(r.UR)) NOT REGEXP '^(X+|M)$' THEN 1
-          WHEN NULLIF(TRIM(r.LR), '') IS NOT NULL
-           AND UPPER(TRIM(r.LR)) NOT REGEXP '^(X+|M)$' THEN 1
+          WHEN raw.UL_obs IS NOT NULL AND raw.UL_obs NOT REGEXP '^(X|M)$' THEN 1
+          WHEN raw.LL_obs IS NOT NULL AND raw.LL_obs NOT REGEXP '^(X|M)$' THEN 1
+          WHEN raw.UR_obs IS NOT NULL AND raw.UR_obs NOT REGEXP '^(X|M)$' THEN 1
+          WHEN raw.LR_obs IS NOT NULL AND raw.LR_obs NOT REGEXP '^(X|M)$' THEN 1
           ELSE 0
         END AS has_informative_band_obs,
         CASE
-          WHEN UPPER(TRIM(COALESCE(r.UL, ''))) REGEXP '^T[A-Z0-9]*$'
-            OR UPPER(TRIM(COALESCE(r.UR, ''))) REGEXP '^T[A-Z0-9]*$'
+          WHEN COALESCE(raw.UL_obs, '') REGEXP '^T[A-Z0-9]*$'
+            OR COALESCE(raw.UR_obs, '') REGEXP '^T[A-Z0-9]*$'
           THEN 1
           ELSE 0
-        END AS has_geo
-      FROM FIELD_2026_BADOatNZ.RESIGHTINGS r
-      CROSS JOIN sr
-      WHERE r.nest_id IS NOT NULL
-        AND TRIM(r.nest_id) <> ''
-        AND UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'
-        AND r.age = 'A'
-        AND r.sex IN ('M', 'MU', 'F', 'FU')
-        AND r.date <= sr.reference_date
-    ) y
+        END AS has_geo,
+        CASE
+          WHEN raw.LL_obs IS NOT NULL AND raw.LR_obs IS NOT NULL THEN 1
+          ELSE 0
+        END AS has_complete_tarsal_pair,
+        (
+          CASE WHEN raw.UL_obs IS NOT NULL THEN 1 ELSE 0 END +
+          CASE WHEN raw.LL_obs IS NOT NULL THEN 1 ELSE 0 END +
+          CASE WHEN raw.UR_obs IS NOT NULL THEN 1 ELSE 0 END +
+          CASE WHEN raw.LR_obs IS NOT NULL THEN 1 ELSE 0 END
+        ) AS observed_segment_count
+        FROM (
+          SELECT
+            r.nest_id,
+            LEFT(r.sex, 1) AS sex,
+            r.date AS obs_date,
+            r.pk,
+            CASE
+              WHEN UPPER(NULLIF(TRIM(r.UL), '')) IN ('X', 'XX') THEN 'X'
+              ELSE UPPER(NULLIF(TRIM(r.UL), ''))
+            END AS UL_obs,
+            CASE
+              WHEN UPPER(NULLIF(TRIM(r.LL), '')) IN ('X', 'XX') THEN 'X'
+              ELSE UPPER(NULLIF(TRIM(r.LL), ''))
+            END AS LL_obs,
+            CASE
+              WHEN UPPER(NULLIF(TRIM(r.UR), '')) IN ('X', 'XX') THEN 'X'
+              ELSE UPPER(NULLIF(TRIM(r.UR), ''))
+            END AS UR_obs,
+            CASE
+              WHEN UPPER(NULLIF(TRIM(r.LR), '')) IN ('X', 'XX') THEN 'X'
+              ELSE UPPER(NULLIF(TRIM(r.LR), ''))
+            END AS LR_obs
+          FROM FIELD_2026_BADOatNZ.RESIGHTINGS r
+          CROSS JOIN sr
+          WHERE r.nest_id IS NOT NULL
+            AND TRIM(r.nest_id) <> ''
+            AND UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'
+            AND r.age = 'A'
+            AND r.sex IN ('M', 'MU', 'F', 'FU')
+            AND r.date <= sr.reference_date
+        ) raw
+      ) y
+    ) z
   ) x
   WHERE x.row_num = 1
 ),
@@ -1690,6 +1753,7 @@ adult_parent_identity_latest AS (
         PARTITION BY events.nest_id, events.sex
         ORDER BY
           events.direct_nest_capture_rank DESC,
+          events.complete_tarsal_rank DESC,
           events.tag_segment_rank DESC,
           events.event_date DESC,
           events.source_rank DESC,
@@ -1708,6 +1772,7 @@ adult_parent_identity_latest AS (
           WHEN UPPER(TRIM(COALESCE(capture_method, ''))) = 'TN' THEN 1
           ELSE 0
         END AS direct_nest_capture_rank,
+        has_complete_tarsal_pair AS complete_tarsal_rank,
         CASE
           WHEN UPPER(TRIM(mark))
                REGEXP '(^|[.-])T[A-Z0-9]*($|[.-])'
@@ -1731,6 +1796,7 @@ adult_parent_identity_latest AS (
         event_pk,
         0 AS source_rank,
         0 AS direct_nest_capture_rank,
+        has_complete_tarsal_pair AS complete_tarsal_rank,
         CASE
           WHEN UPPER(TRIM(mark))
                REGEXP '(^|[.-])T[A-Z0-9]*($|[.-])'
