@@ -671,6 +671,155 @@ WITH sr AS (
   WHERE variable = 'reference_date'
     AND value IS NOT NULL
 ),
+nest_clutch_history AS (
+  SELECT
+    n.nest_id,
+    n.date,
+    n.time_visit,
+    n.pk,
+    n.nest_state,
+    n.clutch_size
+  FROM FIELD_2026_BADOatNZ.NESTS n
+  CROSS JOIN sr
+  WHERE n.nest_id IS NOT NULL
+    AND TRIM(n.nest_id) <> ''
+    AND UPPER(TRIM(COALESCE(n.site, ''))) = 'CR'
+    AND n.clutch_size IS NOT NULL
+    AND n.date <= sr.reference_date
+),
+found_clutch_ranked AS (
+  SELECT
+    nest_clutch_history.*,
+    ROW_NUMBER() OVER (
+      PARTITION BY nest_id
+      ORDER BY date, time_visit, pk
+    ) AS row_num
+  FROM nest_clutch_history
+  WHERE UPPER(TRIM(COALESCE(nest_state, ''))) = 'F'
+),
+final_clutch_status AS (
+  SELECT
+    nest_id,
+    MAX(clutch_size) AS final_clutch_size
+  FROM nest_clutch_history
+  WHERE clutch_size > 0
+  GROUP BY nest_id
+),
+first_complete_clutch_ranked AS (
+  SELECT
+    history.nest_id,
+    history.date AS first_complete_date,
+    history.time_visit AS first_complete_time,
+    history.pk AS first_complete_pk,
+    history.clutch_size AS final_clutch_size,
+    ROW_NUMBER() OVER (
+      PARTITION BY history.nest_id
+      ORDER BY history.date, history.time_visit, history.pk
+    ) AS row_num
+  FROM nest_clutch_history history
+  JOIN final_clutch_status
+    ON history.nest_id = final_clutch_status.nest_id
+   AND history.clutch_size = final_clutch_status.final_clutch_size
+),
+last_incomplete_clutch_ranked AS (
+  SELECT
+    history.nest_id,
+    history.date AS last_incomplete_date,
+    history.clutch_size AS last_incomplete_size,
+    ROW_NUMBER() OVER (
+      PARTITION BY history.nest_id
+      ORDER BY history.date DESC, history.time_visit DESC, history.pk DESC
+    ) AS row_num
+  FROM nest_clutch_history history
+  JOIN final_clutch_status
+    ON history.nest_id = final_clutch_status.nest_id
+   AND history.clutch_size < final_clutch_status.final_clutch_size
+  JOIN first_complete_clutch_ranked complete_clutch
+    ON history.nest_id = complete_clutch.nest_id
+   AND complete_clutch.row_num = 1
+  WHERE CAST(
+          CONCAT(history.date, ' ', COALESCE(history.time_visit, '00:00:00'))
+          AS DATETIME
+        ) < CAST(
+          CONCAT(
+            complete_clutch.first_complete_date,
+            ' ',
+            COALESCE(complete_clutch.first_complete_time, '00:00:00')
+          ) AS DATETIME
+        )
+),
+incomplete_clutch_status_base AS (
+  SELECT
+    found.nest_id,
+    found.clutch_size AS found_clutch_size,
+    final_clutch_status.final_clutch_size,
+    complete_clutch.first_complete_date,
+    CASE
+      WHEN found.clutch_size < final_clutch_status.final_clutch_size THEN 1
+      ELSE 0
+    END AS found_as_incomplete,
+    CASE
+      WHEN found.clutch_size < final_clutch_status.final_clutch_size
+      THEN CASE
+        WHEN last_incomplete.last_incomplete_date IS NULL
+        THEN complete_clutch.first_complete_date
+        WHEN DATE_ADD(
+               last_incomplete.last_incomplete_date,
+               INTERVAL (
+                 2 * (
+                   final_clutch_status.final_clutch_size
+                   - last_incomplete.last_incomplete_size
+                 )
+               ) DAY
+             ) >= complete_clutch.first_complete_date
+        THEN complete_clutch.first_complete_date
+        ELSE DATE_ADD(
+          DATE_ADD(
+            last_incomplete.last_incomplete_date,
+            INTERVAL (
+              2 * (
+                final_clutch_status.final_clutch_size
+                - last_incomplete.last_incomplete_size
+              )
+            ) DAY
+          ),
+          INTERVAL ROUND(
+            DATEDIFF(
+              complete_clutch.first_complete_date,
+              DATE_ADD(
+                last_incomplete.last_incomplete_date,
+                INTERVAL (
+                  2 * (
+                    final_clutch_status.final_clutch_size
+                    - last_incomplete.last_incomplete_size
+                  )
+                ) DAY
+              )
+            ) / 2
+          ) DAY
+        )
+      END
+      ELSE NULL
+    END AS inferred_clutch_completion_date
+  FROM found_clutch_ranked found
+  JOIN final_clutch_status
+    ON found.nest_id = final_clutch_status.nest_id
+  JOIN first_complete_clutch_ranked complete_clutch
+    ON found.nest_id = complete_clutch.nest_id
+   AND complete_clutch.row_num = 1
+  LEFT JOIN last_incomplete_clutch_ranked last_incomplete
+    ON found.nest_id = last_incomplete.nest_id
+   AND last_incomplete.row_num = 1
+  WHERE found.row_num = 1
+),
+incomplete_clutch_status AS (
+  SELECT
+    incomplete_clutch_status_base.*,
+    DATE_ADD(inferred_clutch_completion_date, INTERVAL 26 DAY)
+      AS inferred_hatch_date
+  FROM incomplete_clutch_status_base
+  WHERE found_as_incomplete = 1
+),
 calibration_hatch_day AS (
   SELECT CAST(MAX(days_since_laying) AS DECIMAL(5,1)) AS hatch_day
   FROM FIELD_2026_BADOatNZ.predict_hatching
@@ -785,6 +934,20 @@ egg_prediction AS (
   FROM egg_calibration_candidates
   CROSS JOIN calibration_hatch_day
   WHERE egg_calibration_candidates.row_num = 1
+),
+incomplete_nest_prediction AS (
+  SELECT
+    incomplete_clutch_status.nest_id,
+    sr.reference_date,
+    incomplete_clutch_status.inferred_clutch_completion_date,
+    incomplete_clutch_status.inferred_hatch_date
+  FROM incomplete_clutch_status
+  CROSS JOIN sr
+  WHERE NOT EXISTS (
+    SELECT 1
+    FROM egg_prediction
+    WHERE egg_prediction.nest_id = incomplete_clutch_status.nest_id
+  )
 )
 SELECT
   nest_id,
@@ -809,7 +972,37 @@ SELECT
   min_days_to_hatch_at_float - days_since_float AS min_days_to_hatch,
   max_days_to_hatch_at_float - days_since_float AS max_days_to_hatch,
   n_calibration
-FROM egg_prediction;
+FROM egg_prediction
+
+UNION ALL
+
+SELECT
+  nest_id,
+  CAST(NULL AS UNSIGNED) AS egg_id,
+  CAST(NULL AS DATE) AS float_date,
+  reference_date,
+  CAST(NULL AS SIGNED) AS days_since_float,
+  CAST(NULL AS DECIMAL(5,1)) AS float_angle,
+  CAST(NULL AS DECIMAL(5,1)) AS float_surface,
+  CAST(NULL AS CHAR(10)) AS float_location,
+  CAST(NULL AS DECIMAL(5,1)) AS matched_float_angle,
+  CAST(NULL AS DECIMAL(5,1)) AS matched_float_surface,
+  CAST(NULL AS CHAR(10)) AS matched_float_location,
+  'found as incomplete' AS calibration_match_type,
+  CAST(NULL AS SIGNED) AS angle_diff,
+  CAST(NULL AS SIGNED) AS surface_diff,
+  CAST(0 AS DECIMAL(5,1)) AS predicted_days_since_laying,
+  CAST(
+    DATEDIFF(reference_date, inferred_clutch_completion_date)
+    AS DECIMAL(5,1)
+  ) AS ref_date_days_since_laid,
+  CAST(NULL AS DECIMAL(5,1)) AS days_to_hatch_at_float,
+  DATEDIFF(inferred_hatch_date, reference_date) AS days_to_hatch,
+  inferred_hatch_date AS predicted_hatch_date,
+  DATEDIFF(inferred_hatch_date, reference_date) AS min_days_to_hatch,
+  DATEDIFF(inferred_hatch_date, reference_date) AS max_days_to_hatch,
+  0 AS n_calibration
+FROM incomplete_nest_prediction;
 
 
 CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.TODO_LIST AS
@@ -845,6 +1038,8 @@ latest_float_dates AS (
     p.nest_id,
     MAX(p.float_date) AS latest_float_date
   FROM FIELD_2026_BADOatNZ.EGGS_HATCH_PREDICTION p
+  WHERE p.float_date IS NOT NULL
+    AND p.calibration_match_type IN ('exact', 'nearest')
   GROUP BY p.nest_id
 ),
 latest_float_status AS (
@@ -873,46 +1068,15 @@ geo_deployment_status AS (
     AND UPPER(TRIM(COALESCE(c.tag_action, ''))) IN ('D', 'S', 'N')
     AND NULLIF(TRIM(c.tag_id), '') IS NOT NULL
 ),
-first_positive_clutch_ranked AS (
-  SELECT
-    n.nest_id,
-    n.date AS first_clutch_date,
-    n.clutch_size AS first_clutch_size,
-    ROW_NUMBER() OVER (
-      PARTITION BY n.nest_id
-      ORDER BY n.date, n.time_visit, n.pk
-    ) AS row_num
-  FROM FIELD_2026_BADOatNZ.NESTS n
-  CROSS JOIN sr
-  WHERE n.nest_id IS NOT NULL
-    AND TRIM(n.nest_id) <> ''
-    AND UPPER(TRIM(COALESCE(n.site, ''))) = 'CR'
-    AND n.clutch_size > 0
-    AND n.date <= sr.reference_date
-),
 initial_clutch_status AS (
   SELECT
-    nest_id,
-    first_clutch_date,
-    first_clutch_size,
-    CASE
-      WHEN first_clutch_size IN (1, 2)
-      THEN DATE_ADD(
-        first_clutch_date,
-        INTERVAL (2 * (3 - first_clutch_size)) DAY
-      )
-      ELSE NULL
-    END AS inferred_clutch_completion_date,
-    CASE
-      WHEN first_clutch_size IN (1, 2)
-      THEN DATE_ADD(
-        first_clutch_date,
-        INTERVAL (26 + 2 * (3 - first_clutch_size)) DAY
-      )
-      ELSE NULL
-    END AS inferred_hatch_date
-  FROM first_positive_clutch_ranked
-  WHERE row_num = 1
+    p.nest_id,
+    1 AS found_as_incomplete,
+    DATE_SUB(p.predicted_hatch_date, INTERVAL 26 DAY)
+      AS inferred_clutch_completion_date,
+    p.predicted_hatch_date AS inferred_hatch_date
+  FROM FIELD_2026_BADOatNZ.EGGS_HATCH_PREDICTION p
+  WHERE p.calibration_match_type = 'found as incomplete'
 ),
 latest_nests AS (
   SELECT DISTINCT
@@ -930,7 +1094,7 @@ latest_nests AS (
     latest_float_status.latest_float_date,
     latest_float_status.average_ref_date_days_since_laid,
     CASE
-      WHEN initial_clutch_status.first_clutch_size IN (1, 2)
+      WHEN initial_clutch_status.found_as_incomplete = 1
       THEN DATEDIFF(
         initial_clutch_status.inferred_hatch_date,
         sr.reference_date
@@ -1029,24 +1193,6 @@ float_visit_summary AS (
     e.date,
     COALESCE(e.time_visit, '00:00:00')
 ),
-processed_visit_summary AS (
-  SELECT
-    n.nest_id,
-    MAX(
-      CAST(CONCAT(n.date, ' ', COALESCE(n.time_visit, '00:00:00')) AS DATETIME)
-    ) AS last_processed_datetime
-  FROM nest_history n
-  JOIN first_processable_visit
-    ON n.nest_id = first_processable_visit.nest_id
-  JOIN float_visit_summary
-    ON n.nest_id = float_visit_summary.nest_id
-   AND n.date = float_visit_summary.float_date
-   AND COALESCE(n.time_visit, '00:00:00') = float_visit_summary.float_time_visit
-  WHERE (n.nest_photo = '1' OR n.tent_photo = '1')
-    AND CAST(CONCAT(n.date, ' ', COALESCE(n.time_visit, '00:00:00')) AS DATETIME)
-        >= first_processable_visit.first_processable_datetime
-  GROUP BY n.nest_id
-),
 float_summary AS (
   SELECT
     float_visit_summary.nest_id,
@@ -1054,7 +1200,29 @@ float_summary AS (
     MAX(float_visit_summary.float_datetime) AS last_float_datetime,
     SUM(float_visit_summary.n_float_rows) AS n_float_rows
   FROM float_visit_summary
+  JOIN first_processable_visit
+    ON float_visit_summary.nest_id = first_processable_visit.nest_id
+   AND float_visit_summary.float_datetime
+       >= first_processable_visit.first_processable_datetime
   GROUP BY float_visit_summary.nest_id
+),
+processed_visit_summary AS (
+  SELECT
+    first_processable_visit.nest_id,
+    CASE
+      WHEN processing_photo_summary.last_photo_datetime IS NOT NULL
+       AND float_summary.last_float_datetime IS NOT NULL
+      THEN GREATEST(
+        processing_photo_summary.last_photo_datetime,
+        float_summary.last_float_datetime
+      )
+      ELSE NULL
+    END AS last_processed_datetime
+  FROM first_processable_visit
+  LEFT JOIN processing_photo_summary
+    ON first_processable_visit.nest_id = processing_photo_summary.nest_id
+  LEFT JOIN float_summary
+    ON first_processable_visit.nest_id = float_summary.nest_id
 ),
 processing_summary AS (
   SELECT
@@ -1120,16 +1288,21 @@ latest_clutch_processing_status AS (
   SELECT
     latest_clutch_history.nest_id,
     latest_clutch_history.clutch_has_photo,
-    CASE
-      WHEN float_visit_summary.nest_id IS NOT NULL THEN 1
-      ELSE 0
-    END AS clutch_has_float
+    MAX(
+      CASE
+        WHEN float_visit_summary.nest_id IS NOT NULL THEN 1
+        ELSE 0
+      END
+    ) AS clutch_has_float
   FROM latest_clutch_history
   LEFT JOIN float_visit_summary
     ON latest_clutch_history.nest_id = float_visit_summary.nest_id
-   AND latest_clutch_history.clutch_date = float_visit_summary.float_date
-   AND latest_clutch_history.clutch_time_visit = float_visit_summary.float_time_visit
+   AND float_visit_summary.float_datetime
+       >= latest_clutch_history.clutch_datetime
   WHERE latest_clutch_history.row_num = 1
+  GROUP BY
+    latest_clutch_history.nest_id,
+    latest_clutch_history.clutch_has_photo
 ),
 clutch_at_processing AS (
   SELECT
@@ -1213,6 +1386,7 @@ adult_capture_latest AS (
     x.mark,
     x.is_confirmed_xx,
     x.has_geo,
+    x.has_complete_tarsal_pair,
     CASE
       WHEN x.non_x_non_m_count = 1
        AND x.plain_colour_count = 1
@@ -1235,6 +1409,8 @@ adult_capture_latest AS (
       ) AS capture_datetime,
       c.pk AS event_pk,
       CASE
+        WHEN UPPER(TRIM(COALESCE(c.capture_status, ''))) = 'D'
+        THEN 'dead'
         WHEN UPPER(COALESCE(NULLIF(TRIM(c.LL), ''), NULLIF(TRIM(c.LL_in), '')))
                IN ('X', 'XX')
          AND UPPER(COALESCE(NULLIF(TRIM(c.LR), ''), NULLIF(TRIM(c.LR_in), '')))
@@ -1266,6 +1442,8 @@ adult_capture_latest AS (
         ELSE NULL
       END AS mark,
       CASE
+        WHEN UPPER(TRIM(COALESCE(c.capture_status, ''))) = 'D'
+        THEN 0
         WHEN UPPER(COALESCE(NULLIF(TRIM(c.LL), ''), NULLIF(TRIM(c.LL_in), '')))
                IN ('X', 'XX')
          AND UPPER(COALESCE(NULLIF(TRIM(c.LR), ''), NULLIF(TRIM(c.LR_in), '')))
@@ -1279,11 +1457,22 @@ adult_capture_latest AS (
           AND c.tag_action IN ('D', 'S', 'N')
           AND NULLIF(TRIM(c.tag_id), '') IS NOT NULL
         ) OR UPPER(
+          COALESCE(NULLIF(TRIM(c.UL), ''), NULLIF(TRIM(c.UL_in), ''), '')
+        ) REGEXP '^T[A-Z0-9]*$'
+        OR UPPER(
           COALESCE(NULLIF(TRIM(c.UR), ''), NULLIF(TRIM(c.UR_in), ''), '')
         ) REGEXP '^T[A-Z0-9]*$'
         THEN 1
         ELSE 0
       END AS has_geo,
+      CASE
+        WHEN COALESCE(NULLIF(TRIM(c.LL), ''), NULLIF(TRIM(c.LL_in), ''))
+               IS NOT NULL
+         AND COALESCE(NULLIF(TRIM(c.LR), ''), NULLIF(TRIM(c.LR_in), ''))
+               IS NOT NULL
+        THEN 1
+        ELSE 0
+      END AS has_complete_tarsal_pair,
       (
         CASE
           WHEN COALESCE(NULLIF(TRIM(c.UL), ''), NULLIF(TRIM(c.UL_in), ''))
@@ -1412,85 +1601,140 @@ adult_resighting_latest AS (
     x.pk AS event_pk,
     x.mark,
     x.is_confirmed_xx,
-    x.has_geo
+    x.has_geo,
+    x.has_complete_tarsal_pair
   FROM (
     SELECT
-      y.*,
+      z.*,
       ROW_NUMBER() OVER (
-        PARTITION BY y.nest_id, y.sex
+        PARTITION BY z.nest_id, z.sex
         ORDER BY
-          y.has_informative_band_obs DESC,
-          y.obs_date DESC,
-          y.pk DESC
+          CASE
+            WHEN (z.latest_UL_obs IS NULL OR z.UL_obs IS NULL
+                  OR z.latest_UL_obs = z.UL_obs)
+             AND (z.latest_LL_obs IS NULL OR z.LL_obs IS NULL
+                  OR z.latest_LL_obs = z.LL_obs)
+             AND (z.latest_UR_obs IS NULL OR z.UR_obs IS NULL
+                  OR z.latest_UR_obs = z.UR_obs)
+             AND (z.latest_LR_obs IS NULL OR z.LR_obs IS NULL
+                  OR z.latest_LR_obs = z.LR_obs)
+            THEN 1
+            ELSE 0
+          END DESC,
+          z.has_informative_band_obs DESC,
+          z.has_complete_tarsal_pair DESC,
+          z.has_geo DESC,
+          z.observed_segment_count DESC,
+          z.obs_date DESC,
+          z.pk DESC
       ) AS row_num
     FROM (
       SELECT
-        r.nest_id,
-        LEFT(r.sex, 1) AS sex,
-        r.date AS obs_date,
-        r.pk,
+        y.*,
+        FIRST_VALUE(y.UL_obs) OVER (
+          PARTITION BY y.nest_id, y.sex
+          ORDER BY y.obs_date DESC, y.pk DESC
+        ) AS latest_UL_obs,
+        FIRST_VALUE(y.LL_obs) OVER (
+          PARTITION BY y.nest_id, y.sex
+          ORDER BY y.obs_date DESC, y.pk DESC
+        ) AS latest_LL_obs,
+        FIRST_VALUE(y.UR_obs) OVER (
+          PARTITION BY y.nest_id, y.sex
+          ORDER BY y.obs_date DESC, y.pk DESC
+        ) AS latest_UR_obs,
+        FIRST_VALUE(y.LR_obs) OVER (
+          PARTITION BY y.nest_id, y.sex
+          ORDER BY y.obs_date DESC, y.pk DESC
+        ) AS latest_LR_obs
+      FROM (
+        SELECT
+          raw.nest_id,
+          raw.sex,
+          raw.obs_date,
+          raw.pk,
+          raw.UL_obs,
+          raw.LL_obs,
+          raw.UR_obs,
+          raw.LR_obs,
         CASE
-          WHEN UPPER(TRIM(r.LL)) IN ('X', 'XX')
-           AND UPPER(TRIM(r.LR)) IN ('X', 'XX')
+          WHEN raw.LL_obs = 'X' AND raw.LR_obs = 'X'
           THEN 'X-X'
-          WHEN (
-            NULLIF(TRIM(r.UL), '') IS NOT NULL
-            AND UPPER(TRIM(r.UL)) NOT REGEXP '^(X+|M)$'
-          )
-          OR (
-            NULLIF(TRIM(r.LL), '') IS NOT NULL
-            AND UPPER(TRIM(r.LL)) NOT REGEXP '^(X+|M)$'
-          )
-          OR (
-            NULLIF(TRIM(r.UR), '') IS NOT NULL
-            AND UPPER(TRIM(r.UR)) NOT REGEXP '^(X+|M)$'
-          )
-          OR (
-            NULLIF(TRIM(r.LR), '') IS NOT NULL
-            AND UPPER(TRIM(r.LR)) NOT REGEXP '^(X+|M)$'
-          )
+          WHEN (raw.UL_obs IS NOT NULL AND raw.UL_obs NOT REGEXP '^(X|M)$')
+            OR (raw.LL_obs IS NOT NULL AND raw.LL_obs NOT REGEXP '^(X|M)$')
+            OR (raw.UR_obs IS NOT NULL AND raw.UR_obs NOT REGEXP '^(X|M)$')
+            OR (raw.LR_obs IS NOT NULL AND raw.LR_obs NOT REGEXP '^(X|M)$')
           THEN FIELD_2026_BADOatNZ.format_mark(
-            NULLIF(TRIM(r.UL), ''),
-            NULLIF(TRIM(r.LL), ''),
-            NULLIF(TRIM(r.UR), ''),
-            NULLIF(TRIM(r.LR), '')
+            raw.UL_obs,
+            raw.LL_obs,
+            raw.UR_obs,
+            raw.LR_obs
           )
           ELSE NULL
         END AS mark,
         CASE
-          WHEN UPPER(TRIM(r.LL)) IN ('X', 'XX')
-           AND UPPER(TRIM(r.LR)) IN ('X', 'XX')
+          WHEN raw.LL_obs = 'X' AND raw.LR_obs = 'X'
           THEN 1
           ELSE 0
         END AS is_confirmed_xx,
         CASE
-          WHEN UPPER(TRIM(r.LL)) IN ('X', 'XX')
-           AND UPPER(TRIM(r.LR)) IN ('X', 'XX')
+          WHEN raw.LL_obs = 'X' AND raw.LR_obs = 'X'
           THEN 1
-          WHEN NULLIF(TRIM(r.UL), '') IS NOT NULL
-           AND UPPER(TRIM(r.UL)) NOT REGEXP '^(X+|M)$' THEN 1
-          WHEN NULLIF(TRIM(r.LL), '') IS NOT NULL
-           AND UPPER(TRIM(r.LL)) NOT REGEXP '^(X+|M)$' THEN 1
-          WHEN NULLIF(TRIM(r.UR), '') IS NOT NULL
-           AND UPPER(TRIM(r.UR)) NOT REGEXP '^(X+|M)$' THEN 1
-          WHEN NULLIF(TRIM(r.LR), '') IS NOT NULL
-           AND UPPER(TRIM(r.LR)) NOT REGEXP '^(X+|M)$' THEN 1
+          WHEN raw.UL_obs IS NOT NULL AND raw.UL_obs NOT REGEXP '^(X|M)$' THEN 1
+          WHEN raw.LL_obs IS NOT NULL AND raw.LL_obs NOT REGEXP '^(X|M)$' THEN 1
+          WHEN raw.UR_obs IS NOT NULL AND raw.UR_obs NOT REGEXP '^(X|M)$' THEN 1
+          WHEN raw.LR_obs IS NOT NULL AND raw.LR_obs NOT REGEXP '^(X|M)$' THEN 1
           ELSE 0
         END AS has_informative_band_obs,
         CASE
-          WHEN UPPER(TRIM(COALESCE(r.UR, ''))) REGEXP '^T[A-Z0-9]*$'
+          WHEN COALESCE(raw.UL_obs, '') REGEXP '^T[A-Z0-9]*$'
+            OR COALESCE(raw.UR_obs, '') REGEXP '^T[A-Z0-9]*$'
           THEN 1
           ELSE 0
-        END AS has_geo
-      FROM FIELD_2026_BADOatNZ.RESIGHTINGS r
-      CROSS JOIN sr
-      WHERE r.nest_id IS NOT NULL
-        AND TRIM(r.nest_id) <> ''
-        AND UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'
-        AND r.age = 'A'
-        AND r.sex IN ('M', 'MU', 'F', 'FU')
-        AND r.date <= sr.reference_date
-    ) y
+        END AS has_geo,
+        CASE
+          WHEN raw.LL_obs IS NOT NULL AND raw.LR_obs IS NOT NULL THEN 1
+          ELSE 0
+        END AS has_complete_tarsal_pair,
+        (
+          CASE WHEN raw.UL_obs IS NOT NULL THEN 1 ELSE 0 END +
+          CASE WHEN raw.LL_obs IS NOT NULL THEN 1 ELSE 0 END +
+          CASE WHEN raw.UR_obs IS NOT NULL THEN 1 ELSE 0 END +
+          CASE WHEN raw.LR_obs IS NOT NULL THEN 1 ELSE 0 END
+        ) AS observed_segment_count
+        FROM (
+          SELECT
+            r.nest_id,
+            LEFT(r.sex, 1) AS sex,
+            r.date AS obs_date,
+            r.pk,
+            CASE
+              WHEN UPPER(NULLIF(TRIM(r.UL), '')) IN ('X', 'XX') THEN 'X'
+              ELSE UPPER(NULLIF(TRIM(r.UL), ''))
+            END AS UL_obs,
+            CASE
+              WHEN UPPER(NULLIF(TRIM(r.LL), '')) IN ('X', 'XX') THEN 'X'
+              ELSE UPPER(NULLIF(TRIM(r.LL), ''))
+            END AS LL_obs,
+            CASE
+              WHEN UPPER(NULLIF(TRIM(r.UR), '')) IN ('X', 'XX') THEN 'X'
+              ELSE UPPER(NULLIF(TRIM(r.UR), ''))
+            END AS UR_obs,
+            CASE
+              WHEN UPPER(NULLIF(TRIM(r.LR), '')) IN ('X', 'XX') THEN 'X'
+              ELSE UPPER(NULLIF(TRIM(r.LR), ''))
+            END AS LR_obs
+          FROM FIELD_2026_BADOatNZ.RESIGHTINGS r
+          CROSS JOIN sr
+          WHERE r.nest_id IS NOT NULL
+            AND TRIM(r.nest_id) <> ''
+            AND UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'
+            AND r.age = 'A'
+            AND r.sex IN ('M', 'MU', 'F', 'FU')
+            AND r.date <= sr.reference_date
+        ) raw
+      ) y
+    ) z
   ) x
   WHERE x.row_num = 1
 ),
@@ -1508,6 +1752,9 @@ adult_parent_identity_latest AS (
       ROW_NUMBER() OVER (
         PARTITION BY events.nest_id, events.sex
         ORDER BY
+          events.direct_nest_capture_rank DESC,
+          events.complete_tarsal_rank DESC,
+          events.tag_segment_rank DESC,
           events.event_date DESC,
           events.source_rank DESC,
           events.event_datetime DESC,
@@ -1521,6 +1768,17 @@ adult_parent_identity_latest AS (
         capture_datetime AS event_datetime,
         event_pk,
         1 AS source_rank,
+        CASE
+          WHEN UPPER(TRIM(COALESCE(capture_method, ''))) = 'TN' THEN 1
+          ELSE 0
+        END AS direct_nest_capture_rank,
+        has_complete_tarsal_pair AS complete_tarsal_rank,
+        CASE
+          WHEN UPPER(TRIM(mark))
+               REGEXP '(^|[.-])T[A-Z0-9]*($|[.-])'
+          THEN 1
+          ELSE 0
+        END AS tag_segment_rank,
         mark,
         is_confirmed_xx,
         has_geo,
@@ -1537,6 +1795,14 @@ adult_parent_identity_latest AS (
         CAST(CONCAT(obs_date, ' 00:00:00') AS DATETIME) AS event_datetime,
         event_pk,
         0 AS source_rank,
+        0 AS direct_nest_capture_rank,
+        has_complete_tarsal_pair AS complete_tarsal_rank,
+        CASE
+          WHEN UPPER(TRIM(mark))
+               REGEXP '(^|[.-])T[A-Z0-9]*($|[.-])'
+          THEN 1
+          ELSE 0
+        END AS tag_segment_rank,
         mark,
         is_confirmed_xx,
         has_geo,
@@ -1602,7 +1868,8 @@ adult_association_resighting_candidates AS (
       ELSE 0
     END AS is_confirmed_xx,
     CASE
-      WHEN UPPER(TRIM(COALESCE(r.UR, ''))) REGEXP '^T[A-Z0-9]*$'
+      WHEN UPPER(TRIM(COALESCE(r.UL, ''))) REGEXP '^T[A-Z0-9]*$'
+        OR UPPER(TRIM(COALESCE(r.UR, ''))) REGEXP '^T[A-Z0-9]*$'
       THEN 1
       ELSE 0
     END AS has_geo
@@ -1614,8 +1881,6 @@ adult_association_resighting_candidates AS (
     AND r.age = 'A'
     AND r.sex IN ('M', 'MU', 'F', 'FU')
     AND r.date <= sr.reference_date
-    AND UPPER(COALESCE(r.behav, ''))
-        REGEXP '(^|[[:space:],;])(IN|NM)([[:space:],;]|$)'
     AND (
       (
         UPPER(TRIM(r.LL)) IN ('X', 'XX')
@@ -1644,6 +1909,15 @@ adult_mm_post_resighting_ranked AS (
     ON mm.nest_id = association.nest_id
    AND mm.sex = association.sex
    AND association.association_date > mm.mm_capture_date
+   AND UPPER(TRIM(association.mark)) = UPPER(TRIM(mm.mark))
+   AND NOT EXISTS (
+     SELECT 1
+     FROM adult_resighting_latest later_xx
+     WHERE later_xx.nest_id = mm.nest_id
+       AND later_xx.sex = mm.sex
+       AND later_xx.is_confirmed_xx = 1
+       AND later_xx.obs_date > association.association_date
+   )
 ),
 adult_mm_post_resighting_latest AS (
   SELECT
@@ -1684,6 +1958,7 @@ adult_mm_followup_status AS (
          AND latest_resighting.obs_date > mm.mm_capture_date
          AND mm.mark IS NOT NULL
          AND mm.mark <> 'X-X'
+         AND LOWER(TRIM(mm.mark)) <> 'dead'
         THEN 1
         ELSE 0
       END
@@ -1695,6 +1970,7 @@ adult_mm_followup_status AS (
          AND latest_resighting.obs_date > mm.mm_capture_date
          AND mm.mark IS NOT NULL
          AND mm.mark <> 'X-X'
+         AND LOWER(TRIM(mm.mark)) <> 'dead'
         THEN 1
         ELSE 0
       END
@@ -1766,8 +2042,13 @@ adult_parent_status AS (
   SELECT
     todo_parent_source.nest_id,
     CASE
-      WHEN COALESCE(adult_mm_followup_status.M_post_mm_xx_seen, 0) = 1
-      THEN CONCAT(adult_mm_followup_status.M_mm_capture_mark, ' & X-X')
+      WHEN COALESCE(adult_mm_followup_status.M_mm_resight_pending, 0) = 1
+       AND adult_mm_followup_status.M_mm_capture_mark IS NOT NULL
+      THEN CASE
+        WHEN COALESCE(adult_mm_followup_status.M_post_mm_xx_seen, 0) = 1
+        THEN CONCAT(adult_mm_followup_status.M_mm_capture_mark, ' & X-X')
+        ELSE adult_mm_followup_status.M_mm_capture_mark
+      END
       WHEN COALESCE(
         adult_parent_identity_status.M_identity_mark,
         todo_parent_source.M_mark
@@ -1801,8 +2082,13 @@ adult_parent_status AS (
       )
     END AS M_parent_mark,
     CASE
-      WHEN COALESCE(adult_mm_followup_status.F_post_mm_xx_seen, 0) = 1
-      THEN CONCAT(adult_mm_followup_status.F_mm_capture_mark, ' & X-X')
+      WHEN COALESCE(adult_mm_followup_status.F_mm_resight_pending, 0) = 1
+       AND adult_mm_followup_status.F_mm_capture_mark IS NOT NULL
+      THEN CASE
+        WHEN COALESCE(adult_mm_followup_status.F_post_mm_xx_seen, 0) = 1
+        THEN CONCAT(adult_mm_followup_status.F_mm_capture_mark, ' & X-X')
+        ELSE adult_mm_followup_status.F_mm_capture_mark
+      END
       WHEN COALESCE(
         adult_parent_identity_status.F_identity_mark,
         todo_parent_source.F_mark
@@ -2049,7 +2335,16 @@ adult_capture_age_status AS (
   SELECT
     x.nest_id,
     x.clutch_completion_basis_date,
-    x.clutch_completion_confirmed,
+    CASE
+      WHEN x.clutch_completion_confirmed = 1 THEN 1
+      WHEN x.current_clutch_size = 2
+       AND DATEDIFF(
+             sr.reference_date,
+             DATE(x.current_clutch_datetime)
+           ) >= 4
+      THEN 1
+      ELSE 0
+    END AS clutch_completion_confirmed,
     CASE
       WHEN CASE
              WHEN x.uses_inferred_lay_interval = 1
@@ -2072,9 +2367,11 @@ adult_capture_age_status AS (
   FROM (
     SELECT
       clutch_start.nest_id,
+      clutch_start.current_clutch_size,
+      clutch_start.current_clutch_datetime,
       clutch_start.current_clutch_start_datetime,
       CASE
-        WHEN initial_clutch_status.first_clutch_size IN (1, 2)
+        WHEN initial_clutch_status.found_as_incomplete = 1
         THEN initial_clutch_status.inferred_clutch_completion_date
         WHEN clutch_start.current_clutch_size >= 3
           OR DATEDIFF(
@@ -2090,7 +2387,7 @@ adult_capture_age_status AS (
         )
       END AS clutch_completion_basis_date,
       CASE
-        WHEN initial_clutch_status.first_clutch_size IN (1, 2) THEN 1
+        WHEN initial_clutch_status.found_as_incomplete = 1 THEN 1
         ELSE 0
       END AS uses_inferred_lay_interval,
       CASE
@@ -2134,9 +2431,9 @@ complete_clutch_processing_status AS (
          AS DATETIME
        ) >= clutch_start.current_clutch_start_datetime
   LEFT JOIN float_visit_summary
-    ON n.nest_id = float_visit_summary.nest_id
-   AND n.date = float_visit_summary.float_date
-   AND COALESCE(n.time_visit, '00:00:00') = float_visit_summary.float_time_visit
+    ON clutch_start.nest_id = float_visit_summary.nest_id
+   AND float_visit_summary.float_datetime
+       >= clutch_start.current_clutch_start_datetime
   GROUP BY clutch_start.nest_id
 ),
 todo_untrapped_parent_candidate AS (
@@ -2356,7 +2653,7 @@ todo_untrapped_parent_candidate AS (
     AND (
       UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) <> 'F'
       OR COALESCE(active_nests.clutch_size, 0) <> 3
-      OR initial_clutch_status.first_clutch_size IN (1, 2)
+      OR initial_clutch_status.found_as_incomplete = 1
       OR COALESCE(float_summary.n_float_rows, 0) > 0
     )
     AND (
@@ -2735,9 +3032,8 @@ todo_unprocessed_nest AS (
     active_nests.reference_date,
     'Unprocessed nest' AS todo,
     CASE
-      WHEN initial_clutch_status.first_clutch_size IN (1, 2)
-      THEN 'photos only'
-      WHEN COALESCE(
+      WHEN COALESCE(initial_clutch_status.found_as_incomplete, 0) = 0
+       AND COALESCE(
              complete_clutch_processing_status.complete_clutch_has_float,
              0
            ) = 0
@@ -2746,7 +3042,8 @@ todo_unprocessed_nest AS (
              0
            ) = 0
       THEN 'float + photos'
-      WHEN COALESCE(
+      WHEN COALESCE(initial_clutch_status.found_as_incomplete, 0) = 0
+       AND COALESCE(
              complete_clutch_processing_status.complete_clutch_has_float,
              0
            ) = 0
@@ -2789,26 +3086,16 @@ todo_unprocessed_nest AS (
     AND COALESCE(adult_capture_age_status.clutch_completion_confirmed, 0) = 1
     AND (
       (
-        initial_clutch_status.first_clutch_size IN (1, 2)
-        AND active_nests.clutch_size = 3
+        COALESCE(initial_clutch_status.found_as_incomplete, 0) = 0
         AND COALESCE(
-              complete_clutch_processing_status.complete_clutch_has_photo,
+              complete_clutch_processing_status.complete_clutch_has_float,
               0
             ) = 0
       )
-      OR (
-        COALESCE(initial_clutch_status.first_clutch_size, 3) NOT IN (1, 2)
-        AND (
-          COALESCE(
-            complete_clutch_processing_status.complete_clutch_has_float,
-            0
-          ) = 0
-          OR COALESCE(
-               complete_clutch_processing_status.complete_clutch_has_photo,
-               0
-             ) = 0
-        )
-      )
+      OR COALESCE(
+           complete_clutch_processing_status.complete_clutch_has_photo,
+           0
+         ) = 0
     )
 ),
 todo_take_scrape_photos AS (
@@ -2899,7 +3186,7 @@ todo_reprocess_nest AS (
     ON active_nests.nest_id = adult_parent_status.nest_id
   WHERE processing_summary.last_processed_datetime IS NOT NULL
     AND active_nests.nest_state IN ('F', 'I')
-    AND COALESCE(initial_clutch_status.first_clutch_size, 3) NOT IN (1, 2)
+    AND COALESCE(initial_clutch_status.found_as_incomplete, 0) = 0
     AND COALESCE(active_nests.brood_size, 0) = 0
     AND latest_clutch_history.clutch_datetime
         > processing_summary.last_processed_datetime
