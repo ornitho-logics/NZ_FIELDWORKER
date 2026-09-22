@@ -298,11 +298,11 @@ overview_cumulative_plot <- function(
     ) +
     overview_summary_annotation(summary_label, annotation_date) +
     scale_color_manual(
-      name = "Sex",
+      name = "Sexy",
       values = c(Female = "#c43c39", Male = "#2878b5")
     ) +
     scale_fill_manual(
-      name = "Sex",
+      name = "Sexy",
       values = c(Female = "#c43c39", Male = "#2878b5")
     ) +
     overview_date_scale() +
