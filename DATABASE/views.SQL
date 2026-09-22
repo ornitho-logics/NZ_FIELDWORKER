@@ -3619,7 +3619,7 @@ FROM (
   SELECT 'resightings', 'n_resighting_records', n_resighting_records
   FROM resighting_summary
 ) overview;
-
+ 
 
 /*
 --- TEST FAULTY VIEW
