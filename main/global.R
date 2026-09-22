@@ -114,6 +114,7 @@ dbtabs_show_view_sources <- list(
 
   EGGS_HATCH_PREDICTION = c(
     "settings",
+    "NESTS",
     "EGGS",
     "predict_hatching"
   )

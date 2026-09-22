@@ -60,6 +60,7 @@ test_that("main app UI and entrypoint load", {
   expect_match(html, 'id="nest_map_show"', fixed = TRUE)
   expect_match(html, 'id="overview_nests_show"', fixed = TRUE)
   expect_match(html, 'id="overview_geolocator_show"', fixed = TRUE)
+  expect_match(html, 'id="overview_cr_combos_show"', fixed = TRUE)
   expect_match(html, 'id="overview_lay_date_show"', fixed = TRUE)
   expect_match(html, 'id="overview_quota_show"', fixed = TRUE)
   expect_true(is.function(app$env$overview_nests_graph))
@@ -67,6 +68,7 @@ test_that("main app UI and entrypoint load", {
   for (output_id in c(
     "overview_nests_show",
     "overview_geolocator_show",
+    "overview_cr_combos_show",
     "overview_lay_date_show",
     "overview_quota_show"
   )) {

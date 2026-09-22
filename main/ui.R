@@ -277,6 +277,22 @@ dashboardPage(
           )
         ),
         bs4Dash::box(
+          title = paste(
+            "Seasonal progression in unique band combinations encountered",
+            "(resighted or captured)"
+          ),
+          width = 12,
+          collapsible = TRUE,
+          collapsed = FALSE,
+          height = "50vh",
+          style = "overflow: hidden;",
+          spinner(
+            plotOutput(
+              "overview_cr_combos_show"
+            )
+          )
+        ),
+        bs4Dash::box(
           title = "Seasonal progression in lay date",
           width = 12,
           collapsible = TRUE,
@@ -290,7 +306,7 @@ dashboardPage(
           )
         ),
         bs4Dash::box(
-          title = "Current quotas for manipulations",
+          title = "Current quotas for manipulations (Cass and elsewhere in NZ).",
           width = 12,
           collapsible = TRUE,
           collapsed = FALSE,
