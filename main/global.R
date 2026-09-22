@@ -154,4 +154,4 @@ kmz_nest_state_cols <- c(
 
 #! etc
 
-ver <- "v 4.2.5"
+git_id <- system2("git", c("rev-parse", "--short=7", "HEAD"), stdout = TRUE)

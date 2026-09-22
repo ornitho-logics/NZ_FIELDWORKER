@@ -20,7 +20,7 @@ dashboardPage(
     color = "#f8fafc"
   ),
 
-  title = glue('FIELDWORKER {ver}'),
+  title = glue('FIELDWORKER {git_id}'),
 
   header = dashboardHeader(
     title = dashboardBrand(
@@ -62,9 +62,9 @@ dashboardPage(
       hr(),
 
       menuItem(
-        text = ver,
+        text = git_id,
         icon = icon("code-branch", style = "color: gray;"),
-        href = "https://github.com/mpio-be/NZ_FIELDWORKER"
+        href = glue("https://github.com/mpio-be/NZ_FIELDWORKER/commit/{git_id}")
       ),
       menuItem(
         text = app_test_status$text,
