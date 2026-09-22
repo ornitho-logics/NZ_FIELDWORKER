@@ -3619,9 +3619,9 @@ FROM (
   SELECT 'resightings', 'n_resighting_records', n_resighting_records
   FROM resighting_summary
 ) overview;
- 
 
-/*
+
+/* test
 --- TEST FAULTY VIEW
 CREATE TABLE FIELD_2026_BADOatNZ._overview_fault_source (
   n INT
