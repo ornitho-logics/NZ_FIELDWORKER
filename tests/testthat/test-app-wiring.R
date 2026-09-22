@@ -44,6 +44,7 @@ for (app_name in names(dataentry_app_specs)) {
 
 
 test_that("main app UI and entrypoint load", {
+  withr::local_envvar(FIELDWORKER_GIT_ID = "ABCDEF1234567890")
   app <- load_main_app()
   html <- htmltools::renderTags(app$ui)$html
 
@@ -52,8 +53,22 @@ test_that("main app UI and entrypoint load", {
   expect_identical(names(formals(app$server)), c("input", "output", "session"))
   expect_identical(app$env$group, "nz_fieldworker")
   expect_identical(app$env$preferred_timezone, "Pacific/Auckland")
+  expect_identical(app$env$git_id, "abcdef1")
+  expect_identical(
+    app$env$git_version$source,
+    "env:FIELDWORKER_GIT_ID"
+  )
 
   expect_match(html, "FIELDWORKER", fixed = TRUE)
+  expect_match(html, "abcdef1", fixed = TRUE)
+  expect_match(
+    html,
+    paste0(
+      "https://github.com/ornitho-logics/NZ_FIELDWORKER/commit/",
+      "abcdef1"
+    ),
+    fixed = TRUE
+  )
   expect_match(html, 'data-value="downloads"', fixed = TRUE)
   expect_match(html, 'data-value="enter_data"', fixed = TRUE)
   expect_match(html, 'data-value="nest_map"', fixed = TRUE)

@@ -64,7 +64,7 @@ dashboardPage(
       menuItem(
         text = git_id,
         icon = icon("code-branch", style = "color: gray;"),
-        href = glue("https://github.com/mpio-be/NZ_FIELDWORKER/commit/{git_id}")
+        href = git_commit_url
       ),
       menuItem(
         text = app_test_status$text,

@@ -154,4 +154,111 @@ kmz_nest_state_cols <- c(
 
 #! etc
 
-git_id <- system2("git", c("rev-parse", "--short=7", "HEAD"), stdout = TRUE)
+# Deployments can update app files without advancing the surrounding Git HEAD.
+normalize_git_id <- function(value) {
+  if (length(value) == 0L || is.na(value[[1L]])) {
+    return(NULL)
+  }
+
+  value <- trimws(value[[1L]])
+
+  if (!grepl("^[0-9A-Fa-f]{7,40}$", value)) {
+    return(NULL)
+  }
+
+  tolower(substr(value, 1L, 7L))
+}
+
+
+git_output <- function(app_dir, args) {
+  output <- tryCatch(
+    suppressWarnings(
+      system2(
+        "git",
+        c("-C", shQuote(app_dir), args),
+        stdout = TRUE,
+        stderr = FALSE
+      )
+    ),
+    error = function(error) character()
+  )
+
+  if (!is.null(attr(output, "status")) && attr(output, "status") != 0L) {
+    return(character())
+  }
+
+  output
+}
+
+
+git_ref_matches_app <- function(app_dir, ref) {
+  status <- tryCatch(
+    suppressWarnings(
+      system2(
+        "git",
+        c("-C", shQuote(app_dir), "diff", "--quiet", ref, "--", "."),
+        stdout = FALSE,
+        stderr = FALSE
+      )
+    ),
+    error = function(error) 1L
+  )
+
+  identical(as.integer(status), 0L)
+}
+
+
+resolve_git_version <- function(app_dir = getwd()) {
+  environment_names <- c(
+    "FIELDWORKER_GIT_ID",
+    "GITHUB_SHA",
+    "SOURCE_VERSION",
+    "RENDER_GIT_COMMIT"
+  )
+
+  for (name in environment_names) {
+    id <- normalize_git_id(Sys.getenv(name, unset = NA_character_))
+
+    if (!is.null(id)) {
+      return(list(id = id, source = paste0("env:", name)))
+    }
+  }
+
+  app_dir <- normalizePath(app_dir, mustWork = FALSE)
+
+  for (ref in c("HEAD", "origin/main", "main")) {
+    if (!git_ref_matches_app(app_dir, ref)) {
+      next
+    }
+
+    id <- normalize_git_id(
+      git_output(app_dir, c("rev-parse", "--short=7", ref))
+    )
+
+    if (!is.null(id)) {
+      return(list(id = id, source = paste0("git:", ref)))
+    }
+  }
+
+  list(id = "unknown", source = "unavailable")
+}
+
+
+git_version <- resolve_git_version()
+git_id <- git_version$id
+git_commit_url <- if (git_id == "unknown") {
+  "https://github.com/ornitho-logics/NZ_FIELDWORKER"
+} else {
+  paste0(
+    "https://github.com/ornitho-logics/NZ_FIELDWORKER/commit/",
+    git_id
+  )
+}
+
+message(
+  "FIELDWORKER commit: ",
+  git_id,
+  " (",
+  git_version$source,
+  ")"
+)
