@@ -15,7 +15,7 @@ overview_histogram_base <- function(ylab) {
 overview_date_scale <- function() {
   scale_x_date(
     date_labels = "%d %b",
-    date_breaks = "3 days"
+    date_breaks = "7 days"
   )
 }
 
@@ -433,10 +433,10 @@ overview_nests_graph <- function(
 
   overview_cumulative_plot(
     x = plot_data,
-    ylab = "Cumulative number of found nests",
+    ylab = "Cumulative number of\nfound nests",
     date_limits = date_limits,
     summary_label = glue(
-      "Total number of nests found = {overview_cumulative_total(plot_data)}"
+      "Total nests found = {overview_cumulative_total(plot_data)}"
     )
   )
 }
@@ -488,13 +488,13 @@ overview_geolocator_graph <- function(
 
   overview_cumulative_plot(
     x = plot_data,
-    ylab = "Cumulative number of geolocators deployed",
+    ylab = "Cumulative number of\ngeolocators deployed",
     sex_split = TRUE,
     date_limits = date_limits,
     summary_label = glue(
-      "Number of females with geolocators = ",
+      "N females = ",
       "{overview_cumulative_total(plot_data, 'Female')}\n",
-      "Number of males with geolocators = ",
+      "N males = ",
       "{overview_cumulative_total(plot_data, 'Male')}"
     )
   )
@@ -592,13 +592,13 @@ overview_band_combos_graph <- function(
 
   overview_cumulative_plot(
     x = plot_data,
-    ylab = "Cumulative number of unique band combinations",
+    ylab = "Cumulative number of\nunique band combinations",
     sex_split = TRUE,
     date_limits = date_limits,
     summary_label = glue(
-      "Number of females = ",
+      "N females = ",
       "{overview_cumulative_total(plot_data, 'Female')}\n",
-      "Number of males = ",
+      "N males = ",
       "{overview_cumulative_total(plot_data, 'Male')}"
     )
   )
