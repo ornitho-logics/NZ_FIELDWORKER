@@ -34,7 +34,98 @@
   plots
 }
 
-.todo_pdf_map_prepare_nests <- function(todo) {
+.todo_pdf_map_prepare_chick_bands <- function(chick_captures, reference_date) {
+  empty <- data.table(
+    nest_id = character(),
+    chick_band = character(),
+    label_fill = character(),
+    label_text = character()
+  )
+  captures <- data.table(chick_captures)
+  required_columns <- c("nest_id", "age", "LL", "LR")
+  if (!nrow(captures) || !all(required_columns %in% names(captures))) {
+    return(empty)
+  }
+
+  captures <- captures[
+    toupper(trimws(as.character(age))) == "C" &
+      !is.na(nest_id) &
+      nzchar(trimws(as.character(nest_id))) &
+      toupper(trimws(as.character(nest_id))) != "NO_NEST"
+  ]
+  if ("site" %in% names(captures)) {
+    captures <- captures[toupper(trimws(as.character(site))) == "CR"]
+  }
+  if (!nrow(captures)) {
+    return(empty)
+  }
+
+  captures[, let(
+    nest_id = trimws(as.character(nest_id)),
+    LL = toupper(trimws(as.character(LL))),
+    LR = toupper(trimws(as.character(LR))),
+    capture_row = .I
+  )]
+  captures[LL %chin% c("", "NA"), LL := NA_character_]
+  captures[LR %chin% c("", "NA"), LR := NA_character_]
+
+  if ("date" %in% names(captures)) {
+    captures[, capture_date := as.IDate(date)]
+    captures <- captures[!is.na(capture_date)]
+    if (length(reference_date) && !is.na(reference_date[1])) {
+      captures <- captures[capture_date <= as.IDate(reference_date[1])]
+    }
+  } else {
+    captures[, capture_date := as.IDate(NA)]
+  }
+  if (!nrow(captures)) {
+    return(empty)
+  }
+
+  band_fills <- c(
+    B = "#1565c0",
+    G = "#2e7d32",
+    R = "#c62828",
+    O = "#f28c28",
+    W = "#ffffff",
+    Y = "#f4d03f"
+  )
+  captures[, chick_band := fcase(
+    LL %chin% names(band_fills), LL,
+    LR %chin% names(band_fills), LR,
+    default = NA_character_
+  )]
+  captures <- captures[!is.na(chick_band)]
+  if (!nrow(captures)) {
+    return(empty)
+  }
+
+  if ("caught" %in% names(captures)) {
+    captures[, capture_time := as.character(caught)]
+  } else {
+    captures[, capture_time := ""]
+  }
+  setorder(captures, nest_id, capture_date, capture_time, capture_row)
+  # Keep the original brood assignment; later colors may represent brood mixing.
+  captures <- captures[, .SD[1L], by = nest_id]
+  captures[, let(
+    label_fill = unname(band_fills[chick_band]),
+    label_text = fifelse(
+      chick_band %chin% c("B", "G", "R"),
+      "#ffffff",
+      "#111111"
+    )
+  )]
+
+  captures[, .(nest_id, chick_band, label_fill, label_text)]
+}
+
+
+.todo_pdf_map_prepare_nests <- function(
+  todo,
+  chick_captures = NULL,
+  nests_latest = NULL
+) {
   todo <- data.table(todo)
   check_todos <- c("Clutch check", "Unprocessed nest", "nest check")
 
@@ -61,6 +152,40 @@
     ),
     by = nest_id
   ]
+
+  reference_date <- if ("reference_date" %in% names(todo)) {
+    as.Date(todo$reference_date[1])
+  } else {
+    as.Date(NA)
+  }
+  chick_bands <- .todo_pdf_map_prepare_chick_bands(
+    chick_captures,
+    reference_date
+  )
+  latest <- data.table(nests_latest)
+  latest_columns <- c("nest_id", "lat", "lon")
+  if (nrow(chick_bands) && all(latest_columns %in% names(latest))) {
+    additional_nests <- latest[
+      nest_id %chin% setdiff(chick_bands$nest_id, nest_tasks$nest_id),
+      .(
+        nest_id = trimws(as.character(nest_id)),
+        lat = as.numeric(lat),
+        lon = as.numeric(lon),
+        check_type = "Other task",
+        parent_work = "No capture/resight"
+      )
+    ]
+    nest_tasks <- rbind(nest_tasks, additional_nests, fill = TRUE)
+  }
+  nest_tasks <- merge(
+    nest_tasks,
+    chick_bands,
+    by = "nest_id",
+    all.x = TRUE,
+    sort = FALSE
+  )
+  nest_tasks[is.na(label_fill), label_fill := "#111111"]
+  nest_tasks[is.na(label_text), label_text := "#ffffff"]
 
   nest_tasks <- nest_tasks[!is.na(lat) & !is.na(lon)]
   nest_tasks[, plot_name := substr(nest_id, 1L, 1L)]
@@ -274,6 +399,7 @@
     `No capture/resight` = "#7b858b"
   )
   task_shapes <- c(`Nest check` = 24, `Other task` = 21)
+  point_xy$parent_fill <- unname(task_cols[as.character(point_xy$parent_work)])
 
   panel <- ggplot()
   imagery <- .todo_pdf_map_read_imagery(spec)
@@ -319,19 +445,23 @@
     ) +
     geom_point(
       data = point_xy,
-      aes(X, Y, fill = parent_work, shape = check_type),
+      aes(X, Y, fill = parent_fill, shape = check_type),
       size = 3.45,
       stroke = 0.75,
       colour = "#17242d"
     ) +
     ggrepel::geom_label_repel(
       data = point_xy,
-      aes(X, Y, label = nest_id),
+      aes(
+        X,
+        Y,
+        label = nest_id,
+        fill = label_fill,
+        colour = label_text
+      ),
       seed = 20260916,
       size = 2.75,
       fontface = "bold",
-      colour = "#17242d",
-      fill = scales::alpha("white", 0.88),
       label.size = 0.15,
       label.padding = grid::unit(0.1, "lines"),
       box.padding = 0.38,
@@ -400,12 +530,8 @@
       fontface = "bold",
       colour = "#17242d"
     ) +
-    scale_fill_manual(
-      values = task_cols,
-      limits = names(task_cols),
-      drop = FALSE,
-      name = "Parent work"
-    ) +
+    scale_fill_identity() +
+    scale_colour_identity() +
     scale_shape_manual(
       values = task_shapes,
       limits = names(task_shapes),
@@ -480,10 +606,16 @@
 todo_pdf_map_save <- function(
   file,
   todo = DBq("SELECT * FROM TODO_LIST"),
-  spatial_objects = DBq("SELECT * FROM spatial_objects WHERE variable = 'study_area'")
+  spatial_objects = DBq("SELECT * FROM spatial_objects WHERE variable = 'study_area'"),
+  chick_captures = NULL,
+  nests_latest = NULL
 ) {
   plots <- .todo_pdf_map_prepare_plots(spatial_objects)
-  nests <- .todo_pdf_map_prepare_nests(todo)
+  nests <- .todo_pdf_map_prepare_nests(
+    todo,
+    chick_captures,
+    nests_latest
+  )
 
   gate <- st_as_sf(
     data.frame(label = "gate", lon = 170.480287, lat = -43.879213),
