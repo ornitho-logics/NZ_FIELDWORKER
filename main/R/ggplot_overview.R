@@ -298,11 +298,11 @@ overview_cumulative_plot <- function(
     ) +
     overview_summary_annotation(summary_label, annotation_date) +
     scale_color_manual(
-      name = "Sex",
+      name = NULL,
       values = c(Female = "#c43c39", Male = "#2878b5")
     ) +
     scale_fill_manual(
-      name = "Sex",
+      name = NULL,
       values = c(Female = "#c43c39", Male = "#2878b5")
     ) +
     overview_date_scale() +
@@ -764,10 +764,10 @@ overview_quota_graph <- function(refdate = get_reference_date()) {
 
   quota_counts <- data.table(
     title = c(
-      "Eggs floated",
-      "Geolocators deployed",
-      "Non-geolocator captures",
-      "Chicks processed"
+      "Eggs\nfloated",
+      "Geos\ndeployed",
+      "Non-geo\ncaptures",
+      "Chicks\nprocessed"
     ),
     value = c(
       eggs$n[1] %||% 0,
