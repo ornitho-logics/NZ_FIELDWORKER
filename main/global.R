@@ -208,6 +208,42 @@ git_ref_matches_app <- function(app_dir, ref) {
 }
 
 
+parse_git_ls_remote <- function(output) {
+  if (length(output) == 0L || !nzchar(trimws(output[[1L]]))) {
+    return(NULL)
+  }
+
+  fields <- strsplit(trimws(output[[1L]]), "[[:space:]]+")[[1L]]
+  normalize_git_id(fields[[1L]])
+}
+
+
+git_remote_main_id <- function(timeout = 5L) {
+  output <- tryCatch(
+    suppressWarnings(
+      system2(
+        "git",
+        c(
+          "ls-remote",
+          "https://github.com/ornitho-logics/NZ_FIELDWORKER.git",
+          "refs/heads/main"
+        ),
+        stdout = TRUE,
+        stderr = FALSE,
+        timeout = timeout
+      )
+    ),
+    error = function(error) character()
+  )
+
+  if (!is.null(attr(output, "status")) && attr(output, "status") != 0L) {
+    return(NULL)
+  }
+
+  parse_git_ls_remote(output)
+}
+
+
 resolve_git_version <- function(app_dir = getwd()) {
   environment_names <- c(
     "FIELDWORKER_GIT_ID",
@@ -238,6 +274,12 @@ resolve_git_version <- function(app_dir = getwd()) {
     if (!is.null(id)) {
       return(list(id = id, source = paste0("git:", ref)))
     }
+  }
+
+  id <- git_remote_main_id()
+
+  if (!is.null(id)) {
+    return(list(id = id, source = "remote:origin/main"))
   }
 
   list(id = "unknown", source = "unavailable")

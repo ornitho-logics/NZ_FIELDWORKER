@@ -58,6 +58,13 @@ test_that("main app UI and entrypoint load", {
     app$env$git_version$source,
     "env:FIELDWORKER_GIT_ID"
   )
+  expect_identical(
+    app$env$parse_git_ls_remote(
+      "ABCDEF1234567890ABCDEF1234567890ABCDEF12\trefs/heads/main"
+    ),
+    "abcdef1"
+  )
+  expect_null(app$env$parse_git_ls_remote(character()))
 
   expect_match(html, "FIELDWORKER", fixed = TRUE)
   expect_match(html, "abcdef1", fixed = TRUE)
