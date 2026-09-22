@@ -214,8 +214,6 @@ todo_pdf_prepare_nest_summary <- function(
 
   summary[is.na(Symbol), let(Symbol = "circle")]
   summary[is.na(SymbolColor), let(SymbolColor = "#7b858b")]
-  summary[is.na(LabelFill), let(LabelFill = "#111111")]
-  summary[is.na(LabelText), let(LabelText = "#ffffff")]
   setcolorder(
     summary,
     c(
@@ -407,33 +405,23 @@ todo_pdf_nest_summary_table <- function(nest_summary, n_blocks = 3L) {
     return(character())
   }
 
-  rows_per_block <- ceiling(nrow(summary) / n_blocks)
-  padded_rows <- rows_per_block * n_blocks
-  if (nrow(summary) < padded_rows) {
-    summary <- rbind(
-      summary,
-      data.table(
-        Nest = rep("", padded_rows - nrow(summary)),
-        `Est. Hatch` = "",
-        Male = "",
-        Female = "",
-        Symbol = "circle",
-        SymbolColor = "#7b858b",
-        LabelFill = "#111111",
-        LabelText = "#ffffff"
-      ),
-      fill = TRUE
-    )
+  n_blocks <- min(as.integer(n_blocks), nrow(summary))
+  block_sizes <- rep(nrow(summary) %/% n_blocks, n_blocks)
+  remainder <- nrow(summary) %% n_blocks
+  if (remainder) {
+    block_sizes[seq_len(remainder)] <- block_sizes[seq_len(remainder)] + 1L
   }
-
-  blocks <- lapply(seq_len(n_blocks), function(block) {
-    first <- (block - 1L) * rows_per_block + 1L
-    last <- block * rows_per_block
-    summary[first:last]
-  })
+  block_ends <- cumsum(block_sizes)
+  block_starts <- c(1L, head(block_ends, -1L) + 1L)
+  blocks <- Map(
+    function(first, last) summary[first:last],
+    block_starts,
+    block_ends
+  )
+  rows_per_block <- max(block_sizes)
 
   max_font_size <- 8.5
-  label_inset_y <- 1
+  label_inset_y <- 3
   max_inset_y <- 6.2 - label_inset_y
   target_table_height <- 280
   if (rows_per_block <= 12L) {
@@ -481,20 +469,32 @@ todo_pdf_nest_summary_table <- function(nest_summary, n_blocks = 3L) {
     for (row in seq_len(nrow(block))) {
       row_fill <- if (row %% 2L == 0L) stripe_fill else white_fill
       glyph <- if (block$Symbol[row] == "triangle") "▲" else "●"
+      has_chick_label <- !is.na(block$LabelFill[row]) &&
+        nzchar(block$LabelFill[row])
       nest_cell <- if (nzchar(block$Nest[row])) {
-        glue(
-          '#box[',
-          '  #text(fill: rgb("{block$SymbolColor[row]}"))[{glyph}]',
-          '  #h(1pt)',
-          '  #box(',
-          '    fill: rgb("{block$LabelFill[row]}"),',
-          '    stroke: 0.25pt + rgb("#17242d"),',
-          '    radius: 1.8pt,',
-          glue('    inset: (x: 4pt, y: {label_inset_y}pt),'),
-          '  )[#text(fill: rgb("{block$LabelText[row]}"))',
-          '[#strong[{typst_content(block$Nest[row])}]]]',
-          ']'
-        )
+        if (has_chick_label) {
+          glue(
+            '#box[',
+            '  #text(fill: rgb("{block$SymbolColor[row]}"))[{glyph}]',
+            '  #h(1pt)',
+            '  #box(',
+            '    fill: rgb("{block$LabelFill[row]}"),',
+            '    stroke: 0.25pt + rgb("#17242d"),',
+            '    radius: 1.8pt,',
+            glue('    inset: (x: 3pt, y: {label_inset_y}pt),'),
+            '  )[#text(fill: rgb("{block$LabelText[row]}"))',
+            '[#strong[{typst_content(block$Nest[row])}]]]',
+            ']'
+          )
+        } else {
+          glue(
+            '#box[',
+            '  #text(fill: rgb("{block$SymbolColor[row]}"))[{glyph}]',
+            '  #h(1pt)',
+            '  #strong[{typst_content(block$Nest[row])}]',
+            ']'
+          )
+        }
       } else {
         typst_content("")
       }
@@ -540,7 +540,7 @@ todo_pdf_nest_summary_table <- function(nest_summary, n_blocks = 3L) {
     "#v(-0.7em)",
     glue("#set text(size: {font_size}pt)"),
     "#grid(",
-    "  columns: (1fr, 1fr, 1fr),",
+    glue("  columns: ({paste(rep('1fr', n_blocks), collapse = ', ')}),"),
     "  gutter: 9pt,",
     paste0(vapply(tables, paste, "", collapse = "\n"), collapse = ",\n"),
     ")",
