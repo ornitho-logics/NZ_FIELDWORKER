@@ -64,7 +64,8 @@ todo_pdf_as_numeric <- function(x) {
 todo_pdf_prepare_nest_summary <- function(
   nests_latest,
   reference_date,
-  todo = NULL
+  todo = NULL,
+  chick_captures = NULL
 ) {
   nests <- data.table(nests_latest)
   required_columns <- c(
@@ -82,7 +83,9 @@ todo_pdf_prepare_nest_summary <- function(
       Male = character(),
       Female = character(),
       Symbol = character(),
-      SymbolColor = character()
+      SymbolColor = character(),
+      LabelFill = character(),
+      LabelText = character()
     ))
   }
 
@@ -114,6 +117,63 @@ todo_pdf_prepare_nest_summary <- function(
   todo_dt <- data.table(todo)
   check_todos <- c("Clutch check", "Unprocessed nest", "nest check")
   if (nrow(todo_dt) && all(c("nest_id", "todo") %in% names(todo_dt))) {
+    parent_todos <- c("Untrapped parent", "Parent capture", "Parent resighting")
+    parent_mark_columns <- c("M_mark", "F_mark")
+    if (all(parent_mark_columns %in% names(todo_dt))) {
+      parent_marks <- todo_dt[
+        todo %chin% parent_todos &
+          !is.na(nest_id) &
+          nzchar(trimws(as.character(nest_id))),
+        c(
+          list(Nest = trimws(as.character(nest_id))),
+          lapply(.SD, function(x) {
+            x <- trimws(as.character(x))
+            x[is.na(x) | !nzchar(x)] <- NA_character_
+            x
+          })
+        ),
+        .SDcols = parent_mark_columns
+      ]
+
+      if (nrow(parent_marks)) {
+        parent_marks <- melt(
+          parent_marks,
+          id.vars = "Nest",
+          variable.name = "sex_mark",
+          value.name = "mark",
+          na.rm = TRUE
+        )
+        parent_marks[, mark_rank := fifelse(
+          grepl("\\s&\\s", mark),
+          2L,
+          1L
+        )]
+        parent_marks[, mark_length := nchar(mark)]
+        setorder(parent_marks, Nest, sex_mark, -mark_rank, -mark_length, mark)
+        parent_marks <- parent_marks[, .SD[1L], by = .(Nest, sex_mark)]
+        parent_marks <- dcast(
+          parent_marks,
+          Nest ~ sex_mark,
+          value.var = "mark"
+        )
+        setnames(
+          parent_marks,
+          old = intersect(parent_mark_columns, names(parent_marks)),
+          new = sub("_mark$", "_todo_mark", intersect(parent_mark_columns, names(parent_marks)))
+        )
+
+        summary <- merge(summary, parent_marks, by = "Nest", all.x = TRUE, sort = FALSE)
+        if ("M_todo_mark" %in% names(summary)) {
+          summary[!is.na(M_todo_mark), Male := M_todo_mark]
+          summary[, M_todo_mark := NULL]
+        }
+        if ("F_todo_mark" %in% names(summary)) {
+          summary[!is.na(F_todo_mark), Female := F_todo_mark]
+          summary[, F_todo_mark := NULL]
+        }
+      }
+    }
+
     task_symbols <- todo_dt[,
       .(
         Symbol = if (any(todo %chin% check_todos)) "triangle" else "circle",
@@ -133,16 +193,34 @@ todo_pdf_prepare_nest_summary <- function(
       all.x = TRUE,
       sort = FALSE
     )
-    setcolorder(
-      summary,
-      c("Nest", "Est. Hatch", "Male", "Female", "Symbol", "SymbolColor")
-    )
   } else {
     summary[, let(Symbol = "circle", SymbolColor = "#7b858b")]
   }
 
+  chick_bands <- .todo_pdf_map_prepare_chick_bands(
+    chick_captures,
+    reference_date
+  )
+  if (nrow(chick_bands)) {
+    chick_bands <- chick_bands[, .(
+      Nest = nest_id,
+      LabelFill = label_fill,
+      LabelText = label_text
+    )]
+    summary <- merge(summary, chick_bands, by = "Nest", all.x = TRUE, sort = FALSE)
+  } else {
+    summary[, let(LabelFill = NA_character_, LabelText = NA_character_)]
+  }
+
   summary[is.na(Symbol), let(Symbol = "circle")]
   summary[is.na(SymbolColor), let(SymbolColor = "#7b858b")]
+  setcolorder(
+    summary,
+    c(
+      "Nest", "Est. Hatch", "Male", "Female", "Symbol", "SymbolColor",
+      "LabelFill", "LabelText"
+    )
+  )
   summary[order(Nest)]
 }
 
@@ -150,7 +228,8 @@ todo_pdf_prepare_nest_summary <- function(
 todo_pdf_prepare <- function(
   todo = DBq("SELECT * FROM TODO_LIST"),
   available_combos = NULL,
-  nests_latest = NULL
+  nests_latest = NULL,
+  chick_captures = NULL
 ) {
   todo_dt <- data.table(todo)
   refdate <- as.Date(todo_dt$reference_date[1])
@@ -238,7 +317,12 @@ todo_pdf_prepare <- function(
     title = glue("Cass To-Dos for {refdate}"),
     rows = rows,
     team_marks = todo_pdf_prepare_team_marks(available_combos),
-    nest_summary = todo_pdf_prepare_nest_summary(nests_latest, refdate, todo_dt)
+    nest_summary = todo_pdf_prepare_nest_summary(
+      nests_latest,
+      refdate,
+      todo_dt,
+      chick_captures
+    )
   )
 }
 
@@ -321,31 +405,24 @@ todo_pdf_nest_summary_table <- function(nest_summary, n_blocks = 3L) {
     return(character())
   }
 
-  rows_per_block <- ceiling(nrow(summary) / n_blocks)
-  padded_rows <- rows_per_block * n_blocks
-  if (nrow(summary) < padded_rows) {
-    summary <- rbind(
-      summary,
-      data.table(
-        Nest = rep("", padded_rows - nrow(summary)),
-        `Est. Hatch` = "",
-        Male = "",
-        Female = "",
-        Symbol = "circle",
-        SymbolColor = "#7b858b"
-      ),
-      fill = TRUE
-    )
+  n_blocks <- min(as.integer(n_blocks), nrow(summary))
+  block_sizes <- rep(nrow(summary) %/% n_blocks, n_blocks)
+  remainder <- nrow(summary) %% n_blocks
+  if (remainder) {
+    block_sizes[seq_len(remainder)] <- block_sizes[seq_len(remainder)] + 1L
   }
-
-  blocks <- lapply(seq_len(n_blocks), function(block) {
-    first <- (block - 1L) * rows_per_block + 1L
-    last <- block * rows_per_block
-    summary[first:last]
-  })
+  block_ends <- cumsum(block_sizes)
+  block_starts <- c(1L, head(block_ends, -1L) + 1L)
+  blocks <- Map(
+    function(first, last) summary[first:last],
+    block_starts,
+    block_ends
+  )
+  rows_per_block <- max(block_sizes)
 
   max_font_size <- 8.5
-  max_inset_y <- 6.2
+  label_inset_y <- 3
+  max_inset_y <- 6.2 - label_inset_y
   target_table_height <- 280
   if (rows_per_block <= 12L) {
     font_size <- max_font_size
@@ -359,7 +436,7 @@ todo_pdf_nest_summary_table <- function(nest_summary, n_blocks = 3L) {
       0,
       (
         target_table_height - (rows_per_block + 2) * font_size
-      ) / (2 * (rows_per_block + 1))
+      ) / (2 * (rows_per_block + 1)) - label_inset_y
     )
   }
   font_size <- format(round(font_size, 2), trim = TRUE)
@@ -392,18 +469,42 @@ todo_pdf_nest_summary_table <- function(nest_summary, n_blocks = 3L) {
     for (row in seq_len(nrow(block))) {
       row_fill <- if (row %% 2L == 0L) stripe_fill else white_fill
       glyph <- if (block$Symbol[row] == "triangle") "▲" else "●"
+      has_chick_label <- !is.na(block$LabelFill[row]) &&
+        nzchar(block$LabelFill[row])
       nest_cell <- if (nzchar(block$Nest[row])) {
-        glue(
-          '#text(fill: rgb("{block$SymbolColor[row]}"))[{glyph}] ',
-          '#h(1.5pt){typst_content(block$Nest[row])}'
-        )
+        if (has_chick_label) {
+          glue(
+            '#box[',
+            '  #text(fill: rgb("{block$SymbolColor[row]}"))[{glyph}]',
+            '  #h(1pt)',
+            '  #box(',
+            '    fill: rgb("{block$LabelFill[row]}"),',
+            '    stroke: 0.25pt + rgb("#17242d"),',
+            '    radius: 1.8pt,',
+            glue('    inset: (x: 3pt, y: {label_inset_y}pt),'),
+            '  )[#text(fill: rgb("{block$LabelText[row]}"))',
+            '[#strong[{typst_content(block$Nest[row])}]]]',
+            ']'
+          )
+        } else {
+          glue(
+            '#box[',
+            '  #text(fill: rgb("{block$SymbolColor[row]}"))[{glyph}]',
+            '  #h(1pt)',
+            '  #strong[{typst_content(block$Nest[row])}]',
+            ']'
+          )
+        }
       } else {
         typst_content("")
       }
 
       cells <- c(
         cells,
-        glue('table.cell(fill: rgb("{row_fill}"))[{nest_cell}]'),
+        glue(
+          'table.cell(fill: rgb("{row_fill}"))',
+          '[{nest_cell}]'
+        ),
         glue(
           'table.cell(fill: rgb("{row_fill}"))',
           '[{typst_content(block[["Est. Hatch"]][row])}]'
@@ -422,7 +523,7 @@ todo_pdf_nest_summary_table <- function(nest_summary, n_blocks = 3L) {
     c(
       "[",
       "#table(",
-      "  columns: (0.95fr, 0.8fr, 1.2fr, 1.2fr),",
+      "  columns: (1.1fr, 0.8fr, 1.125fr, 1.125fr),",
       "  align: (left, center, center, center),",
       glue("  inset: (x: 2.2pt, y: {inset_y}pt),"),
       '  stroke: 0.25pt + rgb("#aeb8ba"),',
@@ -439,7 +540,7 @@ todo_pdf_nest_summary_table <- function(nest_summary, n_blocks = 3L) {
     "#v(-0.7em)",
     glue("#set text(size: {font_size}pt)"),
     "#grid(",
-    "  columns: (1fr, 1fr, 1fr),",
+    glue("  columns: ({paste(rep('1fr', n_blocks), collapse = ', ')}),"),
     "  gutter: 9pt,",
     paste0(vapply(tables, paste, "", collapse = "\n"), collapse = ",\n"),
     ")",
@@ -564,13 +665,13 @@ todo_pdf_save <- function(
   todo = DBq("SELECT * FROM TODO_LIST"),
   available_combos = NULL,
   spatial_objects = NULL,
-  nests_latest = NULL
+  nests_latest = NULL,
+  chick_captures = NULL
 ) {
   if (is.null(nests_latest)) {
     nests_latest <- DBq("SELECT * FROM NESTS_LATEST")
   }
 
-  pdf <- todo_pdf_prepare(todo, available_combos, nests_latest)
   workdir <- tempfile("todo_pdf_")
   dir.create(workdir)
   on.exit(unlink(workdir, recursive = TRUE), add = TRUE)
@@ -584,11 +685,29 @@ todo_pdf_save <- function(
       "SELECT * FROM spatial_objects WHERE variable = 'study_area'"
     )
   }
+  if (is.null(chick_captures)) {
+    chick_captures <- DBq("
+      SELECT nest_id, date, caught, age, site, LL, LR, pk
+      FROM CAPTURES
+      WHERE age = 'C'
+        AND site = 'CR'
+        AND nest_id IS NOT NULL
+        AND TRIM(nest_id) NOT IN ('', 'NO_NEST')
+    ")
+  }
+  pdf <- todo_pdf_prepare(
+    todo,
+    available_combos,
+    nests_latest,
+    chick_captures
+  )
 
   todo_pdf_map_save(
     file = map_file,
     todo = todo,
-    spatial_objects = spatial_objects
+    spatial_objects = spatial_objects,
+    chick_captures = chick_captures,
+    nests_latest = nests_latest
   )
 
   writeLines(todo_pdf_qmd(pdf, basename(map_file)), qmd)
