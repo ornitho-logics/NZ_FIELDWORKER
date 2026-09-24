@@ -1005,6 +1005,403 @@ SELECT
 FROM incomplete_nest_prediction;
 
 
+-- The operational release ceiling is 60 of 100 GEOs, retaining 40 for the
+-- anticipated later nest wave. Nests first known by 2026-09-24 receive the
+-- historic-nest pair-completion priority implemented in TODO_LIST below.
+-- The final sex quotas are 50 males and 50 females. Pair completion is allowed
+-- only while the target sex remains below its quota; non-pair deployments
+-- prefer the sex with the larger remaining quota and are then ranked by that
+-- sex's phenology-stratum deficit.
+CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.GEO_ROLLOUT_PHENOLOGY AS
+
+WITH sr AS (
+  SELECT value AS reference_date
+  FROM FIELD_2026_BADOatNZ.settings
+  WHERE variable = 'reference_date'
+    AND value IS NOT NULL
+),
+parameters AS (
+  SELECT
+    CAST('2026-08-10' AS DATE) AS phenology_anchor,
+    60 AS release_ceiling
+),
+nest_history AS (
+  SELECT n.*
+  FROM FIELD_2026_BADOatNZ.NESTS n
+  CROSS JOIN sr
+  WHERE n.date <= sr.reference_date
+    AND UPPER(TRIM(COALESCE(n.site, ''))) = 'CR'
+    AND n.nest_id IS NOT NULL
+    AND TRIM(n.nest_id) <> ''
+),
+nest_discovery AS (
+  SELECT
+    nest_id,
+    MIN(date) AS first_found_date
+  FROM nest_history
+  GROUP BY nest_id
+),
+first_one_egg_ranked AS (
+  SELECT
+    n.nest_id,
+    n.date AS one_egg_date,
+    n.time_visit AS one_egg_time,
+    n.pk,
+    ROW_NUMBER() OVER (
+      PARTITION BY n.nest_id
+      ORDER BY n.date, n.time_visit, n.pk
+    ) AS row_num
+  FROM nest_history n
+  WHERE n.clutch_size = 1
+),
+direct_lay_bounds AS (
+  SELECT
+    one_egg.nest_id,
+    one_egg.one_egg_date,
+    MAX(prior.date) AS prior_zero_date
+  FROM first_one_egg_ranked one_egg
+  LEFT JOIN nest_history prior
+    ON one_egg.nest_id = prior.nest_id
+   AND CAST(
+         CONCAT(prior.date, ' ', COALESCE(prior.time_visit, '00:00:00'))
+         AS DATETIME
+       ) < CAST(
+         CONCAT(
+           one_egg.one_egg_date,
+           ' ',
+           COALESCE(one_egg.one_egg_time, '00:00:00')
+         ) AS DATETIME
+       )
+   AND (
+     prior.clutch_size = 0
+     OR UPPER(TRIM(COALESCE(prior.nest_state, ''))) = 'S'
+   )
+  WHERE one_egg.row_num = 1
+  GROUP BY one_egg.nest_id, one_egg.one_egg_date
+),
+direct_lay AS (
+  SELECT
+    nest_id,
+    DATE_ADD(
+      COALESCE(prior_zero_date, DATE_SUB(one_egg_date, INTERVAL 2 DAY)),
+      INTERVAL ROUND(
+        DATEDIFF(
+          one_egg_date,
+          COALESCE(prior_zero_date, DATE_SUB(one_egg_date, INTERVAL 2 DAY))
+        ) / 2
+      ) DAY
+    ) AS first_egg_estimate,
+    COALESCE(prior_zero_date, DATE_SUB(one_egg_date, INTERVAL 2 DAY))
+      AS first_egg_lower,
+    one_egg_date AS first_egg_upper,
+    CASE
+      WHEN prior_zero_date IS NOT NULL
+       AND DATEDIFF(one_egg_date, prior_zero_date) <= 3
+      THEN 'high'
+      ELSE 'medium'
+    END AS phenology_confidence,
+    1 AS source_rank
+  FROM direct_lay_bounds
+),
+float_lay_ranked AS (
+  SELECT
+    p.nest_id,
+    p.float_date,
+    DATE_SUB(
+      p.float_date,
+      INTERVAL ROUND(p.predicted_days_since_laying) DAY
+    ) AS lay_point,
+    DATE_SUB(
+      p.float_date,
+      INTERVAL CEILING(
+        p.predicted_days_since_laying
+        + (
+          p.days_to_hatch_at_float
+          - (p.min_days_to_hatch + p.days_since_float)
+        )
+      ) DAY
+    ) AS lay_lower,
+    DATE_SUB(
+      p.float_date,
+      INTERVAL FLOOR(
+        p.predicted_days_since_laying
+        - (
+          (p.max_days_to_hatch + p.days_since_float)
+          - p.days_to_hatch_at_float
+        )
+      ) DAY
+    ) AS lay_upper,
+    CASE WHEN p.calibration_match_type = 'exact' THEN 1 ELSE 0 END AS is_exact,
+    ROW_NUMBER() OVER (
+      PARTITION BY p.nest_id, p.float_date
+      ORDER BY
+        CASE WHEN p.egg_id = 1 THEN 0 ELSE 1 END,
+        DATE_SUB(
+          p.float_date,
+          INTERVAL ROUND(p.predicted_days_since_laying) DAY
+        ),
+        p.egg_id
+    ) AS row_num
+  FROM FIELD_2026_BADOatNZ.EGGS_HATCH_PREDICTION p
+  WHERE p.float_date IS NOT NULL
+    AND p.predicted_days_since_laying IS NOT NULL
+    AND p.calibration_match_type IN ('exact', 'nearest')
+),
+float_lay AS (
+  SELECT
+    nest_id,
+    FROM_DAYS(ROUND(AVG(TO_DAYS(lay_point)))) AS first_egg_estimate,
+    MIN(lay_lower) AS first_egg_lower,
+    MAX(lay_upper) AS first_egg_upper,
+    CASE
+      WHEN MIN(is_exact) = 1
+       AND DATEDIFF(MAX(lay_upper), MIN(lay_lower)) <= 4
+      THEN 'high'
+      WHEN DATEDIFF(MAX(lay_upper), MIN(lay_lower)) <= 8
+      THEN 'medium'
+      ELSE 'low'
+    END AS phenology_confidence,
+    2 AS source_rank
+  FROM float_lay_ranked
+  WHERE row_num = 1
+  GROUP BY nest_id
+),
+final_clutch AS (
+  SELECT
+    nest_id,
+    GREATEST(1, COALESCE(MAX(clutch_size), 3)) AS final_clutch_size
+  FROM nest_history
+  GROUP BY nest_id
+),
+incomplete_lay AS (
+  SELECT
+    p.nest_id,
+    DATE_SUB(
+      DATE_SUB(MIN(p.predicted_hatch_date), INTERVAL 26 DAY),
+      INTERVAL (2 * (MAX(final_clutch.final_clutch_size) - 1)) DAY
+    ) AS first_egg_estimate,
+    DATE_SUB(
+      DATE_SUB(
+        DATE_SUB(MIN(p.predicted_hatch_date), INTERVAL 26 DAY),
+        INTERVAL (2 * (MAX(final_clutch.final_clutch_size) - 1)) DAY
+      ),
+      INTERVAL 2 DAY
+    ) AS first_egg_lower,
+    DATE_ADD(
+      DATE_SUB(
+        DATE_SUB(MIN(p.predicted_hatch_date), INTERVAL 26 DAY),
+        INTERVAL (2 * (MAX(final_clutch.final_clutch_size) - 1)) DAY
+      ),
+      INTERVAL 2 DAY
+    ) AS first_egg_upper,
+    'medium' AS phenology_confidence,
+    3 AS source_rank
+  FROM FIELD_2026_BADOatNZ.EGGS_HATCH_PREDICTION p
+  JOIN final_clutch
+    ON p.nest_id = final_clutch.nest_id
+  WHERE p.calibration_match_type = 'found as incomplete'
+  GROUP BY p.nest_id
+),
+clutch_lay AS (
+  SELECT
+    summary.nest_id,
+    DATE_SUB(
+      summary.first_complete_date,
+      INTERVAL (2 * (summary.final_clutch_size - 1)) DAY
+    ) AS first_egg_estimate,
+    DATE_SUB(
+      DATE_SUB(
+        summary.first_complete_date,
+        INTERVAL (2 * (summary.final_clutch_size - 1)) DAY
+      ),
+      INTERVAL 4 DAY
+    ) AS first_egg_lower,
+    DATE_SUB(
+      summary.first_complete_date,
+      INTERVAL (2 * (summary.final_clutch_size - 1)) DAY
+    ) AS first_egg_upper,
+    'low' AS phenology_confidence,
+    4 AS source_rank
+  FROM (
+    SELECT
+      history.nest_id,
+      final_clutch.final_clutch_size,
+      MIN(history.date) AS first_complete_date
+    FROM nest_history history
+    JOIN final_clutch
+      ON history.nest_id = final_clutch.nest_id
+     AND history.clutch_size = final_clutch.final_clutch_size
+    WHERE history.clutch_size > 0
+    GROUP BY history.nest_id, final_clutch.final_clutch_size
+  ) summary
+),
+discovery_lay AS (
+  SELECT
+    nest_id,
+    DATE_SUB(first_found_date, INTERVAL 5 DAY) AS first_egg_estimate,
+    DATE_SUB(first_found_date, INTERVAL 10 DAY) AS first_egg_lower,
+    first_found_date AS first_egg_upper,
+    'low' AS phenology_confidence,
+    5 AS source_rank
+  FROM nest_discovery
+),
+lay_candidates AS (
+  SELECT * FROM direct_lay
+  UNION ALL
+  SELECT * FROM float_lay
+  UNION ALL
+  SELECT * FROM incomplete_lay
+  UNION ALL
+  SELECT * FROM clutch_lay
+  UNION ALL
+  SELECT * FROM discovery_lay
+),
+lay_ranked AS (
+  SELECT
+    candidates.*,
+    ROW_NUMBER() OVER (
+      PARTITION BY candidates.nest_id
+      ORDER BY candidates.source_rank
+    ) AS row_num
+  FROM lay_candidates candidates
+),
+nest_lay AS (
+  SELECT
+    ranked.nest_id,
+    ranked.first_egg_estimate,
+    ranked.first_egg_lower,
+    ranked.first_egg_upper,
+    ranked.phenology_confidence,
+    DATE_ADD(
+      parameters.phenology_anchor,
+      INTERVAL (
+        7 * FLOOR(
+          DATEDIFF(ranked.first_egg_estimate, parameters.phenology_anchor) / 7
+        )
+      ) DAY
+    ) AS stratum_start,
+    CASE
+      WHEN FLOOR(
+        DATEDIFF(ranked.first_egg_lower, parameters.phenology_anchor) / 7
+      ) <> FLOOR(
+        DATEDIFF(ranked.first_egg_upper, parameters.phenology_anchor) / 7
+      )
+      THEN 1
+      ELSE 0
+    END AS spans_strata
+  FROM lay_ranked ranked
+  CROSS JOIN parameters
+  WHERE ranked.row_num = 1
+),
+stratum_nest_counts AS (
+  SELECT
+    stratum_start,
+    COUNT(*) AS n_nests
+  FROM nest_lay
+  GROUP BY stratum_start
+),
+stratum_deployment_counts AS (
+  SELECT
+    lay.stratum_start,
+    COUNT(DISTINCT CASE
+      WHEN LEFT(c.field_sex, 1) = 'M' THEN NULLIF(TRIM(c.tag_id), '')
+    END) AS male_geo,
+    COUNT(DISTINCT CASE
+      WHEN LEFT(c.field_sex, 1) = 'F' THEN NULLIF(TRIM(c.tag_id), '')
+    END) AS female_geo
+  FROM FIELD_2026_BADOatNZ.CAPTURES c
+  JOIN nest_lay lay
+    ON c.nest_id = lay.nest_id
+  CROSS JOIN sr
+  WHERE c.date <= sr.reference_date
+    AND UPPER(TRIM(COALESCE(c.site, ''))) = 'CR'
+    AND UPPER(TRIM(COALESCE(c.tag_type, ''))) = 'GEO'
+    AND UPPER(TRIM(COALESCE(c.tag_action, ''))) IN ('D', 'S', 'N')
+    AND NULLIF(TRIM(c.tag_id), '') IS NOT NULL
+  GROUP BY lay.stratum_start
+),
+deployment_status AS (
+  SELECT
+    COUNT(DISTINCT NULLIF(TRIM(c.tag_id), '')) AS n_geo_deployed,
+    COUNT(DISTINCT CASE
+      WHEN LEFT(c.field_sex, 1) = 'M' THEN NULLIF(TRIM(c.tag_id), '')
+    END) AS n_male_geo_deployed,
+    COUNT(DISTINCT CASE
+      WHEN LEFT(c.field_sex, 1) = 'F' THEN NULLIF(TRIM(c.tag_id), '')
+    END) AS n_female_geo_deployed
+  FROM FIELD_2026_BADOatNZ.CAPTURES c
+  CROSS JOIN sr
+  WHERE c.date <= sr.reference_date
+    AND UPPER(TRIM(COALESCE(c.tag_type, ''))) = 'GEO'
+    AND UPPER(TRIM(COALESCE(c.tag_action, ''))) IN ('D', 'S', 'N')
+    AND NULLIF(TRIM(c.tag_id), '') IS NOT NULL
+),
+stratum_targets AS (
+  SELECT
+    nest_counts.stratum_start,
+    nest_counts.n_nests,
+    COALESCE(deployments.male_geo, 0) AS male_geo,
+    COALESCE(deployments.female_geo, 0) AS female_geo,
+    COALESCE(deployments.male_geo, 0)
+      + COALESCE(deployments.female_geo, 0) AS current_geo_total,
+    COALESCE(deployments.male_geo, 0)
+      + COALESCE(deployments.female_geo, 0)
+      + GREATEST(
+          0,
+          parameters.release_ceiling - deployment_status.n_geo_deployed
+        ) * nest_counts.n_nests
+          / NULLIF(SUM(nest_counts.n_nests) OVER (), 0)
+      AS target_total,
+    deployment_status.n_male_geo_deployed,
+    deployment_status.n_female_geo_deployed
+  FROM stratum_nest_counts nest_counts
+  LEFT JOIN stratum_deployment_counts deployments
+    ON nest_counts.stratum_start = deployments.stratum_start
+  CROSS JOIN deployment_status
+  CROSS JOIN parameters
+),
+stratum_status AS (
+  SELECT
+    targets.*,
+    CASE
+      WHEN targets.male_geo < targets.female_geo
+      THEN targets.female_geo - targets.male_geo
+      WHEN targets.male_geo = targets.female_geo
+       AND targets.target_total > targets.current_geo_total
+       AND targets.n_male_geo_deployed < targets.n_female_geo_deployed
+      THEN targets.target_total - targets.current_geo_total
+      ELSE 0
+    END AS male_deficit,
+    CASE
+      WHEN targets.female_geo < targets.male_geo
+      THEN targets.male_geo - targets.female_geo
+      WHEN targets.male_geo = targets.female_geo
+       AND targets.target_total > targets.current_geo_total
+       AND targets.n_female_geo_deployed < targets.n_male_geo_deployed
+      THEN targets.target_total - targets.current_geo_total
+      ELSE 0
+    END AS female_deficit
+  FROM stratum_targets targets
+)
+SELECT
+  lay.nest_id,
+  lay.first_egg_estimate,
+  lay.first_egg_lower,
+  lay.first_egg_upper,
+  lay.phenology_confidence,
+  lay.stratum_start,
+  lay.spans_strata,
+  strata.n_nests AS stratum_n_nests,
+  strata.male_geo AS stratum_male_geo,
+  strata.female_geo AS stratum_female_geo,
+  strata.target_total AS stratum_target_total,
+  strata.male_deficit,
+  strata.female_deficit
+FROM nest_lay lay
+LEFT JOIN stratum_status strata
+  ON lay.stratum_start = strata.stratum_start;
+
+
 CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.TODO_LIST AS
 
 WITH sr AS (
@@ -1060,7 +1457,59 @@ latest_float_status AS (
 ),
 geo_deployment_status AS (
   SELECT
-    COUNT(DISTINCT NULLIF(TRIM(c.tag_id), '')) AS n_geo_deployed
+    COUNT(DISTINCT NULLIF(TRIM(c.tag_id), '')) AS n_geo_deployed,
+    COUNT(DISTINCT CASE
+      WHEN LEFT(c.field_sex, 1) = 'M' THEN NULLIF(TRIM(c.tag_id), '')
+    END) AS n_male_geo_deployed,
+    COUNT(DISTINCT CASE
+      WHEN LEFT(c.field_sex, 1) = 'F' THEN NULLIF(TRIM(c.tag_id), '')
+    END) AS n_female_geo_deployed,
+    60 AS release_ceiling,
+    GREATEST(
+      0,
+      50 - COUNT(DISTINCT CASE
+        WHEN LEFT(c.field_sex, 1) = 'M' THEN NULLIF(TRIM(c.tag_id), '')
+      END)
+    ) AS male_quota_remaining,
+    GREATEST(
+      0,
+      50 - COUNT(DISTINCT CASE
+        WHEN LEFT(c.field_sex, 1) = 'F' THEN NULLIF(TRIM(c.tag_id), '')
+      END)
+    ) AS female_quota_remaining,
+    CASE
+      WHEN GREATEST(
+             0,
+             50 - COUNT(DISTINCT CASE
+               WHEN LEFT(c.field_sex, 1) = 'M'
+               THEN NULLIF(TRIM(c.tag_id), '')
+             END)
+           )
+           > GREATEST(
+               0,
+               50 - COUNT(DISTINCT CASE
+                 WHEN LEFT(c.field_sex, 1) = 'F'
+                 THEN NULLIF(TRIM(c.tag_id), '')
+               END)
+             )
+      THEN 'M'
+      WHEN GREATEST(
+             0,
+             50 - COUNT(DISTINCT CASE
+               WHEN LEFT(c.field_sex, 1) = 'F'
+               THEN NULLIF(TRIM(c.tag_id), '')
+             END)
+           )
+           > GREATEST(
+               0,
+               50 - COUNT(DISTINCT CASE
+                 WHEN LEFT(c.field_sex, 1) = 'M'
+                 THEN NULLIF(TRIM(c.tag_id), '')
+               END)
+             )
+      THEN 'F'
+      ELSE NULL
+    END AS preferred_balance_sex
   FROM FIELD_2026_BADOatNZ.CAPTURES c
   CROSS JOIN sr
   WHERE c.date <= sr.reference_date
@@ -1386,6 +1835,8 @@ adult_capture_latest AS (
     x.mark,
     x.is_confirmed_xx,
     x.has_geo,
+    x.is_au_migrant,
+    x.is_dead,
     x.has_complete_tarsal_pair,
     CASE
       WHEN x.non_x_non_m_count = 1
@@ -1465,6 +1916,18 @@ adult_capture_latest AS (
         THEN 1
         ELSE 0
       END AS has_geo,
+      CASE
+        WHEN LEFT(UPPER(TRIM(COALESCE(c.UL, ''))), 2) = 'FO'
+          OR LEFT(UPPER(TRIM(COALESCE(c.UR, ''))), 2) = 'FO'
+          OR LEFT(UPPER(TRIM(COALESCE(c.UL_in, ''))), 2) = 'FO'
+          OR LEFT(UPPER(TRIM(COALESCE(c.UR_in, ''))), 2) = 'FO'
+        THEN 1
+        ELSE 0
+      END AS is_au_migrant,
+      CASE
+        WHEN UPPER(TRIM(COALESCE(c.capture_status, ''))) = 'D' THEN 1
+        ELSE 0
+      END AS is_dead,
       CASE
         WHEN COALESCE(NULLIF(TRIM(c.LL), ''), NULLIF(TRIM(c.LL_in), ''))
                IS NOT NULL
@@ -1602,6 +2065,7 @@ adult_resighting_latest AS (
     x.mark,
     x.is_confirmed_xx,
     x.has_geo,
+    x.is_au_migrant,
     x.has_complete_tarsal_pair
   FROM (
     SELECT
@@ -1693,6 +2157,12 @@ adult_resighting_latest AS (
           ELSE 0
         END AS has_geo,
         CASE
+          WHEN LEFT(COALESCE(raw.UL_obs, ''), 2) = 'FO'
+            OR LEFT(COALESCE(raw.UR_obs, ''), 2) = 'FO'
+          THEN 1
+          ELSE 0
+        END AS is_au_migrant,
+        CASE
           WHEN raw.LL_obs IS NOT NULL AND raw.LR_obs IS NOT NULL THEN 1
           ELSE 0
         END AS has_complete_tarsal_pair,
@@ -1745,6 +2215,8 @@ adult_parent_identity_latest AS (
     ranked.mark,
     ranked.is_confirmed_xx,
     ranked.has_geo,
+    ranked.is_au_migrant,
+    ranked.is_dead,
     ranked.is_single_colour_recruit
   FROM (
     SELECT
@@ -1782,6 +2254,8 @@ adult_parent_identity_latest AS (
         mark,
         is_confirmed_xx,
         has_geo,
+        is_au_migrant,
+        is_dead,
         is_single_colour_recruit
       FROM adult_capture_latest
       WHERE mark IS NOT NULL
@@ -1806,6 +2280,8 @@ adult_parent_identity_latest AS (
         mark,
         is_confirmed_xx,
         has_geo,
+        is_au_migrant,
+        0 AS is_dead,
         0 AS is_single_colour_recruit
       FROM adult_resighting_latest
       WHERE mark IS NOT NULL
@@ -1822,6 +2298,10 @@ adult_parent_identity_status AS (
     MAX(CASE WHEN sex = 'F' THEN is_confirmed_xx END) AS F_identity_confirmed_xx,
     MAX(CASE WHEN sex = 'M' THEN has_geo END) AS M_identity_has_geo,
     MAX(CASE WHEN sex = 'F' THEN has_geo END) AS F_identity_has_geo,
+    MAX(CASE WHEN sex = 'M' THEN is_au_migrant END) AS M_identity_is_au_migrant,
+    MAX(CASE WHEN sex = 'F' THEN is_au_migrant END) AS F_identity_is_au_migrant,
+    MAX(CASE WHEN sex = 'M' THEN is_dead END) AS M_identity_is_dead,
+    MAX(CASE WHEN sex = 'F' THEN is_dead END) AS F_identity_is_dead,
     MAX(CASE WHEN sex = 'M' THEN is_single_colour_recruit END)
       AS M_identity_single_colour_recruit,
     MAX(CASE WHEN sex = 'F' THEN is_single_colour_recruit END)
@@ -2177,6 +2657,14 @@ adult_parent_status AS (
       THEN 1
       ELSE 0
     END AS F_unknown_status,
+    COALESCE(adult_parent_identity_status.M_identity_is_au_migrant, 0)
+      AS M_is_au_migrant,
+    COALESCE(adult_parent_identity_status.F_identity_is_au_migrant, 0)
+      AS F_is_au_migrant,
+    COALESCE(adult_parent_identity_status.M_identity_is_dead, 0)
+      AS M_is_dead,
+    COALESCE(adult_parent_identity_status.F_identity_is_dead, 0)
+      AS F_is_dead,
     COALESCE(adult_mm_followup_status.M_mm_resight_pending, 0) AS M_mm_resight_pending,
     COALESCE(adult_mm_followup_status.F_mm_resight_pending, 0) AS F_mm_resight_pending,
     COALESCE(adult_mm_followup_status.M_post_mm_xx_seen, 0) AS M_post_mm_xx_seen,
@@ -2200,6 +2688,10 @@ adult_parent_geo_target_status AS (
        AND COALESCE(adult_parent_status.F_unknown_status, 0) = 0
        AND COALESCE(adult_parent_status.M_has_geo, 0) = 0
        AND COALESCE(adult_parent_status.F_has_geo, 0) = 0
+       AND COALESCE(adult_parent_status.M_is_au_migrant, 0) = 0
+       AND COALESCE(adult_parent_status.F_is_au_migrant, 0) = 0
+       AND COALESCE(adult_parent_status.M_is_dead, 0) = 0
+       AND COALESCE(adult_parent_status.F_is_dead, 0) = 0
        AND COALESCE(adult_parent_status.M_single_colour_recruit, 0) = 0
        AND COALESCE(adult_parent_status.F_single_colour_recruit, 0) = 0
        AND COALESCE(adult_parent_status.M_mm_resight_pending, 0) = 0
@@ -2436,12 +2928,378 @@ complete_clutch_processing_status AS (
        >= clutch_start.current_clutch_start_datetime
   GROUP BY clutch_start.nest_id
 ),
+geo_parent_plan AS (
+  SELECT
+    ranked.nest_id,
+    ranked.geo_rank,
+    ranked.geo_priority_tier,
+    ranked.global_sex_priority,
+    ranked.geo_priority_score,
+    ranked.geo_reason,
+    ranked.n_male_geo_deployed,
+    ranked.n_female_geo_deployed,
+    ranked.male_quota_remaining,
+    ranked.female_quota_remaining,
+    ranked.preferred_balance_sex,
+    ranked.band_target AS geo_band_target,
+    CASE
+      WHEN ranked.pair_target IS NOT NULL
+       AND ranked.n_geo_deployed < ranked.release_ceiling
+      THEN ranked.pair_target
+      WHEN ranked.geo_rank <= GREATEST(
+        0,
+        ranked.release_ceiling - ranked.n_geo_deployed
+      )
+      THEN ranked.geo_target
+      ELSE NULL
+    END AS geo_tag_target,
+    CASE
+      WHEN ranked.pair_target IS NOT NULL
+       AND ranked.n_geo_deployed < ranked.release_ceiling
+      THEN CONCAT(
+        'tag ',
+        ranked.pair_target,
+        ' (pair completion',
+        CASE
+          WHEN (ranked.pair_target = 'M' AND ranked.M_parent_mark IS NULL)
+            OR (ranked.pair_target = 'F' AND ranked.F_parent_mark IS NULL)
+          THEN '; confirm identity/GEO'
+          ELSE ''
+        END,
+        ')'
+      )
+      WHEN ranked.geo_rank <= GREATEST(
+        0,
+        ranked.release_ceiling - ranked.n_geo_deployed
+      )
+      THEN CONCAT(
+        'tag ',
+        CASE ranked.geo_target WHEN 'A' THEN 'either' ELSE ranked.geo_target END,
+        ' (',
+        ranked.geo_reason,
+        CASE
+          WHEN (ranked.geo_target = 'M' AND ranked.M_parent_mark IS NULL)
+            OR (ranked.geo_target = 'F' AND ranked.F_parent_mark IS NULL)
+          THEN '; confirm identity/GEO'
+          ELSE ''
+        END,
+        ')'
+      )
+      WHEN ranked.balance_target IS NULL
+       AND ranked.band_target IS NOT NULL
+      THEN CONCAT(
+        'band ',
+        CASE ranked.band_target WHEN 'A' THEN 'either' ELSE ranked.band_target END,
+        ' (',
+        CASE
+          WHEN ranked.band_target = 'M'
+           AND ranked.male_quota_remaining = 0
+          THEN 'male GEO quota complete'
+          WHEN ranked.band_target = 'F'
+           AND ranked.female_quota_remaining = 0
+          THEN 'female GEO quota complete'
+          WHEN ranked.band_target = 'A'
+           AND ranked.male_quota_remaining = 0
+           AND ranked.female_quota_remaining = 0
+          THEN 'GEO sex quotas complete'
+          ELSE 'GEO decision unresolved'
+        END,
+        ')'
+      )
+      ELSE NULL
+    END AS geo_instruction,
+    CASE
+      WHEN ranked.pair_target IS NOT NULL
+       AND ranked.n_geo_deployed < ranked.release_ceiling
+      THEN 1 ELSE 0
+    END AS is_pair_completion,
+    ranked.M_is_au_migrant,
+    ranked.F_is_au_migrant
+  FROM (
+    SELECT
+      scored.*,
+      CASE
+        WHEN scored.is_candidate = 1
+        THEN SUM(scored.is_candidate) OVER (
+          ORDER BY
+            scored.is_candidate DESC,
+            scored.geo_priority_tier,
+            scored.global_sex_priority,
+            scored.target_sex_deficit DESC,
+            scored.geo_priority_score DESC,
+            scored.first_egg_estimate,
+            scored.nest_id
+          ROWS UNBOUNDED PRECEDING
+        )
+        ELSE NULL
+      END AS geo_rank
+    FROM (
+      SELECT
+        candidates.*,
+        4 * LEAST(candidates.target_sex_deficit, 3)
+          + CASE WHEN candidates.pair_target IS NOT NULL THEN 2 ELSE 0 END
+          + CASE
+              WHEN candidates.M_reliable_identity = 1
+                OR candidates.F_reliable_identity = 1
+              THEN 2 ELSE 1
+            END
+          + CASE candidates.phenology_confidence
+              WHEN 'high' THEN 2
+              WHEN 'medium' THEN 1
+              ELSE 0
+            END
+          + candidates.target_identity_score
+          AS geo_priority_score
+      FROM (
+        SELECT
+          targets.*,
+          COALESCE(targets.pair_target, targets.balance_target) AS geo_target,
+          CASE WHEN targets.pair_target IS NOT NULL THEN 1 ELSE 2 END
+            AS geo_priority_tier,
+          CASE
+            WHEN targets.pair_target IS NOT NULL THEN 1
+            WHEN targets.preferred_balance_sex IS NULL THEN 1
+            WHEN targets.balance_target = targets.preferred_balance_sex THEN 1
+            ELSE 2
+          END AS global_sex_priority,
+          CASE
+            WHEN targets.pair_target IS NOT NULL THEN 'pair completion'
+            ELSE 'sex/phenology balance'
+          END AS geo_reason,
+          CASE COALESCE(targets.pair_target, targets.balance_target)
+            WHEN 'M' THEN COALESCE(targets.male_deficit, 0)
+            WHEN 'F' THEN COALESCE(targets.female_deficit, 0)
+            ELSE GREATEST(
+              COALESCE(targets.male_deficit, 0),
+              COALESCE(targets.female_deficit, 0)
+            )
+          END AS target_sex_deficit,
+          CASE COALESCE(targets.pair_target, targets.balance_target)
+            WHEN 'M' THEN CASE
+              WHEN targets.M_parent_mark IS NULL THEN 0 ELSE 1
+            END
+            WHEN 'F' THEN CASE
+              WHEN targets.F_parent_mark IS NULL THEN 0 ELSE 1
+            END
+            ELSE CASE
+              WHEN targets.M_parent_mark IS NULL
+               AND targets.F_parent_mark IS NULL THEN 0 ELSE 1
+            END
+          END AS target_identity_score,
+          CASE
+             WHEN COALESCE(targets.pair_target, targets.balance_target)
+                 IS NOT NULL
+             AND targets.n_geo_deployed < targets.release_ceiling
+             AND COALESCE(targets.capture_allowed_after_completion, 0) = 1
+             AND CASE COALESCE(targets.pair_target, targets.balance_target)
+               WHEN 'M' THEN CASE
+                 WHEN COALESCE(targets.no_parent_capture_yet, 0) = 1
+                   OR COALESCE(targets.M_target_capture_window_open, 0) = 1
+                 THEN 1 ELSE 0
+               END
+               WHEN 'F' THEN CASE
+                 WHEN COALESCE(targets.no_parent_capture_yet, 0) = 1
+                   OR COALESCE(targets.F_target_capture_window_open, 0) = 1
+                 THEN 1 ELSE 0
+               END
+               ELSE CASE
+                 WHEN COALESCE(targets.no_parent_capture_yet, 0) = 1
+                   OR COALESCE(targets.any_target_capture_window_open, 0) = 1
+                 THEN 1 ELSE 0
+               END
+             END = 1
+            THEN 1 ELSE 0
+          END AS is_candidate
+        FROM (
+          SELECT
+            base.*,
+            -- A pair completion is the first tier, but it cannot exceed the
+            -- final 50-per-sex quota. Once F reaches 50, an eligible M can
+            -- still be selected; the reverse applies if M reaches 50 first.
+            CASE
+              WHEN base.M_tag_eligible = 1
+               AND base.male_quota_remaining > 0
+               AND COALESCE(base.F_has_geo, 0) = 1
+               AND (
+                 base.is_pre25_nest = 1
+                 OR base.F_geo_deployment_date >= base.first_found_date
+               )
+              THEN 'M'
+              WHEN base.F_tag_eligible = 1
+               AND base.female_quota_remaining > 0
+               AND COALESCE(base.M_has_geo, 0) = 1
+               AND (
+                 base.is_pre25_nest = 1
+                 OR base.M_geo_deployment_date >= base.first_found_date
+               )
+              THEN 'F'
+              ELSE NULL
+            END AS pair_target,
+            -- For non-pair candidates, prefer the sex with the larger global
+            -- quota remainder. The ranking below then orders that sex by its
+            -- phenology-stratum deficit. Unknown/X-X identities remain
+            -- capture-time identity/GEO checks, not a reason to suppress a
+            -- quota-eligible target.
+            CASE
+              WHEN base.n_geo_deployed >= base.release_ceiling THEN NULL
+              WHEN base.male_quota_remaining = 0
+               AND base.female_quota_remaining = 0
+              THEN NULL
+              WHEN base.spans_strata = 1
+               AND base.phenology_confidence = 'low'
+              THEN NULL
+              WHEN base.M_tag_eligible = 1
+               AND base.F_tag_eligible = 1
+              THEN CASE
+                WHEN base.preferred_balance_sex = 'M'
+                 AND base.male_quota_remaining > 0
+                THEN 'M'
+                WHEN base.preferred_balance_sex = 'F'
+                 AND base.female_quota_remaining > 0
+                THEN 'F'
+                WHEN base.male_quota_remaining = 0
+                 AND base.female_quota_remaining > 0
+                THEN 'F'
+                WHEN base.female_quota_remaining = 0
+                 AND base.male_quota_remaining > 0
+                THEN 'M'
+                WHEN COALESCE(base.male_deficit, 0)
+                     >= COALESCE(base.female_deficit, 0)
+                THEN 'M'
+                ELSE 'F'
+              END
+              WHEN base.M_tag_eligible = 1
+               AND base.male_quota_remaining > 0
+              THEN 'M'
+              WHEN base.F_tag_eligible = 1
+               AND base.female_quota_remaining > 0
+              THEN 'F'
+              ELSE NULL
+            END AS balance_target,
+            CASE
+              WHEN base.M_band_needed = 1 AND base.F_band_needed = 1 THEN 'A'
+              WHEN base.M_band_needed = 1 THEN 'M'
+              WHEN base.F_band_needed = 1 THEN 'F'
+              ELSE NULL
+            END AS band_target
+          FROM (
+            SELECT
+              active_nests.nest_id,
+              nest_discovery.first_found_date,
+              lay.first_egg_estimate,
+              lay.phenology_confidence,
+              lay.spans_strata,
+              lay.male_deficit,
+              lay.female_deficit,
+              parent_status.M_parent_mark,
+              parent_status.F_parent_mark,
+              parent_status.M_has_geo,
+              parent_status.F_has_geo,
+              parent_status.both_parents_need_geo,
+              parent_status.M_is_au_migrant,
+              parent_status.F_is_au_migrant,
+              deployments.M_geo_deployment_date,
+              deployments.F_geo_deployment_date,
+              deployment_status.n_geo_deployed,
+              deployment_status.n_male_geo_deployed,
+              deployment_status.n_female_geo_deployed,
+              deployment_status.male_quota_remaining,
+              deployment_status.female_quota_remaining,
+              deployment_status.preferred_balance_sex,
+              deployment_status.release_ceiling,
+              capture_age.capture_allowed_after_completion,
+              capture_interval.no_parent_capture_yet,
+              capture_interval.any_target_capture_window_open,
+              capture_interval.M_target_capture_window_open,
+              capture_interval.F_target_capture_window_open,
+              CASE
+                WHEN nest_discovery.first_found_date <= CAST('2026-09-24' AS DATE)
+                THEN 1 ELSE 0
+              END AS is_pre25_nest,
+              CASE
+                WHEN parent_status.M_parent_mark IS NOT NULL
+                 AND parent_status.M_parent_mark <> 'X-X'
+                 AND LOWER(parent_status.M_parent_mark) <> 'dead'
+                THEN 1 ELSE 0
+              END AS M_reliable_identity,
+              CASE
+                WHEN parent_status.F_parent_mark IS NOT NULL
+                 AND parent_status.F_parent_mark <> 'X-X'
+                 AND LOWER(parent_status.F_parent_mark) <> 'dead'
+                THEN 1 ELSE 0
+              END AS F_reliable_identity,
+              CASE
+                WHEN COALESCE(parent_status.M_confirmed_unbanded, 0) = 1
+                  OR COALESCE(parent_status.M_unknown_status, 0) = 1
+                  OR COALESCE(parent_status.M_single_colour_recruit, 0) = 1
+                THEN 1 ELSE 0
+              END AS M_band_needed,
+              CASE
+                WHEN COALESCE(parent_status.F_confirmed_unbanded, 0) = 1
+                  OR COALESCE(parent_status.F_unknown_status, 0) = 1
+                  OR COALESCE(parent_status.F_single_colour_recruit, 0) = 1
+                THEN 1 ELSE 0
+              END AS F_band_needed,
+              CASE
+                WHEN COALESCE(parent_status.M_has_geo, 0) = 0
+                 AND COALESCE(parent_status.M_is_au_migrant, 0) = 0
+                 AND COALESCE(parent_status.M_is_dead, 0) = 0
+                 AND COALESCE(parent_status.M_mm_resight_pending, 0) = 0
+                THEN 1 ELSE 0
+              END AS M_tag_eligible,
+              CASE
+                WHEN COALESCE(parent_status.F_has_geo, 0) = 0
+                 AND COALESCE(parent_status.F_is_au_migrant, 0) = 0
+                 AND COALESCE(parent_status.F_is_dead, 0) = 0
+                 AND COALESCE(parent_status.F_mm_resight_pending, 0) = 0
+                THEN 1 ELSE 0
+              END AS F_tag_eligible
+            FROM active_nests
+            JOIN nest_discovery
+              ON active_nests.nest_id = nest_discovery.nest_id
+            LEFT JOIN FIELD_2026_BADOatNZ.GEO_ROLLOUT_PHENOLOGY lay
+              ON active_nests.nest_id = lay.nest_id
+            LEFT JOIN adult_parent_geo_target_status parent_status
+              ON active_nests.nest_id = parent_status.nest_id
+            LEFT JOIN adult_capture_age_status capture_age
+              ON active_nests.nest_id = capture_age.nest_id
+            LEFT JOIN adult_capture_interval_status capture_interval
+              ON active_nests.nest_id = capture_interval.nest_id
+            LEFT JOIN (
+              SELECT
+                c.nest_id,
+                MAX(CASE WHEN LEFT(c.field_sex, 1) = 'M' THEN c.date END)
+                  AS M_geo_deployment_date,
+                MAX(CASE WHEN LEFT(c.field_sex, 1) = 'F' THEN c.date END)
+                  AS F_geo_deployment_date
+              FROM FIELD_2026_BADOatNZ.CAPTURES c
+              CROSS JOIN sr
+              WHERE c.date <= sr.reference_date
+                AND c.nest_id IS NOT NULL
+                AND TRIM(c.nest_id) <> ''
+                AND UPPER(TRIM(COALESCE(c.site, ''))) = 'CR'
+                AND UPPER(TRIM(COALESCE(c.tag_type, ''))) = 'GEO'
+                AND UPPER(TRIM(COALESCE(c.tag_action, ''))) IN ('D', 'S', 'N')
+                AND NULLIF(TRIM(c.tag_id), '') IS NOT NULL
+              GROUP BY c.nest_id
+            ) deployments
+              ON active_nests.nest_id = deployments.nest_id
+            CROSS JOIN geo_deployment_status deployment_status
+            WHERE UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I')
+          ) base
+        ) targets
+      ) candidates
+    ) scored
+  ) ranked
+),
 todo_untrapped_parent_candidate AS (
   SELECT
     active_nests.nest_id,
     active_nests.reference_date,
     'Untrapped parent' AS todo,
     CASE
+      WHEN geo_parent_plan.geo_instruction IS NOT NULL
+      THEN geo_parent_plan.geo_instruction
       WHEN adult_parent_status.M_confirmed_unbanded = 1
        AND adult_parent_status.F_confirmed_unbanded = 1
       THEN 'any (both X-X)'
@@ -2485,6 +3343,10 @@ todo_untrapped_parent_candidate AS (
       THEN 'F recruit (full colours)'
     END AS notes,
     CASE
+      WHEN geo_parent_plan.geo_tag_target IS NOT NULL
+      THEN geo_parent_plan.geo_tag_target
+      WHEN geo_parent_plan.geo_band_target IS NOT NULL
+      THEN geo_parent_plan.geo_band_target
       WHEN adult_parent_status.M_confirmed_unbanded = 1
        AND adult_parent_status.F_confirmed_unbanded = 1 THEN 'A'
       WHEN adult_parent_status.M_confirmed_unbanded = 1
@@ -2556,6 +3418,42 @@ todo_untrapped_parent_candidate AS (
       ELSE 0
     END AS resight_only_when_capture_blocked,
     CASE
+      WHEN COALESCE(
+             geo_parent_plan.geo_tag_target,
+             geo_parent_plan.geo_band_target
+           ) = 'A'
+      THEN CASE
+        WHEN COALESCE(adult_capture_interval_status.no_parent_capture_yet, 0) = 1
+          OR COALESCE(
+               adult_capture_interval_status.any_target_capture_window_open,
+               0
+             ) = 1
+        THEN 1 ELSE 0
+      END
+      WHEN COALESCE(
+             geo_parent_plan.geo_tag_target,
+             geo_parent_plan.geo_band_target
+           ) = 'M'
+      THEN CASE
+        WHEN COALESCE(adult_capture_interval_status.no_parent_capture_yet, 0) = 1
+          OR COALESCE(
+               adult_capture_interval_status.M_target_capture_window_open,
+               0
+             ) = 1
+        THEN 1 ELSE 0
+      END
+      WHEN COALESCE(
+             geo_parent_plan.geo_tag_target,
+             geo_parent_plan.geo_band_target
+           ) = 'F'
+      THEN CASE
+        WHEN COALESCE(adult_capture_interval_status.no_parent_capture_yet, 0) = 1
+          OR COALESCE(
+               adult_capture_interval_status.F_target_capture_window_open,
+               0
+             ) = 1
+        THEN 1 ELSE 0
+      END
       WHEN (
         (
           adult_parent_status.M_confirmed_unbanded = 1
@@ -2634,11 +3532,27 @@ todo_untrapped_parent_candidate AS (
       END
       ELSE 0
     END AS capture_interval_open,
+    geo_parent_plan.geo_instruction,
+    geo_parent_plan.geo_tag_target,
+    geo_parent_plan.geo_band_target,
+    geo_parent_plan.geo_rank,
+    geo_parent_plan.geo_priority_tier,
+    geo_parent_plan.global_sex_priority,
+    geo_parent_plan.geo_priority_score,
+    geo_parent_plan.geo_reason,
+    geo_parent_plan.is_pair_completion,
+    geo_parent_plan.n_male_geo_deployed,
+    geo_parent_plan.n_female_geo_deployed,
+    geo_parent_plan.male_quota_remaining,
+    geo_parent_plan.female_quota_remaining,
+    geo_parent_plan.preferred_balance_sex,
     active_nests.lat,
     active_nests.lon
   FROM active_nests
   LEFT JOIN adult_parent_geo_target_status adult_parent_status
     ON active_nests.nest_id = adult_parent_status.nest_id
+  LEFT JOIN geo_parent_plan
+    ON active_nests.nest_id = geo_parent_plan.nest_id
   LEFT JOIN adult_capture_interval_status
     ON active_nests.nest_id = adult_capture_interval_status.nest_id
   LEFT JOIN adult_capture_age_status
@@ -2657,17 +3571,22 @@ todo_untrapped_parent_candidate AS (
       OR COALESCE(float_summary.n_float_rows, 0) > 0
     )
     AND (
-      adult_parent_status.M_confirmed_unbanded = 1
+      geo_parent_plan.geo_instruction IS NOT NULL
+      OR adult_parent_status.M_confirmed_unbanded = 1
       OR adult_parent_status.F_confirmed_unbanded = 1
       OR adult_parent_status.M_unknown_status = 1
       OR adult_parent_status.F_unknown_status = 1
       OR (
         adult_parent_status.M_has_geo = 1
         AND adult_parent_status.F_has_geo = 0
+        AND COALESCE(adult_parent_status.F_is_au_migrant, 0) = 0
+        AND COALESCE(adult_parent_status.F_is_dead, 0) = 0
       )
       OR (
         adult_parent_status.F_has_geo = 1
         AND adult_parent_status.M_has_geo = 0
+        AND COALESCE(adult_parent_status.M_is_au_migrant, 0) = 0
+        AND COALESCE(adult_parent_status.M_is_dead, 0) = 0
       )
       OR adult_parent_status.M_single_colour_recruit = 1
       OR adult_parent_status.F_single_colour_recruit = 1
@@ -2680,6 +3599,22 @@ todo_untrapped_parent AS (
     reference_date,
     todo,
     CASE
+      WHEN geo_instruction IS NOT NULL
+       AND COALESCE(capture_allowed_after_completion, 0) = 1
+       AND COALESCE(capture_interval_open, 0) = 1
+      THEN geo_instruction
+      WHEN geo_instruction IS NOT NULL
+       AND COALESCE(is_pair_completion, 0) = 1
+      THEN CONCAT(
+        geo_instruction,
+        CASE
+          WHEN COALESCE(capture_allowed_after_completion, 0) = 0
+           AND COALESCE(capture_interval_open, 0) = 0 THEN '; after 7d+36hr'
+          WHEN COALESCE(capture_allowed_after_completion, 0) = 0 THEN '; after 7d rule'
+          WHEN COALESCE(capture_interval_open, 0) = 0 THEN '; after 36hr rule'
+          ELSE ''
+        END
+      )
       WHEN COALESCE(M_confirmed_unbanded, 0) = 1
        AND COALESCE(F_confirmed_unbanded, 0) = 1
       THEN 'capture any (both X-X)'
@@ -2828,6 +3763,14 @@ todo_untrapped_parent AS (
       )
       WHEN COALESCE(M_has_geo, 0) = 1
        AND COALESCE(F_has_geo, 0) = 0
+       AND COALESCE(female_quota_remaining, 0) = 0
+      THEN 'capture F (no GEO; female quota complete; M w/GEO)'
+      WHEN COALESCE(F_has_geo, 0) = 1
+       AND COALESCE(M_has_geo, 0) = 0
+       AND COALESCE(male_quota_remaining, 0) = 0
+      THEN 'capture M (no GEO; male quota complete; F w/GEO)'
+      WHEN COALESCE(M_has_geo, 0) = 1
+       AND COALESCE(F_has_geo, 0) = 0
       THEN 'capture F (no GEO; M w/GEO)'
       WHEN COALESCE(F_has_geo, 0) = 1
        AND COALESCE(M_has_geo, 0) = 0
@@ -2851,7 +3794,19 @@ todo_untrapped_parent AS (
     M_mark,
     F_mark,
     lat,
-    lon
+    lon,
+    -- A closed 7d/36hr gate is always a resighting task, including for
+    -- pair-completion targets; capture rows must be actionable on that date.
+    CASE
+      WHEN geo_instruction IS NOT NULL
+       AND COALESCE(capture_allowed_after_completion, 0) = 1
+       AND COALESCE(capture_interval_open, 0) = 1
+      THEN 'Parent capture'
+      WHEN COALESCE(capture_allowed_after_completion, 0) = 1
+       AND COALESCE(capture_interval_open, 0) = 1
+      THEN 'Parent capture'
+      ELSE 'Parent resighting'
+    END AS parent_task_class
   FROM todo_untrapped_parent_candidate
   WHERE target_parent IN ('A', 'M', 'F')
     AND (
@@ -2860,6 +3815,7 @@ todo_untrapped_parent AS (
         AND COALESCE(capture_interval_open, 0) = 1
       )
       OR COALESCE(resight_only_when_capture_blocked, 0) = 1
+      OR COALESCE(is_pair_completion, 0) = 1
     )
 ),
 todo_parent_capture AS (
@@ -2880,7 +3836,7 @@ todo_parent_capture AS (
     lat,
     lon
   FROM todo_untrapped_parent
-  WHERE LOWER(notes) LIKE '%capture%'
+  WHERE parent_task_class = 'Parent capture'
 ),
 todo_parent_resighting_existing AS (
   SELECT
@@ -2900,7 +3856,7 @@ todo_parent_resighting_existing AS (
     lat,
     lon
   FROM todo_untrapped_parent
-  WHERE LOWER(notes) NOT LIKE '%capture%'
+  WHERE parent_task_class = 'Parent resighting'
 ),
 todo_mm_parent_resighting_by_sex AS (
   SELECT
@@ -3401,6 +4357,13 @@ todo_nota_nest_check AS (
 )
 SELECT
   t.*,
+  geo_parent_plan.geo_rank AS geo_priority_rank,
+  geo_parent_plan.geo_priority_tier,
+  geo_parent_plan.geo_priority_score,
+  geo_parent_plan.geo_reason,
+  geo_parent_plan.geo_tag_target,
+  geo_parent_plan.M_is_au_migrant,
+  geo_parent_plan.F_is_au_migrant,
   CASE
     WHEN t.todo IN ('Untrapped parent', 'Parent capture', 'Parent resighting')
      AND t.min_days_to_hatch IS NOT NULL
@@ -3433,7 +4396,290 @@ FROM (
   SELECT * FROM todo_hiding_spot_photos
   UNION ALL
   SELECT * FROM todo_nota_nest_check
-) t;
+) t
+LEFT JOIN geo_parent_plan
+  ON t.nest_id = geo_parent_plan.nest_id;
+
+
+CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.VIEW_1 AS
+
+WITH reference_setting AS (
+  -- Fail closed unless exactly one non-null canonical reference date exists.
+  SELECT MAX(value) AS reference_date
+  FROM FIELD_2026_BADOatNZ.settings
+  WHERE variable = 'reference_date'
+    AND value IS NOT NULL
+  HAVING COUNT(*) = 1
+),
+geo_device_history AS (
+  -- A device seen against several rings is not safe cohort evidence.
+  SELECT
+    UPPER(TRIM(c.ring)) AS bird_id,
+    UPPER(TRIM(c.tag_id)) AS device_id
+  FROM FIELD_2026_BADOatNZ.CAPTURES c
+  CROSS JOIN reference_setting reference
+  WHERE c.date <= reference.reference_date
+    AND UPPER(TRIM(COALESCE(c.tag_type, ''))) = 'GEO'
+    AND NULLIF(TRIM(c.ring), '') IS NOT NULL
+    AND NULLIF(TRIM(c.tag_id), '') IS NOT NULL
+
+  UNION
+
+  SELECT
+    UPPER(TRIM(c.ring)) AS bird_id,
+    UPPER(TRIM(c.tag_id_in)) AS device_id
+  FROM FIELD_2026_BADOatNZ.CAPTURES c
+  CROSS JOIN reference_setting reference
+  WHERE c.date <= reference.reference_date
+    AND UPPER(TRIM(COALESCE(c.tag_type, ''))) = 'GEO'
+    AND NULLIF(TRIM(c.ring), '') IS NOT NULL
+    AND NULLIF(TRIM(c.tag_id_in), '') IS NOT NULL
+),
+geo_device_owners AS (
+  SELECT
+    device_id,
+    COUNT(DISTINCT bird_id) AS n_birds
+  FROM geo_device_history
+  GROUP BY device_id
+),
+outgoing_geo_events AS (
+  SELECT
+    UPPER(TRIM(c.ring)) AS bird_id,
+    UPPER(TRIM(c.tag_id)) AS device_id,
+    c.date AS cap_date,
+    c.caught AS cap_time,
+    c.field_sex AS sex,
+    FIELD_2026_BADOatNZ.format_mark(c.UL, c.LL, c.UR, c.LR) AS mark,
+    UPPER(
+      FIELD_2026_BADOatNZ.format_mark(c.UL, c.LL, c.UR, c.LR)
+    ) AS mark_key,
+    c.pk
+  FROM FIELD_2026_BADOatNZ.CAPTURES c
+  CROSS JOIN reference_setting reference
+  WHERE c.date IS NOT NULL
+    AND c.date <= reference.reference_date
+    AND UPPER(TRIM(COALESCE(c.tag_type, ''))) = 'GEO'
+    AND UPPER(TRIM(COALESCE(c.tag_action, ''))) IN ('D', 'N')
+    AND NULLIF(TRIM(c.tag_id), '') IS NOT NULL
+    AND NULLIF(TRIM(c.ring), '') IS NOT NULL
+),
+deployment_ranked AS (
+  SELECT
+    event.*,
+    ROW_NUMBER() OVER (
+      PARTITION BY event.bird_id
+      ORDER BY
+        event.cap_date,
+        COALESCE(event.cap_time, CAST('00:00:00' AS TIME)),
+        event.pk
+    ) AS deployment_rank
+  FROM outgoing_geo_events event
+  JOIN geo_device_owners owner
+    ON event.device_id = owner.device_id
+   AND owner.n_birds = 1
+  WHERE event.mark_key <> 'X-X'
+    AND event.mark_key <> 'XX-XX'
+    AND SUBSTRING_INDEX(event.mark_key, '-', 1) NOT IN ('X', 'XX')
+    AND SUBSTRING_INDEX(event.mark_key, '-', -1) NOT IN ('X', 'XX')
+),
+tagged_birds AS (
+  -- One row per ring; replacements remain part of the same bird history.
+  SELECT
+    bird_id,
+    device_id,
+    cap_date,
+    sex,
+    mark,
+    mark_key
+  FROM deployment_ranked
+  WHERE deployment_rank = 1
+),
+capture_alias_values AS (
+  -- Later captures provide exact pre/post-handling aliases for changed marks.
+  SELECT
+    bird.bird_id,
+    UPPER(
+      FIELD_2026_BADOatNZ.format_mark(c.UL, c.LL, c.UR, c.LR)
+    ) AS mark_key
+  FROM tagged_birds bird
+  JOIN FIELD_2026_BADOatNZ.CAPTURES c
+    ON UPPER(TRIM(c.ring)) = bird.bird_id
+  CROSS JOIN reference_setting reference
+  WHERE c.date >= bird.cap_date
+    AND c.date <= reference.reference_date
+
+  UNION
+
+  SELECT
+    bird.bird_id,
+    UPPER(
+      FIELD_2026_BADOatNZ.format_mark(
+        c.UL_in,
+        c.LL_in,
+        c.UR_in,
+        c.LR_in
+      )
+    ) AS mark_key
+  FROM tagged_birds bird
+  JOIN FIELD_2026_BADOatNZ.CAPTURES c
+    ON UPPER(TRIM(c.ring)) = bird.bird_id
+  CROSS JOIN reference_setting reference
+  WHERE c.date >= bird.cap_date
+    AND c.date <= reference.reference_date
+),
+complete_bird_aliases AS (
+  SELECT DISTINCT
+    bird_id,
+    mark_key
+  FROM capture_alias_values
+  WHERE mark_key <> 'X-X'
+    AND mark_key <> 'XX-XX'
+    AND SUBSTRING_INDEX(mark_key, '-', 1) NOT IN ('X', 'XX')
+    AND SUBSTRING_INDEX(mark_key, '-', -1) NOT IN ('X', 'XX')
+),
+alias_owner_counts AS (
+  SELECT
+    mark_key,
+    COUNT(DISTINCT bird_id) AS n_birds
+  FROM complete_bird_aliases
+  GROUP BY mark_key
+),
+unique_bird_aliases AS (
+  -- Ambiguous marks are retained nowhere in the RESIGHTINGS attribution path.
+  SELECT
+    alias.bird_id,
+    alias.mark_key
+  FROM complete_bird_aliases alias
+  JOIN alias_owner_counts owner
+    ON alias.mark_key = owner.mark_key
+   AND owner.n_birds = 1
+),
+matched_resightings AS (
+  SELECT
+    alias.bird_id,
+    r.date AS resighting_date,
+    r.pk,
+    NULLIF(TRIM(r.comments), '') AS comment_text,
+    LOWER(COALESCE(NULLIF(TRIM(r.comments), ''), '')) AS comment_lower
+  FROM FIELD_2026_BADOatNZ.RESIGHTINGS r
+  JOIN unique_bird_aliases alias
+    ON UPPER(
+      FIELD_2026_BADOatNZ.format_mark(r.UL, r.LL, r.UR, r.LR)
+    ) = alias.mark_key
+  JOIN tagged_birds bird
+    ON alias.bird_id = bird.bird_id
+  CROSS JOIN reference_setting reference
+  WHERE r.date >= bird.cap_date
+    AND r.date <= reference.reference_date
+),
+resighting_comment_terms AS (
+  SELECT
+    matched.*,
+    CASE WHEN matched.comment_lower REGEXP
+      '(^|[^[:alpha:]])limp(ing|ed|s)?([^[:alpha:]]|$)'
+      THEN 1 ELSE 0
+    END AS has_limp_word,
+    CASE WHEN matched.comment_lower REGEXP
+      '(^|[^[:alpha:]])lame(ness)?([^[:alpha:]]|$)'
+      THEN 1 ELSE 0
+    END AS has_lame_word,
+    CASE WHEN matched.comment_lower REGEXP
+      '(^|[^[:alpha:]])((not|no|without)[[:space:]-]+limp(ing|ed|s)?|(no|without)[[:space:]-]+(sign(s)?|evidence)[[:space:]-]+of[[:space:]-]+limp(ing|ed|s)?|(is|was|does|did)[[:space:]-]+not[[:space:]-]+(appear[[:space:]-]+to[[:space:]-]+)?limp(ing|ed|s)?|(isn.?t|wasn.?t|doesn.?t|didn.?t)[[:space:]-]+limp(ing|ed|s)?)([^[:alpha:]]|$)'
+      THEN 1 ELSE 0
+    END AS has_negated_limp,
+    CASE WHEN matched.comment_lower REGEXP
+      '(^|[^[:alpha:]])((not|no|without)[[:space:]-]+lame(ness)?|(no|without)[[:space:]-]+(sign(s)?|evidence)[[:space:]-]+of[[:space:]-]+lame(ness)?|(is|was)[[:space:]-]+not[[:space:]-]+(appear[[:space:]-]+to[[:space:]-]+)?lame(ness)?|(isn.?t|wasn.?t)[[:space:]-]+lame(ness)?)([^[:alpha:]]|$)'
+      THEN 1 ELSE 0
+    END AS has_negated_lame,
+    CASE WHEN matched.comment_lower REGEXP
+      '(^|[^[:alpha:]])((walk(ing|ed|s)?[[:space:]-]+(fine|normal|normally|well))|((fine|normal)[[:space:]-]+(walk(ing)?|gait))|((no|without)[[:space:]-]+(difficulty|problem(s)?|trouble)[[:space:]-]+(with[[:space:]-]+)?walk(ing)?)|(not[[:space:]-]+(favour|favor)(ing|ed|s)?[[:space:]-]+(the[[:space:]-]+)?((left|right|one)[[:space:]-]+)?(leg|foot)))([^[:alpha:]]|$)'
+      THEN 1 ELSE 0
+    END AS has_walking_fine_phrase,
+    CASE WHEN matched.comment_lower REGEXP
+      '(^|[^[:alpha:]])(((favour|favor)(ing|ed|s)?[[:space:]-]+(the[[:space:]-]+)?((left|right|one)[[:space:]-]+)?(leg|foot))|((difficulty|problem(s)?|trouble)[[:space:]-]+(with[[:space:]-]+)?walk(ing)?)|((impaired|abnormal|uneven)[[:space:]-]+(walk(ing)?|gait))|(not[[:space:]-]+(weight[[:space:]-]+bearing|bearing[[:space:]-]+weight)))([^[:alpha:]]|$)'
+      THEN 1 ELSE 0
+    END AS has_impaired_walking_phrase
+  FROM matched_resightings matched
+),
+resighting_classified_base AS (
+  SELECT
+    terms.*,
+    CASE
+      WHEN terms.has_limp_word = 1 AND terms.has_negated_limp = 0 THEN 1
+      WHEN terms.has_lame_word = 1 AND terms.has_negated_lame = 0 THEN 1
+      WHEN terms.has_impaired_walking_phrase = 1
+       AND terms.has_walking_fine_phrase = 0 THEN 1
+      ELSE 0
+    END AS is_limp
+  FROM resighting_comment_terms terms
+),
+resighting_classified AS (
+  SELECT
+    classified.*,
+    CASE
+      WHEN classified.is_limp = 1
+        OR classified.has_negated_limp = 1
+        OR classified.has_negated_lame = 1
+        OR classified.has_walking_fine_phrase = 1
+      THEN 1
+      ELSE 0
+    END AS is_walking_relevant,
+    ROW_NUMBER() OVER (
+      PARTITION BY classified.bird_id
+      ORDER BY classified.resighting_date DESC, classified.pk DESC
+    ) AS latest_rank
+  FROM resighting_classified_base classified
+),
+resighting_days AS (
+  SELECT
+    bird_id,
+    resighting_date,
+    MAX(is_limp) AS is_limp_day
+  FROM resighting_classified
+  GROUP BY bird_id, resighting_date
+),
+resighting_summary AS (
+  SELECT
+    bird_id,
+    MAX(resighting_date) AS last_resighting_date,
+    COUNT(DISTINCT resighting_date) AS number_of_resightings,
+    SUM(is_limp_day) AS limp_days,
+    SUM(CASE WHEN is_limp_day = 0 THEN 1 ELSE 0 END) AS walking_fine_days
+  FROM resighting_days
+  GROUP BY bird_id
+),
+latest_resighting AS (
+  SELECT
+    bird_id,
+    comment_text,
+    is_walking_relevant
+  FROM resighting_classified
+  WHERE latest_rank = 1
+)
+SELECT
+  bird.mark AS mark,
+  bird.sex AS sex,
+  bird.cap_date AS cap_date,
+  DATEDIFF(reference.reference_date, bird.cap_date) AS days_since_cap,
+  DATEDIFF(
+    reference.reference_date,
+    summary.last_resighting_date
+  ) AS days_since_last_seen,
+  CASE
+    WHEN summary.number_of_resightings IS NULL THEN NULL
+    WHEN latest.is_walking_relevant = 1 THEN latest.comment_text
+    ELSE 'walking fine'
+  END AS comment_last_seen,
+  COALESCE(summary.number_of_resightings, 0) AS number_of_resightings,
+  CAST(summary.limp_days AS DECIMAL(20, 6))
+    / NULLIF(summary.walking_fine_days, 0) AS limp_ratio
+FROM tagged_birds bird
+CROSS JOIN reference_setting reference
+LEFT JOIN resighting_summary summary
+  ON bird.bird_id = summary.bird_id
+LEFT JOIN latest_resighting latest
+  ON bird.bird_id = latest.bird_id;
+
 
 CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.OVERVIEW AS
 

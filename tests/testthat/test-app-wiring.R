@@ -104,6 +104,10 @@ test_that("main app UI and entrypoint load", {
   }
 
   expect_contains(app$env$dbtabs_show_views, "OVERVIEW")
+  expect_identical(
+    sum(app$env$dbtabs_show_views == "VIEW_1"),
+    1L
+  )
   expect_setequal(
     app$env$dbtabs_show_view_sources[["OVERVIEW"]],
     c(
@@ -113,6 +117,10 @@ test_that("main app UI and entrypoint load", {
       "EGGS",
       "RESIGHTINGS"
     )
+  )
+  expect_identical(
+    app$env$dbtabs_show_view_sources[["VIEW_1"]],
+    c("settings", "CAPTURES", "RESIGHTINGS")
   )
   expect_match(html, app$env$app_test_status$text, fixed = TRUE)
   expect_match(html, app$env$app_test_status$badge, fixed = TRUE)

@@ -85,3 +85,41 @@ test_that("live_nest_leaflet fits plot bounds when there are no nests", {
   expect_true(length(map$x$fitBounds) > 0)
   expect_false("addCircleMarkers" %in% methods)
 })
+
+
+test_that("PDF map keeps active nests without current tasks", {
+  app <- load_main_app()
+  prepare_nests <- get(".todo_pdf_map_prepare_nests", envir = app$env)
+  todo <- data.frame(
+    nest_id = "A_MOCK_TASK",
+    todo = "nest check",
+    reference_date = as.Date("2026-09-24"),
+    lat = -44.001,
+    lon = 172.001
+  )
+  nests_latest <- data.frame(
+    nest_id = c("A_MOCK_TASK", "A_MOCK_ACTIVE", "A_MOCK_CLOSED"),
+    nest_state = c("I", "F", "notA"),
+    lat = c(-44.001, -44.002, -44.003),
+    lon = c(172.001, 172.002, 172.003)
+  )
+
+  mapped <- prepare_nests(
+    todo = todo,
+    chick_captures = data.frame(),
+    nests_latest = nests_latest
+  )
+
+  expect_setequal(
+    mapped$nest_id,
+    c("A_MOCK_TASK", "A_MOCK_ACTIVE")
+  )
+  expect_identical(
+    as.character(mapped$parent_work[mapped$nest_id == "A_MOCK_ACTIVE"]),
+    "No capture/resight"
+  )
+  expect_identical(
+    as.character(mapped$check_type[mapped$nest_id == "A_MOCK_ACTIVE"]),
+    "Other task"
+  )
+})

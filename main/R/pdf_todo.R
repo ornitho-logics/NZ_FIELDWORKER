@@ -19,7 +19,12 @@ todo_pdf_prepare_team_marks <- function(available_combos = NULL) {
           LL,
           LR
       "),
-      error = function(e) data.table(mark = character())
+      error = function(e) {
+        stop(
+          "Could not load AVAILABLE_COMBOS for the Team marks table.",
+          call. = FALSE
+        )
+      }
     )
   }
 
@@ -32,11 +37,16 @@ todo_pdf_prepare_team_marks <- function(available_combos = NULL) {
 
   marks <- trimws(marks)
   marks <- marks[!is.na(marks) & nzchar(marks)]
-  marks <- head(marks, 30)
-
   if (length(marks) < 30) {
-    marks <- c(marks, rep("", 30 - length(marks)))
+    stop(
+      sprintf(
+        "Team marks requires 30 available combinations; only %d were returned.",
+        length(marks)
+      ),
+      call. = FALSE
+    )
   }
+  marks <- head(marks, 30)
 
   team_marks <- as.data.table(
     matrix(marks, nrow = 3, byrow = TRUE)
@@ -258,8 +268,25 @@ todo_pdf_prepare <- function(
     todo_dt[, let(last_visit_days_ago = NA_real_)]
   }
 
+  if ("geo_priority_rank" %in% names(todo_dt)) {
+    todo_dt[, let(geo_priority_rank = todo_pdf_as_numeric(geo_priority_rank))]
+  } else {
+    todo_dt[, let(geo_priority_rank = NA_real_)]
+  }
+
   parent_todos <- c("Parent capture", "Parent resighting")
   todo_dt[, let(
+    pdf_geo_sort_group = fcase(
+      todo == "Parent capture" & !is.na(geo_priority_rank), 0,
+      todo == "Parent capture" & grepl("^tag ", notes), 1,
+      todo == "Parent capture" & grepl("^band ", notes), 2,
+      default = 3
+    ),
+    pdf_geo_priority = fifelse(
+      todo == "Parent capture",
+      geo_priority_rank,
+      NA_real_
+    ),
     pdf_sort_primary = fifelse(
       todo %chin% parent_todos,
       min_days_to_hatch,
@@ -275,6 +302,8 @@ todo_pdf_prepare <- function(
   todo_dt <- todo_dt[
     order(
       todo,
+      pdf_geo_sort_group,
+      pdf_geo_priority,
       pdf_sort_primary,
       pdf_sort_secondary,
       nest_id,
@@ -343,7 +372,7 @@ todo_pdf_heading <- function(todo_name) {
     ),
     "Parent capture" = list(
       title = "Nests to capture",
-      subtitle = "capture target parents once nest-age and 36-hour rules allow"
+      subtitle = "follow GEO note priority; capture only once nest-age and 36-hour rules allow"
     ),
     "Parent resighting" = list(
       title = "Nests to resight",
@@ -390,7 +419,7 @@ todo_pdf_note_key <- function() {
     "    columns: (1fr, 1fr),",
     "    gutter: 9pt,",
     "    [*7d rule:* Resighting only. Capture is not allowed until at least 7 days after estimated clutch completion. #linebreak() *36hr rule:* Resighting only. Another parent cannot be captured until 08:00 on the reference day is at least 36 hours after the previous parent capture at that nest.],",
-    "    [*MM cap:* The bird was captured away from the nest using method MM. An at-nest resighting with IN or NM behaviour is needed to confirm its association. #linebreak() *M/F w/GEO:* The confirmed male/female parent carries a geolocator. #linebreak() *Status ?:* That parent's identity or band status is unknown. Resighting is needed to determine whether capture is required.],",
+    "    [*MM cap:* The bird was captured away from the nest using method MM. An at-nest resighting with IN or NM behaviour is needed to confirm its association. #linebreak() *Pair completion:* At nests known by Sep 24, prioritize the eligible untagged mate; at later nests, complete a pair after the first planned deployment. #linebreak() *Sex/phenology balance:* Deploy to the stated sex, or either sex, to fill the nest's lay-date stratum. #linebreak() *FO marker:* Orange-flagged AU migrant; never deploy a GEO. #linebreak() *No tag needed:* Band the stated parent only. #linebreak() *M/F w/GEO:* The confirmed male/female carries a geolocator. *Status ?:* Identity or band status is unknown.],",
     "  )",
     "]",
     "#v(0.3em)",

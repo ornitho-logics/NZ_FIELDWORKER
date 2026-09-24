@@ -13,4 +13,9 @@ execute:
   message: false
 ---
 
+```{=typst}
+#set table(inset: (x: 4pt, y: 3.5pt))
+#show heading.where(level: 2): set block(above: 0.8em, below: 0.4em)
+```
+
 {{ body }}

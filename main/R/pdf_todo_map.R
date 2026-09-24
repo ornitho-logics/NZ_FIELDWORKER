@@ -129,7 +129,7 @@
   todo <- data.table(todo)
   check_todos <- c("Clutch check", "Unprocessed nest", "nest check")
 
-  nest_tasks <- todo[,
+  task_status <- todo[,
     .(
       lat = {
         value <- lat[!is.na(lat)]
@@ -164,18 +164,47 @@
   )
   latest <- data.table(nests_latest)
   latest_columns <- c("nest_id", "lat", "lon")
-  if (nrow(chick_bands) && all(latest_columns %in% names(latest))) {
-    additional_nests <- latest[
-      nest_id %chin% setdiff(chick_bands$nest_id, nest_tasks$nest_id),
+  if (all(latest_columns %in% names(latest))) {
+    latest[, nest_id := trimws(as.character(nest_id))]
+    if ("nest_state" %in% names(latest)) {
+      latest[, map_nest_state := toupper(trimws(as.character(nest_state)))]
+      latest <- latest[is.na(map_nest_state) | map_nest_state != "NOTA"]
+    }
+
+    nest_tasks <- latest[
+      !is.na(nest_id) & nzchar(nest_id),
       .(
-        nest_id = trimws(as.character(nest_id)),
-        lat = as.numeric(lat),
-        lon = as.numeric(lon),
-        check_type = "Other task",
-        parent_work = "No capture/resight"
-      )
+        lat = {
+          value <- lat[!is.na(lat)]
+          if (length(value)) as.numeric(value[1]) else NA_real_
+        },
+        lon = {
+          value <- lon[!is.na(lon)]
+          if (length(value)) as.numeric(value[1]) else NA_real_
+        }
+      ),
+      by = nest_id
     ]
-    nest_tasks <- rbind(nest_tasks, additional_nests, fill = TRUE)
+
+    task_status <- copy(task_status)
+    setnames(task_status, c("lat", "lon"), c("task_lat", "task_lon"))
+    nest_tasks <- merge(
+      nest_tasks,
+      task_status,
+      by = "nest_id",
+      all.x = TRUE,
+      sort = FALSE
+    )
+    nest_tasks[, let(
+      lat = fcoalesce(lat, task_lat),
+      lon = fcoalesce(lon, task_lon),
+      check_type = fcoalesce(check_type, "Other task"),
+      parent_work = fcoalesce(parent_work, "No capture/resight")
+    )]
+    nest_tasks[, c("task_lat", "task_lon") := NULL]
+  } else {
+    # Retain the prior fallback for callers using snapshots without NESTS_LATEST.
+    nest_tasks <- task_status
   }
   nest_tasks <- merge(
     nest_tasks,
@@ -187,6 +216,19 @@
   nest_tasks[is.na(label_fill), label_fill := "#111111"]
   nest_tasks[is.na(label_text), label_text := "#ffffff"]
 
+  missing_coordinate_count <- nest_tasks[
+    is.na(lat) | is.na(lon),
+    uniqueN(nest_id)
+  ]
+  if (missing_coordinate_count > 0L) {
+    warning(
+      sprintf(
+        "%d active nest(s) could not be added to the PDF map because coordinates are missing.",
+        missing_coordinate_count
+      ),
+      call. = FALSE
+    )
+  }
   nest_tasks <- nest_tasks[!is.na(lat) & !is.na(lon)]
   nest_tasks[, plot_name := substr(nest_id, 1L, 1L)]
   nest_tasks <- nest_tasks[plot_name %chin% c("A", "B", "C")]
