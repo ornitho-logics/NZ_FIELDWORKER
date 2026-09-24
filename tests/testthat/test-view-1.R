@@ -48,6 +48,7 @@ test_that("VIEW_1 keeps its exact public contract", {
     aliases,
     c(
       "mark",
+      "nest_id",
       "sex",
       "cap_date",
       "days_since_cap",
@@ -90,6 +91,11 @@ test_that("VIEW_1 uses stable cohort and collision-safe identity rules", {
     "FIELD_2026_BADOatNZ.format_mark(r.UL, r.LL, r.UR, r.LR)",
     fixed = TRUE
   )
+  expect_match(sql, "latest_nest.nest_id AS nest_id", fixed = TRUE)
+  expect_match(sql, "NULLIF(TRIM(c.nest_id), '')", fixed = TRUE)
+  expect_match(sql, "UPPER(TRIM(c.nest_id)) <> 'NO_NEST'", fixed = TRUE)
+  expect_match(sql, "PARTITION BY association.bird_id", fixed = TRUE)
+  expect_match(sql, "WHERE association_rank = 1", fixed = TRUE)
 })
 
 
@@ -152,11 +158,13 @@ test_that("VIEW_1 receives compact browser column widths", {
 
   expect_identical(
     vapply(widths, `[[`, character(1), "width"),
-    c("120px", "60px", "105px", "110px", "135px", "220px", "140px", "100px")
+    c(
+      "120px", "100px", "60px", "105px", "110px", "135px", "220px", "140px", "100px"
+    )
   )
   expect_identical(
     vapply(widths, `[[`, integer(1), "targets"),
-    0:7
+    0:8
   )
   expect_identical(
     app$env$view_table_column_widths("VIEW_1", view = FALSE),

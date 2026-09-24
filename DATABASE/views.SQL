@@ -4559,6 +4559,7 @@ matched_resightings AS (
     alias.bird_id,
     r.date AS resighting_date,
     r.pk,
+    NULLIF(TRIM(r.nest_id), '') AS nest_id,
     NULLIF(TRIM(r.comments), '') AS comment_text,
     LOWER(COALESCE(NULLIF(TRIM(r.comments), ''), '')) AS comment_lower
   FROM FIELD_2026_BADOatNZ.RESIGHTINGS r
@@ -4571,6 +4572,59 @@ matched_resightings AS (
   CROSS JOIN reference_setting reference
   WHERE r.date >= bird.cap_date
     AND r.date <= reference.reference_date
+),
+nest_association_events AS (
+  -- Keep only explicit nest/brood associations; NO_NEST does not clear an
+  -- earlier association. A same-day resighting takes precedence over a
+  -- capture, with pk providing the final deterministic tie-break.
+  SELECT
+    bird.bird_id,
+    c.date AS association_date,
+    c.caught AS association_time,
+    1 AS source_rank,
+    c.pk,
+    NULLIF(TRIM(c.nest_id), '') AS nest_id
+  FROM tagged_birds bird
+  JOIN FIELD_2026_BADOatNZ.CAPTURES c
+    ON UPPER(TRIM(c.ring)) = bird.bird_id
+  CROSS JOIN reference_setting reference
+  WHERE c.date >= bird.cap_date
+    AND c.date <= reference.reference_date
+    AND NULLIF(TRIM(c.nest_id), '') IS NOT NULL
+    AND UPPER(TRIM(c.nest_id)) <> 'NO_NEST'
+
+  UNION ALL
+
+  SELECT
+    matched.bird_id,
+    matched.resighting_date AS association_date,
+    CAST(NULL AS TIME) AS association_time,
+    2 AS source_rank,
+    matched.pk,
+    matched.nest_id
+  FROM matched_resightings matched
+  WHERE matched.nest_id IS NOT NULL
+    AND UPPER(matched.nest_id) <> 'NO_NEST'
+),
+nest_association_ranked AS (
+  SELECT
+    association.*,
+    ROW_NUMBER() OVER (
+      PARTITION BY association.bird_id
+      ORDER BY
+        association.association_date DESC,
+        association.source_rank DESC,
+        COALESCE(association.association_time, CAST('00:00:00' AS TIME)) DESC,
+        association.pk DESC
+    ) AS association_rank
+  FROM nest_association_events association
+),
+latest_nest_association AS (
+  SELECT
+    bird_id,
+    nest_id
+  FROM nest_association_ranked
+  WHERE association_rank = 1
 ),
 resighting_comment_terms AS (
   SELECT
@@ -4658,6 +4712,7 @@ latest_resighting AS (
 )
 SELECT
   bird.mark AS mark,
+  latest_nest.nest_id AS nest_id,
   bird.sex AS sex,
   bird.cap_date AS cap_date,
   DATEDIFF(reference.reference_date, bird.cap_date) AS days_since_cap,
@@ -4678,7 +4733,9 @@ CROSS JOIN reference_setting reference
 LEFT JOIN resighting_summary summary
   ON bird.bird_id = summary.bird_id
 LEFT JOIN latest_resighting latest
-  ON bird.bird_id = latest.bird_id;
+  ON bird.bird_id = latest.bird_id
+LEFT JOIN latest_nest_association latest_nest
+  ON bird.bird_id = latest_nest.bird_id;
 
 
 CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.OVERVIEW AS

@@ -6,13 +6,14 @@ view_table_column_widths <- function(tab, view = FALSE) {
   # Keep the compact status fields narrow while allowing comments to wrap.
   list(
     list(width = "120px", targets = 0L),
-    list(width = "60px", targets = 1L),
-    list(width = "105px", targets = 2L),
-    list(width = "110px", targets = 3L),
-    list(width = "135px", targets = 4L),
-    list(width = "220px", targets = 5L),
-    list(width = "140px", targets = 6L),
-    list(width = "100px", targets = 7L)
+    list(width = "100px", targets = 1L),
+    list(width = "60px", targets = 2L),
+    list(width = "105px", targets = 3L),
+    list(width = "110px", targets = 4L),
+    list(width = "135px", targets = 5L),
+    list(width = "220px", targets = 6L),
+    list(width = "140px", targets = 7L),
+    list(width = "100px", targets = 8L)
   )
 }
 
