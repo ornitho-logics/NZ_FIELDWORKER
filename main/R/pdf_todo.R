@@ -71,6 +71,69 @@ todo_pdf_as_numeric <- function(x) {
 }
 
 
+todo_pdf_prepare_unseen_tagged_birds <- function(view_1) {
+  output_columns <- c("Mark", "Sex", "Nest", "Days Since Cap")
+  empty_output <- function() {
+    as.data.table(setNames(
+      rep(list(character()), length(output_columns)),
+      output_columns
+    ))
+  }
+
+  if (is.null(view_1)) {
+    return(empty_output())
+  }
+
+  birds <- data.table(view_1)
+  required_columns <- c(
+    "mark",
+    "sex",
+    "nest_id",
+    "days_since_cap",
+    "days_since_last_seen"
+  )
+
+  if (!all(required_columns %in% names(birds))) {
+    missing_columns <- setdiff(required_columns, names(birds))
+    stop(
+      sprintf(
+        "VIEW_1 is missing fields required for tagged-bird follow-up: %s.",
+        paste(missing_columns, collapse = ", ")
+      ),
+      call. = FALSE
+    )
+  }
+
+  birds[, let(
+    days_since_cap = todo_pdf_as_numeric(days_since_cap),
+    days_since_last_seen = todo_pdf_as_numeric(days_since_last_seen)
+  )]
+  birds <- birds[
+    !is.na(days_since_cap)
+      & days_since_cap > 7
+      & is.na(days_since_last_seen)
+  ]
+
+  if (!nrow(birds)) {
+    return(empty_output())
+  }
+
+  birds[, let(
+    mark = trimws(as.character(mark)),
+    sex = trimws(as.character(sex)),
+    nest_id = trimws(as.character(nest_id))
+  )]
+  birds <- birds[order(-days_since_cap, mark, nest_id, na.last = TRUE)]
+
+  birds[, .(
+    Mark = fifelse(is.na(mark), "", mark),
+    Sex = fifelse(is.na(sex), "", sex),
+    Nest = fifelse(is.na(nest_id), "", nest_id),
+    `Days Since Cap` = as.character(days_since_cap)
+  )]
+}
+
+
 todo_pdf_prepare_nest_summary <- function(
   nests_latest,
   reference_date,
@@ -239,7 +302,8 @@ todo_pdf_prepare <- function(
   todo = DBq("SELECT * FROM TODO_LIST"),
   available_combos = NULL,
   nests_latest = NULL,
-  chick_captures = NULL
+  chick_captures = NULL,
+  unseen_tagged_birds = NULL
 ) {
   todo_dt <- data.table(todo)
   refdate <- as.Date(todo_dt$reference_date[1])
@@ -346,6 +410,9 @@ todo_pdf_prepare <- function(
     title = glue("Cass To-Dos for {refdate}"),
     rows = rows,
     team_marks = todo_pdf_prepare_team_marks(available_combos),
+    unseen_tagged_birds = todo_pdf_prepare_unseen_tagged_birds(
+      unseen_tagged_birds
+    ),
     nest_summary = todo_pdf_prepare_nest_summary(
       nests_latest,
       refdate,
@@ -584,7 +651,8 @@ todo_pdf_body <- function(
   rows,
   team_marks = NULL,
   map_file = NULL,
-  nest_summary = NULL
+  nest_summary = NULL,
+  unseen_tagged_birds = NULL
 ) {
   out <- todo_pdf_note_key()
   if (!nrow(rows)) {
@@ -626,6 +694,24 @@ todo_pdf_body <- function(
         ""
       )
     }
+  }
+
+  if (!is.null(unseen_tagged_birds) && nrow(unseen_tagged_birds)) {
+    out <- c(
+      out,
+      "## Tagged birds to resight",
+      "",
+      "*The following tagged birds have not been seen since tag deployment, please resight and assess walking ability*",
+      "",
+      knitr::kable(
+        as.data.frame(unseen_tagged_birds),
+        format = "pipe",
+        align = rep("c", ncol(unseen_tagged_birds))
+      ),
+      "",
+      ': {tbl-colwidths="[28,12,24,20]"}',
+      ""
+    )
   }
 
   if (!is.null(team_marks) && nrow(team_marks)) {
@@ -670,7 +756,8 @@ todo_pdf_qmd <- function(
     pdf$rows,
     pdf$team_marks,
     map_file,
-    pdf$nest_summary
+    pdf$nest_summary,
+    pdf$unseen_tagged_birds
   )
   out <- character()
 
@@ -695,7 +782,8 @@ todo_pdf_save <- function(
   available_combos = NULL,
   spatial_objects = NULL,
   nests_latest = NULL,
-  chick_captures = NULL
+  chick_captures = NULL,
+  unseen_tagged_birds = NULL
 ) {
   if (is.null(nests_latest)) {
     nests_latest <- DBq("SELECT * FROM NESTS_LATEST")
@@ -724,11 +812,21 @@ todo_pdf_save <- function(
         AND TRIM(nest_id) NOT IN ('', 'NO_NEST')
     ")
   }
+  if (is.null(unseen_tagged_birds)) {
+    unseen_tagged_birds <- DBq("
+      SELECT mark, sex, nest_id, days_since_cap, days_since_last_seen
+      FROM VIEW_1
+      WHERE days_since_cap > 7
+        AND days_since_last_seen IS NULL
+      ORDER BY days_since_cap DESC, mark, nest_id
+    ")
+  }
   pdf <- todo_pdf_prepare(
     todo,
     available_combos,
     nests_latest,
-    chick_captures
+    chick_captures,
+    unseen_tagged_birds
   )
 
   todo_pdf_map_save(
