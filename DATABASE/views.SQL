@@ -3245,11 +3245,13 @@ todo_nest_check AS (
     active_nests.nest_id,
     active_nests.reference_date,
     'nest check' AS todo,
-    CASE
-      WHEN active_nests.hatch_signs_present = 1
-      THEN 'hatch signs present'
-      ELSE 'pre-hatch nest check'
-    END AS notes,
+    CONCAT(
+      'Last visit: ',
+      COALESCE(
+        NULLIF(TRIM(active_nests.hatch_state), ''),
+        'not recorded'
+      )
+    ) AS notes,
     CASE
       WHEN active_nests.hatch_signs_present = 1
       THEN GREATEST(0, active_nests.days_ago - 1)

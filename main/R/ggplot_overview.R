@@ -55,7 +55,7 @@ overview_histogram_plot <- function(x, ylab, date_limits = NULL) {
     geom_histogram(
       data = x,
       mapping = aes(x = plot_date),
-      binwidth = 1,
+      binwidth = 4,
       fill = "#6d7577",
       color = "white"
     ) +
