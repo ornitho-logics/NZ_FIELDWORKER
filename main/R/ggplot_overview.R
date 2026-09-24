@@ -1,9 +1,49 @@
+overview_integer_breaks <- function(limits, n = 6L) {
+  limits <- as.numeric(limits)
+  limits <- limits[is.finite(limits)]
+
+  if (!length(limits)) {
+    return(numeric())
+  }
+
+  lower <- max(0, ceiling(min(limits)))
+  upper <- floor(max(limits))
+
+  if (upper < lower) {
+    return(numeric())
+  }
+
+  if (upper == lower) {
+    return(lower)
+  }
+
+  raw_step <- (upper - lower) / max(n - 1L, 1L)
+  magnitude <- 10^floor(log10(raw_step))
+  normalized_step <- raw_step / magnitude
+  step <- c(1, 2, 5, 10)[which(c(1, 2, 5, 10) >= normalized_step)[1]] *
+    magnitude
+  step <- max(1, step)
+
+  seq(
+    from = ceiling(lower / step) * step,
+    to = floor(upper / step) * step,
+    by = step
+  )
+}
+
+
+overview_integer_y_scale <- function() {
+  scale_y_continuous(breaks = overview_integer_breaks)
+}
+
+
 overview_histogram_base <- function(ylab) {
   ggplot() +
     labs(
       x = NULL,
       y = ylab
     ) +
+    overview_integer_y_scale() +
     theme_bw(base_size = 22) +
     theme(
       panel.grid.minor = element_blank(),
@@ -70,6 +110,7 @@ overview_cumulative_base <- function(ylab) {
       x = "Date",
       y = ylab
     ) +
+    overview_integer_y_scale() +
     theme_bw(base_size = 22) +
     theme(
       panel.grid.minor = element_blank(),
