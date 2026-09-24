@@ -1,3 +1,22 @@
+view_table_column_widths <- function(tab, view = FALSE) {
+  if (!view || !identical(tab, "VIEW_1")) {
+    return(list())
+  }
+
+  # Keep the compact status fields narrow while allowing comments to wrap.
+  list(
+    list(width = "120px", targets = 0L),
+    list(width = "60px", targets = 1L),
+    list(width = "105px", targets = 2L),
+    list(width = "110px", targets = 3L),
+    list(width = "135px", targets = 4L),
+    list(width = "220px", targets = 5L),
+    list(width = "140px", targets = 6L),
+    list(width = "100px", targets = 7L)
+  )
+}
+
+
 TABLE_show <- function(x, session, view = FALSE) {
   get_data <- reactivePoll(
     10000,
@@ -18,6 +37,32 @@ TABLE_show <- function(x, session, view = FALSE) {
     }
   )
 
+  width_defs <- view_table_column_widths(x, view)
+  table_options <- list(
+    dom = "Blfrtip",
+    buttons = list(
+      "copy",
+      list(
+        extend = "collection",
+        buttons = "excel",
+        text = "Download"
+      )
+    ),
+    scrollX = TRUE,
+    deferRender = TRUE,
+    scrollY = 900,
+    scroller = TRUE,
+    searching = TRUE,
+    columnDefs = c(
+      width_defs,
+      list(list(className = "dt-center", targets = "_all"))
+    )
+  )
+
+  if (length(width_defs)) {
+    table_options$autoWidth <- FALSE
+  }
+
   DT::renderDataTable(
     {
       o <- get_data()
@@ -34,25 +79,7 @@ TABLE_show <- function(x, session, view = FALSE) {
     selection = "none",
     filter = 'top',
     extensions = c("Scroller", "Buttons"),
-    options = list(
-      dom = "Blfrtip",
-      buttons = list(
-        "copy",
-        list(
-          extend = "collection",
-          buttons = "excel",
-          text = "Download"
-        )
-      ),
-      scrollX = TRUE,
-      deferRender = TRUE,
-      scrollY = 900,
-      scroller = TRUE,
-      searching = TRUE,
-      columnDefs = list(
-        list(className = "dt-center", targets = "_all")
-      )
-    ),
+    options = table_options,
     class = c("compact", "stripe", "order-column", "hover")
   )
 }

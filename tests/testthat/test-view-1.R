@@ -143,3 +143,23 @@ test_that("VIEW_1 classifier distinguishes affirmative and negative walking text
   )
   expect_match(sql, "ELSE 'walking fine'", fixed = TRUE)
 })
+
+
+test_that("VIEW_1 receives compact browser column widths", {
+  app <- load_main_app()
+
+  widths <- app$env$view_table_column_widths("VIEW_1", view = TRUE)
+
+  expect_identical(
+    vapply(widths, `[[`, character(1), "width"),
+    c("120px", "60px", "105px", "110px", "135px", "220px", "140px", "100px")
+  )
+  expect_identical(
+    vapply(widths, `[[`, integer(1), "targets"),
+    0:7
+  )
+  expect_identical(
+    app$env$view_table_column_widths("VIEW_1", view = FALSE),
+    list()
+  )
+})
