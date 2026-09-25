@@ -2653,6 +2653,11 @@ adult_parent_status AS (
       THEN 0
       ELSE COALESCE(adult_parent_identity_status.F_identity_has_geo, 0)
     END AS F_has_geo,
+    -- Preserve tagged-parent evidence separately from the association gate.
+    COALESCE(adult_parent_identity_status.M_identity_has_geo, 0)
+      AS M_captured_has_geo,
+    COALESCE(adult_parent_identity_status.F_identity_has_geo, 0)
+      AS F_captured_has_geo,
     CASE
       WHEN COALESCE(adult_mm_followup_status.M_mm_resight_pending, 0) = 1
       THEN 0
@@ -2994,14 +2999,10 @@ geo_parent_plan AS (
     ranked.male_quota_remaining,
     ranked.female_quota_remaining,
     ranked.preferred_balance_sex,
-    -- Non-pair rollout candidates are band-only and do not consume GEO slots.
-    CASE
-      WHEN ranked.is_candidate = 1
-       AND ranked.pair_target IS NULL
-       AND ranked.geo_target IS NOT NULL
-      THEN ranked.geo_target
-      ELSE ranked.band_target
-    END AS geo_band_target,
+    -- Only identity-driven banding belongs in the non-tag target field.
+    -- Sex/phenology rollout candidates remain paused unless they complete a
+    -- GEO pair through pair_target.
+    ranked.band_target AS geo_band_target,
     CASE
       WHEN ranked.geo_is_actionable = 1
        AND ranked.pair_target IS NOT NULL
@@ -3027,12 +3028,11 @@ geo_parent_plan AS (
         END,
         ')'
       )
-      WHEN ranked.is_candidate = 1
-       AND ranked.pair_target IS NULL
-       AND ranked.geo_target IS NOT NULL
+      WHEN ranked.pair_target IS NULL
+       AND ranked.band_target IS NOT NULL
       THEN CONCAT(
         'band ',
-        CASE ranked.geo_target WHEN 'A' THEN 'either' ELSE ranked.geo_target END
+        CASE ranked.band_target WHEN 'A' THEN 'either' ELSE ranked.band_target END
       )
       WHEN ranked.pair_target IS NOT NULL
        AND ranked.n_geo_deployed < ranked.release_ceiling
@@ -3058,6 +3058,7 @@ geo_parent_plan AS (
         ' (pair completion waitlist)'
       )
       WHEN ranked.geo_target IS NOT NULL
+       AND ranked.band_target IS NOT NULL
       THEN CONCAT(
         'resight ',
         CASE ranked.geo_target WHEN 'A' THEN 'any' ELSE ranked.geo_target END,
@@ -3214,7 +3215,12 @@ geo_parent_plan AS (
             CASE
               WHEN base.M_tag_eligible = 1
                AND base.male_quota_remaining > 0
-               AND COALESCE(base.F_has_geo, 0) = 1
+               AND base.M_reliable_identity = 1
+               AND base.F_reliable_identity = 1
+               AND (
+                 COALESCE(base.F_has_geo, 0) = 1
+                 OR COALESCE(base.F_captured_has_geo, 0) = 1
+               )
                AND (
                  base.is_pre25_nest = 1
                  OR base.F_geo_deployment_date >= base.first_found_date
@@ -3222,7 +3228,12 @@ geo_parent_plan AS (
               THEN 'M'
               WHEN base.F_tag_eligible = 1
                AND base.female_quota_remaining > 0
-               AND COALESCE(base.M_has_geo, 0) = 1
+               AND base.F_reliable_identity = 1
+               AND base.M_reliable_identity = 1
+               AND (
+                 COALESCE(base.M_has_geo, 0) = 1
+                 OR COALESCE(base.M_captured_has_geo, 0) = 1
+               )
                AND (
                  base.is_pre25_nest = 1
                  OR base.M_geo_deployment_date >= base.first_found_date
@@ -3290,6 +3301,8 @@ geo_parent_plan AS (
               parent_status.F_parent_mark,
               parent_status.M_has_geo,
               parent_status.F_has_geo,
+              parent_status.M_captured_has_geo,
+              parent_status.F_captured_has_geo,
               parent_status.both_parents_need_geo,
               parent_status.M_is_au_migrant,
               parent_status.F_is_au_migrant,
@@ -3682,26 +3695,8 @@ todo_untrapped_parent_candidate AS (
       OR adult_parent_status.F_confirmed_unbanded = 1
       OR adult_parent_status.M_unknown_status = 1
       OR adult_parent_status.F_unknown_status = 1
-      OR (
-        adult_parent_status.M_has_geo = 1
-        AND adult_parent_status.F_has_geo = 0
-        AND COALESCE(adult_parent_status.F_is_au_migrant, 0) = 0
-        AND COALESCE(adult_parent_status.F_is_dead, 0) = 0
-      )
-      OR (
-        adult_parent_status.F_has_geo = 1
-        AND adult_parent_status.M_has_geo = 0
-        AND COALESCE(adult_parent_status.M_is_au_migrant, 0) = 0
-        AND COALESCE(adult_parent_status.M_is_dead, 0) = 0
-      )
       OR adult_parent_status.M_single_colour_recruit = 1
       OR adult_parent_status.F_single_colour_recruit = 1
-      OR adult_parent_status.both_parents_need_geo = 1
-    )
-    AND NOT (
-      COALESCE(adult_parent_status.both_parents_need_geo, 0) = 1
-      AND COALESCE(geo_parent_plan.n_geo_deployed, 0)
-          >= COALESCE(geo_parent_plan.release_ceiling, 60)
     )
 ),
 todo_untrapped_parent AS (
