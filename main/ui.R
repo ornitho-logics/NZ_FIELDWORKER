@@ -215,15 +215,10 @@ dashboardPage(
             class = "btn btn-primary btn-lg btn-block field-download-button"
           ),
           br(),
-          tags$a(
-            href = glue(
-              "https://behavioural-ecology.orn.mpg.de/api/dump?schema={db}"
-            ),
-            target = "_blank",
-            rel = "noopener",
-            class = "btn btn-warning btn-lg btn-block",
-            icon("database"),
-            "Download Database as RDS"
+          downloadLink(
+            outputId = "database_rds",
+            label = tagList(icon("database"), "Download Database as RDS"),
+            class = "btn btn-warning btn-lg btn-block field-download-button"
           ),
           br(),
           downloadLink(

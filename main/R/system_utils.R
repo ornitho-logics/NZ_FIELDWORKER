@@ -207,6 +207,41 @@ download_plot_pdf <- function(filename, plot, width = 11, height = 8.5) {
 }
 
 
+dump_schema <- function(schema, path = tempfile(fileext = ".rds")) {
+  con <- db_con()
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+
+  schema_sql <- DBI::dbQuoteString(con, schema)
+
+  tabs <- DBI::dbGetQuery(
+    con,
+    glue(
+      "
+      SELECT table_name
+      FROM information_schema.tables
+      WHERE table_schema = {schema_sql}
+        AND table_type IN ('BASE TABLE', 'VIEW')
+      ORDER BY table_name
+      "
+    )
+  )$table_name
+
+  o <- lapply(tabs, function(tab) {
+    table_sql <- DBI::dbQuoteIdentifier(
+      con,
+      DBI::Id(schema = schema, table = tab)
+    )
+
+    DBI::dbGetQuery(con, glue("SELECT * FROM {table_sql}"))
+  })
+
+  names(o) <- tabs
+
+  saveRDS(o, path, compress = "xz")
+  path
+}
+
+
 mariadb_dump <- function(file, database) {
   # mariadb-dump needs standard group [client]
 

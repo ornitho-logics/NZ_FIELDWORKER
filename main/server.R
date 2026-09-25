@@ -344,6 +344,20 @@ function(input, output, session) {
     contentType = "text/html"
   )
 
+  output$database_rds <- downloadHandler(
+    filename = function() {
+      download_filename(db, "rds")
+    },
+    content = function(file) {
+      download_with_feedback(
+        session,
+        "database_rds",
+        dump_schema(db, path = file)
+      )
+    },
+    contentType = "application/octet-stream"
+  )
+
   output$database_copy <- downloadHandler(
     filename = function() {
       download_filename(db, "sql")
