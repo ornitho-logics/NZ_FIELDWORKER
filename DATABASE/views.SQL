@@ -2057,6 +2057,8 @@ adult_resighting_latest AS (
     x.sex,
     x.obs_date,
     x.pk AS event_pk,
+    x.LL_obs,
+    x.LR_obs,
     x.mark,
     x.is_confirmed_xx,
     x.has_geo,
@@ -2281,8 +2283,40 @@ adult_parent_identity_latest AS (
         is_au_migrant,
         0 AS is_dead,
         0 AS is_single_colour_recruit
-      FROM adult_resighting_latest
-      WHERE mark IS NOT NULL
+      FROM adult_resighting_latest resighting
+      WHERE resighting.mark IS NOT NULL
+        AND NOT EXISTS (
+          SELECT 1
+          FROM FIELD_2026_BADOatNZ.CAPTURES captured_other
+          CROSS JOIN sr
+          WHERE captured_other.nest_id = resighting.nest_id
+            AND LEFT(captured_other.field_sex, 1) <> resighting.sex
+            AND captured_other.age = 'A'
+            AND UPPER(TRIM(COALESCE(captured_other.site, ''))) = 'CR'
+            AND captured_other.date <= sr.reference_date
+            AND resighting.LL_obs IS NOT NULL
+            AND resighting.LR_obs IS NOT NULL
+            AND CASE
+              WHEN UPPER(COALESCE(
+                NULLIF(TRIM(captured_other.LL), ''),
+                NULLIF(TRIM(captured_other.LL_in), '')
+              )) IN ('X', 'XX') THEN 'X'
+              ELSE UPPER(COALESCE(
+                NULLIF(TRIM(captured_other.LL), ''),
+                NULLIF(TRIM(captured_other.LL_in), '')
+              ))
+            END = resighting.LL_obs
+            AND CASE
+              WHEN UPPER(COALESCE(
+                NULLIF(TRIM(captured_other.LR), ''),
+                NULLIF(TRIM(captured_other.LR_in), '')
+              )) IN ('X', 'XX') THEN 'X'
+              ELSE UPPER(COALESCE(
+                NULLIF(TRIM(captured_other.LR), ''),
+                NULLIF(TRIM(captured_other.LR_in), '')
+              ))
+            END = resighting.LR_obs
+        )
     ) events
   ) ranked
   WHERE ranked.row_num = 1
