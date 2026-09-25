@@ -2994,9 +2994,21 @@ geo_parent_plan AS (
     ranked.male_quota_remaining,
     ranked.female_quota_remaining,
     ranked.preferred_balance_sex,
-    ranked.band_target AS geo_band_target,
+    -- Non-pair rollout candidates are band-only and do not consume GEO slots.
+    CASE
+      WHEN ranked.is_candidate = 1
+       AND ranked.pair_target IS NULL
+       AND ranked.geo_target IS NOT NULL
+      THEN ranked.geo_target
+      ELSE ranked.band_target
+    END AS geo_band_target,
     CASE
       WHEN ranked.geo_is_actionable = 1
+       AND ranked.pair_target IS NOT NULL
+       AND ranked.geo_rank <= GREATEST(
+         0,
+         ranked.release_ceiling - ranked.n_geo_deployed
+       )
       THEN ranked.geo_target
       ELSE NULL
     END AS geo_tag_target,
@@ -3015,19 +3027,12 @@ geo_parent_plan AS (
         END,
         ')'
       )
-      WHEN ranked.geo_is_actionable = 1
+      WHEN ranked.is_candidate = 1
+       AND ranked.pair_target IS NULL
+       AND ranked.geo_target IS NOT NULL
       THEN CONCAT(
-        'tag ',
-        CASE ranked.geo_target WHEN 'A' THEN 'either' ELSE ranked.geo_target END,
-        ' (',
-        ranked.geo_reason,
-        CASE
-          WHEN (ranked.geo_target = 'M' AND ranked.M_parent_mark IS NULL)
-            OR (ranked.geo_target = 'F' AND ranked.F_parent_mark IS NULL)
-          THEN '; confirm identity/GEO'
-          ELSE ''
-        END,
-        ')'
+        'band ',
+        CASE ranked.geo_target WHEN 'A' THEN 'either' ELSE ranked.geo_target END
       )
       WHEN ranked.pair_target IS NOT NULL
        AND ranked.n_geo_deployed < ranked.release_ceiling
@@ -3097,6 +3102,7 @@ geo_parent_plan AS (
       ranked_base.*,
       CASE
         WHEN ranked_base.is_candidate = 1
+         AND ranked_base.pair_target IS NOT NULL
          AND ranked_base.geo_rank <= GREATEST(
            0,
            ranked_base.release_ceiling - ranked_base.n_geo_deployed
@@ -3723,16 +3729,14 @@ todo_untrapped_parent AS (
       )
       WHEN COALESCE(M_confirmed_unbanded, 0) = 1
        AND COALESCE(F_confirmed_unbanded, 0) = 1
-      THEN 'capture any (both X-X)'
-      WHEN COALESCE(both_parents_need_geo, 0) = 1
-      THEN 'capture any (GEOs)'
+      THEN 'band X-X F; band X-X M'
       WHEN COALESCE(M_confirmed_unbanded, 0) = 1
        AND COALESCE(F_unknown_status, 0) = 1
       THEN CONCAT(
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
            AND COALESCE(capture_interval_open, 0) = 1
-          THEN 'resight/capture F; capture X-X M'
+          THEN 'resight/band F; band X-X M'
           ELSE 'resight F'
         END,
         CASE
@@ -3745,13 +3749,42 @@ todo_untrapped_parent AS (
           ELSE ''
         END
       )
+      WHEN COALESCE(M_confirmed_unbanded, 0) = 1
+       AND COALESCE(F_unknown_status, 0) = 0
+       AND F_mark IS NOT NULL
+      THEN CONCAT(
+        CASE
+          WHEN COALESCE(capture_allowed_after_completion, 0) = 1
+           AND COALESCE(capture_interval_open, 0) = 1
+          THEN 'resight/band X-X M'
+          ELSE 'resight M'
+        END,
+        CASE
+          WHEN COALESCE(capture_allowed_after_completion, 0) = 1
+           AND COALESCE(capture_interval_open, 0) = 1 THEN ''
+          WHEN COALESCE(capture_allowed_after_completion, 0) = 0
+           AND COALESCE(capture_interval_open, 0) = 0 THEN '; 7d+36hr'
+          WHEN COALESCE(capture_allowed_after_completion, 0) = 0 THEN '; 7d rule'
+          WHEN COALESCE(capture_interval_open, 0) = 0 THEN '; 36hr rule'
+          ELSE ''
+        END
+      )
+      WHEN geo_instruction IS NOT NULL
+       AND geo_instruction LIKE 'band %'
+       AND geo_tag_target IS NULL
+       AND geo_band_target IS NOT NULL
+       AND COALESCE(capture_allowed_after_completion, 0) = 1
+       AND COALESCE(capture_interval_open, 0) = 1
+      THEN geo_instruction
+      WHEN COALESCE(both_parents_need_geo, 0) = 1
+      THEN 'band any'
       WHEN COALESCE(F_confirmed_unbanded, 0) = 1
        AND COALESCE(M_unknown_status, 0) = 1
       THEN CONCAT(
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
            AND COALESCE(capture_interval_open, 0) = 1
-          THEN 'resight/capture M; capture X-X F'
+          THEN 'resight/band M; band X-X F'
           ELSE 'resight M'
         END,
         CASE
@@ -3766,21 +3799,21 @@ todo_untrapped_parent AS (
       )
       WHEN COALESCE(M_confirmed_unbanded, 0) = 1
        AND COALESCE(F_has_geo, 0) = 1
-      THEN 'capture X-X M (F w/GEO)'
+      THEN 'band X-X M (F w/GEO)'
       WHEN COALESCE(F_confirmed_unbanded, 0) = 1
        AND COALESCE(M_has_geo, 0) = 1
-      THEN 'capture X-X F (M w/GEO)'
+      THEN 'band X-X F (M w/GEO)'
       WHEN COALESCE(M_confirmed_unbanded, 0) = 1
-      THEN 'capture X-X M'
+      THEN 'band X-X M'
       WHEN COALESCE(F_confirmed_unbanded, 0) = 1
-      THEN 'capture X-X F'
+      THEN 'band X-X F'
       WHEN COALESCE(M_unknown_status, 0) = 1
        AND COALESCE(F_unknown_status, 0) = 1
       THEN CONCAT(
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
            AND COALESCE(capture_interval_open, 0) = 1
-          THEN 'resight/capture any (status ?)'
+          THEN 'resight/band any (status ?)'
           ELSE 'resight any (status ?)'
         END,
         CASE
@@ -3799,7 +3832,7 @@ todo_untrapped_parent AS (
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
            AND COALESCE(capture_interval_open, 0) = 1
-          THEN 'resight/capture M (F w/GEO)'
+          THEN 'resight/band M (F w/GEO)'
           ELSE 'resight M (F w/GEO)'
         END,
         CASE
@@ -3818,7 +3851,7 @@ todo_untrapped_parent AS (
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
            AND COALESCE(capture_interval_open, 0) = 1
-          THEN 'resight/capture F (M w/GEO)'
+          THEN 'resight/band F (M w/GEO)'
           ELSE 'resight F (M w/GEO)'
         END,
         CASE
@@ -3836,7 +3869,7 @@ todo_untrapped_parent AS (
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
            AND COALESCE(capture_interval_open, 0) = 1
-          THEN 'resight/capture M (status ?)'
+          THEN 'resight/band M (status ?)'
           ELSE 'resight M (status ?)'
         END,
         CASE
@@ -3854,7 +3887,7 @@ todo_untrapped_parent AS (
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
            AND COALESCE(capture_interval_open, 0) = 1
-          THEN 'resight/capture F (status ?)'
+          THEN 'resight/band F (status ?)'
           ELSE 'resight F (status ?)'
         END,
         CASE
@@ -3870,24 +3903,24 @@ todo_untrapped_parent AS (
       WHEN COALESCE(M_has_geo, 0) = 1
        AND COALESCE(F_has_geo, 0) = 0
        AND COALESCE(female_quota_remaining, 0) = 0
-      THEN 'capture F (no GEO; female quota complete; M w/GEO)'
+      THEN 'band F (no GEO; female quota complete; M w/GEO)'
       WHEN COALESCE(F_has_geo, 0) = 1
        AND COALESCE(M_has_geo, 0) = 0
        AND COALESCE(male_quota_remaining, 0) = 0
-      THEN 'capture M (no GEO; male quota complete; F w/GEO)'
+      THEN 'band M (no GEO; male quota complete; F w/GEO)'
       WHEN COALESCE(M_has_geo, 0) = 1
        AND COALESCE(F_has_geo, 0) = 0
-      THEN 'capture F (no GEO; M w/GEO)'
+      THEN 'band F (no GEO; M w/GEO)'
       WHEN COALESCE(F_has_geo, 0) = 1
        AND COALESCE(M_has_geo, 0) = 0
-      THEN 'capture M (no GEO; F w/GEO)'
+      THEN 'band M (no GEO; F w/GEO)'
       WHEN COALESCE(M_single_colour_recruit, 0) = 1
        AND COALESCE(F_single_colour_recruit, 0) = 1
-      THEN 'capture any recruit (full colours)'
+      THEN 'band any recruit (full colours)'
       WHEN COALESCE(M_single_colour_recruit, 0) = 1
-      THEN 'capture M recruit (full colours)'
+      THEN 'band M recruit (full colours)'
       WHEN COALESCE(F_single_colour_recruit, 0) = 1
-      THEN 'capture F recruit (full colours)'
+      THEN 'band F recruit (full colours)'
       ELSE notes
     END AS notes,
     days_overdue,
