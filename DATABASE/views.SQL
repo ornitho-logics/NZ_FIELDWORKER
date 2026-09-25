@@ -4486,6 +4486,26 @@ WITH reference_setting AS (
     AND value IS NOT NULL
   HAVING COUNT(*) = 1
 ),
+latest_nest_state AS (
+  SELECT
+    ranked.nest_id,
+    ranked.nest_state
+  FROM (
+    SELECT
+      n.nest_id,
+      n.nest_state,
+      ROW_NUMBER() OVER (
+        PARTITION BY n.nest_id
+        ORDER BY n.date DESC, n.time_visit DESC, n.pk DESC
+      ) AS row_num
+    FROM FIELD_2026_BADOatNZ.NESTS n
+    CROSS JOIN reference_setting reference
+    WHERE n.nest_id IS NOT NULL
+      AND TRIM(n.nest_id) <> ''
+      AND n.date <= reference.reference_date
+  ) ranked
+  WHERE ranked.row_num = 1
+),
 geo_device_history AS (
   -- A device seen against several rings is not safe cohort evidence.
   SELECT
@@ -4811,6 +4831,8 @@ LEFT JOIN latest_resighting latest
   ON bird.bird_id = latest.bird_id
 LEFT JOIN latest_nest_association latest_nest
   ON bird.bird_id = latest_nest.bird_id
+LEFT JOIN latest_nest_state
+  ON latest_nest.nest_id = latest_nest_state.nest_id
 WHERE NOT EXISTS (
   -- A death record in CAPTURES removes the bird from the resight follow-up
   -- table once that event is on or before the active reference date.
@@ -4820,7 +4842,12 @@ WHERE NOT EXISTS (
     AND UPPER(TRIM(COALESCE(dead_capture.capture_status, ''))) = 'D'
     AND dead_capture.date IS NOT NULL
     AND dead_capture.date <= reference.reference_date
-);
+)
+  AND (
+    latest_nest.nest_id IS NULL
+    OR latest_nest_state.nest_id IS NULL
+    OR UPPER(TRIM(COALESCE(latest_nest_state.nest_state, ''))) <> 'NOTA'
+  );
 
 
 CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.OVERVIEW AS
