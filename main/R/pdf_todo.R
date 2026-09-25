@@ -486,7 +486,7 @@ todo_pdf_note_key <- function() {
     "    columns: (1fr, 1fr),",
     "    gutter: 9pt,",
     "    [*7d rule:* Resighting only. Capture is not allowed until at least 7 days after estimated clutch completion. #linebreak() *36hr rule:* Resighting only. Another parent cannot be captured until 08:00 on the reference day is at least 36 hours after the previous parent capture at that nest.],",
-    "    [*MM cap:* The bird was captured away from the nest using method MM. An at-nest resighting with IN or NM behaviour is needed to confirm its association. #linebreak() *Pair completion:* At nests known by Sep 24, prioritize the eligible untagged mate; at later nests, complete a pair after the first planned deployment. #linebreak() *Sex/phenology balance:* Deploy to the stated sex, or either sex, to fill the nest's lay-date stratum. #linebreak() *FO marker:* Orange-flagged AU migrant; never deploy a GEO. #linebreak() *No tag needed:* Band the stated parent only. #linebreak() *M/F w/GEO:* The confirmed male/female carries a geolocator. *Status ?:* Identity or band status is unknown.],",
+    "    [*MM cap:* Captured away from the nest. A later nest-linked resighting with matching sex and identity confirms association; behaviour code is not required. #linebreak() *Pair completion:* At nests known by Sep 24, prioritize the eligible untagged mate; at later nests, complete a pair after the first planned deployment. #linebreak() *Sex/phenology balance:* Deploy to the stated sex to reduce the global sex imbalance and that lay-date stratum's deficit. #linebreak() *FO marker:* Orange-flagged AU migrant; never deploy a GEO. #linebreak() *Band only:* Capture and fully colour-band the stated parent; do not deploy a GEO. #linebreak() *M/F w/GEO:* The confirmed male/female carries a geolocator. *Status ?:* Identity or band status is unknown.],",
     "  )",
     "]",
     "#v(0.3em)",
@@ -701,7 +701,7 @@ todo_pdf_body <- function(
       out,
       "## Tagged birds to resight",
       "",
-      "*The following tagged birds have not been seen since tag deployment, please resight and assess walking ability*",
+      "*The following tagged birds have not been in seen in over 7 days since tag deployment, please resight and assess walking ability*",
       "",
       knitr::kable(
         as.data.frame(unseen_tagged_birds),

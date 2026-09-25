@@ -1739,11 +1739,14 @@ latest_clutch_processing_status AS (
     latest_clutch_history.clutch_has_photo,
     MAX(
       CASE
+        WHEN latest_nests.hatch_signs_present = 1 THEN 1
         WHEN float_visit_summary.nest_id IS NOT NULL THEN 1
         ELSE 0
       END
     ) AS clutch_has_float
   FROM latest_clutch_history
+  LEFT JOIN latest_nests
+    ON latest_clutch_history.nest_id = latest_nests.nest_id
   LEFT JOIN float_visit_summary
     ON latest_clutch_history.nest_id = float_visit_summary.nest_id
    AND float_visit_summary.float_datetime
@@ -2910,11 +2913,14 @@ complete_clutch_processing_status AS (
     ) AS complete_clutch_has_photo,
     MAX(
       CASE
+        WHEN latest_nests.hatch_signs_present = 1 THEN 1
         WHEN float_visit_summary.nest_id IS NOT NULL THEN 1
         ELSE 0
       END
     ) AS complete_clutch_has_float
   FROM adult_capture_current_clutch_start clutch_start
+  LEFT JOIN latest_nests
+    ON clutch_start.nest_id = latest_nests.nest_id
   LEFT JOIN nest_history n
     ON clutch_start.nest_id = n.nest_id
    AND n.clutch_size = clutch_start.current_clutch_size
@@ -2936,6 +2942,14 @@ geo_parent_plan AS (
     ranked.global_sex_priority,
     ranked.geo_priority_score,
     ranked.geo_reason,
+    ranked.geo_target,
+    ranked.geo_is_actionable,
+    ranked.n_geo_deployed,
+    ranked.release_ceiling,
+    GREATEST(
+      0,
+      ranked.release_ceiling - ranked.n_geo_deployed
+    ) AS release_slots_remaining,
     ranked.n_male_geo_deployed,
     ranked.n_female_geo_deployed,
     ranked.male_quota_remaining,
@@ -2943,19 +2957,13 @@ geo_parent_plan AS (
     ranked.preferred_balance_sex,
     ranked.band_target AS geo_band_target,
     CASE
-      WHEN ranked.pair_target IS NOT NULL
-       AND ranked.n_geo_deployed < ranked.release_ceiling
-      THEN ranked.pair_target
-      WHEN ranked.geo_rank <= GREATEST(
-        0,
-        ranked.release_ceiling - ranked.n_geo_deployed
-      )
+      WHEN ranked.geo_is_actionable = 1
       THEN ranked.geo_target
       ELSE NULL
     END AS geo_tag_target,
     CASE
-      WHEN ranked.pair_target IS NOT NULL
-       AND ranked.n_geo_deployed < ranked.release_ceiling
+      WHEN ranked.geo_is_actionable = 1
+       AND ranked.pair_target IS NOT NULL
       THEN CONCAT(
         'tag ',
         ranked.pair_target,
@@ -2968,10 +2976,7 @@ geo_parent_plan AS (
         END,
         ')'
       )
-      WHEN ranked.geo_rank <= GREATEST(
-        0,
-        ranked.release_ceiling - ranked.n_geo_deployed
-      )
+      WHEN ranked.geo_is_actionable = 1
       THEN CONCAT(
         'tag ',
         CASE ranked.geo_target WHEN 'A' THEN 'either' ELSE ranked.geo_target END,
@@ -2984,6 +2989,39 @@ geo_parent_plan AS (
           ELSE ''
         END,
         ')'
+      )
+      WHEN ranked.pair_target IS NOT NULL
+       AND ranked.n_geo_deployed < ranked.release_ceiling
+       AND ranked.is_candidate = 0
+      THEN CONCAT(
+        'resight ',
+        ranked.pair_target,
+        ' (pair completion',
+        CASE
+          WHEN (ranked.pair_target = 'M' AND ranked.M_parent_mark IS NULL)
+            OR (ranked.pair_target = 'F' AND ranked.F_parent_mark IS NULL)
+          THEN '; confirm identity/GEO'
+          ELSE ''
+        END,
+        ')'
+      )
+      WHEN ranked.pair_target IS NOT NULL
+       AND ranked.n_geo_deployed < ranked.release_ceiling
+       AND ranked.is_candidate = 1
+      THEN CONCAT(
+        'resight ',
+        ranked.pair_target,
+        ' (pair completion waitlist)'
+      )
+      WHEN ranked.geo_target IS NOT NULL
+      THEN CONCAT(
+        'resight ',
+        CASE ranked.geo_target WHEN 'A' THEN 'any' ELSE ranked.geo_target END,
+        CASE
+          WHEN ranked.is_candidate = 0
+          THEN ' (GEO timing/waitlist)'
+          ELSE ' (GEO waitlist)'
+        END
       )
       WHEN ranked.balance_target IS NULL
        AND ranked.band_target IS NOT NULL
@@ -3017,102 +3055,114 @@ geo_parent_plan AS (
     ranked.F_is_au_migrant
   FROM (
     SELECT
-      scored.*,
+      ranked_base.*,
       CASE
-        WHEN scored.is_candidate = 1
-        THEN SUM(scored.is_candidate) OVER (
-          ORDER BY
-            scored.is_candidate DESC,
-            scored.geo_priority_tier,
-            scored.global_sex_priority,
-            scored.target_sex_deficit DESC,
-            scored.geo_priority_score DESC,
-            scored.first_egg_estimate,
-            scored.nest_id
-          ROWS UNBOUNDED PRECEDING
-        )
-        ELSE NULL
-      END AS geo_rank
+        WHEN ranked_base.is_candidate = 1
+         AND ranked_base.geo_rank <= GREATEST(
+           0,
+           ranked_base.release_ceiling - ranked_base.n_geo_deployed
+         )
+        THEN 1
+        ELSE 0
+      END AS geo_is_actionable
     FROM (
       SELECT
-        candidates.*,
-        4 * LEAST(candidates.target_sex_deficit, 3)
-          + CASE WHEN candidates.pair_target IS NOT NULL THEN 2 ELSE 0 END
-          + CASE
-              WHEN candidates.M_reliable_identity = 1
-                OR candidates.F_reliable_identity = 1
-              THEN 2 ELSE 1
-            END
-          + CASE candidates.phenology_confidence
-              WHEN 'high' THEN 2
-              WHEN 'medium' THEN 1
-              ELSE 0
-            END
-          + candidates.target_identity_score
-          AS geo_priority_score
+        scored.*,
+        CASE
+          WHEN scored.is_candidate = 1
+          THEN SUM(scored.is_candidate) OVER (
+            ORDER BY
+              scored.is_candidate DESC,
+              scored.geo_priority_tier,
+              scored.global_sex_priority,
+              scored.target_sex_deficit DESC,
+              scored.geo_priority_score DESC,
+              scored.first_egg_estimate,
+              scored.nest_id
+            ROWS UNBOUNDED PRECEDING
+          )
+          ELSE NULL
+        END AS geo_rank
       FROM (
         SELECT
-          targets.*,
-          COALESCE(targets.pair_target, targets.balance_target) AS geo_target,
-          CASE WHEN targets.pair_target IS NOT NULL THEN 1 ELSE 2 END
-            AS geo_priority_tier,
-          CASE
-            WHEN targets.pair_target IS NOT NULL THEN 1
-            WHEN targets.preferred_balance_sex IS NULL THEN 1
-            WHEN targets.balance_target = targets.preferred_balance_sex THEN 1
-            ELSE 2
-          END AS global_sex_priority,
-          CASE
-            WHEN targets.pair_target IS NOT NULL THEN 'pair completion'
-            ELSE 'sex/phenology balance'
-          END AS geo_reason,
-          CASE COALESCE(targets.pair_target, targets.balance_target)
-            WHEN 'M' THEN COALESCE(targets.male_deficit, 0)
-            WHEN 'F' THEN COALESCE(targets.female_deficit, 0)
-            ELSE GREATEST(
-              COALESCE(targets.male_deficit, 0),
-              COALESCE(targets.female_deficit, 0)
-            )
-          END AS target_sex_deficit,
-          CASE COALESCE(targets.pair_target, targets.balance_target)
-            WHEN 'M' THEN CASE
-              WHEN targets.M_parent_mark IS NULL THEN 0 ELSE 1
-            END
-            WHEN 'F' THEN CASE
-              WHEN targets.F_parent_mark IS NULL THEN 0 ELSE 1
-            END
-            ELSE CASE
-              WHEN targets.M_parent_mark IS NULL
-               AND targets.F_parent_mark IS NULL THEN 0 ELSE 1
-            END
-          END AS target_identity_score,
-          CASE
-             WHEN COALESCE(targets.pair_target, targets.balance_target)
-                 IS NOT NULL
-             AND targets.n_geo_deployed < targets.release_ceiling
-             AND COALESCE(targets.capture_allowed_after_completion, 0) = 1
-             AND CASE COALESCE(targets.pair_target, targets.balance_target)
-               WHEN 'M' THEN CASE
-                 WHEN COALESCE(targets.no_parent_capture_yet, 0) = 1
-                   OR COALESCE(targets.M_target_capture_window_open, 0) = 1
-                 THEN 1 ELSE 0
-               END
-               WHEN 'F' THEN CASE
-                 WHEN COALESCE(targets.no_parent_capture_yet, 0) = 1
-                   OR COALESCE(targets.F_target_capture_window_open, 0) = 1
-                 THEN 1 ELSE 0
-               END
-               ELSE CASE
-                 WHEN COALESCE(targets.no_parent_capture_yet, 0) = 1
-                   OR COALESCE(targets.any_target_capture_window_open, 0) = 1
-                 THEN 1 ELSE 0
-               END
-             END = 1
-            THEN 1 ELSE 0
-          END AS is_candidate
+          candidates.*,
+          4 * LEAST(candidates.target_sex_deficit, 3)
+            + CASE WHEN candidates.pair_target IS NOT NULL THEN 2 ELSE 0 END
+            + CASE
+                WHEN candidates.M_reliable_identity = 1
+                  OR candidates.F_reliable_identity = 1
+                THEN 2 ELSE 1
+              END
+            + CASE candidates.phenology_confidence
+                WHEN 'high' THEN 2
+                WHEN 'medium' THEN 1
+                ELSE 0
+              END
+            + candidates.target_identity_score
+            AS geo_priority_score
         FROM (
           SELECT
-            base.*,
+            targets.*,
+            COALESCE(targets.pair_target, targets.balance_target) AS geo_target,
+            CASE WHEN targets.pair_target IS NOT NULL THEN 1 ELSE 2 END
+              AS geo_priority_tier,
+            CASE
+              WHEN targets.pair_target IS NOT NULL THEN 1
+              WHEN targets.preferred_balance_sex IS NULL THEN 1
+              WHEN targets.balance_target = targets.preferred_balance_sex THEN 1
+              ELSE 2
+            END AS global_sex_priority,
+            CASE
+              WHEN targets.pair_target IS NOT NULL THEN 'pair completion'
+              ELSE 'sex/phenology balance'
+            END AS geo_reason,
+            CASE COALESCE(targets.pair_target, targets.balance_target)
+              WHEN 'M' THEN COALESCE(targets.male_deficit, 0)
+              WHEN 'F' THEN COALESCE(targets.female_deficit, 0)
+              ELSE GREATEST(
+                COALESCE(targets.male_deficit, 0),
+                COALESCE(targets.female_deficit, 0)
+              )
+            END AS target_sex_deficit,
+            CASE COALESCE(targets.pair_target, targets.balance_target)
+              WHEN 'M' THEN CASE
+                WHEN targets.M_parent_mark IS NULL THEN 0 ELSE 1
+              END
+              WHEN 'F' THEN CASE
+                WHEN targets.F_parent_mark IS NULL THEN 0 ELSE 1
+              END
+              ELSE CASE
+                WHEN targets.M_parent_mark IS NULL
+                 AND targets.F_parent_mark IS NULL THEN 0 ELSE 1
+              END
+            END AS target_identity_score,
+            CASE
+               WHEN COALESCE(targets.pair_target, targets.balance_target)
+                   IS NOT NULL
+               AND targets.n_geo_deployed < targets.release_ceiling
+               AND COALESCE(targets.capture_allowed_after_completion, 0) = 1
+               AND CASE COALESCE(targets.pair_target, targets.balance_target)
+                 WHEN 'M' THEN CASE
+                   WHEN COALESCE(targets.no_parent_capture_yet, 0) = 1
+                     OR COALESCE(targets.M_target_capture_window_open, 0) = 1
+                   THEN 1 ELSE 0
+                 END
+                 WHEN 'F' THEN CASE
+                   WHEN COALESCE(targets.no_parent_capture_yet, 0) = 1
+                     OR COALESCE(targets.F_target_capture_window_open, 0) = 1
+                   THEN 1 ELSE 0
+                 END
+                 ELSE CASE
+                   WHEN COALESCE(targets.no_parent_capture_yet, 0) = 1
+                     OR COALESCE(targets.any_target_capture_window_open, 0) = 1
+                   THEN 1 ELSE 0
+                 END
+               END = 1
+              THEN 1 ELSE 0
+            END AS is_candidate
+          FROM (
+            SELECT
+              base.*,
             -- A pair completion is the first tier, but it cannot exceed the
             -- final 50-per-sex quota. Once F reaches 50, an eligible M can
             -- still be selected; the reverse applies if M reaches 50 first.
@@ -3182,7 +3232,7 @@ geo_parent_plan AS (
               WHEN base.F_band_needed = 1 THEN 'F'
               ELSE NULL
             END AS band_target
-          FROM (
+            FROM (
             SELECT
               active_nests.nest_id,
               nest_discovery.first_found_date,
@@ -3241,6 +3291,8 @@ geo_parent_plan AS (
                 THEN 1 ELSE 0
               END AS F_band_needed,
               CASE
+                WHEN LEFT(UPPER(TRIM(active_nests.nest_id)), 1) = 'A'
+                THEN 0
                 WHEN COALESCE(parent_status.M_has_geo, 0) = 0
                  AND COALESCE(parent_status.M_is_au_migrant, 0) = 0
                  AND COALESCE(parent_status.M_is_dead, 0) = 0
@@ -3248,6 +3300,8 @@ geo_parent_plan AS (
                 THEN 1 ELSE 0
               END AS M_tag_eligible,
               CASE
+                WHEN LEFT(UPPER(TRIM(active_nests.nest_id)), 1) = 'A'
+                THEN 0
                 WHEN COALESCE(parent_status.F_has_geo, 0) = 0
                  AND COALESCE(parent_status.F_is_au_migrant, 0) = 0
                  AND COALESCE(parent_status.F_is_dead, 0) = 0
@@ -3286,10 +3340,11 @@ geo_parent_plan AS (
               ON active_nests.nest_id = deployments.nest_id
             CROSS JOIN geo_deployment_status deployment_status
             WHERE UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I')
-          ) base
-        ) targets
+            ) base
+          ) targets
       ) candidates
     ) scored
+    ) ranked_base
   ) ranked
 ),
 todo_untrapped_parent_candidate AS (
@@ -3345,6 +3400,8 @@ todo_untrapped_parent_candidate AS (
     CASE
       WHEN geo_parent_plan.geo_tag_target IS NOT NULL
       THEN geo_parent_plan.geo_tag_target
+      WHEN geo_parent_plan.geo_target IS NOT NULL
+      THEN geo_parent_plan.geo_target
       WHEN geo_parent_plan.geo_band_target IS NOT NULL
       THEN geo_parent_plan.geo_band_target
       WHEN adult_parent_status.M_confirmed_unbanded = 1
@@ -3535,6 +3592,10 @@ todo_untrapped_parent_candidate AS (
     geo_parent_plan.geo_instruction,
     geo_parent_plan.geo_tag_target,
     geo_parent_plan.geo_band_target,
+    geo_parent_plan.geo_target,
+    geo_parent_plan.geo_is_actionable,
+    geo_parent_plan.n_geo_deployed,
+    geo_parent_plan.release_ceiling,
     geo_parent_plan.geo_rank,
     geo_parent_plan.geo_priority_tier,
     geo_parent_plan.global_sex_priority,
@@ -3592,6 +3653,11 @@ todo_untrapped_parent_candidate AS (
       OR adult_parent_status.F_single_colour_recruit = 1
       OR adult_parent_status.both_parents_need_geo = 1
     )
+    AND NOT (
+      COALESCE(adult_parent_status.both_parents_need_geo, 0) = 1
+      AND COALESCE(geo_parent_plan.n_geo_deployed, 0)
+          >= COALESCE(geo_parent_plan.release_ceiling, 60)
+    )
 ),
 todo_untrapped_parent AS (
   SELECT
@@ -3600,6 +3666,7 @@ todo_untrapped_parent AS (
     todo,
     CASE
       WHEN geo_instruction IS NOT NULL
+       AND geo_tag_target IS NOT NULL
        AND COALESCE(capture_allowed_after_completion, 0) = 1
        AND COALESCE(capture_interval_open, 0) = 1
       THEN geo_instruction
@@ -3798,10 +3865,12 @@ todo_untrapped_parent AS (
     -- A closed 7d/36hr gate is always a resighting task, including for
     -- pair-completion targets; capture rows must be actionable on that date.
     CASE
-      WHEN geo_instruction IS NOT NULL
+      WHEN geo_tag_target IS NOT NULL
        AND COALESCE(capture_allowed_after_completion, 0) = 1
        AND COALESCE(capture_interval_open, 0) = 1
       THEN 'Parent capture'
+      WHEN geo_instruction LIKE 'resight %'
+      THEN 'Parent resighting'
       WHEN COALESCE(capture_allowed_after_completion, 0) = 1
        AND COALESCE(capture_interval_open, 0) = 1
       THEN 'Parent capture'
@@ -4361,7 +4430,17 @@ SELECT
   geo_parent_plan.geo_priority_tier,
   geo_parent_plan.geo_priority_score,
   geo_parent_plan.geo_reason,
+  geo_parent_plan.geo_target,
   geo_parent_plan.geo_tag_target,
+  geo_parent_plan.geo_is_actionable,
+  geo_parent_plan.n_geo_deployed,
+  geo_parent_plan.release_ceiling,
+  geo_parent_plan.release_slots_remaining,
+  geo_parent_plan.n_male_geo_deployed,
+  geo_parent_plan.n_female_geo_deployed,
+  geo_parent_plan.male_quota_remaining,
+  geo_parent_plan.female_quota_remaining,
+  geo_parent_plan.preferred_balance_sex,
   geo_parent_plan.M_is_au_migrant,
   geo_parent_plan.F_is_au_migrant,
   CASE
@@ -4410,6 +4489,26 @@ WITH reference_setting AS (
   WHERE variable = 'reference_date'
     AND value IS NOT NULL
   HAVING COUNT(*) = 1
+),
+latest_nest_state AS (
+  SELECT
+    ranked.nest_id,
+    ranked.nest_state
+  FROM (
+    SELECT
+      n.nest_id,
+      n.nest_state,
+      ROW_NUMBER() OVER (
+        PARTITION BY n.nest_id
+        ORDER BY n.date DESC, n.time_visit DESC, n.pk DESC
+      ) AS row_num
+    FROM FIELD_2026_BADOatNZ.NESTS n
+    CROSS JOIN reference_setting reference
+    WHERE n.nest_id IS NOT NULL
+      AND TRIM(n.nest_id) <> ''
+      AND n.date <= reference.reference_date
+  ) ranked
+  WHERE ranked.row_num = 1
 ),
 geo_device_history AS (
   -- A device seen against several rings is not safe cohort evidence.
@@ -4735,7 +4834,24 @@ LEFT JOIN resighting_summary summary
 LEFT JOIN latest_resighting latest
   ON bird.bird_id = latest.bird_id
 LEFT JOIN latest_nest_association latest_nest
-  ON bird.bird_id = latest_nest.bird_id;
+  ON bird.bird_id = latest_nest.bird_id
+LEFT JOIN latest_nest_state
+  ON latest_nest.nest_id = latest_nest_state.nest_id
+WHERE NOT EXISTS (
+  -- A death record in CAPTURES removes the bird from the resight follow-up
+  -- table once that event is on or before the active reference date.
+  SELECT 1
+  FROM FIELD_2026_BADOatNZ.CAPTURES dead_capture
+  WHERE UPPER(TRIM(dead_capture.ring)) = bird.bird_id
+    AND UPPER(TRIM(COALESCE(dead_capture.capture_status, ''))) = 'D'
+    AND dead_capture.date IS NOT NULL
+    AND dead_capture.date <= reference.reference_date
+)
+  AND (
+    latest_nest.nest_id IS NULL
+    OR latest_nest_state.nest_id IS NULL
+    OR UPPER(TRIM(COALESCE(latest_nest_state.nest_state, ''))) <> 'NOTA'
+  );
 
 
 CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.OVERVIEW AS
