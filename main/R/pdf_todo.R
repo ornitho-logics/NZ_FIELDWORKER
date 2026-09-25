@@ -701,7 +701,7 @@ todo_pdf_body <- function(
       out,
       "## Tagged birds to resight",
       "",
-      "*The following tagged birds have not been seen since tag deployment, please resight and assess walking ability*",
+      "*The following tagged birds have not been in seen in over 7 days since tag deployment, please resight and assess walking ability*",
       "",
       knitr::kable(
         as.data.frame(unseen_tagged_birds),

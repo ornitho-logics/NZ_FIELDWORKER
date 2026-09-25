@@ -3291,6 +3291,8 @@ geo_parent_plan AS (
                 THEN 1 ELSE 0
               END AS F_band_needed,
               CASE
+                WHEN LEFT(UPPER(TRIM(active_nests.nest_id)), 1) = 'A'
+                THEN 0
                 WHEN COALESCE(parent_status.M_has_geo, 0) = 0
                  AND COALESCE(parent_status.M_is_au_migrant, 0) = 0
                  AND COALESCE(parent_status.M_is_dead, 0) = 0
@@ -3298,6 +3300,8 @@ geo_parent_plan AS (
                 THEN 1 ELSE 0
               END AS M_tag_eligible,
               CASE
+                WHEN LEFT(UPPER(TRIM(active_nests.nest_id)), 1) = 'A'
+                THEN 0
                 WHEN COALESCE(parent_status.F_has_geo, 0) = 0
                  AND COALESCE(parent_status.F_is_au_migrant, 0) = 0
                  AND COALESCE(parent_status.F_is_dead, 0) = 0
