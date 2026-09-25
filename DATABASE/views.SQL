@@ -1827,7 +1827,7 @@ hiding_spot_photos AS (
     AND r.date <= sr.reference_date
   GROUP BY r.nest_id
 ),
-adult_capture_latest AS (
+adult_capture_events AS (
   SELECT
     x.nest_id,
     x.sex,
@@ -1907,8 +1907,8 @@ adult_capture_latest AS (
       END AS is_confirmed_xx,
       CASE
         WHEN (
-          c.tag_type = 'GEO'
-          AND c.tag_action IN ('D', 'S', 'N')
+          UPPER(TRIM(COALESCE(c.tag_type, ''))) = 'GEO'
+          AND UPPER(TRIM(COALESCE(c.tag_action, ''))) IN ('D', 'S', 'N')
           AND NULLIF(TRIM(c.tag_id), '') IS NOT NULL
         ) OR UPPER(
           COALESCE(NULLIF(TRIM(c.UL), ''), NULLIF(TRIM(c.UL_in), ''), '')
@@ -1992,14 +1992,7 @@ adult_capture_latest AS (
           WHEN COALESCE(NULLIF(TRIM(c.LR), ''), NULLIF(TRIM(c.LR_in), '')) = 'M'
           THEN 1 ELSE 0
         END
-      ) AS metal_count,
-      ROW_NUMBER() OVER (
-        PARTITION BY c.nest_id, LEFT(c.field_sex, 1)
-        ORDER BY
-          c.date DESC,
-          COALESCE(c.released, c.caught, '00:00:00') DESC,
-          c.pk DESC
-      ) AS row_num
+      ) AS metal_count
     FROM FIELD_2026_BADOatNZ.CAPTURES c
     CROSS JOIN sr
     WHERE c.nest_id IS NOT NULL
@@ -2010,7 +2003,6 @@ adult_capture_latest AS (
       AND c.field_sex IN ('M', 'MU', 'F', 'FU')
       AND c.date <= sr.reference_date
   ) x
-  WHERE x.row_num = 1
 ),
 adult_capture_timing AS (
   SELECT
@@ -2227,11 +2219,12 @@ adult_parent_identity_latest AS (
       ROW_NUMBER() OVER (
         PARTITION BY events.nest_id, events.sex
         ORDER BY
-          events.direct_nest_capture_rank DESC,
-          events.complete_tarsal_rank DESC,
+          events.is_dead DESC,
           events.tag_segment_rank DESC,
-          events.event_date DESC,
+          events.complete_tarsal_rank DESC,
+          events.direct_nest_capture_rank DESC,
           events.source_rank DESC,
+          events.event_date DESC,
           events.event_datetime DESC,
           events.event_pk DESC
       ) AS row_num
@@ -2249,7 +2242,8 @@ adult_parent_identity_latest AS (
         END AS direct_nest_capture_rank,
         has_complete_tarsal_pair AS complete_tarsal_rank,
         CASE
-          WHEN UPPER(TRIM(mark))
+          WHEN has_geo = 1
+            OR UPPER(TRIM(mark))
                REGEXP '(^|[.-])T[A-Z0-9]*($|[.-])'
           THEN 1
           ELSE 0
@@ -2260,7 +2254,7 @@ adult_parent_identity_latest AS (
         is_au_migrant,
         is_dead,
         is_single_colour_recruit
-      FROM adult_capture_latest
+      FROM adult_capture_events
       WHERE mark IS NOT NULL
 
       UNION ALL
@@ -2275,7 +2269,8 @@ adult_parent_identity_latest AS (
         0 AS direct_nest_capture_rank,
         has_complete_tarsal_pair AS complete_tarsal_rank,
         CASE
-          WHEN UPPER(TRIM(mark))
+          WHEN has_geo = 1
+            OR UPPER(TRIM(mark))
                REGEXP '(^|[.-])T[A-Z0-9]*($|[.-])'
           THEN 1
           ELSE 0
@@ -2314,13 +2309,23 @@ adult_parent_identity_status AS (
 ),
 adult_mm_capture_latest AS (
   SELECT
-    nest_id,
-    sex,
-    capture_date AS mm_capture_date,
-    capture_datetime AS mm_capture_datetime,
-    mark
-  FROM adult_capture_latest
-  WHERE capture_method = 'MM'
+    ranked.nest_id,
+    ranked.sex,
+    ranked.capture_date AS mm_capture_date,
+    ranked.capture_datetime AS mm_capture_datetime,
+    ranked.mark
+  FROM (
+    SELECT
+      events.*,
+      ROW_NUMBER() OVER (
+        PARTITION BY events.nest_id, events.sex
+        ORDER BY events.capture_date DESC, events.capture_datetime DESC,
+          events.event_pk DESC
+      ) AS mm_row_num
+    FROM adult_capture_events events
+    WHERE UPPER(TRIM(COALESCE(events.capture_method, ''))) = 'MM'
+  ) ranked
+  WHERE ranked.mm_row_num = 1
 ),
 adult_association_resighting_candidates AS (
   SELECT
