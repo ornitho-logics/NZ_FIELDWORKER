@@ -3729,7 +3729,23 @@ todo_untrapped_parent AS (
       )
       WHEN COALESCE(M_confirmed_unbanded, 0) = 1
        AND COALESCE(F_confirmed_unbanded, 0) = 1
-      THEN 'band X-X F; band X-X M'
+      THEN CONCAT(
+        CASE
+          WHEN COALESCE(capture_allowed_after_completion, 0) = 1
+           AND COALESCE(capture_interval_open, 0) = 1
+          THEN 'band X-X F; band X-X M'
+          ELSE 'resight F; resight M'
+        END,
+        CASE
+          WHEN COALESCE(capture_allowed_after_completion, 0) = 1
+           AND COALESCE(capture_interval_open, 0) = 1 THEN ''
+          WHEN COALESCE(capture_allowed_after_completion, 0) = 0
+           AND COALESCE(capture_interval_open, 0) = 0 THEN '; 7d+36hr'
+          WHEN COALESCE(capture_allowed_after_completion, 0) = 0 THEN '; 7d rule'
+          WHEN COALESCE(capture_interval_open, 0) = 0 THEN '; 36hr rule'
+          ELSE ''
+        END
+      )
       WHEN COALESCE(M_confirmed_unbanded, 0) = 1
        AND COALESCE(F_unknown_status, 0) = 1
       THEN CONCAT(
@@ -3773,6 +3789,10 @@ todo_untrapped_parent AS (
        AND geo_instruction LIKE 'band %'
        AND geo_tag_target IS NULL
        AND geo_band_target IS NOT NULL
+       AND COALESCE(M_confirmed_unbanded, 0) = 0
+       AND COALESCE(F_confirmed_unbanded, 0) = 0
+       AND COALESCE(M_unknown_status, 0) = 0
+       AND COALESCE(F_unknown_status, 0) = 0
        AND COALESCE(capture_allowed_after_completion, 0) = 1
        AND COALESCE(capture_interval_open, 0) = 1
       THEN geo_instruction
@@ -3784,7 +3804,7 @@ todo_untrapped_parent AS (
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
            AND COALESCE(capture_interval_open, 0) = 1
-          THEN 'resight/band M; band X-X F'
+          THEN 'band X-X F; resight/band M'
           ELSE 'resight M'
         END,
         CASE
@@ -3799,14 +3819,78 @@ todo_untrapped_parent AS (
       )
       WHEN COALESCE(M_confirmed_unbanded, 0) = 1
        AND COALESCE(F_has_geo, 0) = 1
-      THEN 'band X-X M (F w/GEO)'
+      THEN CONCAT(
+        CASE
+          WHEN COALESCE(capture_allowed_after_completion, 0) = 1
+           AND COALESCE(capture_interval_open, 0) = 1
+          THEN 'band X-X M (F w/GEO)'
+          ELSE 'resight M (F w/GEO)'
+        END,
+        CASE
+          WHEN COALESCE(capture_allowed_after_completion, 0) = 1
+           AND COALESCE(capture_interval_open, 0) = 1 THEN ''
+          WHEN COALESCE(capture_allowed_after_completion, 0) = 0
+           AND COALESCE(capture_interval_open, 0) = 0 THEN '; 7d+36hr'
+          WHEN COALESCE(capture_allowed_after_completion, 0) = 0 THEN '; 7d rule'
+          WHEN COALESCE(capture_interval_open, 0) = 0 THEN '; 36hr rule'
+          ELSE ''
+        END
+      )
       WHEN COALESCE(F_confirmed_unbanded, 0) = 1
        AND COALESCE(M_has_geo, 0) = 1
-      THEN 'band X-X F (M w/GEO)'
+      THEN CONCAT(
+        CASE
+          WHEN COALESCE(capture_allowed_after_completion, 0) = 1
+           AND COALESCE(capture_interval_open, 0) = 1
+          THEN 'band X-X F (M w/GEO)'
+          ELSE 'resight F (M w/GEO)'
+        END,
+        CASE
+          WHEN COALESCE(capture_allowed_after_completion, 0) = 1
+           AND COALESCE(capture_interval_open, 0) = 1 THEN ''
+          WHEN COALESCE(capture_allowed_after_completion, 0) = 0
+           AND COALESCE(capture_interval_open, 0) = 0 THEN '; 7d+36hr'
+          WHEN COALESCE(capture_allowed_after_completion, 0) = 0 THEN '; 7d rule'
+          WHEN COALESCE(capture_interval_open, 0) = 0 THEN '; 36hr rule'
+          ELSE ''
+        END
+      )
       WHEN COALESCE(M_confirmed_unbanded, 0) = 1
-      THEN 'band X-X M'
+      THEN CONCAT(
+        CASE
+          WHEN COALESCE(capture_allowed_after_completion, 0) = 1
+           AND COALESCE(capture_interval_open, 0) = 1
+          THEN 'band X-X M'
+          ELSE 'resight M'
+        END,
+        CASE
+          WHEN COALESCE(capture_allowed_after_completion, 0) = 1
+           AND COALESCE(capture_interval_open, 0) = 1 THEN ''
+          WHEN COALESCE(capture_allowed_after_completion, 0) = 0
+           AND COALESCE(capture_interval_open, 0) = 0 THEN '; 7d+36hr'
+          WHEN COALESCE(capture_allowed_after_completion, 0) = 0 THEN '; 7d rule'
+          WHEN COALESCE(capture_interval_open, 0) = 0 THEN '; 36hr rule'
+          ELSE ''
+        END
+      )
       WHEN COALESCE(F_confirmed_unbanded, 0) = 1
-      THEN 'band X-X F'
+      THEN CONCAT(
+        CASE
+          WHEN COALESCE(capture_allowed_after_completion, 0) = 1
+           AND COALESCE(capture_interval_open, 0) = 1
+          THEN 'band X-X F'
+          ELSE 'resight F'
+        END,
+        CASE
+          WHEN COALESCE(capture_allowed_after_completion, 0) = 1
+           AND COALESCE(capture_interval_open, 0) = 1 THEN ''
+          WHEN COALESCE(capture_allowed_after_completion, 0) = 0
+           AND COALESCE(capture_interval_open, 0) = 0 THEN '; 7d+36hr'
+          WHEN COALESCE(capture_allowed_after_completion, 0) = 0 THEN '; 7d rule'
+          WHEN COALESCE(capture_interval_open, 0) = 0 THEN '; 36hr rule'
+          ELSE ''
+        END
+      )
       WHEN COALESCE(M_unknown_status, 0) = 1
        AND COALESCE(F_unknown_status, 0) = 1
       THEN CONCAT(
