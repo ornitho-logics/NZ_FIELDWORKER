@@ -3405,7 +3405,13 @@ geo_parent_plan AS (
             ) deployments
               ON active_nests.nest_id = deployments.nest_id
             CROSS JOIN geo_deployment_status deployment_status
-            WHERE UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I')
+            WHERE (
+                UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I')
+                OR (
+                  active_nests.hatch_signs_present = 1
+                  AND active_nests.latest_float_date IS NULL
+                )
+              )
             ) base
           ) targets
       ) candidates

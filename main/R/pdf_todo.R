@@ -344,6 +344,11 @@ todo_pdf_prepare <- function(
       todo == "Parent capture", 0,
       default = 3
     ),
+    pdf_hatching_sort_group = fcase(
+      todo == "Parent capture" & toupper(trimws(as.character(nest_state))) == "H", 0,
+      todo == "Parent capture", 1,
+      default = 0
+    ),
     pdf_geo_priority = fifelse(
       todo == "Parent capture",
       geo_priority_rank,
@@ -365,6 +370,7 @@ todo_pdf_prepare <- function(
     order(
       todo,
       pdf_geo_sort_group,
+      pdf_hatching_sort_group,
       pdf_sort_primary,
       pdf_sort_secondary,
       pdf_geo_priority,
