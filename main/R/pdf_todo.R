@@ -341,9 +341,7 @@ todo_pdf_prepare <- function(
   parent_todos <- c("Parent capture", "Parent resighting")
   todo_dt[, let(
     pdf_geo_sort_group = fcase(
-      todo == "Parent capture" & !is.na(geo_priority_rank), 0,
-      todo == "Parent capture" & grepl("^tag ", notes), 1,
-      todo == "Parent capture" & grepl("^band ", notes), 2,
+      todo == "Parent capture", 0,
       default = 3
     ),
     pdf_geo_priority = fifelse(
@@ -367,9 +365,9 @@ todo_pdf_prepare <- function(
     order(
       todo,
       pdf_geo_sort_group,
-      pdf_geo_priority,
       pdf_sort_primary,
       pdf_sort_secondary,
+      pdf_geo_priority,
       nest_id,
       na.last = TRUE
     )

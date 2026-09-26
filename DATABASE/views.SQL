@@ -2800,7 +2800,13 @@ adult_capture_current_clutch AS (
   JOIN latest_clutch_history
     ON active_nests.nest_id = latest_clutch_history.nest_id
    AND latest_clutch_history.row_num = 1
-  WHERE UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I')
+  WHERE (
+      UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I')
+      OR (
+        active_nests.hatch_signs_present = 1
+        AND active_nests.latest_float_date IS NULL
+      )
+    )
     AND latest_clutch_history.clutch_size IS NOT NULL
     AND latest_clutch_history.clutch_size > 0
 ),
@@ -2885,6 +2891,12 @@ adult_capture_age_status AS (
       ELSE 0
     END AS clutch_completion_confirmed,
     CASE
+      -- Hatch signs without a flotation date mean the nest is already in
+      -- the hatching window, so do not block parent capture on the missing
+      -- seven-day estimate. The 36-hour capture interval is applied later.
+      WHEN latest_nests.hatch_signs_present = 1
+       AND latest_nests.latest_float_date IS NULL
+      THEN 1
       WHEN CASE
              WHEN x.uses_inferred_lay_interval = 1
              THEN DATEDIFF(
@@ -3215,8 +3227,6 @@ geo_parent_plan AS (
             CASE
               WHEN base.M_tag_eligible = 1
                AND base.male_quota_remaining > 0
-               AND base.M_reliable_identity = 1
-               AND base.F_reliable_identity = 1
                AND (
                  COALESCE(base.F_has_geo, 0) = 1
                  OR COALESCE(base.F_captured_has_geo, 0) = 1
@@ -3228,8 +3238,6 @@ geo_parent_plan AS (
               THEN 'M'
               WHEN base.F_tag_eligible = 1
                AND base.female_quota_remaining > 0
-               AND base.F_reliable_identity = 1
-               AND base.M_reliable_identity = 1
                AND (
                  COALESCE(base.M_has_geo, 0) = 1
                  OR COALESCE(base.M_captured_has_geo, 0) = 1
@@ -3682,7 +3690,13 @@ todo_untrapped_parent_candidate AS (
     ON active_nests.nest_id = float_summary.nest_id
   LEFT JOIN initial_clutch_status
     ON active_nests.nest_id = initial_clutch_status.nest_id
-  WHERE UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I')
+  WHERE (
+      UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I')
+      OR (
+        active_nests.hatch_signs_present = 1
+        AND active_nests.latest_float_date IS NULL
+      )
+    )
     AND (
       UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) <> 'F'
       OR COALESCE(active_nests.clutch_size, 0) <> 3
