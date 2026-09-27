@@ -2344,6 +2344,10 @@ hiding_spot_photos AS (
     AND UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'
     AND r.age = 'C'
     AND r.rclass = 'H'
+    AND NULLIF(
+          NULLIF(UPPER(TRIM(COALESCE(r.ring, ''))), ''),
+          'NA'
+        ) IS NOT NULL
     AND r.date <= sr.reference_date
   GROUP BY r.nest_id
 ),
