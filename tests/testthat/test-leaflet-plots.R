@@ -98,10 +98,18 @@ test_that("PDF map keeps active nests without current tasks", {
     lon = 172.001
   )
   nests_latest <- data.frame(
-    nest_id = c("A_MOCK_TASK", "A_MOCK_ACTIVE", "A_MOCK_CLOSED"),
-    nest_state = c("I", "F", "notA"),
-    lat = c(-44.001, -44.002, -44.003),
-    lon = c(172.001, 172.002, 172.003)
+    nest_id = c(
+      "A_MOCK_TASK",
+      "A_MOCK_ACTIVE",
+      "A_MOCK_HATCHED_NOTA",
+      "A_MOCK_FAILED_NOTA",
+      "-B_MOCK_MOBILE"
+    ),
+    nest_state = c("I", "F", "notA", "notA", NA),
+    has_hatch_evidence = c(FALSE, FALSE, TRUE, FALSE, TRUE),
+    is_negative_brood = c(FALSE, FALSE, FALSE, FALSE, TRUE),
+    lat = c(-44.001, -44.002, -44.003, -44.004, -44.005),
+    lon = c(172.001, 172.002, 172.003, 172.004, 172.005)
   )
 
   mapped <- prepare_nests(
@@ -112,7 +120,7 @@ test_that("PDF map keeps active nests without current tasks", {
 
   expect_setequal(
     mapped$nest_id,
-    c("A_MOCK_TASK", "A_MOCK_ACTIVE")
+    c("A_MOCK_TASK", "A_MOCK_ACTIVE", "A_MOCK_HATCHED_NOTA", "-B_MOCK_MOBILE")
   )
   expect_identical(
     as.character(mapped$parent_work[mapped$nest_id == "A_MOCK_ACTIVE"]),

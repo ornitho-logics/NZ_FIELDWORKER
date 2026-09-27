@@ -663,6 +663,525 @@ WHERE n.row_num = 1
   );
 
 
+/*
+  BROODS_LATEST is the unified operational source for the PDF map and parent
+  summary. Positive IDs retain their stationary NESTS history. Negative IDs
+  represent mobile broods with no NESTS or EGGS rows and are discovered from
+  nest-linked CAPTURES/RESIGHTINGS only.
+*/
+CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.BROODS_LATEST AS
+
+WITH sr AS (
+  SELECT value AS reference_date
+  FROM FIELD_2026_BADOatNZ.settings
+  WHERE variable = 'reference_date'
+    AND value IS NOT NULL
+),
+positive_history AS (
+  SELECT
+    n.*,
+    sr.reference_date,
+    ROW_NUMBER() OVER (
+      PARTITION BY n.nest_id
+      ORDER BY n.date DESC, n.time_visit DESC, n.pk DESC
+    ) AS row_num
+  FROM FIELD_2026_BADOatNZ.NESTS n
+  CROSS JOIN sr
+  WHERE n.nest_id IS NOT NULL
+    AND TRIM(n.nest_id) <> ''
+    AND LEFT(TRIM(n.nest_id), 1) <> '-'
+    AND UPPER(TRIM(n.nest_id)) <> 'NO_NEST'
+    AND UPPER(TRIM(COALESCE(n.site, ''))) = 'CR'
+    AND n.date <= sr.reference_date
+),
+positive_history_status AS (
+  SELECT
+    nest_id,
+    MAX(
+      CASE
+        WHEN UPPER(TRIM(COALESCE(nest_state, ''))) = 'H'
+          OR COALESCE(brood_size, 0) > 0
+        THEN 1
+        ELSE 0
+      END
+    ) AS has_hatch_evidence,
+    MIN(
+      CASE
+        WHEN UPPER(TRIM(COALESCE(nest_state, ''))) = 'H'
+          OR COALESCE(brood_size, 0) > 0
+        THEN date
+      END
+    ) AS hatch_evidence_date,
+    MIN(date) AS discovery_date
+  FROM positive_history
+  GROUP BY nest_id
+),
+positive_locations AS (
+  SELECT
+    n.nest_id,
+    g.gps_id,
+    g.gps_point,
+    g.lat,
+    g.lon,
+    ROW_NUMBER() OVER (
+      PARTITION BY n.nest_id
+      ORDER BY
+        CASE
+          WHEN n.nest_state = 'S' THEN 1
+          WHEN n.nest_state = 'F' THEN 2
+          ELSE 3
+        END,
+        n.date,
+        n.time_visit,
+        n.pk,
+        g.datetime_,
+        g.pk
+    ) AS row_num
+  FROM positive_history n
+  JOIN FIELD_2026_BADOatNZ.GPS_POINTS g
+    ON n.gps_id = g.gps_id
+   AND n.gps_point = g.gps_point
+  WHERE n.gps_id IS NOT NULL
+    AND n.gps_point IS NOT NULL
+),
+negative_encounters AS (
+  SELECT
+    c.nest_id,
+    c.date AS event_date,
+    COALESCE(c.released, c.caught, '00:00:00') AS event_time,
+    CAST(CONCAT(c.date, ' ', COALESCE(c.released, c.caught, '00:00:00')) AS DATETIME)
+      AS event_datetime,
+    c.gps_id,
+    c.gps_point,
+    c.pk AS event_pk,
+    'CAPTURES' AS source_table,
+    2 AS source_rank,
+    c.age,
+    CAST(NULL AS CHAR(1)) AS rclass
+  FROM FIELD_2026_BADOatNZ.CAPTURES c
+  CROSS JOIN sr
+  WHERE c.nest_id IS NOT NULL
+    AND LEFT(TRIM(c.nest_id), 1) = '-'
+    AND UPPER(TRIM(COALESCE(c.site, ''))) = 'CR'
+    AND c.date <= sr.reference_date
+  UNION ALL
+  SELECT
+    r.nest_id,
+    r.date AS event_date,
+    '00:00:00' AS event_time,
+    CAST(CONCAT(r.date, ' 00:00:00') AS DATETIME) AS event_datetime,
+    r.gps_id,
+    r.gps_point,
+    r.pk AS event_pk,
+    'RESIGHTINGS' AS source_table,
+    CASE WHEN r.rclass = 'H' THEN 1 ELSE 3 END AS source_rank,
+    r.age,
+    r.rclass
+  FROM FIELD_2026_BADOatNZ.RESIGHTINGS r
+  CROSS JOIN sr
+  WHERE r.nest_id IS NOT NULL
+    AND LEFT(TRIM(r.nest_id), 1) = '-'
+    AND UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'
+    AND r.date <= sr.reference_date
+),
+negative_encounters_ranked AS (
+  SELECT
+    negative_encounters.*,
+    ROW_NUMBER() OVER (
+      PARTITION BY nest_id
+      ORDER BY event_date DESC, event_datetime DESC, source_rank, event_pk DESC
+    ) AS row_num
+  FROM negative_encounters
+),
+negative_discovery AS (
+  SELECT
+    nest_id,
+    MIN(event_date) AS discovery_date
+  FROM negative_encounters
+  GROUP BY nest_id
+),
+chick_events AS (
+  SELECT
+    c.nest_id,
+    c.date AS event_date,
+    COALESCE(c.released, c.caught, '00:00:00') AS event_time,
+    CAST(CONCAT(c.date, ' ', COALESCE(c.released, c.caught, '00:00:00')) AS DATETIME)
+      AS event_datetime,
+    c.gps_id,
+    c.gps_point,
+    c.pk AS event_pk,
+    'CAPTURES' AS source_table,
+    2 AS source_rank,
+    c.age,
+    NULL AS rclass
+  FROM FIELD_2026_BADOatNZ.CAPTURES c
+  CROSS JOIN sr
+  WHERE c.nest_id IS NOT NULL
+    AND TRIM(c.nest_id) <> ''
+    AND UPPER(TRIM(c.nest_id)) <> 'NO_NEST'
+    AND UPPER(TRIM(COALESCE(c.site, ''))) = 'CR'
+    AND c.age = 'C'
+    AND c.date <= sr.reference_date
+  UNION ALL
+  SELECT
+    r.nest_id,
+    r.date AS event_date,
+    '00:00:00' AS event_time,
+    CAST(CONCAT(r.date, ' 00:00:00') AS DATETIME) AS event_datetime,
+    r.gps_id,
+    r.gps_point,
+    r.pk AS event_pk,
+    'RESIGHTINGS' AS source_table,
+    CASE WHEN r.rclass = 'H' THEN 1 ELSE 3 END AS source_rank,
+    r.age,
+    r.rclass
+  FROM FIELD_2026_BADOatNZ.RESIGHTINGS r
+  CROSS JOIN sr
+  WHERE r.nest_id IS NOT NULL
+    AND TRIM(r.nest_id) <> ''
+    AND UPPER(TRIM(r.nest_id)) <> 'NO_NEST'
+    AND UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'
+    AND r.age = 'C'
+    AND r.date <= sr.reference_date
+),
+chick_events_ranked AS (
+  SELECT
+    chick_events.*,
+    ROW_NUMBER() OVER (
+      PARTITION BY nest_id
+      ORDER BY event_date DESC, event_datetime DESC, source_rank, event_pk DESC
+    ) AS row_num
+  FROM chick_events
+),
+direct_chick_locations AS (
+  SELECT
+    events.nest_id,
+    events.event_date,
+    events.event_datetime,
+    events.event_pk,
+    events.source_table,
+    events.source_rank,
+    events.gps_id,
+    events.gps_point,
+    g.lat,
+    g.lon,
+    ROW_NUMBER() OVER (
+      PARTITION BY events.nest_id
+      ORDER BY
+        events.event_date DESC,
+        events.event_datetime DESC,
+        events.source_rank,
+        events.event_pk DESC
+    ) AS row_num
+  FROM chick_events events
+  JOIN FIELD_2026_BADOatNZ.GPS_POINTS g
+    ON events.gps_id = g.gps_id
+   AND events.gps_point = g.gps_point
+  WHERE events.gps_id IS NOT NULL
+    AND events.gps_point IS NOT NULL
+),
+chick_colour_events AS (
+  SELECT
+    c.nest_id,
+    c.date AS event_date,
+    COALESCE(c.released, c.caught, '00:00:00') AS event_time,
+    c.pk,
+    CASE
+      WHEN UPPER(TRIM(c.LL)) IN ('B', 'G', 'O', 'R', 'W', 'Y')
+      THEN UPPER(TRIM(c.LL))
+      WHEN UPPER(TRIM(c.LR)) IN ('B', 'G', 'O', 'R', 'W', 'Y')
+      THEN UPPER(TRIM(c.LR))
+      ELSE NULL
+    END AS chick_band
+  FROM FIELD_2026_BADOatNZ.CAPTURES c
+  CROSS JOIN sr
+  WHERE c.nest_id IS NOT NULL
+    AND TRIM(c.nest_id) <> ''
+    AND UPPER(TRIM(c.nest_id)) <> 'NO_NEST'
+    AND UPPER(TRIM(COALESCE(c.site, ''))) = 'CR'
+    AND c.age = 'C'
+    AND c.date <= sr.reference_date
+),
+chick_colour_ranked AS (
+  SELECT
+    chick_colour_events.*,
+    ROW_NUMBER() OVER (
+      PARTITION BY nest_id
+      ORDER BY event_date, event_time, pk
+    ) AS row_num
+  FROM chick_colour_events
+  WHERE chick_band IS NOT NULL
+),
+negative_parent_events AS (
+  SELECT
+    c.nest_id,
+    LEFT(c.field_sex, 1) AS sex,
+    c.date AS event_date,
+    COALESCE(c.released, c.caught, '00:00:00') AS event_time,
+    c.pk AS event_pk,
+    1 AS source_rank,
+    CASE
+      WHEN UPPER(TRIM(COALESCE(c.capture_status, ''))) = 'D' THEN 'dead'
+      WHEN UPPER(TRIM(c.LL)) IN ('X', 'XX')
+       AND UPPER(TRIM(c.LR)) IN ('X', 'XX') THEN 'X-X'
+      WHEN (NULLIF(TRIM(c.UL), '') IS NOT NULL AND UPPER(TRIM(c.UL)) NOT REGEXP '^(X+|M)$')
+        OR (NULLIF(TRIM(c.LL), '') IS NOT NULL AND UPPER(TRIM(c.LL)) NOT REGEXP '^(X+|M)$')
+        OR (NULLIF(TRIM(c.UR), '') IS NOT NULL AND UPPER(TRIM(c.UR)) NOT REGEXP '^(X+|M)$')
+        OR (NULLIF(TRIM(c.LR), '') IS NOT NULL AND UPPER(TRIM(c.LR)) NOT REGEXP '^(X+|M)$')
+      THEN FIELD_2026_BADOatNZ.format_mark(c.UL, c.LL, c.UR, c.LR)
+      ELSE NULL
+    END AS mark,
+    CASE
+      WHEN UPPER(TRIM(COALESCE(c.tag_type, ''))) = 'GEO'
+       AND NULLIF(TRIM(c.tag_id), '') IS NOT NULL THEN 1
+      WHEN UPPER(TRIM(c.UR)) REGEXP 'T'
+        OR UPPER(TRIM(c.UL)) REGEXP 'T' THEN 1
+      ELSE 0
+    END AS has_geo
+  FROM FIELD_2026_BADOatNZ.CAPTURES c
+  CROSS JOIN sr
+  WHERE c.nest_id IS NOT NULL
+    AND LEFT(TRIM(c.nest_id), 1) = '-'
+    AND UPPER(TRIM(COALESCE(c.site, ''))) = 'CR'
+    AND c.age = 'A'
+    AND LEFT(c.field_sex, 1) IN ('M', 'F')
+    AND c.date <= sr.reference_date
+  UNION ALL
+  SELECT
+    r.nest_id,
+    LEFT(r.sex, 1) AS sex,
+    r.date AS event_date,
+    '00:00:00' AS event_time,
+    r.pk AS event_pk,
+    2 AS source_rank,
+    CASE
+      WHEN UPPER(TRIM(r.LL)) IN ('X', 'XX')
+       AND UPPER(TRIM(r.LR)) IN ('X', 'XX') THEN 'X-X'
+      WHEN (NULLIF(TRIM(r.UL), '') IS NOT NULL AND UPPER(TRIM(r.UL)) NOT REGEXP '^(X+|M)$')
+        OR (NULLIF(TRIM(r.LL), '') IS NOT NULL AND UPPER(TRIM(r.LL)) NOT REGEXP '^(X+|M)$')
+        OR (NULLIF(TRIM(r.UR), '') IS NOT NULL AND UPPER(TRIM(r.UR)) NOT REGEXP '^(X+|M)$')
+        OR (NULLIF(TRIM(r.LR), '') IS NOT NULL AND UPPER(TRIM(r.LR)) NOT REGEXP '^(X+|M)$')
+      THEN FIELD_2026_BADOatNZ.format_mark(
+        NULLIF(TRIM(r.UL), ''),
+        NULLIF(TRIM(r.LL), ''),
+        NULLIF(TRIM(r.UR), ''),
+        NULLIF(TRIM(r.LR), '')
+      )
+      ELSE NULL
+    END AS mark,
+    CASE
+      WHEN UPPER(TRIM(r.UR)) REGEXP 'T'
+        OR UPPER(TRIM(r.UL)) REGEXP 'T' THEN 1
+      ELSE 0
+    END AS has_geo
+  FROM FIELD_2026_BADOatNZ.RESIGHTINGS r
+  CROSS JOIN sr
+  WHERE r.nest_id IS NOT NULL
+    AND LEFT(TRIM(r.nest_id), 1) = '-'
+    AND UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'
+    AND r.age = 'A'
+    AND LEFT(r.sex, 1) IN ('M', 'F')
+    AND r.date <= sr.reference_date
+),
+negative_parent_ranked AS (
+  SELECT
+    negative_parent_events.*,
+    ROW_NUMBER() OVER (
+      PARTITION BY nest_id, sex
+      ORDER BY
+        CASE WHEN mark = 'dead' THEN 1 ELSE 0 END DESC,
+        has_geo DESC,
+        CASE WHEN mark IS NOT NULL THEN 1 ELSE 0 END DESC,
+        event_date DESC,
+        event_time DESC,
+        source_rank,
+        event_pk DESC
+    ) AS row_num
+  FROM negative_parent_events
+),
+negative_parent_marks AS (
+  SELECT
+    nest_id,
+    MAX(CASE WHEN sex = 'M' AND row_num = 1 THEN mark END) AS M_mark,
+    MAX(CASE WHEN sex = 'F' AND row_num = 1 THEN mark END) AS F_mark
+  FROM negative_parent_ranked
+  GROUP BY nest_id
+),
+positive_units AS (
+  SELECT
+    p.nest_id,
+    p.species,
+    'positive' AS brood_kind,
+    0 AS is_negative_brood,
+    h.discovery_date,
+    p.date AS latest_encounter_date,
+    CAST(CONCAT(p.date, ' ', COALESCE(p.time_visit, '00:00:00')) AS DATETIME)
+      AS latest_encounter_datetime,
+    CAST(NULL AS DATE) AS latest_chick_event_date,
+    CAST(NULL AS CHAR(20)) AS latest_chick_event_source,
+    CAST(NULL AS DATE) AS location_event_date,
+    CAST(NULL AS DATETIME) AS location_event_datetime,
+    CAST(NULL AS UNSIGNED) AS location_event_pk,
+    CAST(NULL AS CHAR(20)) AS location_source_table,
+    CAST(NULL AS CHAR(20)) AS location_source,
+    loc.gps_id AS fallback_gps_id,
+    loc.gps_point AS fallback_gps_point,
+    loc.lat AS fallback_lat,
+    loc.lon AS fallback_lon,
+    h.hatch_evidence_date,
+    h.has_hatch_evidence,
+    p.nest_state,
+    p.hatch_state,
+    p.clutch_size,
+    p.brood_size,
+    nl.min_days_to_hatch,
+    nl.M_mark,
+    nl.F_mark,
+    nl.nest_photo,
+    nl.tent_photo,
+    sr.reference_date,
+    CAST(NULL AS CHAR(1)) AS chick_band
+  FROM positive_history p
+  JOIN positive_history_status h
+    ON p.nest_id = h.nest_id
+  LEFT JOIN positive_locations loc
+    ON p.nest_id = loc.nest_id
+   AND loc.row_num = 1
+  LEFT JOIN FIELD_2026_BADOatNZ.NESTS_LATEST nl
+    ON p.nest_id = nl.nest_id
+  CROSS JOIN sr
+  WHERE p.row_num = 1
+    AND NOT (
+      UPPER(TRIM(COALESCE(p.nest_state, ''))) IN ('NOTA', 'P', 'PD', 'D')
+      AND h.has_hatch_evidence = 0
+    )
+    AND NOT (
+      UPPER(TRIM(COALESCE(p.nest_state, ''))) = 'S'
+      AND DATEDIFF(p.reference_date, p.date) > 7
+    )
+),
+negative_units AS (
+  SELECT
+    e.nest_id,
+    CAST(NULL AS CHAR(4)) AS species,
+    'negative' AS brood_kind,
+    1 AS is_negative_brood,
+    d.discovery_date,
+    e.event_date AS latest_encounter_date,
+    e.event_datetime AS latest_encounter_datetime,
+    ce.event_date AS latest_chick_event_date,
+    ce.source_table AS latest_chick_event_source,
+    dl.event_date AS location_event_date,
+    dl.event_datetime AS location_event_datetime,
+    dl.event_pk AS location_event_pk,
+    dl.source_table AS location_source_table,
+    CASE
+      WHEN dl.nest_id IS NOT NULL THEN 'direct_chick_event'
+      ELSE 'missing_direct_chick_location'
+    END AS location_source,
+    CAST(NULL AS UNSIGNED) AS fallback_gps_id,
+    CAST(NULL AS UNSIGNED) AS fallback_gps_point,
+    CAST(NULL AS DECIMAL(12,7)) AS fallback_lat,
+    CAST(NULL AS DECIMAL(12,7)) AS fallback_lon,
+    CAST(NULL AS DATE) AS hatch_evidence_date,
+    1 AS has_hatch_evidence,
+    CAST(NULL AS CHAR(10)) AS nest_state,
+    CAST(NULL AS CHAR(50)) AS hatch_state,
+    CAST(NULL AS UNSIGNED) AS clutch_size,
+    CAST(NULL AS UNSIGNED) AS brood_size,
+    CAST(NULL AS SIGNED) AS min_days_to_hatch,
+    pm.M_mark,
+    pm.F_mark,
+    CAST(NULL AS CHAR(1)) AS nest_photo,
+    CAST(NULL AS CHAR(1)) AS tent_photo,
+    sr.reference_date,
+    cb.chick_band
+  FROM negative_encounters_ranked e
+  JOIN negative_discovery d
+    ON e.nest_id = d.nest_id
+  LEFT JOIN chick_events_ranked ce
+    ON e.nest_id = ce.nest_id
+   AND ce.row_num = 1
+  LEFT JOIN direct_chick_locations dl
+    ON e.nest_id = dl.nest_id
+   AND dl.row_num = 1
+  LEFT JOIN negative_parent_marks pm
+    ON e.nest_id = pm.nest_id
+  LEFT JOIN chick_colour_ranked cb
+    ON e.nest_id = cb.nest_id
+   AND cb.row_num = 1
+  CROSS JOIN sr
+  WHERE e.row_num = 1
+)
+SELECT
+  units.nest_id,
+  units.species,
+  units.brood_kind,
+  units.is_negative_brood,
+  units.discovery_date,
+  units.latest_encounter_date,
+  units.latest_encounter_datetime,
+  units.latest_chick_event_date,
+  units.latest_chick_event_source,
+  COALESCE(dl.gps_id, units.fallback_gps_id) AS gps_id,
+  COALESCE(dl.gps_point, units.fallback_gps_point) AS gps_point,
+  COALESCE(dl.lat, units.fallback_lat) AS lat,
+  COALESCE(dl.lon, units.fallback_lon) AS lon,
+  CASE
+    WHEN dl.nest_id IS NOT NULL THEN 'direct_chick_event'
+    WHEN units.fallback_lat IS NOT NULL THEN 'positive_nest_fallback'
+    ELSE units.location_source
+  END AS location_source,
+  COALESCE(dl.event_date, units.location_event_date) AS location_event_date,
+  COALESCE(dl.event_datetime, units.location_event_datetime) AS location_event_datetime,
+  COALESCE(dl.event_pk, units.location_event_pk) AS location_event_pk,
+  COALESCE(dl.source_table, units.location_source_table) AS location_source_table,
+  units.hatch_evidence_date,
+  units.has_hatch_evidence,
+  units.nest_state,
+  units.hatch_state,
+  units.clutch_size,
+  units.brood_size,
+  units.min_days_to_hatch,
+  units.M_mark,
+  units.F_mark,
+  units.nest_photo,
+  units.tent_photo,
+  COALESCE(units.chick_band, cb.chick_band) AS chick_band,
+  units.reference_date
+FROM (
+  SELECT
+    nest_id, species, brood_kind, is_negative_brood, discovery_date,
+    latest_encounter_date, latest_encounter_datetime,
+    latest_chick_event_date, latest_chick_event_source,
+    location_event_date, location_event_datetime, location_event_pk,
+    location_source_table, location_source, fallback_gps_id,
+    fallback_gps_point, fallback_lat, fallback_lon, hatch_evidence_date,
+    has_hatch_evidence, nest_state, hatch_state, clutch_size, brood_size,
+    min_days_to_hatch, M_mark, F_mark, nest_photo, tent_photo,
+    reference_date, chick_band
+  FROM positive_units
+  UNION ALL
+  SELECT
+    nest_id, species, brood_kind, is_negative_brood, discovery_date,
+    latest_encounter_date, latest_encounter_datetime,
+    latest_chick_event_date, latest_chick_event_source,
+    location_event_date, location_event_datetime, location_event_pk,
+    location_source_table, location_source, fallback_gps_id,
+    fallback_gps_point, fallback_lat, fallback_lon, hatch_evidence_date,
+    has_hatch_evidence, nest_state, hatch_state, clutch_size, brood_size,
+    min_days_to_hatch, M_mark, F_mark, nest_photo, tent_photo,
+    reference_date, chick_band
+  FROM negative_units
+) units
+LEFT JOIN direct_chick_locations dl
+  ON units.nest_id = dl.nest_id
+ AND dl.row_num = 1
+LEFT JOIN chick_colour_ranked cb
+  ON units.nest_id = cb.nest_id
+ AND cb.row_num = 1;
+
+
 CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.EGGS_HATCH_PREDICTION AS
 
 WITH sr AS (
@@ -1823,6 +2342,7 @@ hiding_spot_photos AS (
   WHERE r.nest_id IS NOT NULL
     AND TRIM(r.nest_id) <> ''
     AND UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'
+    AND r.age = 'C'
     AND r.rclass = 'H'
     AND r.date <= sr.reference_date
   GROUP BY r.nest_id
@@ -2559,6 +3079,15 @@ todo_parent_source AS (
     CAST(NULL AS CHAR(50)) AS M_mark,
     CAST(NULL AS CHAR(50)) AS F_mark
   FROM latest_nests
+  UNION ALL
+  SELECT
+    b.nest_id,
+    CAST(NULL AS CHAR(50)) AS M_mark,
+    CAST(NULL AS CHAR(50)) AS F_mark
+  FROM FIELD_2026_BADOatNZ.BROODS_LATEST b
+  CROSS JOIN sr
+  WHERE b.is_negative_brood = 1
+    AND b.reference_date = sr.reference_date
 ),
 adult_parent_status AS (
   SELECT
@@ -2957,6 +3486,16 @@ adult_capture_age_status AS (
   JOIN latest_nests
     ON x.nest_id = latest_nests.nest_id
   CROSS JOIN sr
+  UNION ALL
+  SELECT
+    b.nest_id,
+    CAST(NULL AS DATE) AS clutch_completion_basis_date,
+    1 AS clutch_completion_confirmed,
+    1 AS capture_allowed_after_completion
+  FROM FIELD_2026_BADOatNZ.BROODS_LATEST b
+  CROSS JOIN sr
+  WHERE b.is_negative_brood = 1
+    AND b.reference_date = sr.reference_date
 ),
 complete_clutch_processing_status AS (
   SELECT
@@ -3506,12 +4045,12 @@ todo_untrapped_parent_candidate AS (
     END AS target_parent,
     DATEDIFF(
       active_nests.reference_date,
-      COALESCE(nest_discovery.first_found_date, active_nests.reference_date)
+      COALESCE(active_nests.first_found_date, active_nests.reference_date)
     ) AS days_overdue,
     350
       + DATEDIFF(
           active_nests.reference_date,
-          COALESCE(nest_discovery.first_found_date, active_nests.reference_date)
+          COALESCE(active_nests.first_found_date, active_nests.reference_date)
         )
       + 3 * GREATEST(
           0,
@@ -3681,7 +4220,60 @@ todo_untrapped_parent_candidate AS (
     geo_parent_plan.preferred_balance_sex,
     active_nests.lat,
     active_nests.lon
-  FROM active_nests
+  FROM (
+    SELECT
+      active_nests.nest_id,
+      active_nests.species,
+      active_nests.last_visit_datetime,
+      active_nests.days_ago,
+      active_nests.last_observer,
+      active_nests.nest_state,
+      active_nests.hatch_state,
+      active_nests.hatch_signs_present,
+      active_nests.bird_inc,
+      active_nests.clutch_size,
+      active_nests.brood_size,
+      active_nests.latest_float_date,
+      active_nests.average_ref_date_days_since_laid,
+      active_nests.min_days_to_hatch,
+      active_nests.nest_photo,
+      active_nests.tent_photo,
+      active_nests.lat,
+      active_nests.lon,
+      active_nests.reference_date,
+      nest_discovery.first_found_date,
+      0 AS is_negative_brood
+    FROM active_nests
+    LEFT JOIN nest_discovery
+      ON active_nests.nest_id = nest_discovery.nest_id
+    UNION ALL
+    SELECT
+      b.nest_id,
+      b.species,
+      b.latest_encounter_datetime,
+      DATEDIFF(b.reference_date, b.latest_encounter_date),
+      CAST(NULL AS CHAR(10)),
+      b.nest_state,
+      b.hatch_state,
+      1,
+      CAST(NULL AS CHAR(2)),
+      b.clutch_size,
+      b.brood_size,
+      CAST(NULL AS DATE),
+      CAST(NULL AS DECIMAL(6,1)),
+      b.min_days_to_hatch,
+      b.nest_photo,
+      b.tent_photo,
+      b.lat,
+      b.lon,
+      b.reference_date,
+      b.discovery_date,
+      1
+    FROM FIELD_2026_BADOatNZ.BROODS_LATEST b
+    CROSS JOIN sr
+    WHERE b.is_negative_brood = 1
+      AND b.reference_date = sr.reference_date
+  ) active_nests
   LEFT JOIN adult_parent_geo_target_status adult_parent_status
     ON active_nests.nest_id = adult_parent_status.nest_id
   LEFT JOIN geo_parent_plan
@@ -3690,13 +4282,13 @@ todo_untrapped_parent_candidate AS (
     ON active_nests.nest_id = adult_capture_interval_status.nest_id
   LEFT JOIN adult_capture_age_status
     ON active_nests.nest_id = adult_capture_age_status.nest_id
-  LEFT JOIN nest_discovery
-    ON active_nests.nest_id = nest_discovery.nest_id
   LEFT JOIN float_summary
     ON active_nests.nest_id = float_summary.nest_id
   LEFT JOIN initial_clutch_status
     ON active_nests.nest_id = initial_clutch_status.nest_id
   WHERE (
+      active_nests.is_negative_brood = 1
+      OR
       UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I')
       OR (
         active_nests.hatch_signs_present = 1
@@ -3704,6 +4296,8 @@ todo_untrapped_parent_candidate AS (
       )
     )
     AND (
+      active_nests.is_negative_brood = 1
+      OR
       UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) <> 'F'
       OR COALESCE(active_nests.clutch_size, 0) <> 3
       OR initial_clutch_status.found_as_incomplete = 1
@@ -4115,12 +4709,12 @@ todo_mm_parent_resighting_by_sex AS (
     ) AS notes,
     DATEDIFF(
       active_nests.reference_date,
-      COALESCE(nest_discovery.first_found_date, active_nests.reference_date)
+      COALESCE(active_nests.first_found_date, active_nests.reference_date)
     ) AS days_overdue,
     350
       + DATEDIFF(
           active_nests.reference_date,
-          COALESCE(nest_discovery.first_found_date, active_nests.reference_date)
+          COALESCE(active_nests.first_found_date, active_nests.reference_date)
         )
       + 3 * GREATEST(0, 5 - CEILING(COALESCE(active_nests.min_days_to_hatch, 99)))
       AS priority,
@@ -4140,7 +4734,60 @@ todo_mm_parent_resighting_by_sex AS (
       THEN 1
       ELSE 0
     END AS post_mm_xx_seen
-  FROM active_nests
+  FROM (
+    SELECT
+      active_nests.nest_id,
+      active_nests.species,
+      active_nests.last_visit_datetime,
+      active_nests.days_ago,
+      active_nests.last_observer,
+      active_nests.nest_state,
+      active_nests.hatch_state,
+      active_nests.hatch_signs_present,
+      active_nests.bird_inc,
+      active_nests.clutch_size,
+      active_nests.brood_size,
+      active_nests.latest_float_date,
+      active_nests.average_ref_date_days_since_laid,
+      active_nests.min_days_to_hatch,
+      active_nests.nest_photo,
+      active_nests.tent_photo,
+      active_nests.lat,
+      active_nests.lon,
+      active_nests.reference_date,
+      nest_discovery.first_found_date,
+      0 AS is_negative_brood
+    FROM active_nests
+    LEFT JOIN nest_discovery
+      ON active_nests.nest_id = nest_discovery.nest_id
+    UNION ALL
+    SELECT
+      b.nest_id,
+      b.species,
+      b.latest_encounter_datetime,
+      DATEDIFF(b.reference_date, b.latest_encounter_date),
+      CAST(NULL AS CHAR(10)),
+      b.nest_state,
+      b.hatch_state,
+      1,
+      CAST(NULL AS CHAR(2)),
+      b.clutch_size,
+      b.brood_size,
+      CAST(NULL AS DATE),
+      CAST(NULL AS DECIMAL(6,1)),
+      b.min_days_to_hatch,
+      b.nest_photo,
+      b.tent_photo,
+      b.lat,
+      b.lon,
+      b.reference_date,
+      b.discovery_date,
+      1
+    FROM FIELD_2026_BADOatNZ.BROODS_LATEST b
+    CROSS JOIN sr
+    WHERE b.is_negative_brood = 1
+      AND b.reference_date = sr.reference_date
+  ) active_nests
   JOIN adult_mm_capture_latest mm
     ON active_nests.nest_id = mm.nest_id
   LEFT JOIN adult_mm_post_resighting_latest followup
@@ -4148,9 +4795,14 @@ todo_mm_parent_resighting_by_sex AS (
    AND mm.sex = followup.sex
   LEFT JOIN adult_parent_status
     ON active_nests.nest_id = adult_parent_status.nest_id
-  LEFT JOIN nest_discovery
-    ON active_nests.nest_id = nest_discovery.nest_id
-  WHERE UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I')
+  WHERE (
+      active_nests.is_negative_brood = 1
+      OR UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I')
+      OR (
+        active_nests.hatch_signs_present = 1
+        AND active_nests.latest_float_date IS NULL
+      )
+    )
     AND followup.nest_id IS NULL
     AND DATEDIFF(
           active_nests.reference_date,
@@ -4525,6 +5177,32 @@ todo_untrapped_brood AS (
   LEFT JOIN adult_parent_status
     ON brood_followup_nests.nest_id = adult_parent_status.nest_id
   WHERE COALESCE(chick_captures.n_chick_captures, 0) = 0
+  UNION ALL
+  SELECT
+    b.nest_id,
+    b.reference_date,
+    'Untrapped brood' AS todo,
+    'no chick captures' AS notes,
+    DATEDIFF(b.reference_date, b.discovery_date) AS days_overdue,
+    450 + DATEDIFF(b.reference_date, b.discovery_date) AS priority,
+    CAST(NULL AS SIGNED) AS min_days_to_hatch,
+    DATEDIFF(b.reference_date, b.latest_encounter_date) AS last_visit_days_ago,
+    CAST(NULL AS CHAR(10)) AS nest_state,
+    CAST(NULL AS SIGNED) AS clutch_size,
+    CAST(NULL AS SIGNED) AS brood_size,
+    adult_parent_status.M_parent_mark AS M_mark,
+    adult_parent_status.F_parent_mark AS F_mark,
+    b.lat,
+    b.lon
+  FROM FIELD_2026_BADOatNZ.BROODS_LATEST b
+  CROSS JOIN sr
+  LEFT JOIN chick_captures
+    ON b.nest_id = chick_captures.nest_id
+  LEFT JOIN adult_parent_status
+    ON b.nest_id = adult_parent_status.nest_id
+  WHERE b.is_negative_brood = 1
+    AND b.reference_date = sr.reference_date
+    AND COALESCE(chick_captures.n_chick_captures, 0) = 0
 ),
 todo_hiding_spot_photos AS (
   SELECT
@@ -4564,6 +5242,33 @@ todo_hiding_spot_photos AS (
           brood_followup_nests.reference_date,
           brood_followup_nests.hatch_date
         ) BETWEEN 1 AND 6
+    AND COALESCE(hiding_spot_photos.n_hiding_spot_photos, 0) = 0
+  UNION ALL
+  SELECT
+    b.nest_id,
+    b.reference_date,
+    'Hiding spot photos needed' AS todo,
+    'need H resightings' AS notes,
+    GREATEST(0, DATEDIFF(b.reference_date, b.discovery_date) - 1) AS days_overdue,
+    400 + GREATEST(0, DATEDIFF(b.reference_date, b.discovery_date) - 1) AS priority,
+    CAST(NULL AS SIGNED) AS min_days_to_hatch,
+    DATEDIFF(b.reference_date, b.latest_encounter_date) AS last_visit_days_ago,
+    CAST(NULL AS CHAR(10)) AS nest_state,
+    CAST(NULL AS SIGNED) AS clutch_size,
+    CAST(NULL AS SIGNED) AS brood_size,
+    adult_parent_status.M_parent_mark AS M_mark,
+    adult_parent_status.F_parent_mark AS F_mark,
+    b.lat,
+    b.lon
+  FROM FIELD_2026_BADOatNZ.BROODS_LATEST b
+  CROSS JOIN sr
+  LEFT JOIN hiding_spot_photos
+    ON b.nest_id = hiding_spot_photos.nest_id
+  LEFT JOIN adult_parent_status
+    ON b.nest_id = adult_parent_status.nest_id
+  WHERE b.is_negative_brood = 1
+    AND b.reference_date = sr.reference_date
+    AND DATEDIFF(b.reference_date, b.discovery_date) BETWEEN 1 AND 6
     AND COALESCE(hiding_spot_photos.n_hiding_spot_photos, 0) = 0
 ),
 todo_nota_nest_check AS (

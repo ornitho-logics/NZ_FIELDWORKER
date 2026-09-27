@@ -166,10 +166,24 @@
   latest_columns <- c("nest_id", "lat", "lon")
   if (all(latest_columns %in% names(latest))) {
     latest[, nest_id := trimws(as.character(nest_id))]
-    if ("nest_state" %in% names(latest)) {
-      latest[, map_nest_state := toupper(trimws(as.character(nest_state)))]
-      latest <- latest[is.na(map_nest_state) | map_nest_state != "NOTA"]
-    }
+    latest[, is_negative_brood := if ("is_negative_brood" %in% names(latest)) {
+      as.logical(as.integer(is_negative_brood))
+    } else {
+      grepl("^-", nest_id)
+    }]
+    latest[, map_nest_state := if ("nest_state" %in% names(latest)) {
+      toupper(trimws(as.character(nest_state)))
+    } else {
+      NA_character_
+    }]
+    latest[, has_hatch_evidence := if ("has_hatch_evidence" %in% names(latest)) {
+      as.logical(as.integer(has_hatch_evidence))
+    } else {
+      map_nest_state == "H"
+    }]
+    latest <- latest[
+      !(map_nest_state == "NOTA" & !has_hatch_evidence & !is_negative_brood)
+    ]
 
     nest_tasks <- latest[
       !is.na(nest_id) & nzchar(nest_id),
@@ -223,14 +237,14 @@
   if (missing_coordinate_count > 0L) {
     warning(
       sprintf(
-        "%d active nest(s) could not be added to the PDF map because coordinates are missing.",
+        "%d nest/brood unit(s) could not be added to the PDF map because coordinates are missing.",
         missing_coordinate_count
       ),
       call. = FALSE
     )
   }
   nest_tasks <- nest_tasks[!is.na(lat) & !is.na(lon)]
-  nest_tasks[, plot_name := substr(nest_id, 1L, 1L)]
+  nest_tasks[, plot_name := substr(sub("^-", "", nest_id), 1L, 1L)]
   nest_tasks <- nest_tasks[plot_name %chin% c("A", "B", "C")]
   nest_tasks[, check_type := factor(
     check_type,

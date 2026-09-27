@@ -162,8 +162,25 @@ todo_pdf_prepare_nest_summary <- function(
     ))
   }
 
+  state <- if ("nest_state" %in% names(nests)) {
+    toupper(trimws(as.character(nests$nest_state)))
+  } else {
+    rep(NA_character_, nrow(nests))
+  }
+  is_negative_brood <- if ("is_negative_brood" %in% names(nests)) {
+    as.logical(as.integer(nests$is_negative_brood))
+  } else {
+    grepl("^-", trimws(as.character(nests$nest_id)))
+  }
+  has_hatch_evidence <- if ("has_hatch_evidence" %in% names(nests)) {
+    as.logical(as.integer(nests$has_hatch_evidence))
+  } else if ("brood_size" %in% names(nests)) {
+    state == "H" | todo_pdf_as_numeric(nests$brood_size) > 0
+  } else {
+    state == "H"
+  }
   nests <- nests[
-    !toupper(trimws(as.character(nest_state))) %chin% c("NOTA", "S")
+    !(state == "NOTA" & !has_hatch_evidence & !is_negative_brood)
   ]
   nests[, min_days_to_hatch := todo_pdf_as_numeric(min_days_to_hatch)]
   nests[, predicted_hatch_date := as.Date(reference_date) + min_days_to_hatch]
@@ -184,6 +201,7 @@ todo_pdf_prepare_nest_summary <- function(
 
   summary[, c("Male", "Female") := lapply(.SD, function(x) {
     x[is.na(x)] <- ""
+    x[toupper(trimws(x)) == "NULL"] <- ""
     gsub("[\r\n]+", " ", x)
   }), .SDcols = c("Male", "Female")]
 
@@ -201,7 +219,11 @@ todo_pdf_prepare_nest_summary <- function(
           list(Nest = trimws(as.character(nest_id))),
           lapply(.SD, function(x) {
             x <- trimws(as.character(x))
-            x[is.na(x) | !nzchar(x)] <- NA_character_
+            x[
+              is.na(x)
+                | !nzchar(x)
+                | toupper(x) == "NULL"
+            ] <- NA_character_
             x
           })
         ),
@@ -346,7 +368,10 @@ todo_pdf_prepare <- function(
     ),
     pdf_hatching_sort_group = fcase(
       todo == "Parent capture" & toupper(trimws(as.character(nest_state))) == "H", 0,
-      todo == "Parent capture", 1,
+      todo == "Parent capture"
+        & !is.na(nest_id)
+        & grepl("^-", trimws(as.character(nest_id))), 1,
+      todo == "Parent capture", 2,
       default = 0
     ),
     pdf_geo_priority = fifelse(
@@ -379,13 +404,54 @@ todo_pdf_prepare <- function(
     )
   ]
 
+  # A single operational instruction should occupy one PDF row even when
+  # diagnostic joins have repeated the same nest/task/note combination.
+  dedup_columns <- c("nest_id", "reference_date", "todo", "notes")
+  if (all(dedup_columns %in% names(todo_dt))) {
+    todo_dt <- todo_dt[
+      !duplicated(todo_dt[, ..dedup_columns])
+    ]
+  }
+
+  # Negative IDs represent mobile broods without a nest history. Display
+  # their state/clutch as NA and use age-C captures to report brood size.
+  todo_dt[, let(
+    pdf_state = as.character(nest_state),
+    pdf_clutch_size = as.character(clutch_size),
+    pdf_brood_size = as.character(brood_size)
+  )]
+  is_negative_brood <- grepl("^-", trimws(as.character(todo_dt$nest_id)))
+  todo_dt[is_negative_brood, let(
+    pdf_state = "NA",
+    pdf_clutch_size = "NA",
+    pdf_brood_size = "NA"
+  )]
+
+  if (!is.null(chick_captures)) {
+    chick_dt <- data.table(chick_captures)
+    if (all(c("nest_id", "age") %in% names(chick_dt))) {
+      chick_dt <- chick_dt[
+        toupper(trimws(as.character(age))) == "C"
+          & !is.na(nest_id)
+          & grepl("^-", trimws(as.character(nest_id)))
+      ]
+      chick_counts <- chick_dt[, .N, by = nest_id]
+      for (i in seq_len(nrow(chick_counts))) {
+        todo_dt[
+          nest_id == chick_counts$nest_id[i],
+          pdf_brood_size := as.character(chick_counts$N[i])
+        ]
+      }
+    }
+  }
+
   todo_dt[, let(clutch_brood = fifelse(
-    is.na(clutch_size) & is.na(brood_size),
+    is.na(pdf_clutch_size) & is.na(pdf_brood_size),
     "",
     paste0(
-      fifelse(is.na(clutch_size), "", as.character(clutch_size)),
+      fifelse(is.na(pdf_clutch_size), "", pdf_clutch_size),
       "–",
-      fifelse(is.na(brood_size), "", as.character(brood_size))
+      fifelse(is.na(pdf_brood_size), "", pdf_brood_size)
     )
   ))]
 
@@ -393,7 +459,7 @@ todo_pdf_prepare <- function(
     .(
       Todo = todo,
       Nest = nest_id,
-      State = nest_state,
+      State = pdf_state,
       `Clutch–Brood` = clutch_brood,
       Hatch = min_days_to_hatch,
       `Last Visit` = last_visit_days_ago,
@@ -409,6 +475,10 @@ todo_pdf_prepare <- function(
     x <- gsub("[\r\n]+", " ", x)
     x
   })]
+  rows[, c("Male", "Female") := lapply(.SD, function(x) {
+    x[toupper(trimws(x)) == "NULL"] <- ""
+    x
+  }), .SDcols = c("Male", "Female")]
 
   list(
     title = glue("Cass To-Dos for {refdate}"),
@@ -472,7 +542,83 @@ todo_pdf_heading <- function(todo_name) {
   )
 }
 
-todo_pdf_note_key <- function() {
+todo_pdf_note_key <- function(notes = character()) {
+  definitions <- list(
+    list(
+      label = "7d rule",
+      pattern = "7d rule",
+      text = "Resighting only. Capture is not allowed until at least 7 days after estimated clutch completion."
+    ),
+    list(
+      label = "36hr rule",
+      pattern = "36hr rule",
+      text = "Resighting only. Another parent cannot be captured until 08:00 on the reference day is at least 36 hours after the previous parent capture at that nest."
+    ),
+    list(
+      label = "MM cap",
+      pattern = "MM cap",
+      text = "Captured away from the nest. A later nest-linked resighting with matching sex and identity confirms association; behaviour code is not required."
+    ),
+    list(
+      label = "Pair completion",
+      pattern = "pair completion",
+      text = "At nests known by Sep 24, prioritize the eligible untagged mate; at later nests, complete a pair after the first planned deployment."
+    ),
+    list(
+      label = "Sex/phenology balance",
+      pattern = "sex/phenology balance",
+      text = "Deploy to the stated sex to reduce the global sex imbalance and that lay-date stratum's deficit."
+    ),
+    list(
+      label = "FO marker",
+      pattern = "FO marker",
+      text = "Orange-flagged AU migrant; never deploy a GEO."
+    ),
+    list(
+      label = "Band only",
+      pattern = "band",
+      text = "Capture and fully colour-band the stated parent; do not deploy a GEO."
+    ),
+    list(
+      label = "M/F w/GEO",
+      pattern = "w/GEO",
+      text = "The confirmed male/female carries a geolocator."
+    ),
+    list(
+      label = "Status ?",
+      pattern = "status ?",
+      text = "Identity or band status is unknown."
+    )
+  )
+
+  notes <- as.character(notes)
+  notes <- notes[!is.na(notes)]
+  used <- vapply(
+    definitions,
+    function(definition) {
+      any(grepl(
+        tolower(definition$pattern),
+        tolower(notes),
+        fixed = TRUE
+      ))
+    },
+    logical(1)
+  )
+  definitions <- definitions[used]
+  if (!length(definitions)) {
+    return(character())
+  }
+
+  cells <- vapply(
+    definitions,
+    function(definition) {
+      glue(
+        "[*{definition$label}:* {definition$text}]"
+      )
+    },
+    character(1)
+  )
+
   c(
     "```{=typst}",
     "#v(-0.4em)",
@@ -481,19 +627,18 @@ todo_pdf_note_key <- function() {
     "  fill: rgb(\"#f4f7f7\"),",
     "  stroke: 0.45pt + rgb(\"#71858a\"),",
     "  radius: 2pt,",
-    "  inset: (x: 6pt, y: 4pt),",
+    "  inset: (x: 6pt, y: 3pt),",
     ")[",
     "  #set text(size: 7.4pt)",
-    "  #set par(leading: 0.35em)",
+    "  #set par(leading: 0.32em)",
     "  *Note key* \\",
     "  #grid(",
     "    columns: (1fr, 1fr),",
     "    gutter: 9pt,",
-    "    [*7d rule:* Resighting only. Capture is not allowed until at least 7 days after estimated clutch completion. #linebreak() *36hr rule:* Resighting only. Another parent cannot be captured until 08:00 on the reference day is at least 36 hours after the previous parent capture at that nest.],",
-    "    [*MM cap:* Captured away from the nest. A later nest-linked resighting with matching sex and identity confirms association; behaviour code is not required. #linebreak() *Pair completion:* At nests known by Sep 24, prioritize the eligible untagged mate; at later nests, complete a pair after the first planned deployment. #linebreak() *Sex/phenology balance:* Deploy to the stated sex to reduce the global sex imbalance and that lay-date stratum's deficit. #linebreak() *FO marker:* Orange-flagged AU migrant; never deploy a GEO. #linebreak() *Band only:* Capture and fully colour-band the stated parent; do not deploy a GEO. #linebreak() *M/F w/GEO:* The confirmed male/female carries a geolocator. *Status ?:* Identity or band status is unknown.],",
+    paste0("    ", paste(cells, collapse = ",\n    "), ","),
     "  )",
     "]",
-    "#v(0.3em)",
+    "#v(0.2em)",
     "```",
     ""
   )
@@ -658,7 +803,7 @@ todo_pdf_body <- function(
   nest_summary = NULL,
   unseen_tagged_birds = NULL
 ) {
-  out <- todo_pdf_note_key()
+  out <- todo_pdf_note_key(rows$Notes)
   if (!nrow(rows)) {
     out <- c(out, "No to-do items.", "")
   } else {
@@ -787,10 +932,16 @@ todo_pdf_save <- function(
   spatial_objects = NULL,
   nests_latest = NULL,
   chick_captures = NULL,
-  unseen_tagged_birds = NULL
+  unseen_tagged_birds = NULL,
+  broods_latest = NULL
 ) {
-  if (is.null(nests_latest)) {
-    nests_latest <- DBq("SELECT * FROM NESTS_LATEST")
+  if (is.null(broods_latest)) {
+    if (is.null(nests_latest)) {
+      broods_latest <- DBq("SELECT * FROM BROODS_LATEST")
+    } else {
+      # Keep the legacy argument working for older local preview scripts.
+      broods_latest <- nests_latest
+    }
   }
 
   workdir <- tempfile("todo_pdf_")
@@ -828,7 +979,7 @@ todo_pdf_save <- function(
   pdf <- todo_pdf_prepare(
     todo,
     available_combos,
-    nests_latest,
+    broods_latest,
     chick_captures,
     unseen_tagged_birds
   )
@@ -838,7 +989,7 @@ todo_pdf_save <- function(
     todo = todo,
     spatial_objects = spatial_objects,
     chick_captures = chick_captures,
-    nests_latest = nests_latest
+    nests_latest = broods_latest
   )
 
   writeLines(todo_pdf_qmd(pdf, basename(map_file)), qmd)

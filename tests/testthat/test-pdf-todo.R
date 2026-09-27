@@ -37,10 +37,161 @@ test_that("tagged-bird follow-up table is included in the PDF body", {
   expect_true(any(grepl("## Tagged birds to resight", body, fixed = TRUE)))
   expect_true(any(grepl(
     paste(
-      "The following tagged birds have not been seen since tag deployment,",
+      "The following tagged birds have not been in seen in over 7 days since tag deployment,",
       "please resight and assess walking ability"
     ),
     body,
     fixed = TRUE
   )))
+})
+
+
+test_that("PDF note key includes only definitions used by task notes", {
+  app <- load_main_app()
+  note_key <- app$env$todo_pdf_note_key
+
+  observed <- paste(
+    note_key(c("tag M (pair completion)", "resight M; 7d rule", "band X-X F")),
+    collapse = "\n"
+  )
+
+  expect_true(grepl("7d rule", observed, fixed = TRUE))
+  expect_true(grepl("Pair completion", observed, fixed = TRUE))
+  expect_true(grepl("Band only", observed, fixed = TRUE))
+  expect_false(grepl("36hr rule", observed, fixed = TRUE))
+  expect_false(grepl("Sex/phenology balance", observed, fixed = TRUE))
+  expect_false(grepl("FO marker", observed, fixed = TRUE))
+  expect_false(grepl("M/F w/GEO", observed, fixed = TRUE))
+  expect_false(grepl("Status ?", observed, fixed = TRUE))
+})
+
+
+test_that("PDF parent summary keeps mobile broods and hatched notA nests", {
+  app <- load_main_app()
+  prepare_summary <- app$env$todo_pdf_prepare_nest_summary
+
+  nests <- data.frame(
+    nest_id = c("A_MOCK_ACTIVE", "A_MOCK_HATCHED", "A_MOCK_FAILED", "-B_MOCK"),
+    nest_state = c("I", "notA", "notA", NA),
+    has_hatch_evidence = c(FALSE, TRUE, FALSE, TRUE),
+    is_negative_brood = c(FALSE, FALSE, FALSE, TRUE),
+    min_days_to_hatch = c(6, NA, NA, NA),
+    M_mark = c("MOCK-M", "MOCK-HM", "MOCK-FM", "MOCK-MM"),
+    F_mark = c("MOCK-F", "MOCK-HF", "MOCK-FF", "NULL"),
+    brood_size = c(0, 2, 0, NA)
+  )
+  todo <- data.frame(
+    nest_id = c("A_MOCK_ACTIVE", "-B_MOCK"),
+    todo = c("Parent capture", "Parent resighting"),
+    M_mark = c("MOCK-M", "MOCK-MM"),
+    F_mark = c("MOCK-F", "NULL")
+  )
+
+  summary <- prepare_summary(
+    nests,
+    as.Date("2026-09-24"),
+    todo = todo,
+    chick_captures = data.frame()
+  )
+
+  expect_setequal(
+    summary$Nest,
+    c("A_MOCK_ACTIVE", "A_MOCK_HATCHED", "-B_MOCK")
+  )
+  expect_identical(
+    summary[summary$Nest == "-B_MOCK", `Est. Hatch`],
+    ""
+  )
+  expect_identical(
+    summary[summary$Nest == "-B_MOCK", Female],
+    ""
+  )
+  expect_false("A_MOCK_FAILED" %in% summary$Nest)
+})
+
+
+test_that("PDF rows normalize negative broods and collapse duplicate tasks", {
+  app <- load_main_app()
+  prepare <- app$env$todo_pdf_prepare
+
+  todo <- data.frame(
+    nest_id = rep("-MOCK_BROOD", 4),
+    reference_date = as.Date(rep("2026-09-28", 4)),
+    todo = c(
+      "Parent capture", "Parent capture",
+      "Hiding spot photos needed", "Hiding spot photos needed"
+    ),
+    notes = c(
+      "band X-X M", "band X-X M",
+      "need H resightings", "need H resightings"
+    ),
+    nest_state = c(NA, NA, "H", "H"),
+    clutch_size = c(NA, NA, 0, 0),
+    brood_size = c(NA, NA, 3, 3),
+    M_mark = NA,
+    F_mark = "NULL",
+    stringsAsFactors = FALSE
+  )
+  available <- data.frame(mark = paste0("MOCK-", seq_len(30)))
+  chicks <- data.frame(
+    nest_id = rep("-MOCK_BROOD", 3),
+    age = rep("C", 3),
+    stringsAsFactors = FALSE
+  )
+
+  observed <- prepare(
+    todo = todo,
+    available_combos = available,
+    chick_captures = chicks
+  )$rows
+
+  expect_equal(
+    nrow(observed[observed$Todo == "Parent capture", ]),
+    1L
+  )
+  expect_equal(
+    nrow(observed[observed$Todo == "Hiding spot photos needed", ]),
+    1L
+  )
+  expect_identical(unique(observed$State), "NA")
+  expect_identical(unique(observed$`Clutch–Brood`), "NA–3")
+  expect_identical(unique(observed$Female), "")
+})
+
+
+test_that("parent capture PDF sorting prioritizes hatch, negative broods, then hatch date", {
+  app <- load_main_app()
+  prepare <- app$env$todo_pdf_prepare
+
+  todo <- data.frame(
+    nest_id = c("I_MOCK_LATE", "-MOCK_BROOD", "H_MOCK", "I_MOCK_EARLY"),
+    reference_date = as.Date(rep("2026-09-28", 4)),
+    todo = rep("Parent capture", 4),
+    notes = rep("mock task", 4),
+    nest_state = c("I", NA, "H", "I"),
+    clutch_size = c(3, NA, 3, 3),
+    brood_size = c(0, NA, 0, 0),
+    min_days_to_hatch = c(8, NA, 5, 2),
+    last_visit_days_ago = c(2, 2, 1, 3),
+    M_mark = NA,
+    F_mark = NA,
+    stringsAsFactors = FALSE
+  )
+  available <- data.frame(mark = paste0("MOCK-", seq_len(30)))
+  chicks <- data.frame(
+    nest_id = "-MOCK_BROOD",
+    age = "C",
+    stringsAsFactors = FALSE
+  )
+
+  observed <- prepare(
+    todo = todo,
+    available_combos = available,
+    chick_captures = chicks
+  )$rows
+
+  expect_identical(
+    observed$Nest[observed$Todo == "Parent capture"],
+    c("H_MOCK", "-MOCK_BROOD", "I_MOCK_EARLY", "I_MOCK_LATE")
+  )
 })
