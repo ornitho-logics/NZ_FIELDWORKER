@@ -344,6 +344,7 @@ bird_inc
 float_angle
 float_surface
 float_location
+ring
 eggs_handled
 falcon_upload
 observer_upload
@@ -362,6 +363,39 @@ tagID
 ```
 
 The term “waypoint” may be used in prose when referring generically to a GPS waypoint, but the database column is `gps_point`.
+
+## Negative-brood and hiding-photo methodology
+
+A negative `nest_id` identifies a brood of unknown origin: no eggs, nest, or
+stationary origin was found. Negative IDs are valid in `CAPTURES` and
+`RESIGHTINGS` only; they are invalid in `NESTS` and `EGGS`. `NO_NEST` is a
+separate sentinel for an event unrelated to any nest or brood. The leading
+minus sign must be retained.
+
+For a hiding-spot photograph, enter each photographed chick as its own age-C
+`RESIGHTINGS` event with:
+
+* the relevant positive or negative `nest_id` when the brood/nest is linked;
+* `rclass = "H"`;
+* the chick's alphanumeric metal-ring code in nullable `ring`;
+* both `gps_id` and `gps_point`; and
+* the appropriate `photo_start`/`photo_end` metadata.
+
+The `ring` value identifies the photographed chick. It supplements and does
+not replace `UL`, `LL`, `UR`, or `LR`. A single occasion may therefore have
+separate CAPTURES rows for handling/banding and separate H-class RESIGHTINGS
+rows for hiding-spot photographs. CAPTURES `chick_tent_photo = 1` and its
+photo range refer to the tent photograph, not the hiding-spot photograph.
+
+The hiding-photo task is resolved only by a reference-date-qualified, linked
+age-C H-class RESIGHTINGS event with a nonblank normalized `ring`. SQL NULL,
+blank, whitespace-only, and textual `NA` ring values do not resolve it. This
+ring requirement does not apply to non-H RESIGHTINGS rows. `RESIGHTINGS_PUBLIC`
+is unaffected and does not receive this field.
+
+This local schema, validator, and task behavior are complete and approved in the
+current working tree, but they are not evidence that the target database, live
+inspectors, or deployed Shiny process has been updated.
 
 ## Database backend
 
@@ -443,6 +477,7 @@ predict_hatching
 CAPTURES_active
 CAPTURES_ARCHIVE
 NESTS_LATEST
+BROODS_LATEST
 EGGS_HATCH_PREDICTION
 TODO_LIST
 ```
@@ -703,6 +738,13 @@ Coordinates should generally be obtained by linking `NESTS` to `GPS_POINTS` usin
 
 `RESIGHTINGS` stores opportunistic and targeted sightings of banded birds.
 
+The nullable `ring varchar(50)` field stores the alphanumeric metal-ring code
+of the resighted individual. It is mandatory for age-C `rclass = "H"`
+hiding-spot-photo events, where it identifies the photographed chick. It does
+not replace the `UL`, `LL`, `UR`, or `LR` observation fields. Each photographed
+chick gets its own H-class row, ring, GPS pair, and photo metadata. The separate
+`RESIGHTINGS_PUBLIC` table is unaffected.
+
 Known important fields include:
 
 ```text
@@ -717,6 +759,7 @@ UL
 LL
 UR
 LR
+ring
 sex
 age
 behav
@@ -894,7 +937,7 @@ Only after local mock testing should a validator expression be pasted into the `
 
 ## Validator protocol
 
-Thread 3 now uses a machine-readable validator protocol as the official spec-of-record for validator behavior.
+Thread 3.1 now uses a machine-readable validator protocol as the official spec-of-record for validator behavior.
 
 Current local protocol path:
 
@@ -906,15 +949,15 @@ Current protocol identity:
 
 ```text
 protocol_id: bdot_2026_2027_dataentry_validator_protocol
-protocol_version: 1.0.1
-generated_on: 2026-07-21
+protocol_version: 1.2.1
+generated_on: 2026-09-27
 ```
 
 Use the latest downloaded local database snapshot in `DATABASE/` as a read-only alignment reference for
 mock-data generation and protocol review when relevant. At the time of writing, the latest example is:
 
 ```text
-/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/DATABASE/FIELD_2026_BADOatNZ_7230743.sql
+/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/DATABASE/FIELD_2026_BADOatNZ_7311213.sql
 ```
 
 The protocol distinguishes four rule classes:
@@ -993,6 +1036,7 @@ Important SQL objects include:
 
 ```text
 NESTS_LATEST
+BROODS_LATEST
 EGGS_HATCH_PREDICTION
 TODO_LIST
 ```
@@ -1011,15 +1055,23 @@ main/templates/todo_pdf.qmd
 Current implemented to-do classes include:
 
 ```text
-Untrapped parent
+Parent capture
+Parent resighting
+Untrapped parent (legacy/intermediate wording where still surfaced)
 Unprocessed nest
 take scrape photos
 Re-process nest
-nest check
+nest check / Clutch check
 Untrapped brood
 Hiding spot photos needed
 notA nest-check
 ```
+
+For hiding-spot work, only a reference-date-qualified, linked age-C
+`RESIGHTINGS` row with `rclass = "H"` and a normalized nonblank, non-`NA`
+`ring` resolves `Hiding spot photos needed`. A blank or missing ring does not
+resolve the task, and each photographed chick requires its own H-class row.
+This task evidence remains separate from a CAPTURES tent-photo event.
 
 Current `nest check` tasks may carry note-level distinctions such as pre-hatch nest checks versus hatch-sign follow-up. Use current SQL and app code as source of truth for exact task names, note text, and cadence.
 
@@ -1184,7 +1236,7 @@ Expected output:
 * possible indexes/constraints;
 * migration risks and rollback notes.
 
-### Thread 3 — Validation specialist
+### Thread 3 / 3.1 — Validation specialist
 
 Purpose: maintain and refine the DB-stored FIELDWORKER validation system, including live inspector code, validator protocol specifications, and connected mock-data workflows used to test save-time behavior safely before portal updates.
 
@@ -1353,8 +1405,10 @@ Expected output:
 
 * Thread 1 keeps the repo map current and should flag stale paths for all other threads.
 * Thread 2 owns schema, views, SQL functions, support tables, and migration-risk reasoning.
-* Thread 3 owns save-time validation and the validator protocol.
-* Thread 4 owns FIELDWORKER to-do/list/map/PDF logic, especially `TODO_LIST`.
+* Thread 3.1 owns save-time validation, the validator protocol, and the
+  `RESIGHTINGS.ring` requirement for H-class hiding-photo events.
+* Thread 4 owns FIELDWORKER to-do/list/map/PDF logic, especially `TODO_LIST`,
+  including resolution of hiding-photo tasks from qualifying H-class rows.
 * Thread 6 owns post-submission QA/data-cleaning review when it is not part of Thread 3 validator design or Thread 4 task-generation logic.
 * Thread 5 owns the Overview dashboard and dynamic user-facing panels.
 * Thread 6 reviews safety, reproducibility, ignored artifacts, and PR readiness.
