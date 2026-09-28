@@ -2758,33 +2758,26 @@ chick_captures AS (
     AND c.date <= sr.reference_date
   GROUP BY c.nest_id
 ),
-hiding_spot_events AS (
+hiding_spot_status AS (
   SELECT
     a.resolved_nest_id AS nest_id,
-    a.h_event_pk AS resightings_pk
+    COUNT(
+      DISTINCT CASE
+        WHEN a.association_status IN ('explicit', 'derived')
+        THEN a.h_event_pk
+      END
+    ) AS n_hiding_spot_photos,
+    MAX(
+      CASE
+        WHEN a.association_status = 'ambiguous' THEN 1
+        ELSE 0
+      END
+    ) AS review_flag
   FROM FIELD_2026_BADOatNZ.RESIGHTINGS_H_BROOD_ASSOCIATIONS a
   CROSS JOIN sr
   WHERE a.reference_date = sr.reference_date
-    AND a.association_status IN ('explicit', 'derived')
-    AND a.resolved_nest_id IS NOT NULL
-),
-hiding_spot_reviews AS (
-  SELECT
-    a.resolved_nest_id AS nest_id,
-    1 AS review_flag
-  FROM FIELD_2026_BADOatNZ.RESIGHTINGS_H_BROOD_ASSOCIATIONS a
-  CROSS JOIN sr
-  WHERE a.reference_date = sr.reference_date
-    AND a.association_status = 'ambiguous'
     AND a.resolved_nest_id IS NOT NULL
   GROUP BY a.resolved_nest_id
-),
-hiding_spot_photos AS (
-  SELECT
-    nest_id,
-    COUNT(DISTINCT resightings_pk) AS n_hiding_spot_photos
-  FROM hiding_spot_events
-  GROUP BY nest_id
 ),
 adult_capture_events AS (
   SELECT
@@ -5662,7 +5655,7 @@ todo_hiding_spot_photos AS (
     brood_followup_nests.reference_date,
     'Hiding spot photos needed' AS todo,
     CASE
-      WHEN COALESCE(hiding_spot_reviews.review_flag, 0) = 1
+      WHEN COALESCE(hiding_spot_status.review_flag, 0) = 1
       THEN 'need H resightings; review H association'
       ELSE 'need H resightings'
     END AS notes,
@@ -5690,24 +5683,22 @@ todo_hiding_spot_photos AS (
     brood_followup_nests.lat,
     brood_followup_nests.lon
   FROM brood_followup_nests
-  LEFT JOIN hiding_spot_photos
-    ON brood_followup_nests.nest_id = hiding_spot_photos.nest_id
-  LEFT JOIN hiding_spot_reviews
-    ON brood_followup_nests.nest_id = hiding_spot_reviews.nest_id
+  LEFT JOIN hiding_spot_status
+    ON brood_followup_nests.nest_id = hiding_spot_status.nest_id
   LEFT JOIN adult_parent_status
     ON brood_followup_nests.nest_id = adult_parent_status.nest_id
   WHERE DATEDIFF(
           brood_followup_nests.reference_date,
           brood_followup_nests.hatch_date
         ) BETWEEN 1 AND 6
-    AND COALESCE(hiding_spot_photos.n_hiding_spot_photos, 0) = 0
+    AND COALESCE(hiding_spot_status.n_hiding_spot_photos, 0) = 0
   UNION ALL
   SELECT
     b.nest_id,
     b.reference_date,
     'Hiding spot photos needed' AS todo,
     CASE
-      WHEN COALESCE(hiding_spot_reviews.review_flag, 0) = 1
+      WHEN COALESCE(hiding_spot_status.review_flag, 0) = 1
       THEN 'need H resightings; review H association'
       ELSE 'need H resightings'
     END AS notes,
@@ -5724,16 +5715,14 @@ todo_hiding_spot_photos AS (
     b.lon
   FROM FIELD_2026_BADOatNZ.BROODS_LATEST b
   CROSS JOIN sr
-  LEFT JOIN hiding_spot_photos
-    ON b.nest_id = hiding_spot_photos.nest_id
-  LEFT JOIN hiding_spot_reviews
-    ON b.nest_id = hiding_spot_reviews.nest_id
+  LEFT JOIN hiding_spot_status
+    ON b.nest_id = hiding_spot_status.nest_id
   LEFT JOIN adult_parent_status
     ON b.nest_id = adult_parent_status.nest_id
   WHERE b.is_negative_brood = 1
     AND b.reference_date = sr.reference_date
     AND DATEDIFF(b.reference_date, b.discovery_date) BETWEEN 1 AND 6
-    AND COALESCE(hiding_spot_photos.n_hiding_spot_photos, 0) = 0
+    AND COALESCE(hiding_spot_status.n_hiding_spot_photos, 0) = 0
 ),
 todo_nota_nest_check AS (
   SELECT
