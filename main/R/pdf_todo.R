@@ -512,11 +512,11 @@ todo_pdf_heading <- function(todo_name) {
       subtitle = "band unmarked parents or determine identity with resighting"
     ),
     "Parent capture" = list(
-      title = "Nests to capture",
+      title = "Parents to capture",
       subtitle = "follow GEO note priority; capture only once nest-age and 36-hour rules allow"
     ),
     "Parent resighting" = list(
-      title = "Nests to resight",
+      title = "Parents to resight",
       subtitle = "confirm parent identity or association with the nest"
     ),
     "nest check" = list(
@@ -812,6 +812,12 @@ todo_pdf_body <- function(
     for (todo in unique(rows$Todo)) {
       todo_rows <- as.data.frame(rows[Todo == todo, ..table_cols])
       heading <- todo_pdf_heading(todo)
+
+      if (todo == "Hiding spot photos needed") {
+        names(todo_rows)[names(todo_rows) == "Nest"] <- "Brood"
+      } else if (todo %in% c("Parent capture", "Parent resighting")) {
+        names(todo_rows)[names(todo_rows) == "Nest"] <- "Nest/Brood"
+      }
 
       if (!(todo %in% c("notA nest-check", "Hiding spot photos needed"))) {
         names(todo_rows)[names(todo_rows) == "Hatch"] <- "Est. Hatch"
