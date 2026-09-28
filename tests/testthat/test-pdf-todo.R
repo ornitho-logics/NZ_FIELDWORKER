@@ -1,3 +1,97 @@
+test_that("PDF database queries use optimizer protection and a time limit", {
+  app <- load_main_app()
+  observed <- new.env(parent = emptyenv())
+
+  app$env$DBq <- function(
+    x,
+    params = NULL,
+    derived_merge_off = FALSE,
+    max_statement_time = NULL
+  ) {
+    observed$sql <- x
+    observed$params <- params
+    observed$derived_merge_off <- derived_merge_off
+    observed$max_statement_time <- max_statement_time
+    data.frame(value = "mock")
+  }
+
+  expect_message(
+    result <- app$env$todo_pdf_db_query(
+      "TODO_LIST",
+      "SELECT * FROM TODO_LIST",
+      complex_view = TRUE,
+      timeout_seconds = 12
+    ),
+    "database query TODO_LIST completed",
+    fixed = TRUE
+  )
+
+  expect_s3_class(result, "data.table")
+  expect_identical(observed$sql, "SELECT * FROM TODO_LIST")
+  expect_null(observed$params)
+  expect_true(observed$derived_merge_off)
+  expect_identical(observed$max_statement_time, 12)
+})
+
+
+test_that("PDF database query failures return a fieldworker-facing message", {
+  app <- load_main_app()
+  app$env$DBq <- function(...) {
+    data.table::data.table(error = "mock database detail")
+  }
+
+  expect_error(
+    suppressMessages(app$env$todo_pdf_db_query(
+      "TODO_LIST",
+      "SELECT * FROM TODO_LIST",
+      complex_view = TRUE,
+      timeout_seconds = 12
+    )),
+    paste(
+      "Could not generate the to-do PDF because the TODO_LIST query",
+      "failed or exceeded 12 seconds."
+    ),
+    fixed = TRUE
+  )
+})
+
+
+test_that("PDF save logs mock stages without using the database", {
+  app <- load_main_app()
+  output <- tempfile(fileext = ".pdf")
+  on.exit(unlink(output), add = TRUE)
+
+  app$env$todo_pdf_prepare <- function(...) list(mock = TRUE)
+  app$env$todo_pdf_map_save <- function(file, ...) {
+    writeBin(charToRaw("mock map"), file)
+  }
+  app$env$todo_pdf_qmd <- function(...) "mock document"
+  app$env$quarto_render <- function(input, output_file, ...) {
+    writeBin(charToRaw("mock pdf"), file.path(dirname(input), output_file))
+  }
+  app$env$DBq <- function(...) {
+    stop("Mock PDF save must not query the database.", call. = FALSE)
+  }
+
+  expect_message(
+    app$env$todo_pdf_save(
+      file = output,
+      todo = data.frame(reference_date = as.Date("2026-09-28")),
+      available_combos = data.frame(mark = paste0("MOCK-", seq_len(30))),
+      spatial_objects = data.frame(variable = "study_area"),
+      chick_captures = data.frame(),
+      unseen_tagged_birds = data.frame(),
+      broods_latest = data.frame()
+    ),
+    "generation completed",
+    fixed = TRUE
+  )
+
+  expect_true(file.exists(output))
+  expect_gt(file.info(output)$size, 0)
+})
+
+
 test_that("tagged-bird PDF follow-up uses the strict unseen threshold", {
   app <- load_main_app()
   prepare <- app$env$todo_pdf_prepare_unseen_tagged_birds

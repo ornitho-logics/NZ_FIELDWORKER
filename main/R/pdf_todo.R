@@ -1,7 +1,95 @@
+todo_pdf_query_timeout_seconds <- function() {
+  timeout <- getOption("fieldworker.todo_pdf_query_timeout_seconds", 30)
+  timeout <- suppressWarnings(as.numeric(timeout))
+
+  if (length(timeout) != 1 || !is.finite(timeout) || timeout <= 0) {
+    return(30)
+  }
+
+  timeout
+}
+
+
+todo_pdf_log <- function(text) {
+  message(glue("[todo_pdf] {text}"))
+}
+
+
+todo_pdf_timed_stage <- function(stage, expr) {
+  started <- proc.time()[["elapsed"]]
+  todo_pdf_log(glue("{stage} started"))
+
+  tryCatch(
+    {
+      value <- force(expr)
+      elapsed <- proc.time()[["elapsed"]] - started
+      todo_pdf_log(glue("{stage} completed in {round(elapsed, 2)} seconds"))
+      value
+    },
+    error = function(e) {
+      elapsed <- proc.time()[["elapsed"]] - started
+      todo_pdf_log(glue("{stage} failed after {round(elapsed, 2)} seconds"))
+      stop(e)
+    }
+  )
+}
+
+
+todo_pdf_db_query <- function(
+  label,
+  sql,
+  params = NULL,
+  complex_view = FALSE,
+  timeout_seconds = todo_pdf_query_timeout_seconds()
+) {
+  todo_pdf_timed_stage(
+    glue("database query {label}"),
+    {
+      result <- DBq(
+        sql,
+        params = params,
+        derived_merge_off = complex_view,
+        max_statement_time = timeout_seconds
+      )
+
+      if ("error" %in% names(result)) {
+        stop(
+          glue(
+            "Could not generate the to-do PDF because the {label} query ",
+            "failed or exceeded {timeout_seconds} seconds. Please try again ",
+            "later; if this continues, ask an administrator to inspect the ",
+            "database view."
+          ),
+          call. = FALSE
+        )
+      }
+
+      data.table(result)
+    }
+  )
+}
+
+
+todo_pdf_download_error_message <- function(error) {
+  detail <- conditionMessage(error)
+
+  if (startsWith(detail, "Could not generate the to-do PDF because")) {
+    return(detail)
+  }
+
+  paste(
+    "The to-do PDF could not be generated.",
+    "Please try again; if this continues, ask an administrator to check",
+    "the server log."
+  )
+}
+
+
 todo_pdf_prepare_team_marks <- function(available_combos = NULL) {
   if (is.null(available_combos)) {
-    available_combos <- tryCatch(
-      DBq("
+    available_combos <- todo_pdf_db_query(
+      "AVAILABLE_COMBOS",
+      "
         SELECT mark
         FROM AVAILABLE_COMBOS
         WHERE site_code = 'CR'
@@ -18,13 +106,8 @@ todo_pdf_prepare_team_marks <- function(available_combos = NULL) {
           END,
           LL,
           LR
-      "),
-      error = function(e) {
-        stop(
-          "Could not load AVAILABLE_COMBOS for the Team marks table.",
-          call. = FALSE
-        )
-      }
+      ",
+      complex_view = TRUE
     )
   }
 
@@ -321,12 +404,20 @@ todo_pdf_prepare_nest_summary <- function(
 
 
 todo_pdf_prepare <- function(
-  todo = DBq("SELECT * FROM TODO_LIST"),
+  todo = NULL,
   available_combos = NULL,
   nests_latest = NULL,
   chick_captures = NULL,
   unseen_tagged_birds = NULL
 ) {
+  if (is.null(todo)) {
+    todo <- todo_pdf_db_query(
+      "TODO_LIST",
+      "SELECT * FROM TODO_LIST",
+      complex_view = TRUE
+    )
+  }
+
   todo_dt <- data.table(todo)
   refdate <- as.Date(todo_dt$reference_date[1])
 
@@ -1064,7 +1155,7 @@ todo_pdf_qmd <- function(
 
 todo_pdf_save <- function(
   file,
-  todo = DBq("SELECT * FROM TODO_LIST"),
+  todo = NULL,
   available_combos = NULL,
   spatial_objects = NULL,
   nests_latest = NULL,
@@ -1072,9 +1163,33 @@ todo_pdf_save <- function(
   unseen_tagged_birds = NULL,
   broods_latest = NULL
 ) {
+  generation_started <- proc.time()[["elapsed"]]
+  generation_completed <- FALSE
+  todo_pdf_log("generation started")
+  on.exit(
+    {
+      elapsed <- proc.time()[["elapsed"]] - generation_started
+      status <- if (generation_completed) "completed" else "stopped"
+      todo_pdf_log(glue("generation {status} after {round(elapsed, 2)} seconds"))
+    },
+    add = TRUE
+  )
+
+  if (is.null(todo)) {
+    todo <- todo_pdf_db_query(
+      "TODO_LIST",
+      "SELECT * FROM TODO_LIST",
+      complex_view = TRUE
+    )
+  }
+
   if (is.null(broods_latest)) {
     if (is.null(nests_latest)) {
-      broods_latest <- DBq("SELECT * FROM BROODS_LATEST")
+      broods_latest <- todo_pdf_db_query(
+        "BROODS_LATEST",
+        "SELECT * FROM BROODS_LATEST",
+        complex_view = TRUE
+      )
     } else {
       # Keep the legacy argument working for older local preview scripts.
       broods_latest <- nests_latest
@@ -1090,55 +1205,78 @@ todo_pdf_save <- function(
   map_file <- file.path(workdir, "todo_map.png")
 
   if (is.null(spatial_objects)) {
-    spatial_objects <- DBq(
+    spatial_objects <- todo_pdf_db_query(
+      "spatial_objects",
       "SELECT * FROM spatial_objects WHERE variable = 'study_area'"
     )
   }
   if (is.null(chick_captures)) {
-    chick_captures <- DBq("
+    chick_captures <- todo_pdf_db_query(
+      "chick CAPTURES",
+      "
       SELECT nest_id, date, caught, age, site, LL, LR, pk
       FROM CAPTURES
       WHERE age = 'C'
         AND site = 'CR'
         AND nest_id IS NOT NULL
         AND TRIM(nest_id) NOT IN ('', 'NO_NEST')
-    ")
+      "
+    )
   }
   if (is.null(unseen_tagged_birds)) {
-    unseen_tagged_birds <- DBq("
+    unseen_tagged_birds <- todo_pdf_db_query(
+      "VIEW_1",
+      "
       SELECT mark, sex, nest_id, days_since_cap, days_since_last_seen
       FROM VIEW_1
       WHERE days_since_cap > 7
         AND days_since_last_seen IS NULL
       ORDER BY days_since_cap DESC, mark, nest_id
-    ")
+      ",
+      complex_view = TRUE
+    )
   }
-  pdf <- todo_pdf_prepare(
-    todo,
-    available_combos,
-    broods_latest,
-    chick_captures,
-    unseen_tagged_birds
+  pdf <- todo_pdf_timed_stage(
+    "data preparation",
+    todo_pdf_prepare(
+      todo,
+      available_combos,
+      broods_latest,
+      chick_captures,
+      unseen_tagged_birds
+    )
   )
 
-  todo_pdf_map_save(
-    file = map_file,
-    todo = todo,
-    spatial_objects = spatial_objects,
-    chick_captures = chick_captures,
-    nests_latest = broods_latest
+  todo_pdf_timed_stage(
+    "map rendering",
+    todo_pdf_map_save(
+      file = map_file,
+      todo = todo,
+      spatial_objects = spatial_objects,
+      chick_captures = chick_captures,
+      nests_latest = broods_latest
+    )
   )
 
-  writeLines(todo_pdf_qmd(pdf, basename(map_file)), qmd)
-  quarto_render(
-    input = qmd,
-    output_format = "typst",
-    output_file = basename(output),
-    quarto_args = c("--output-dir", workdir),
-    execute = TRUE,
-    quiet = FALSE
+  todo_pdf_timed_stage(
+    "document rendering",
+    {
+      writeLines(todo_pdf_qmd(pdf, basename(map_file)), qmd)
+      quarto_render(
+        input = qmd,
+        output_format = "typst",
+        output_file = basename(output),
+        quarto_args = c("--output-dir", workdir),
+        execute = TRUE,
+        quiet = FALSE
+      )
+    }
   )
 
-  file.copy(output, file, overwrite = TRUE)
+  if (!file.exists(output) || !file.copy(output, file, overwrite = TRUE)) {
+    stop("The to-do PDF renderer did not produce an output file.", call. = FALSE)
+  }
+
+  generation_completed <- TRUE
   invisible(file)
 }

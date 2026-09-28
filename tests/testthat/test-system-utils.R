@@ -24,6 +24,29 @@ test_that("showTable directs users to the database for a faulty view", {
 })
 
 
+test_that("DBq statement limits are validated and formatted safely", {
+  env <- new.env(parent = globalenv())
+
+  source_app_file(app_file("main", "R", "system_utils.R"), env)
+
+  expect_null(env$dbq_max_statement_time_sql())
+  expect_identical(
+    env$dbq_max_statement_time_sql(30),
+    "SET SESSION max_statement_time = 30.000"
+  )
+  expect_error(
+    env$dbq_max_statement_time_sql(0),
+    "must be one positive number",
+    fixed = TRUE
+  )
+  expect_error(
+    env$dbq_max_statement_time_sql("not-a-number"),
+    "must be one positive number",
+    fixed = TRUE
+  )
+})
+
+
 test_that("dbview_is_updated checks mapped source tables", {
   env <- new.env(parent = globalenv())
   env$glue <- glue::glue
