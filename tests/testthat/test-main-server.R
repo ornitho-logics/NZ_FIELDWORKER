@@ -287,6 +287,13 @@ test_that("overview limp status distinguishes comment evidence", {
     plot$coordinates$limits$x,
     as.Date(c("2026-09-01", "2026-09-10"))
   )
+  expect_match(plot$labels$caption, "\n", fixed = TRUE)
+  expect_identical(plot$guides$guides$fill$params$ncol, 1)
+  expect_identical(
+    plot$theme$legend.title.position,
+    "top"
+  )
+  expect_identical(plot$theme$legend.direction, "vertical")
 
   shared_mark_plot <- app$env$overview_tagged_resighting_plot(
     data.frame(
