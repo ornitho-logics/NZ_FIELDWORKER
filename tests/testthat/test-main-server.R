@@ -245,6 +245,7 @@ test_that("overview limp status distinguishes comment evidence", {
     app$env$overview_tagged_mark_label(c("WY_GO_F", "BY_L_M")),
     c("WY-GO", "BY-L")
   )
+<<<<<<< HEAD
   expect_identical(
     app$env$overview_tagged_display_mark(
       c("BY_L", "BY_L", "WY_GO"),
@@ -253,6 +254,8 @@ test_that("overview limp status distinguishes comment evidence", {
     ),
     c("BY_Y.L", "BY_G.L", "WY_GO")
   )
+=======
+>>>>>>> origin/main
 
   mock_histories <- data.frame(
     tarsus_mark = c("MOCK_A", "MOCK_A", "MOCK_B"),

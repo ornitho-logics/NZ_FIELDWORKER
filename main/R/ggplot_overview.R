@@ -540,6 +540,7 @@ overview_tagged_mark_label <- function(x) {
 }
 
 
+<<<<<<< HEAD
 overview_tagged_display_mark <- function(
   tarsus_mark,
   right_upper,
@@ -567,6 +568,8 @@ overview_tagged_display_mark <- function(
 }
 
 
+=======
+>>>>>>> origin/main
 overview_tagged_resighting_plot <- function(x, date_limits = NULL) {
   x <- data.table(x)
   caption <- paste(
