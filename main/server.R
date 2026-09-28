@@ -362,7 +362,13 @@ function(input, output, session) {
         {
           req(active_refdate())
 
-          todo_pdf_save(file)
+          tryCatch(
+            todo_pdf_save(file),
+            error = function(e) {
+              ErrToast(todo_pdf_download_error_message(e))
+              stop(e)
+            }
+          )
         }
       )
     },
