@@ -4,32 +4,7 @@
 
 # We need SET SESSION optimizer_switch = 'derived_merge=off' for very complex Views;
 
-dbq_max_statement_time_sql <- function(max_statement_time = NULL) {
-  if (is.null(max_statement_time)) {
-    return(NULL)
-  }
-
-  max_statement_time <- suppressWarnings(as.numeric(max_statement_time))
-  if (
-    length(max_statement_time) != 1 ||
-      !is.finite(max_statement_time) ||
-      max_statement_time <= 0
-  ) {
-    stop("max_statement_time must be one positive number.", call. = FALSE)
-  }
-
-  sprintf(
-    "SET SESSION max_statement_time = %.3f",
-    max_statement_time
-  )
-}
-
-DBq <- function(
-  x,
-  params = NULL,
-  derived_merge_off = FALSE,
-  max_statement_time = NULL
-) {
+DBq <- function(x, params = NULL, derived_merge_off = FALSE) {
   o <- try(
     {
       con <- db_con()
@@ -40,13 +15,6 @@ DBq <- function(
           con,
           "SET SESSION optimizer_switch = 'derived_merge=off'"
         )
-      }
-
-      max_statement_time_sql <- dbq_max_statement_time_sql(
-        max_statement_time
-      )
-      if (!is.null(max_statement_time_sql)) {
-        DBI::dbExecute(con, max_statement_time_sql)
       }
 
       if (is.null(params)) {
