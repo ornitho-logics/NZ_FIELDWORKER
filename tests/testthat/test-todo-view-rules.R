@@ -42,7 +42,10 @@ test_that("TODO_LIST contains the bounded operational rules", {
     fixed = TRUE
   )
   expect_match(sql, "WHERE NOT EXISTS", fixed = TRUE)
+  expect_match(sql, "HIDING_SPOT_STATUS", fixed = TRUE)
   expect_no_match(sql, "RESIGHTINGS_H_BROOD_ASSOCIATIONS", fixed = TRUE)
+  expect_no_match(sql, "\nhiding_spot_photos AS (", fixed = TRUE)
+  expect_no_match(sql, "\nhiding_spot_reviews AS (", fixed = TRUE)
 })
 
 
