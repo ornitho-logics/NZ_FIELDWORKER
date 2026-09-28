@@ -104,6 +104,126 @@ overview_histogram_plot <- function(x, ylab, date_limits = NULL) {
 }
 
 
+overview_lay_date_bins <- function(x, binwidth = 4L) {
+  x <- data.table(x)
+
+  if (
+    !nrow(x) ||
+      !all(c("nest_id", "datetime") %in% names(x))
+  ) {
+    return(data.table())
+  }
+
+  if (!"tag_id" %in% names(x)) {
+    x[, tag_id := NA_character_]
+  }
+
+  x[, `:=`(
+    nest_id = trimws(as.character(nest_id)),
+    tag_id = trimws(as.character(tag_id)),
+    plot_date = as.Date(as.character(datetime))
+  )]
+  x <- x[!is.na(plot_date) & nzchar(nest_id)]
+
+  if (!nrow(x)) {
+    return(data.table())
+  }
+
+  x[, bin_start := as.Date(
+    floor(as.numeric(plot_date) / binwidth) * binwidth,
+    origin = "1970-01-01"
+  )]
+
+  nest_bins <- unique(x[, .(nest_id, bin_start)])
+  bins <- nest_bins[, .(n_nests = .N), by = bin_start]
+
+  geolocators <- unique(
+    x[!is.na(tag_id) & nzchar(tag_id), .(bin_start, tag_id)]
+  )
+  geolocator_bins <- geolocators[, .(
+    n_geolocators = uniqueN(tag_id)
+  ), by = bin_start]
+
+  bins <- merge(
+    bins,
+    geolocator_bins,
+    by = "bin_start",
+    all.x = TRUE,
+    sort = TRUE
+  )
+  bins[is.na(n_geolocators), n_geolocators := 0L]
+  bins[, plot_date := bin_start + (binwidth / 2)]
+  bins[]
+}
+
+
+overview_lay_date_plot <- function(
+  x,
+  ylab,
+  date_limits = NULL,
+  binwidth = 4L
+) {
+  bins <- overview_lay_date_bins(x, binwidth = binwidth)
+  base <- ggplot() +
+    labs(x = NULL, y = ylab) +
+    scale_y_continuous(
+      breaks = overview_integer_breaks,
+      expand = expansion(mult = c(0.05, 0.18))
+    ) +
+    theme_bw(base_size = 22) +
+    theme(
+      panel.grid.minor = element_blank(),
+      axis.text.x = element_text(angle = 30, hjust = 1)
+    ) +
+    overview_date_scale() +
+    overview_date_coordinates(date_limits)
+
+  if (!nrow(bins)) {
+    return(base)
+  }
+
+  annotation_x <- if (is.null(date_limits)) {
+    min(bins$bin_start)
+  } else {
+    as.Date(date_limits)[1]
+  }
+
+  base +
+    geom_col(
+      data = bins,
+      mapping = aes(x = plot_date, y = n_nests),
+      width = binwidth,
+      fill = "#6d7577",
+      color = "white"
+    ) +
+    geom_text(
+      data = bins,
+      mapping = aes(
+        x = plot_date,
+        y = n_nests,
+        label = n_geolocators
+      ),
+      vjust = -0.45,
+      fontface = "bold",
+      size = 5
+    ) +
+    annotate(
+      "label",
+      x = annotation_x,
+      y = Inf,
+      label = paste(
+        "Numbers above bars = geolocators deployed on parents",
+        "associated with nests in that four-day lay-date bin"
+      ),
+      hjust = 0,
+      vjust = 1.2,
+      size = 4.2,
+      linewidth = 0.25,
+      fill = "white"
+    )
+}
+
+
 overview_cumulative_base <- function(ylab) {
   ggplot() +
     labs(
@@ -420,6 +540,33 @@ overview_tagged_mark_label <- function(x) {
 }
 
 
+overview_tagged_display_mark <- function(
+  tarsus_mark,
+  right_upper,
+  right_tarsus
+) {
+  display_mark <- as.character(tarsus_mark)
+  right_upper <- toupper(trimws(as.character(right_upper)))
+  right_tarsus <- toupper(trimws(as.character(right_tarsus)))
+  upper_color <- sub("^T", "", right_upper)
+  use_upper_color <- !is.na(right_tarsus) &
+    nchar(right_tarsus) == 1L &
+    !is.na(upper_color) &
+    nzchar(upper_color) &
+    !upper_color %in% c("X", "M")
+
+  left_tarsus <- sub("_[^_]+$", "", display_mark)
+  display_mark[use_upper_color] <- paste0(
+    left_tarsus[use_upper_color],
+    "_",
+    upper_color[use_upper_color],
+    ".",
+    right_tarsus[use_upper_color]
+  )
+  display_mark
+}
+
+
 overview_tagged_resighting_plot <- function(x, date_limits = NULL) {
   x <- data.table(x)
   caption <- paste(
@@ -470,8 +617,13 @@ overview_tagged_resighting_plot <- function(x, date_limits = NULL) {
     return(overview_tagged_resighting_plot(data.table(), date_limits))
   }
 
-  x[, bird_id := paste0(
+  x[, display_mark := overview_tagged_display_mark(
     tarsus_mark,
+    right_upper,
+    right_tarsus
+  )]
+  x[, bird_id := paste0(
+    display_mark,
     "_",
     fifelse(sex == "Female", "F", "M")
   )]
@@ -546,7 +698,7 @@ overview_tagged_resighting_plot <- function(x, date_limits = NULL) {
     ) +
     facet_wrap(
       vars(sex),
-      nrow = 1,
+      ncol = 1,
       scales = "free_y",
       labeller = as_labeller(c(Female = "Females", Male = "Males"))
     ) +
@@ -591,7 +743,7 @@ overview_date_limits <- function(refdate = get_reference_date()) {
       SELECT CAST(? AS DATE) AS reference_date
     ),
     cr_nests AS (
-      SELECT DISTINCT nest_id
+      SELECT DISTINCT TRIM(nest_id) AS nest_id
       FROM NESTS
       WHERE UPPER(TRIM(COALESCE(site, ''))) = 'CR'
         AND NULLIF(TRIM(nest_id), '') IS NOT NULL
@@ -778,6 +930,7 @@ overview_tagged_resightings_graph <- function(
     ),
     deployment_rows AS (
       SELECT
+        c.pk,
         CONCAT(
           COALESCE(
             NULLIF(TRIM(c.LL), ''),
@@ -791,10 +944,20 @@ overview_tagged_resightings_graph <- function(
             'X'
           )
         ) AS tarsus_mark,
+        COALESCE(
+          NULLIF(TRIM(c.UR), ''),
+          NULLIF(TRIM(c.UR_in), ''),
+          'X'
+        ) AS right_upper,
+        COALESCE(
+          NULLIF(TRIM(c.LR), ''),
+          NULLIF(TRIM(c.LR_in), ''),
+          'X'
+        ) AS right_tarsus,
         CASE
           WHEN UPPER(TRIM(c.field_sex)) IN ('M', 'MU') THEN 'Male'
           WHEN UPPER(TRIM(c.field_sex)) IN ('F', 'FU') THEN 'Female'
-        END AS sex,
+        END AS capture_sex,
         c.date AS deployment_date
       FROM CAPTURES c
       CROSS JOIN sr
@@ -805,15 +968,30 @@ overview_tagged_resightings_graph <- function(
         AND c.date <= sr.reference_date
         AND NULLIF(TRIM(c.tag_id), '') IS NOT NULL
     ),
+    ranked_deployments AS (
+      SELECT
+        tarsus_mark,
+        right_upper,
+        right_tarsus,
+        capture_sex,
+        deployment_date,
+        ROW_NUMBER() OVER (
+          PARTITION BY tarsus_mark, capture_sex
+          ORDER BY deployment_date, pk
+        ) AS deployment_rank
+      FROM deployment_rows
+      WHERE capture_sex IN ('Female', 'Male')
+        AND BINARY tarsus_mark <> 'X_X'
+    ),
     deployments AS (
       SELECT
         tarsus_mark,
-        sex,
-        MIN(deployment_date) AS deployment_date
-      FROM deployment_rows
-      WHERE sex IN ('Female', 'Male')
-        AND BINARY tarsus_mark <> 'X_X'
-      GROUP BY tarsus_mark, sex
+        right_upper,
+        right_tarsus,
+        capture_sex,
+        deployment_date
+      FROM ranked_deployments
+      WHERE deployment_rank = 1
     ),
     resighting_rows AS (
       SELECT
@@ -826,7 +1004,7 @@ overview_tagged_resightings_graph <- function(
         CASE
           WHEN UPPER(TRIM(r.sex)) IN ('M', 'MU') THEN 'Male'
           WHEN UPPER(TRIM(r.sex)) IN ('F', 'FU') THEN 'Female'
-        END AS sex,
+        END AS resighting_sex,
         r.date AS resighting_date,
         r.comments
       FROM RESIGHTINGS r
@@ -837,7 +1015,9 @@ overview_tagged_resightings_graph <- function(
     )
     SELECT
       d.tarsus_mark,
-      d.sex,
+      d.right_upper,
+      d.right_tarsus,
+      d.capture_sex AS sex,
       d.deployment_date,
       r.resighting_pk,
       r.resighting_date,
@@ -845,9 +1025,9 @@ overview_tagged_resightings_graph <- function(
     FROM deployments d
     LEFT JOIN resighting_rows r
       ON r.tarsus_mark = d.tarsus_mark
-      AND r.sex = d.sex
+      AND r.resighting_sex = d.capture_sex
       AND r.resighting_date >= d.deployment_date
-    ORDER BY d.sex, d.deployment_date, d.tarsus_mark,
+    ORDER BY d.capture_sex, d.deployment_date, d.tarsus_mark,
       r.resighting_date, r.resighting_pk
     ",
     params = list(as.character(refdate))
@@ -972,38 +1152,69 @@ overview_lay_date_graph <- function(
 
   x <- db_get(
     "
-    SELECT
-      e.nest_id,
-      CAST(
-        CONCAT(
-          DATE_SUB(
-            MAX(float_date),
-            INTERVAL ROUND(AVG(predicted_days_since_laying)) DAY
-          ),
-          ' 00:00:00'
-        ) AS DATETIME
-      ) AS datetime
-    FROM EGGS_HATCH_PREDICTION e
-    INNER JOIN (
+    WITH sr AS (
+      SELECT CAST(? AS DATE) AS reference_date
+    ),
+    cr_nests AS (
       SELECT DISTINCT nest_id
       FROM NESTS
       WHERE UPPER(TRIM(COALESCE(site, ''))) = 'CR'
         AND NULLIF(TRIM(nest_id), '') IS NOT NULL
-    ) cr
-      ON e.nest_id = cr.nest_id
-    WHERE e.float_date IS NOT NULL
-      AND e.predicted_days_since_laying IS NOT NULL
-      AND e.float_date <= ?
-    GROUP BY e.nest_id
-    ORDER BY datetime, e.nest_id
+    ),
+    lay_dates AS (
+      SELECT
+        TRIM(e.nest_id) AS nest_id,
+        DATE_SUB(
+          MAX(e.float_date),
+          INTERVAL ROUND(AVG(e.predicted_days_since_laying)) DAY
+        ) AS estimated_lay_date
+      FROM EGGS_HATCH_PREDICTION e
+      INNER JOIN cr_nests cr
+        ON TRIM(e.nest_id) = cr.nest_id
+      CROSS JOIN sr
+      WHERE e.float_date IS NOT NULL
+        AND e.predicted_days_since_laying IS NOT NULL
+        AND e.float_date <= sr.reference_date
+      GROUP BY TRIM(e.nest_id)
+    ),
+    geolocator_deployments AS (
+      SELECT DISTINCT
+        TRIM(c.nest_id) AS nest_id,
+        TRIM(c.tag_id) AS tag_id
+      FROM CAPTURES c
+      CROSS JOIN sr
+      WHERE UPPER(TRIM(COALESCE(c.site, ''))) = 'CR'
+        AND UPPER(TRIM(COALESCE(c.age, ''))) = 'A'
+        AND UPPER(TRIM(COALESCE(c.tag_type, ''))) = 'GEO'
+        AND UPPER(TRIM(COALESCE(c.tag_action, ''))) = 'D'
+        AND NULLIF(TRIM(c.nest_id), '') IS NOT NULL
+        AND NULLIF(TRIM(c.tag_id), '') IS NOT NULL
+        AND c.date IS NOT NULL
+        AND c.date <= sr.reference_date
+    )
+    SELECT
+      l.nest_id,
+      CAST(
+        CONCAT(
+          l.estimated_lay_date,
+          ' 00:00:00'
+        ) AS DATETIME
+      ) AS datetime,
+      g.tag_id
+    FROM lay_dates l
+    LEFT JOIN geolocator_deployments g
+      ON l.nest_id = g.nest_id
+    WHERE l.estimated_lay_date IS NOT NULL
+    ORDER BY datetime, l.nest_id, g.tag_id
     ",
     params = list(as.character(refdate))
   )
 
-  overview_histogram_plot(
+  overview_lay_date_plot(
     x = x,
     ylab = "N estimated lay dates",
-    date_limits = date_limits
+    date_limits = date_limits,
+    binwidth = 4L
   )
 }
 
