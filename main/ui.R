@@ -276,12 +276,10 @@ dashboardPage(
           width = 12,
           collapsible = TRUE,
           collapsed = FALSE,
-          height = "75vh",
-          style = "overflow: hidden;",
           spinner(
             plotOutput(
               "overview_tagged_resightings_show",
-              height = "67vh"
+              height = "105vh"
             )
           )
         ),

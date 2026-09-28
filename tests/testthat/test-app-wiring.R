@@ -83,6 +83,14 @@ test_that("main app UI and entrypoint load", {
   expect_match(html, 'id="overview_nests_show"', fixed = TRUE)
   expect_match(html, 'id="overview_geolocator_show"', fixed = TRUE)
   expect_match(html, 'id="overview_tagged_resightings_show"', fixed = TRUE)
+  expect_match(
+    html,
+    paste0(
+      'id="overview_tagged_resightings_show" ',
+      'style="width:100%;height:105vh;"'
+    ),
+    fixed = TRUE
+  )
   expect_match(html, 'id="overview_cr_combos_show"', fixed = TRUE)
   expect_match(html, 'id="overview_lay_date_show"', fixed = TRUE)
   expect_match(html, 'id="overview_quota_show"', fixed = TRUE)
