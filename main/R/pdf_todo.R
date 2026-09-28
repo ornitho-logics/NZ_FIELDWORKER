@@ -1,95 +1,7 @@
-todo_pdf_query_timeout_seconds <- function() {
-  timeout <- getOption("fieldworker.todo_pdf_query_timeout_seconds", 30)
-  timeout <- suppressWarnings(as.numeric(timeout))
-
-  if (length(timeout) != 1 || !is.finite(timeout) || timeout <= 0) {
-    return(30)
-  }
-
-  timeout
-}
-
-
-todo_pdf_log <- function(text) {
-  message(glue("[todo_pdf] {text}"))
-}
-
-
-todo_pdf_timed_stage <- function(stage, expr) {
-  started <- proc.time()[["elapsed"]]
-  todo_pdf_log(glue("{stage} started"))
-
-  tryCatch(
-    {
-      value <- force(expr)
-      elapsed <- proc.time()[["elapsed"]] - started
-      todo_pdf_log(glue("{stage} completed in {round(elapsed, 2)} seconds"))
-      value
-    },
-    error = function(e) {
-      elapsed <- proc.time()[["elapsed"]] - started
-      todo_pdf_log(glue("{stage} failed after {round(elapsed, 2)} seconds"))
-      stop(e)
-    }
-  )
-}
-
-
-todo_pdf_db_query <- function(
-  label,
-  sql,
-  params = NULL,
-  complex_view = FALSE,
-  timeout_seconds = todo_pdf_query_timeout_seconds()
-) {
-  todo_pdf_timed_stage(
-    glue("database query {label}"),
-    {
-      result <- DBq(
-        sql,
-        params = params,
-        derived_merge_off = complex_view,
-        max_statement_time = timeout_seconds
-      )
-
-      if ("error" %in% names(result)) {
-        stop(
-          glue(
-            "Could not generate the to-do PDF because the {label} query ",
-            "failed or exceeded {timeout_seconds} seconds. Please try again ",
-            "later; if this continues, ask an administrator to inspect the ",
-            "database view."
-          ),
-          call. = FALSE
-        )
-      }
-
-      data.table(result)
-    }
-  )
-}
-
-
-todo_pdf_download_error_message <- function(error) {
-  detail <- conditionMessage(error)
-
-  if (startsWith(detail, "Could not generate the to-do PDF because")) {
-    return(detail)
-  }
-
-  paste(
-    "The to-do PDF could not be generated.",
-    "Please try again; if this continues, ask an administrator to check",
-    "the server log."
-  )
-}
-
-
 todo_pdf_prepare_team_marks <- function(available_combos = NULL) {
   if (is.null(available_combos)) {
-    available_combos <- todo_pdf_db_query(
-      "AVAILABLE_COMBOS",
-      "
+    available_combos <- tryCatch(
+      DBq("
         SELECT mark
         FROM AVAILABLE_COMBOS
         WHERE site_code = 'CR'
@@ -106,8 +18,13 @@ todo_pdf_prepare_team_marks <- function(available_combos = NULL) {
           END,
           LL,
           LR
-      ",
-      complex_view = TRUE
+      "),
+      error = function(e) {
+        stop(
+          "Could not load AVAILABLE_COMBOS for the Team marks table.",
+          call. = FALSE
+        )
+      }
     )
   }
 
@@ -404,20 +321,12 @@ todo_pdf_prepare_nest_summary <- function(
 
 
 todo_pdf_prepare <- function(
-  todo = NULL,
+  todo = DBq("SELECT * FROM TODO_LIST"),
   available_combos = NULL,
   nests_latest = NULL,
   chick_captures = NULL,
   unseen_tagged_birds = NULL
 ) {
-  if (is.null(todo)) {
-    todo <- todo_pdf_db_query(
-      "TODO_LIST",
-      "SELECT * FROM TODO_LIST",
-      complex_view = TRUE
-    )
-  }
-
   todo_dt <- data.table(todo)
   refdate <- as.Date(todo_dt$reference_date[1])
 
@@ -758,8 +667,8 @@ todo_pdf_nest_summary_table <- function(nest_summary, n_blocks = 3L) {
 
   max_font_size <- 8.5
   label_inset_y <- 3
-  max_inset_y <- 4.2
-  target_table_height <- 320
+  max_inset_y <- 6.2 - label_inset_y
+  target_table_height <- 280
   if (rows_per_block <= 12L) {
     font_size <- max_font_size
     inset_y <- max_inset_y
@@ -887,128 +796,6 @@ todo_pdf_nest_summary_table <- function(nest_summary, n_blocks = 3L) {
 }
 
 
-todo_pdf_task_table <- function(todo_rows, nest_summary = NULL) {
-  todo_rows <- as.data.frame(todo_rows, stringsAsFactors = FALSE)
-  if (!nrow(todo_rows) || !ncol(todo_rows)) {
-    return(character())
-  }
-
-  typst_content <- function(x) {
-    x <- as.character(x)
-    x[is.na(x)] <- ""
-    x <- gsub("\\", "\\\\", x, fixed = TRUE)
-    x <- gsub("#", "\\#", x, fixed = TRUE)
-    x <- gsub("[", "\\[", x, fixed = TRUE)
-    x <- gsub("]", "\\]", x, fixed = TRUE)
-    x <- gsub("*", "\\*", x, fixed = TRUE)
-    x <- gsub("_", "\\_", x, fixed = TRUE)
-    x <- gsub("$", "\\$", x, fixed = TRUE)
-    x
-  }
-
-  labels <- data.table(
-    Nest = character(),
-    LabelFill = character(),
-    LabelText = character()
-  )
-  if (!is.null(nest_summary) && nrow(nest_summary)) {
-    summary <- data.table(nest_summary)
-    if (all(c("Nest", "LabelFill", "LabelText") %in% names(summary))) {
-      labels <- unique(summary[, .(
-        Nest = as.character(Nest),
-        LabelFill = as.character(LabelFill),
-        LabelText = as.character(LabelText)
-      )])
-      labels <- labels[!duplicated(Nest)]
-    }
-  }
-
-  header_fill <- "#dfe5e7"
-  stripe_fill <- "#f1f3f3"
-  white_fill <- "#ffffff"
-  label_inset_y <- 3
-  nest_column <- names(todo_rows)[1]
-
-  label_cell <- function(nest_id, row_fill) {
-    nest_id <- as.character(nest_id)
-    if (is.na(nest_id)) {
-      nest_id <- ""
-    }
-    label_row <- labels[Nest == nest_id][1L]
-    has_label <- nrow(label_row) == 1L &&
-      !is.na(label_row$LabelFill) &&
-      grepl("^#[0-9A-Fa-f]{6}$", label_row$LabelFill) &&
-      !is.na(label_row$LabelText) &&
-      nzchar(label_row$LabelText)
-
-    if (has_label) {
-      glue(
-        'table.cell(fill: rgb("{row_fill}"))[',
-        '  #box(',
-        '    fill: rgb("{label_row$LabelFill}"),',
-        '    stroke: 0.25pt + rgb("#17242d"),',
-        '    radius: 1.8pt,',
-        glue('    inset: (x: 3pt, y: {label_inset_y}pt),'),
-        '  )[',
-        '    #text(fill: rgb("{label_row$LabelText}"))',
-        glue('[#strong[{typst_content(nest_id)}]]'),
-        '  ]',
-        ']'
-      )
-    } else {
-      glue(
-        'table.cell(fill: rgb("{row_fill}"))',
-        glue('[{typst_content(nest_id)}]')
-      )
-    }
-  }
-
-  cells <- vapply(
-    names(todo_rows),
-    function(column) {
-      glue(
-        'table.cell(fill: rgb("{header_fill}"))',
-        glue('[#strong[{typst_content(column)}]]')
-      )
-    },
-    character(1)
-  )
-
-  for (row in seq_len(nrow(todo_rows))) {
-    row_fill <- if (row %% 2L == 0L) stripe_fill else white_fill
-    row_cells <- vapply(
-      names(todo_rows),
-      function(column) {
-        if (identical(column, nest_column)) {
-          return(label_cell(todo_rows[[column]][row], row_fill))
-        }
-        glue(
-          'table.cell(fill: rgb("{row_fill}"))',
-          glue('[{typst_content(todo_rows[[column]][row])}]')
-        )
-      },
-      character(1)
-    )
-    cells <- c(cells, row_cells)
-  }
-
-  c(
-    "```{=typst}",
-    "#set text(size: 8.5pt)",
-    "#table(",
-    "  columns: (8fr, 6fr, 10fr, 9fr, 10fr, 14fr, 14fr, 29fr),",
-    "  align: (center, center, center, center, center, center, center, left),",
-    "  inset: (x: 2.2pt, y: 3pt),",
-    "  stroke: none,",
-    paste0("  ", paste(cells, collapse = ",\n  "), ","),
-    ")",
-    "#set text(size: 9pt)",
-    "```",
-    ""
-  )
-}
-
-
 todo_pdf_body <- function(
   rows,
   team_marks = NULL,
@@ -1050,26 +837,17 @@ todo_pdf_body <- function(
         )
       }
 
-      task_table <- if (todo %in% c(
-        "Hiding spot photos needed",
-        "Parent capture",
-        "Parent resighting"
-      )) {
-        todo_pdf_task_table(todo_rows, nest_summary)
-      } else {
-        c(
-          knitr::kable(
-            todo_rows,
-            format = "pipe",
-            align = c(rep("c", ncol(todo_rows) - 1), "l")
-          ),
-          "",
-          ': {tbl-colwidths="[8,6,10,9,10,14,14,29]"}',
-          ""
-        )
-      }
-
-      out <- c(out, task_table)
+      out <- c(
+        out,
+        knitr::kable(
+          todo_rows,
+          format = "pipe",
+          align = c(rep("c", ncol(todo_rows) - 1), "l")
+        ),
+        "",
+        ': {tbl-colwidths="[8,6,10,9,10,14,14,29]"}',
+        ""
+      )
     }
   }
 
@@ -1155,7 +933,7 @@ todo_pdf_qmd <- function(
 
 todo_pdf_save <- function(
   file,
-  todo = NULL,
+  todo = DBq("SELECT * FROM TODO_LIST"),
   available_combos = NULL,
   spatial_objects = NULL,
   nests_latest = NULL,
@@ -1163,33 +941,9 @@ todo_pdf_save <- function(
   unseen_tagged_birds = NULL,
   broods_latest = NULL
 ) {
-  generation_started <- proc.time()[["elapsed"]]
-  generation_completed <- FALSE
-  todo_pdf_log("generation started")
-  on.exit(
-    {
-      elapsed <- proc.time()[["elapsed"]] - generation_started
-      status <- if (generation_completed) "completed" else "stopped"
-      todo_pdf_log(glue("generation {status} after {round(elapsed, 2)} seconds"))
-    },
-    add = TRUE
-  )
-
-  if (is.null(todo)) {
-    todo <- todo_pdf_db_query(
-      "TODO_LIST",
-      "SELECT * FROM TODO_LIST",
-      complex_view = TRUE
-    )
-  }
-
   if (is.null(broods_latest)) {
     if (is.null(nests_latest)) {
-      broods_latest <- todo_pdf_db_query(
-        "BROODS_LATEST",
-        "SELECT * FROM BROODS_LATEST",
-        complex_view = TRUE
-      )
+      broods_latest <- DBq("SELECT * FROM BROODS_LATEST")
     } else {
       # Keep the legacy argument working for older local preview scripts.
       broods_latest <- nests_latest
@@ -1205,78 +959,55 @@ todo_pdf_save <- function(
   map_file <- file.path(workdir, "todo_map.png")
 
   if (is.null(spatial_objects)) {
-    spatial_objects <- todo_pdf_db_query(
-      "spatial_objects",
+    spatial_objects <- DBq(
       "SELECT * FROM spatial_objects WHERE variable = 'study_area'"
     )
   }
   if (is.null(chick_captures)) {
-    chick_captures <- todo_pdf_db_query(
-      "chick CAPTURES",
-      "
+    chick_captures <- DBq("
       SELECT nest_id, date, caught, age, site, LL, LR, pk
       FROM CAPTURES
       WHERE age = 'C'
         AND site = 'CR'
         AND nest_id IS NOT NULL
         AND TRIM(nest_id) NOT IN ('', 'NO_NEST')
-      "
-    )
+    ")
   }
   if (is.null(unseen_tagged_birds)) {
-    unseen_tagged_birds <- todo_pdf_db_query(
-      "VIEW_1",
-      "
+    unseen_tagged_birds <- DBq("
       SELECT mark, sex, nest_id, days_since_cap, days_since_last_seen
       FROM VIEW_1
       WHERE days_since_cap > 7
         AND days_since_last_seen IS NULL
       ORDER BY days_since_cap DESC, mark, nest_id
-      ",
-      complex_view = TRUE
-    )
+    ")
   }
-  pdf <- todo_pdf_timed_stage(
-    "data preparation",
-    todo_pdf_prepare(
-      todo,
-      available_combos,
-      broods_latest,
-      chick_captures,
-      unseen_tagged_birds
-    )
+  pdf <- todo_pdf_prepare(
+    todo,
+    available_combos,
+    broods_latest,
+    chick_captures,
+    unseen_tagged_birds
   )
 
-  todo_pdf_timed_stage(
-    "map rendering",
-    todo_pdf_map_save(
-      file = map_file,
-      todo = todo,
-      spatial_objects = spatial_objects,
-      chick_captures = chick_captures,
-      nests_latest = broods_latest
-    )
+  todo_pdf_map_save(
+    file = map_file,
+    todo = todo,
+    spatial_objects = spatial_objects,
+    chick_captures = chick_captures,
+    nests_latest = broods_latest
   )
 
-  todo_pdf_timed_stage(
-    "document rendering",
-    {
-      writeLines(todo_pdf_qmd(pdf, basename(map_file)), qmd)
-      quarto_render(
-        input = qmd,
-        output_format = "typst",
-        output_file = basename(output),
-        quarto_args = c("--output-dir", workdir),
-        execute = TRUE,
-        quiet = FALSE
-      )
-    }
+  writeLines(todo_pdf_qmd(pdf, basename(map_file)), qmd)
+  quarto_render(
+    input = qmd,
+    output_format = "typst",
+    output_file = basename(output),
+    quarto_args = c("--output-dir", workdir),
+    execute = TRUE,
+    quiet = FALSE
   )
 
-  if (!file.exists(output) || !file.copy(output, file, overwrite = TRUE)) {
-    stop("The to-do PDF renderer did not produce an output file.", call. = FALSE)
-  }
-
-  generation_completed <- TRUE
+  file.copy(output, file, overwrite = TRUE)
   invisible(file)
 }
