@@ -18,11 +18,174 @@
 }
 
 
+.prepare_live_nest_map_data <- function(
+  nests_latest = data.table(),
+  broods_latest = data.table()
+) {
+  as_flag <- function(x) {
+    value <- toupper(trimws(as.character(x)))
+    !is.na(value) & value %in% c("1", "TRUE", "T", "YES", "Y")
+  }
+
+  as_coord <- function(x) {
+    suppressWarnings(as.numeric(as.character(x)))
+  }
+
+  add_column <- function(x, name, value) {
+    if (!name %in% names(x)) {
+      x[, (name) := value]
+    }
+    x
+  }
+
+  normalize_ids <- function(x) {
+    x <- data.table(x)
+    x <- add_column(x, "nest_id", NA_character_)
+    x[, nest_id := trimws(as.character(nest_id))]
+    x[is.na(nest_id), nest_id := ""]
+    x[nzchar(nest_id) & nest_id != "NO_NEST"]
+  }
+
+  normalize_coords <- function(x) {
+    x <- add_column(x, "lat", NA_real_)
+    x <- add_column(x, "lon", NA_real_)
+    x[, lat := as_coord(lat)]
+    x[, lon := as_coord(lon)]
+    x
+  }
+
+  n <- normalize_coords(normalize_ids(nests_latest))
+  b <- normalize_coords(normalize_ids(broods_latest))
+
+  if (nrow(n)) {
+    n <- n[!startsWith(nest_id, "-")]
+    n <- add_column(n, "nest_state", NA_character_)
+    n <- add_column(n, "is_negative_brood", FALSE)
+    n[, is_negative_brood := FALSE]
+
+    if ("has_hatch_evidence" %in% names(n)) {
+      n[, has_hatch_evidence := fcoalesce(as_flag(has_hatch_evidence), FALSE)]
+    } else {
+      n[, has_hatch_evidence := FALSE]
+    }
+
+    if ("nest_state" %in% names(n)) {
+      n[, has_hatch_evidence := has_hatch_evidence | as.character(nest_state) == "H"]
+    }
+
+    if ("brood_size" %in% names(n)) {
+      n[, has_hatch_evidence := has_hatch_evidence |
+        (!is.na(suppressWarnings(as.numeric(as.character(brood_size)))) &
+          suppressWarnings(as.numeric(as.character(brood_size))) > 0)]
+    }
+
+    n[, map_category := fifelse(
+      has_hatch_evidence,
+      "brood",
+      as.character(fcoalesce(nest_state, "unknown"))
+    )]
+    n[map_category == "H", map_category := "brood"]
+  }
+
+  if (nrow(b)) {
+    b <- add_column(b, "is_negative_brood", startsWith(b$nest_id, "-"))
+    b[, is_negative_brood := fcoalesce(as_flag(is_negative_brood), FALSE) |
+      startsWith(nest_id, "-")]
+
+    if ("has_hatch_evidence" %in% names(b)) {
+      b[, has_hatch_evidence := fcoalesce(as_flag(has_hatch_evidence), FALSE)]
+    } else {
+      b[, has_hatch_evidence := FALSE]
+    }
+
+    if ("nest_state" %in% names(b)) {
+      b[, has_hatch_evidence := has_hatch_evidence | as.character(nest_state) == "H"]
+    }
+
+    if ("brood_size" %in% names(b)) {
+      b[, has_hatch_evidence := has_hatch_evidence |
+        (!is.na(suppressWarnings(as.numeric(as.character(brood_size)))) &
+          suppressWarnings(as.numeric(as.character(brood_size))) > 0)]
+    }
+
+    b <- b[is_negative_brood | has_hatch_evidence]
+    b[, map_category := "brood"]
+  }
+
+  if (nrow(n) && nrow(b)) {
+    positive_broods <- b[!b$is_negative_brood, .(nest_id)]
+
+    fallback <- n[
+      , .(
+        nest_id,
+        fallback_lat = lat,
+        fallback_lon = lon
+      )
+    ]
+
+    if (nrow(positive_broods)) {
+      n <- n[!nest_id %in% positive_broods$nest_id]
+    }
+
+    if (!"location_source" %in% names(b)) {
+      b[, location_source := NA_character_]
+    }
+
+    b <- merge(b, fallback, by = "nest_id", all.x = TRUE, sort = FALSE)
+
+    use_fallback <- !b$is_negative_brood &
+      (is.na(b$lat) | is.na(b$lon)) &
+      !is.na(b$fallback_lat) & !is.na(b$fallback_lon)
+
+    b[use_fallback, `:=`(
+      lat = fallback_lat,
+      lon = fallback_lon,
+      location_source = "NESTS_LATEST fallback"
+    )]
+    b[, c("fallback_lat", "fallback_lon") := NULL]
+  }
+
+  if (!nrow(n) && nrow(b) && !"location_source" %in% names(b)) {
+    b[, location_source := NA_character_]
+  }
+
+  result <- rbindlist(list(n, b), fill = TRUE, use.names = TRUE)
+
+  if (!nrow(result)) {
+    return(result)
+  }
+
+  result <- result[!duplicated(nest_id)]
+  result[, map_category := as.character(map_category)]
+  result[is.na(map_category) | !nzchar(map_category), map_category := "unknown"]
+  result
+}
+
+
 live_nest_leaflet <- function(
   n = DBq("SELECT * FROM NESTS_LATEST"),
   plots = DBq("SELECT * FROM spatial_objects where variable = 'study_area' "),
-  nest_size = 4
+  nest_size = 4,
+  broods_latest = NULL,
+  map_data_prepared = FALSE,
+  broods_warning = NULL
 ) {
+  if (!isTRUE(map_data_prepared) && !is.null(broods_latest)) {
+    n <- .prepare_live_nest_map_data(n, broods_latest)
+  }
+
+  n <- data.table(n)
+
+  if (!"map_category" %in% names(n)) {
+    if ("nest_state" %in% names(n)) {
+      n[, map_category := as.character(nest_state)]
+      n[map_category == "H", map_category := "brood"]
+    } else {
+      n[, map_category := rep("unknown", .N)]
+    }
+    n[is.na(map_category) | !nzchar(map_category), map_category := "unknown"]
+  }
+
   marker_radius <- pmax(nest_size + 1, 4)
   label_font_size <- pmax(nest_size + 8, 12)
   label_offset <- pmax(round(marker_radius + 4), 8)
@@ -40,6 +203,19 @@ live_nest_leaflet <- function(
         overlayGroups = overlay_groups,
         options = layersControlOptions(collapsed = TRUE)
       )
+
+    if (!is.null(broods_warning) && nzchar(as.character(broods_warning))) {
+      map <- map |>
+        addControl(
+          html = tags$div(
+            class = "nest-map-warning",
+            as.character(broods_warning)
+          ),
+          position = "topright",
+          layerId = "nest_map_brood_warning",
+          className = "nest-map-warning-control"
+        )
+    }
 
     onRender(map, "window.liveNestLeafletRender")
   }
@@ -75,8 +251,6 @@ live_nest_leaflet <- function(
     overlay_groups <- c(overlay_groups, "Plots")
   }
 
-  n <- data.table(n)
-
   if (nrow(n) == 0) {
     if (nrow(plots)) {
       plot_bounds <- st_bbox(plots)
@@ -109,7 +283,7 @@ live_nest_leaflet <- function(
     return(finish_map(m, overlay_groups))
   }
 
-  n[, marker_col := nest_state_cols[as.character(nest_state)]]
+  n[, marker_col := nest_state_cols[as.character(map_category)]]
   n[is.na(marker_col), marker_col := "#999999"]
   n[,
     label_text := fifelse(
@@ -119,7 +293,29 @@ live_nest_leaflet <- function(
     )
   ]
 
-  popup_cols <- setdiff(names(n), c("lat", "lon", "marker_col", "label_text"))
+  popup_fields <- c(
+    "nest_id",
+    "map_category",
+    "nest_state",
+    "is_negative_brood",
+    "has_hatch_evidence",
+    "latest_encounter_date",
+    "latest_chick_event_date",
+    "location_source",
+    "location_event_date",
+    "location_source_table",
+    "M_mark",
+    "F_mark",
+    "hatch_state",
+    "clutch_size",
+    "brood_size",
+    "days_ago",
+    "last_observer"
+  )
+  popup_cols <- intersect(popup_fields, names(n))
+  if (!length(popup_cols)) {
+    popup_cols <- setdiff(names(n), c("lat", "lon", "marker_col", "label_text"))
+  }
 
   n[,
     popup := vapply(
@@ -164,13 +360,13 @@ live_nest_leaflet <- function(
   ]
 
   state_cols <- n[
-    !is.na(nest_state),
+    !is.na(map_category) & nzchar(map_category),
     .(col = marker_col[1]),
-    by = nest_state
+    by = map_category
   ]
-  state_cols[, state_order := match(nest_state, names(nest_state_cols))]
+  state_cols[, state_order := match(map_category, names(nest_state_cols))]
   state_cols[is.na(state_order), state_order := .Machine$integer.max]
-  setorder(state_cols, state_order, nest_state)
+  setorder(state_cols, state_order, map_category)
 
   m <- m |>
     addCircleMarkers(
@@ -224,7 +420,7 @@ live_nest_leaflet <- function(
     legend_html <- tags$details(
       class = "nest-legend",
       tags$summary(
-        tags$span(class = "nest-legend-title", "State")
+        tags$span(class = "nest-legend-title", "State / brood")
       ),
       tags$div(
         class = "nest-legend-items",
@@ -242,7 +438,7 @@ live_nest_leaflet <- function(
               )
             )
           },
-          state_cols$nest_state,
+          state_cols$map_category,
           state_cols$col
         )
       )
@@ -252,7 +448,7 @@ live_nest_leaflet <- function(
       addControl(
         html = legend_html,
         position = "topleft",
-        layerId = "nest_state_legend",
+        layerId = "nest_map_legend",
         className = "nest-legend-control"
       )
   }

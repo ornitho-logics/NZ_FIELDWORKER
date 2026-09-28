@@ -108,7 +108,26 @@ dbtabs_show_view_sources <- list(
     "GPS_POINTS",
     "CAPTURES",
     "EGGS",
-    "predict_hatching"
+    "predict_hatching",
+    "RESIGHTINGS"
+  ),
+  BROODS_LATEST = c(
+    "settings",
+    "NESTS",
+    "GPS_POINTS",
+    "CAPTURES",
+    "EGGS",
+    "predict_hatching",
+    "RESIGHTINGS"
+  ),
+  LIVE_NEST_MAP = c(
+    "settings",
+    "NESTS",
+    "GPS_POINTS",
+    "CAPTURES",
+    "EGGS",
+    "predict_hatching",
+    "RESIGHTINGS"
   ),
   CAPTURES_ARCHIVE = c("BADOatNZ.CAPTURES"),
 
@@ -127,7 +146,7 @@ nest_state_cols <- c(
   "S" = "#f38c38",
   "F" = "#00815f",
   "I" = "#fff023",
-  "H" = "#1aa9fc",
+  "brood" = "#1aa9fc",
   "B" = "#20A387",
   "pP" = "#A50026",
   "P" = "#6405a3",

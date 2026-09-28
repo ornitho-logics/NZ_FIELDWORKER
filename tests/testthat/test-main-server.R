@@ -36,6 +36,9 @@ test_that("main server initializes and updates the reference date", {
   }
   app$env$overview_nests_graph <- overview_plot_stub("nests")
   app$env$overview_geolocator_graph <- overview_plot_stub("geolocator")
+  app$env$overview_tagged_resightings_graph <- overview_plot_stub(
+    "tagged_resightings"
+  )
   app$env$overview_band_combos_graph <- overview_plot_stub("band_combos")
   app$env$overview_lay_date_graph <- overview_plot_stub("lay_date")
   app$env$overview_quota_graph <- overview_plot_stub("quota")
@@ -45,6 +48,7 @@ test_that("main server initializes and updates the reference date", {
 
     output$overview_nests_show
     output$overview_geolocator_show
+    output$overview_tagged_resightings_show
     output$overview_cr_combos_show
     output$overview_lay_date_show
     output$overview_quota_show
@@ -53,6 +57,7 @@ test_that("main server initializes and updates the reference date", {
     expect_identical(as.Date(active_refdate()), today)
     expect_identical(overview_calls$nests, today)
     expect_identical(overview_calls$geolocator, today)
+    expect_identical(overview_calls$tagged_resightings, today)
     expect_identical(overview_calls$band_combos, today)
     expect_identical(overview_calls$lay_date, today)
     expect_identical(overview_calls$quota, today)
@@ -68,6 +73,10 @@ test_that("main server initializes and updates the reference date", {
     expect_identical(as.Date(reference_date()), next_date)
     expect_identical(tail(overview_calls$nests, 1), next_date)
     expect_identical(tail(overview_calls$geolocator, 1), next_date)
+    expect_identical(
+      tail(overview_calls$tagged_resightings, 1),
+      next_date
+    )
     expect_identical(tail(overview_calls$band_combos, 1), next_date)
     expect_identical(tail(overview_calls$lay_date, 1), next_date)
     expect_identical(tail(overview_calls$quota, 1), next_date)
@@ -114,6 +123,10 @@ test_that("overview graph helpers use aligned reference-date queries", {
     "ggplot"
   )
   expect_s3_class(
+    app$env$overview_tagged_resightings_graph(refdate, date_limits),
+    "ggplot"
+  )
+  expect_s3_class(
     app$env$overview_band_combos_graph(refdate, date_limits),
     "ggplot"
   )
@@ -127,7 +140,7 @@ test_that("overview graph helpers use aligned reference-date queries", {
   quota_plots <- app$env$overview_quota_graph(refdate)
 
   expect_length(quota_plots, 4)
-  expect_length(queries, 9)
+  expect_length(queries, 10)
   expect_true(all(vapply(
     queries,
     function(query) identical(
@@ -137,7 +150,7 @@ test_that("overview graph helpers use aligned reference-date queries", {
     logical(1)
   )))
 
-  geolocator_quota_sql <- queries[[6]]$sql
+  geolocator_quota_sql <- queries[[7]]$sql
 
   expect_match(
     geolocator_quota_sql,
@@ -148,8 +161,69 @@ test_that("overview graph helpers use aligned reference-date queries", {
   expect_match(queries[[1]]$sql, "MIN(date_) AS start_date", fixed = TRUE)
   expect_match(queries[[2]]$sql, "COALESCE(site, ''))) = 'CR'", fixed = TRUE)
   expect_match(queries[[3]]$sql, "COALESCE(site, ''))) = 'CR'", fixed = TRUE)
-  expect_match(queries[[4]]$sql, "FROM CAPTURES_ARCHIVE", fixed = TRUE)
-  expect_match(queries[[5]]$sql, "COALESCE(site, ''))) = 'CR'", fixed = TRUE)
+  expect_match(queries[[4]]$sql, "FROM deployments d", fixed = TRUE)
+  expect_match(queries[[4]]$sql, "r.comments", fixed = TRUE)
+  expect_match(queries[[5]]$sql, "FROM CAPTURES_ARCHIVE", fixed = TRUE)
+  expect_match(queries[[6]]$sql, "COALESCE(site, ''))) = 'CR'", fixed = TRUE)
+})
+
+
+test_that("overview limp status distinguishes comment evidence", {
+  app <- load_main_app()
+  comments <- c(
+    "walking normally",
+    "slight hesitation while walking",
+    "bird is limping",
+    "foraging beside the river",
+    "walks fine and limps",
+    "walks well, no limp",
+    "not limping today"
+  )
+
+  expect_identical(
+    app$env$overview_limp_status(comments),
+    c(
+      "No limp reported",
+      "Possible/slight limp",
+      "Limping",
+      "Not assessed",
+      "Limping",
+      "No limp reported",
+      "No limp reported"
+    )
+  )
+
+  mock_histories <- data.frame(
+    tarsus_mark = c("MOCK_A", "MOCK_A", "MOCK_B"),
+    sex = c("Female", "Female", "Male"),
+    deployment_date = as.Date(c(
+      "2026-09-01",
+      "2026-09-01",
+      "2026-09-03"
+    )),
+    resighting_pk = c(1L, 2L, 3L),
+    resighting_date = as.Date(c(
+      "2026-09-04",
+      "2026-09-06",
+      "2026-09-07"
+    )),
+    comments = c(
+      "walking normally",
+      "slight hesitation while walking",
+      "bird is limping"
+    )
+  )
+  plot <- app$env$overview_tagged_resighting_plot(
+    mock_histories,
+    date_limits = as.Date(c("2026-09-01", "2026-09-10"))
+  )
+
+  expect_s3_class(plot, "ggplot")
+  expect_silent(ggplot2::ggplot_build(plot))
+  expect_equal(
+    plot$coordinates$limits$x,
+    as.Date(c("2026-09-01", "2026-09-10"))
+  )
 })
 
 
