@@ -359,6 +359,212 @@ overview_cumulative_plot <- function(
 }
 
 
+overview_limp_status <- function(comments) {
+  comments <- tolower(trimws(as.character(comments)))
+  comments[is.na(comments)] <- ""
+  comments <- gsub("[[:space:]]+", " ", comments)
+
+  normal_gait <- grepl(
+    paste0(
+      "\\b(walk(?:s|ed|ing)?|run(?:s|ning)?)\\b.{0,40}",
+      "\\b(well|fine|normal(?:ly)?|great|ok(?:ay)?)\\b|",
+      "\\b(well|fine|normal(?:ly)?)\\b.{0,40}",
+      "\\bwalk(?:s|ed|ing)?\\b"
+    ),
+    comments,
+    perl = TRUE
+  )
+  limping <- grepl(
+    paste0(
+      "\\b(limp(?:ing|s|ed)?|limbing|lame(?:ness)?|",
+      "hopp(?:ing|s|ed)?)\\b|\\bmoderate\\s+limb\\b"
+    ),
+    comments,
+    perl = TRUE
+  )
+  possible_limp <- grepl(
+    paste0(
+      "\\b(slight(?:ly)?|mild(?:ly)?|hesitat(?:e|es|ed|ing|ion)?|",
+      "occasional(?:ly)?)\\b|",
+      "\\blimp(?:ing|s|ed)?\\??\\s+(?:a\\s+)?bit\\b|",
+      "\\b(?:maybe|possibly)\\b.{0,30}\\blimp|",
+      "\\bstanding\\b.{0,30}\\bone leg\\b|",
+      "\\brelaxing\\b.{0,30}\\bleg\\b.{0,30}\\btag"
+    ),
+    comments,
+    perl = TRUE
+  )
+  explicit_no_limp <- grepl(
+    paste0(
+      "\\bno\\s+(?:signs?\\s+of\\s+)?(?:a\\s+)?limp(?:ing)?\\b|",
+      "\\bwithout\\s+(?:a\\s+)?limp(?:ing)?\\b|",
+      "\\bnot\\s+limp(?:ing)?\\b(?!\\s+(?:as\\s+much|much|less))|",
+      "\\bdoes(?:\\s+not|n't)\\s+limp\\b"
+    ),
+    comments,
+    perl = TRUE
+  )
+
+  status <- rep("Not assessed", length(comments))
+  status[normal_gait] <- "No limp reported"
+  status[limping] <- "Limping"
+  status[possible_limp] <- "Possible/slight limp"
+  status[explicit_no_limp] <- "No limp reported"
+  status
+}
+
+
+overview_tagged_resighting_plot <- function(x, date_limits = NULL) {
+  x <- data.table(x)
+  caption <- paste(
+    "Diamond = geolocator deployment; circles = resightings.",
+    "Gait status is inferred from comments; grey = not assessed."
+  )
+
+  if (!nrow(x)) {
+    plot_limits <- if (is.null(date_limits)) {
+      c(Sys.Date() - 30, Sys.Date())
+    } else {
+      as.Date(date_limits)
+    }
+    annotation_date <- as.Date(
+      mean(as.numeric(plot_limits)),
+      origin = "1970-01-01"
+    )
+
+    return(
+      ggplot() +
+        annotate(
+          "text",
+          x = annotation_date,
+          y = 0,
+          label = "No qualifying tagged-bird histories"
+        ) +
+        labs(x = "Date", y = NULL, caption = caption) +
+        overview_date_scale() +
+        overview_date_coordinates(plot_limits) +
+        scale_y_continuous(breaks = NULL) +
+        theme_bw(base_size = 18) +
+        theme(panel.grid = element_blank())
+    )
+  }
+
+  x[, deployment_date := as.Date(as.character(deployment_date))]
+  x[, resighting_date := as.Date(as.character(resighting_date))]
+  x <- x[!is.na(deployment_date)]
+
+  if (!nrow(x)) {
+    return(overview_tagged_resighting_plot(data.table(), date_limits))
+  }
+
+  x[, bird_id := paste0(
+    tarsus_mark,
+    "_",
+    fifelse(sex == "Female", "F", "M")
+  )]
+
+  histories <- x[, .(
+    sex = sex[1],
+    deployment_date = min(deployment_date),
+    last_date = max(c(deployment_date, resighting_date), na.rm = TRUE)
+  ), by = bird_id]
+  setorder(histories, deployment_date, sex, bird_id)
+  bird_levels <- histories$bird_id
+  histories[, bird_id := factor(bird_id, levels = bird_levels)]
+  histories[, sex := factor(sex, levels = c("Female", "Male"))]
+
+  events <- x[!is.na(resighting_date)]
+  events[, limp_status := overview_limp_status(comments)]
+  events[, status_rank := match(
+    limp_status,
+    c(
+      "Not assessed",
+      "No limp reported",
+      "Possible/slight limp",
+      "Limping"
+    )
+  )]
+  setorder(
+    events,
+    bird_id,
+    resighting_date,
+    status_rank,
+    resighting_pk
+  )
+  events <- events[, .SD[.N], by = .(bird_id, resighting_date)]
+  events[, bird_id := factor(bird_id, levels = bird_levels)]
+  events[, sex := factor(sex, levels = c("Female", "Male"))]
+  events[, limp_status := factor(
+    limp_status,
+    levels = c(
+      "No limp reported",
+      "Possible/slight limp",
+      "Limping",
+      "Not assessed"
+    )
+  )]
+
+  ggplot(histories, aes(y = bird_id)) +
+    geom_segment(
+      aes(
+        x = deployment_date,
+        xend = last_date,
+        yend = bird_id
+      ),
+      color = "#343a40",
+      linewidth = 0.7
+    ) +
+    geom_point(
+      aes(x = deployment_date),
+      shape = 23,
+      size = 3.2,
+      stroke = 0.8,
+      fill = "white"
+    ) +
+    geom_point(
+      data = events,
+      aes(
+        x = resighting_date,
+        y = bird_id,
+        fill = limp_status
+      ),
+      shape = 21,
+      size = 3.2,
+      stroke = 0.7,
+      inherit.aes = FALSE
+    ) +
+    facet_wrap(
+      vars(sex),
+      nrow = 1,
+      scales = "free_y",
+      labeller = as_labeller(c(Female = "F", Male = "M"))
+    ) +
+    scale_y_discrete(name = NULL, position = "right") +
+    scale_fill_manual(
+      name = "Comment-derived gait status",
+      values = c(
+        "No limp reported" = "#2a9d8f",
+        "Possible/slight limp" = "#e9c46a",
+        "Limping" = "#d1495b",
+        "Not assessed" = "#b8b8b8"
+      ),
+      drop = FALSE
+    ) +
+    labs(x = "Date", caption = caption) +
+    overview_date_scale() +
+    overview_date_coordinates(date_limits) +
+    guides(fill = guide_legend(nrow = 1, byrow = TRUE)) +
+    theme_bw(base_size = 18) +
+    theme(
+      panel.grid.minor = element_blank(),
+      axis.text.x = element_text(angle = 30, hjust = 1),
+      legend.position = "bottom",
+      legend.title = element_text(face = "bold"),
+      plot.caption = element_text(hjust = 0)
+    )
+}
+
+
 overview_date_limits <- function(refdate = get_reference_date()) {
   refdate <- as.Date(refdate)
 
@@ -538,6 +744,101 @@ overview_geolocator_graph <- function(
       "N males = ",
       "{overview_cumulative_total(plot_data, 'Male')}"
     )
+  )
+}
+
+
+overview_tagged_resightings_graph <- function(
+  refdate = get_reference_date(),
+  date_limits = NULL
+) {
+  refdate <- as.Date(refdate)
+
+  x <- db_get(
+    "
+    WITH sr AS (
+      SELECT CAST(? AS DATE) AS reference_date
+    ),
+    deployment_rows AS (
+      SELECT
+        CONCAT(
+          COALESCE(
+            NULLIF(TRIM(c.LL), ''),
+            NULLIF(TRIM(c.LL_in), ''),
+            'X'
+          ),
+          '_',
+          COALESCE(
+            NULLIF(TRIM(c.LR), ''),
+            NULLIF(TRIM(c.LR_in), ''),
+            'X'
+          )
+        ) AS tarsus_mark,
+        CASE
+          WHEN UPPER(TRIM(c.field_sex)) IN ('M', 'MU') THEN 'Male'
+          WHEN UPPER(TRIM(c.field_sex)) IN ('F', 'FU') THEN 'Female'
+        END AS sex,
+        c.date AS deployment_date
+      FROM CAPTURES c
+      CROSS JOIN sr
+      WHERE UPPER(TRIM(COALESCE(c.site, ''))) = 'CR'
+        AND UPPER(TRIM(COALESCE(c.tag_type, ''))) = 'GEO'
+        AND UPPER(TRIM(COALESCE(c.tag_action, ''))) = 'D'
+        AND c.date IS NOT NULL
+        AND c.date <= sr.reference_date
+        AND NULLIF(TRIM(c.tag_id), '') IS NOT NULL
+    ),
+    deployments AS (
+      SELECT
+        tarsus_mark,
+        sex,
+        MIN(deployment_date) AS deployment_date
+      FROM deployment_rows
+      WHERE sex IN ('Female', 'Male')
+        AND BINARY tarsus_mark <> 'X_X'
+      GROUP BY tarsus_mark, sex
+    ),
+    resighting_rows AS (
+      SELECT
+        r.pk AS resighting_pk,
+        CONCAT(
+          COALESCE(NULLIF(TRIM(r.LL), ''), 'X'),
+          '_',
+          COALESCE(NULLIF(TRIM(r.LR), ''), 'X')
+        ) AS tarsus_mark,
+        CASE
+          WHEN UPPER(TRIM(r.sex)) IN ('M', 'MU') THEN 'Male'
+          WHEN UPPER(TRIM(r.sex)) IN ('F', 'FU') THEN 'Female'
+        END AS sex,
+        r.date AS resighting_date,
+        r.comments
+      FROM RESIGHTINGS r
+      CROSS JOIN sr
+      WHERE UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'
+        AND r.date IS NOT NULL
+        AND r.date <= sr.reference_date
+    )
+    SELECT
+      d.tarsus_mark,
+      d.sex,
+      d.deployment_date,
+      r.resighting_pk,
+      r.resighting_date,
+      r.comments
+    FROM deployments d
+    LEFT JOIN resighting_rows r
+      ON r.tarsus_mark = d.tarsus_mark
+      AND r.sex = d.sex
+      AND r.resighting_date >= d.deployment_date
+    ORDER BY d.sex, d.deployment_date, d.tarsus_mark,
+      r.resighting_date, r.resighting_pk
+    ",
+    params = list(as.character(refdate))
+  )
+
+  overview_tagged_resighting_plot(
+    x = x,
+    date_limits = date_limits
   )
 }
 

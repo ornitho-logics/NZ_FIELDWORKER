@@ -135,13 +135,13 @@ dashboardPage(
 
       pickerInput(
         inputId = "nest_state",
-        label = "Nest state:",
+        label = "State / brood:",
         multiple = TRUE,
         choices = c(
           "Scrape" = "S",
           "Found" = "F",
           "Incubated" = "I",
-          "Hatched" = "H",
+          "Brood" = "brood",
           "possibly Predated" = "pP",
           "possibly Deserted" = "pD",
           "Predated" = "P",
@@ -149,7 +149,7 @@ dashboardPage(
           "Not Active" = "notA",
           "Other" = "O"
         ),
-        selected = c("S", "F", "I", "H", "pP", "pD", "P", "D", "notA", "O")
+        selected = c("S", "F", "I", "brood", "pP", "pD", "P", "D", "notA", "O")
       )
     )
   ),
@@ -268,6 +268,20 @@ dashboardPage(
           spinner(
             plotOutput(
               "overview_geolocator_show"
+            )
+          )
+        ),
+        bs4Dash::box(
+          title = "Resighting histories of geolocator-tagged birds",
+          width = 12,
+          collapsible = TRUE,
+          collapsed = FALSE,
+          height = "75vh",
+          style = "overflow: hidden;",
+          spinner(
+            plotOutput(
+              "overview_tagged_resightings_show",
+              height = "67vh"
             )
           )
         ),

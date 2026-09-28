@@ -82,14 +82,18 @@ test_that("main app UI and entrypoint load", {
   expect_match(html, 'id="nest_map_show"', fixed = TRUE)
   expect_match(html, 'id="overview_nests_show"', fixed = TRUE)
   expect_match(html, 'id="overview_geolocator_show"', fixed = TRUE)
+  expect_match(html, 'id="overview_tagged_resightings_show"', fixed = TRUE)
   expect_match(html, 'id="overview_cr_combos_show"', fixed = TRUE)
   expect_match(html, 'id="overview_lay_date_show"', fixed = TRUE)
   expect_match(html, 'id="overview_quota_show"', fixed = TRUE)
   expect_true(is.function(app$env$overview_nests_graph))
+  expect_true(is.function(app$env$overview_tagged_resightings_graph))
+  expect_true(is.function(app$env$overview_limp_status))
 
   for (output_id in c(
     "overview_nests_show",
     "overview_geolocator_show",
+    "overview_tagged_resightings_show",
     "overview_cr_combos_show",
     "overview_lay_date_show",
     "overview_quota_show"
@@ -122,6 +126,14 @@ test_that("main app UI and entrypoint load", {
     app$env$dbtabs_show_view_sources[["VIEW_1"]],
     c("settings", "CAPTURES", "RESIGHTINGS")
   )
+  expect_true("RESIGHTINGS" %in% app$env$dbtabs_show_view_sources[["NESTS_LATEST"]])
+  expect_identical(
+    app$env$dbtabs_show_view_sources[["BROODS_LATEST"]],
+    app$env$dbtabs_show_view_sources[["LIVE_NEST_MAP"]]
+  )
+  expect_match(html, "State / brood:", fixed = TRUE)
+  expect_match(html, "Brood", fixed = TRUE)
+  expect_no_match(html, "Hatched", fixed = TRUE)
   expect_match(html, app$env$app_test_status$text, fixed = TRUE)
   expect_match(html, app$env$app_test_status$badge, fixed = TRUE)
 })

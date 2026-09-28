@@ -57,7 +57,7 @@
       <i class="fas fa-table-cells mr-2" role="presentation" aria-label="table-cells icon"></i>Controlbar (upper right)
     </h5>
     <p class="mb-2">
-      Set the <code>reference date</code>, change nest map text and symbol size, and filter nest states.
+      Set the <code>reference date</code>, change nest map text and symbol size, and filter nest states or broods.
     </p>
     <p class="mb-0 font-weight-bold">
       Press <kbd>Set</kbd> after changing the date. The date is saved in the database, and all database views use it.
@@ -133,8 +133,12 @@
   <div class="list-group-item px-0">
     <h5 class="mb-1 text-primary font-weight-bold">Nest Map</h5>
     <p class="mb-2">
-      View the latest nest locations from <code>NESTS_LATEST</code>. In the controlbar, use
-      <code>Nest state</code> to filter nests and <code>Text and symbol size</code> to change map labels and symbols.
+      View current nests, hatched broods, and mobile broods. The map combines
+      <code>NESTS_LATEST</code> with <code>BROODS_LATEST</code>; hatched nests
+      are shown as <code>Brood</code>, while failed closures remain separately
+      selectable as <code>Not Active</code>. Use <code>State / brood</code> to
+      filter categories and <code>Text and symbol size</code> to change map
+      labels and symbols.
     </p>
     <p class="mb-2">
       On mobiles, maximize the map for fullscreen field use. Use the location button to show your current GPS position,

@@ -150,6 +150,19 @@ function(input, output, session) {
     }
   )
 
+  output$overview_tagged_resightings_show <- renderPlot(
+    {
+      try_else(
+        overview_tagged_resightings_graph(
+          active_refdate(),
+          overview_plot_date_limits()
+        ),
+        fallback_ggplot,
+        fail = 'overview_tagged_resightings_graph() failed!'
+      )
+    }
+  )
+
   output$overview_cr_combos_show <- renderPlot(
     {
       try_else(
@@ -248,10 +261,13 @@ function(input, output, session) {
     7000,
     session = session,
     checkFunc = function() {
-      dbtable_is_updated(dbtabs_show_view_sources[["NESTS_LATEST"]])
+      dbtable_is_updated(dbtabs_show_view_sources[["LIVE_NEST_MAP"]])
     },
     valueFunc = function() {
-      DBq("SELECT * FROM NESTS_LATEST")
+      list(
+        nests = DBq("SELECT * FROM NESTS_LATEST"),
+        broods = DBq("SELECT * FROM BROODS_LATEST")
+      )
     }
   )
 
@@ -273,19 +289,62 @@ function(input, output, session) {
   output$nest_map_show <- renderLeaflet({
     try_else(
       {
-        n <- N()
-        req(n)
-        n <- data.table(n)
+        source_data <- N()
+        req(source_data)
+
+        is_dbq_error <- function(x) {
+          is.data.frame(x) &&
+            "error" %in% names(x)
+        }
+
+        if (is_dbq_error(source_data$nests)) {
+          stop("NESTS_LATEST could not be loaded.", call. = FALSE)
+        }
+
+        n <- data.table(source_data$nests)
+        warning_messages <- character()
+
+        if (is_dbq_error(source_data$broods)) {
+          warning_messages <- c(
+            warning_messages,
+            "Brood layer unavailable; hatched and mobile brood markers may be missing."
+          )
+          broods <- data.table()
+        } else {
+          broods <- data.table(source_data$broods)
+        }
+
+        map_data <- .prepare_live_nest_map_data(n, broods)
+
+        missing_negative_coords <- map_data[
+          is_negative_brood & (is.na(lat) | is.na(lon))
+        ]
+        if (nrow(missing_negative_coords)) {
+          warning_messages <- c(
+            warning_messages,
+            "Some mobile brood markers were omitted because no valid GPS location was available."
+          )
+        }
+        broods_warning <- paste(warning_messages, collapse = " ")
+        if (!nzchar(broods_warning)) {
+          broods_warning <- NULL
+        }
 
         selected_states <- selected_nest_states()
 
         if (is.null(selected_states)) {
-          selected_states <- unique(as.character(n$nest_state))
+          selected_states <- unique(as.character(map_data$map_category))
         }
 
-        n <- n[as.character(nest_state) %in% selected_states]
+        selected_states[selected_states == "H"] <- "brood"
+        map_data <- map_data[as.character(map_category) %in% selected_states]
 
-        live_nest_leaflet(n, nest_size = nest_size())
+        live_nest_leaflet(
+          map_data,
+          nest_size = nest_size(),
+          map_data_prepared = TRUE,
+          broods_warning = broods_warning
+        )
       },
       fallback_leaflet,
       fail = "live_nest_leaflet() failed!"

@@ -87,6 +87,118 @@ test_that("live_nest_leaflet fits plot bounds when there are no nests", {
 })
 
 
+test_that("live map preparation reconciles nests, broods, and failed closures", {
+  app <- load_main_app()
+  prepare_map_data <- get(".prepare_live_nest_map_data", envir = app$env)
+  live_map <- get("live_nest_leaflet", envir = app$env)
+
+  nests_latest <- data.frame(
+    nest_id = c(
+      "A_ACTIVE",
+      "A_HATCHED",
+      "A_HATCHED_NOTA",
+      "A_FAILED_NOTA",
+      "A_FALLBACK"
+    ),
+    nest_state = c("I", "H", "notA", "notA", "H"),
+    has_hatch_evidence = c(FALSE, TRUE, TRUE, FALSE, TRUE),
+    lat = c(-44.001, -44.002, -44.003, -44.004, -44.005),
+    lon = c(172.001, 172.002, 172.003, 172.004, 172.005),
+    stringsAsFactors = FALSE
+  )
+  broods_latest <- data.frame(
+    nest_id = c(
+      "A_HATCHED",
+      "A_HATCHED_NOTA",
+      "A_FALLBACK",
+      "-B_MOBILE",
+      "-C_NO_COORDS"
+    ),
+    is_negative_brood = c(FALSE, FALSE, FALSE, TRUE, TRUE),
+    has_hatch_evidence = c(TRUE, TRUE, TRUE, TRUE, TRUE),
+    nest_state = c("H", "notA", "H", NA, NA),
+    lat = c(-44.102, -44.103, NA, -44.104, NA),
+    lon = c(172.102, 172.103, NA, 172.104, NA),
+    latest_chick_event_date = as.Date(c(
+      "2026-09-01",
+      "2026-09-02",
+      "2026-09-03",
+      "2026-09-04",
+      "2026-09-04"
+    )),
+    stringsAsFactors = FALSE
+  )
+
+  mapped <- prepare_map_data(nests_latest, broods_latest)
+
+  expect_length(unique(mapped$nest_id), 7)
+  expect_identical(
+    as.character(mapped$map_category[mapped$nest_id == "A_ACTIVE"]),
+    "I"
+  )
+  expect_setequal(
+    mapped$nest_id[mapped$map_category == "brood"],
+    c("A_HATCHED", "A_HATCHED_NOTA", "A_FALLBACK", "-B_MOBILE", "-C_NO_COORDS")
+  )
+  expect_identical(
+    as.character(mapped$map_category[mapped$nest_id == "A_FAILED_NOTA"]),
+    "notA"
+  )
+  expect_identical(
+    mapped$nest_id[mapped$nest_id == "-B_MOBILE"],
+    "-B_MOBILE"
+  )
+  expect_equal(
+    mapped[ nest_id == "A_HATCHED_NOTA", .(lat, lon)],
+    data.table(lat = -44.103, lon = 172.103)
+  )
+  expect_equal(
+    mapped[ nest_id == "A_FALLBACK", .(lat, lon)],
+    data.table(lat = -44.005, lon = 172.005)
+  )
+
+  brood_only <- mapped[map_category == "brood"]
+  not_a_only <- mapped[map_category == "notA"]
+  expect_false("A_FAILED_NOTA" %in% brood_only$nest_id)
+  expect_false(any(not_a_only$map_category == "brood"))
+
+  map <- live_map(
+    mapped,
+    plots = data.frame(),
+    map_data_prepared = TRUE
+  )
+  methods <- vapply(map$x$calls, `[[`, character(1), "method")
+  marker_call <- map$x$calls[[match("addCircleMarkers", methods)]]
+  legend_call <- map$x$calls[[match("addControl", methods)]]
+  legend_text <- as.character(legend_call$args[[1]])
+
+  expect_length(marker_call$args[[1]], 6)
+  expect_false("-C_NO_COORDS" %in% marker_call$args[[11]])
+  expect_match(legend_text, "brood", fixed = TRUE)
+  expect_match(legend_text, "#1aa9fc", fixed = TRUE)
+  expect_no_match(legend_text, ">H<", fixed = TRUE)
+
+  warning_map <- live_map(
+    mapped,
+    plots = data.frame(),
+    map_data_prepared = TRUE,
+    broods_warning = "Some mobile brood markers were omitted."
+  )
+  warning_methods <- vapply(
+    warning_map$x$calls,
+    `[[`,
+    character(1),
+    "method"
+  )
+  warning_calls <- warning_map$x$calls[warning_methods == "addControl"]
+  expect_true(any(vapply(
+    warning_calls,
+    function(call) grepl("omitted", as.character(call$args[[1]]), fixed = TRUE),
+    logical(1)
+  )))
+})
+
+
 test_that("PDF map keeps active nests without current tasks", {
   app <- load_main_app()
   prepare_nests <- get(".todo_pdf_map_prepare_nests", envir = app$env)
