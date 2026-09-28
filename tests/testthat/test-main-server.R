@@ -163,8 +163,57 @@ test_that("overview graph helpers use aligned reference-date queries", {
   expect_match(queries[[3]]$sql, "COALESCE(site, ''))) = 'CR'", fixed = TRUE)
   expect_match(queries[[4]]$sql, "FROM deployments d", fixed = TRUE)
   expect_match(queries[[4]]$sql, "r.comments", fixed = TRUE)
+  expect_match(
+    queries[[4]]$sql,
+    "PARTITION BY tarsus_mark, capture_sex",
+    fixed = TRUE
+  )
+  expect_match(
+    queries[[4]]$sql,
+    "r.resighting_sex = d.capture_sex",
+    fixed = TRUE
+  )
   expect_match(queries[[5]]$sql, "FROM CAPTURES_ARCHIVE", fixed = TRUE)
   expect_match(queries[[6]]$sql, "COALESCE(site, ''))) = 'CR'", fixed = TRUE)
+  expect_match(
+    queries[[6]]$sql,
+    "LEFT JOIN geolocator_deployments",
+    fixed = TRUE
+  )
+  expect_match(queries[[6]]$sql, "c.age, ''))) = 'A'", fixed = TRUE)
+  expect_match(queries[[6]]$sql, "c.tag_type, ''))) = 'GEO'", fixed = TRUE)
+  expect_match(queries[[6]]$sql, "c.tag_action, ''))) = 'D'", fixed = TRUE)
+})
+
+
+test_that("lay-date bins tally geolocators by associated nest", {
+  app <- load_main_app()
+  x <- data.frame(
+    nest_id = c("MOCK_NEST_1", "MOCK_NEST_1", "MOCK_NEST_2", "MOCK_NEST_3"),
+    datetime = as.Date(c(
+      "2026-09-01",
+      "2026-09-01",
+      "2026-09-01",
+      "2026-09-05"
+    )),
+    tag_id = c("MOCK_GEO_1", "MOCK_GEO_1", "MOCK_GEO_2", NA_character_)
+  )
+
+  bins <- app$env$overview_lay_date_bins(x, binwidth = 4L)
+
+  expect_equal(sum(bins$n_nests), 3L)
+  expect_equal(sum(bins$n_geolocators), 2L)
+  expect_equal(bins$n_nests, c(2L, 1L))
+  expect_equal(bins$n_geolocators, c(2L, 0L))
+
+  plot <- app$env$overview_lay_date_plot(
+    x,
+    ylab = "N estimated lay dates",
+    date_limits = as.Date(c("2026-08-25", "2026-09-10"))
+  )
+
+  expect_s3_class(plot, "ggplot")
+  expect_silent(ggplot2::ggplot_build(plot))
 })
 
 
@@ -196,9 +245,19 @@ test_that("overview limp status distinguishes comment evidence", {
     app$env$overview_tagged_mark_label(c("WY_GO_F", "BY_L_M")),
     c("WY-GO", "BY-L")
   )
+  expect_identical(
+    app$env$overview_tagged_display_mark(
+      c("BY_L", "BY_L", "WY_GO"),
+      c("TY", "TG", "TO"),
+      c("L", "L", "GO")
+    ),
+    c("BY_Y.L", "BY_G.L", "WY_GO")
+  )
 
   mock_histories <- data.frame(
     tarsus_mark = c("MOCK_A", "MOCK_A", "MOCK_B"),
+    right_upper = c("TY", "TY", "TG"),
+    right_tarsus = c("A", "A", "B"),
     sex = c("Female", "Female", "Male"),
     deployment_date = as.Date(c(
       "2026-09-01",
@@ -227,6 +286,29 @@ test_that("overview limp status distinguishes comment evidence", {
   expect_equal(
     plot$coordinates$limits$x,
     as.Date(c("2026-09-01", "2026-09-10"))
+  )
+
+  shared_mark_plot <- app$env$overview_tagged_resighting_plot(
+    data.frame(
+      tarsus_mark = c("BY_YB", "BY_YB"),
+      right_upper = c("TY", "TG"),
+      right_tarsus = c("YB", "YB"),
+      sex = c("Female", "Male"),
+      deployment_date = as.Date(c("2026-09-02", "2026-09-03")),
+      resighting_pk = c(11L, 12L),
+      resighting_date = as.Date(c("2026-09-06", "2026-09-07")),
+      comments = c("walking normally", "walking normally")
+    ),
+    date_limits = as.Date(c("2026-09-01", "2026-09-10"))
+  )
+
+  expect_setequal(
+    as.character(shared_mark_plot$data$bird_id),
+    c("BY_YB_F", "BY_YB_M")
+  )
+  expect_setequal(
+    as.character(shared_mark_plot$data$sex),
+    c("Female", "Male")
   )
 })
 

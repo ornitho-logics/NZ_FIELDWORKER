@@ -195,3 +195,65 @@ test_that("parent capture PDF sorting prioritizes hatch, negative broods, then h
     c("H_MOCK", "-MOCK_BROOD", "I_MOCK_EARLY", "I_MOCK_LATE")
   )
 })
+
+
+test_that("chick colour labels are used in operational parent and brood tables", {
+  app <- load_main_app()
+  rows <- data.table::data.table(
+    Todo = c(
+      "Hiding spot photos needed",
+      "Parent capture",
+      "Parent resighting"
+    ),
+    Nest = c("-MOCK_BROOD", "MOCK_NEST", "MOCK_NEST"),
+    State = c("NA", "I", "I"),
+    `Clutch–Brood` = c("NA–3", "3–0", "3–0"),
+    Hatch = c("", "09-25", "09-25"),
+    `Last Visit` = c("2", "1", "1"),
+    Male = c("", "MOCK-M", "MOCK-M"),
+    Female = c("", "MOCK-F", "MOCK-F"),
+    Notes = c("photo", "capture", "resight")
+  )
+  nest_summary <- data.table::data.table(
+    Nest = c("-MOCK_BROOD", "MOCK_NEST"),
+    LabelFill = c("#1565c0", "#f4d03f"),
+    LabelText = c("#ffffff", "#000000")
+  )
+
+  body <- app$env$todo_pdf_body(
+    rows = rows,
+    nest_summary = nest_summary
+  )
+  body_text <- paste(body, collapse = "\n")
+
+  expect_true(grepl("## Broods to photograph", body_text, fixed = TRUE))
+  expect_true(grepl("## Parents to capture", body_text, fixed = TRUE))
+  expect_true(grepl("## Parents to resight", body_text, fixed = TRUE))
+  expect_true(grepl("#f4d03f", body_text, fixed = TRUE))
+  expect_true(grepl("#1565c0", body_text, fixed = TRUE))
+  expect_true(grepl("stroke: none", body_text, fixed = TRUE))
+  expect_true(grepl("#strong[-MOCK\\_BROOD]", body_text, fixed = TRUE))
+  expect_true(grepl("#strong[MOCK\\_NEST]", body_text, fixed = TRUE))
+})
+
+
+test_that("parent summary keeps a larger adaptive vertical row inset", {
+  app <- load_main_app()
+  summary <- data.table::data.table(
+    Nest = paste0("MOCK_", seq_len(39)),
+    `Est. Hatch` = rep("09-25", 39),
+    Male = rep("MOCK-M", 39),
+    Female = rep("MOCK-F", 39),
+    Symbol = rep("circle", 39),
+    SymbolColor = rep("#7b858b", 39),
+    LabelFill = rep(NA_character_, 39),
+    LabelText = rep(NA_character_, 39)
+  )
+
+  output <- paste(
+    app$env$todo_pdf_nest_summary_table(summary),
+    collapse = "\n"
+  )
+
+  expect_true(grepl("inset: \\(x: 2.2pt, y: 4.05pt\\)", output))
+})
