@@ -667,8 +667,8 @@ todo_pdf_nest_summary_table <- function(nest_summary, n_blocks = 3L) {
 
   max_font_size <- 8.5
   label_inset_y <- 3
-  max_inset_y <- 4.2
-  target_table_height <- 320
+  max_inset_y <- 6.2 - label_inset_y
+  target_table_height <- 280
   if (rows_per_block <= 12L) {
     font_size <- max_font_size
     inset_y <- max_inset_y
@@ -796,128 +796,6 @@ todo_pdf_nest_summary_table <- function(nest_summary, n_blocks = 3L) {
 }
 
 
-todo_pdf_task_table <- function(todo_rows, nest_summary = NULL) {
-  todo_rows <- as.data.frame(todo_rows, stringsAsFactors = FALSE)
-  if (!nrow(todo_rows) || !ncol(todo_rows)) {
-    return(character())
-  }
-
-  typst_content <- function(x) {
-    x <- as.character(x)
-    x[is.na(x)] <- ""
-    x <- gsub("\\", "\\\\", x, fixed = TRUE)
-    x <- gsub("#", "\\#", x, fixed = TRUE)
-    x <- gsub("[", "\\[", x, fixed = TRUE)
-    x <- gsub("]", "\\]", x, fixed = TRUE)
-    x <- gsub("*", "\\*", x, fixed = TRUE)
-    x <- gsub("_", "\\_", x, fixed = TRUE)
-    x <- gsub("$", "\\$", x, fixed = TRUE)
-    x
-  }
-
-  labels <- data.table(
-    Nest = character(),
-    LabelFill = character(),
-    LabelText = character()
-  )
-  if (!is.null(nest_summary) && nrow(nest_summary)) {
-    summary <- data.table(nest_summary)
-    if (all(c("Nest", "LabelFill", "LabelText") %in% names(summary))) {
-      labels <- unique(summary[, .(
-        Nest = as.character(Nest),
-        LabelFill = as.character(LabelFill),
-        LabelText = as.character(LabelText)
-      )])
-      labels <- labels[!duplicated(Nest)]
-    }
-  }
-
-  header_fill <- "#dfe5e7"
-  stripe_fill <- "#f1f3f3"
-  white_fill <- "#ffffff"
-  label_inset_y <- 3
-  nest_column <- names(todo_rows)[1]
-
-  label_cell <- function(nest_id, row_fill) {
-    nest_id <- as.character(nest_id)
-    if (is.na(nest_id)) {
-      nest_id <- ""
-    }
-    label_row <- labels[Nest == nest_id][1L]
-    has_label <- nrow(label_row) == 1L &&
-      !is.na(label_row$LabelFill) &&
-      grepl("^#[0-9A-Fa-f]{6}$", label_row$LabelFill) &&
-      !is.na(label_row$LabelText) &&
-      nzchar(label_row$LabelText)
-
-    if (has_label) {
-      glue(
-        'table.cell(fill: rgb("{row_fill}"))[',
-        '  #box(',
-        '    fill: rgb("{label_row$LabelFill}"),',
-        '    stroke: 0.25pt + rgb("#17242d"),',
-        '    radius: 1.8pt,',
-        glue('    inset: (x: 3pt, y: {label_inset_y}pt),'),
-        '  )[',
-        '    #text(fill: rgb("{label_row$LabelText}"))',
-        glue('[#strong[{typst_content(nest_id)}]]'),
-        '  ]',
-        ']'
-      )
-    } else {
-      glue(
-        'table.cell(fill: rgb("{row_fill}"))',
-        glue('[{typst_content(nest_id)}]')
-      )
-    }
-  }
-
-  cells <- vapply(
-    names(todo_rows),
-    function(column) {
-      glue(
-        'table.cell(fill: rgb("{header_fill}"))',
-        glue('[#strong[{typst_content(column)}]]')
-      )
-    },
-    character(1)
-  )
-
-  for (row in seq_len(nrow(todo_rows))) {
-    row_fill <- if (row %% 2L == 0L) stripe_fill else white_fill
-    row_cells <- vapply(
-      names(todo_rows),
-      function(column) {
-        if (identical(column, nest_column)) {
-          return(label_cell(todo_rows[[column]][row], row_fill))
-        }
-        glue(
-          'table.cell(fill: rgb("{row_fill}"))',
-          glue('[{typst_content(todo_rows[[column]][row])}]')
-        )
-      },
-      character(1)
-    )
-    cells <- c(cells, row_cells)
-  }
-
-  c(
-    "```{=typst}",
-    "#set text(size: 8.5pt)",
-    "#table(",
-    "  columns: (8fr, 6fr, 10fr, 9fr, 10fr, 14fr, 14fr, 29fr),",
-    "  align: (center, center, center, center, center, center, center, left),",
-    "  inset: (x: 2.2pt, y: 3pt),",
-    "  stroke: none,",
-    paste0("  ", paste(cells, collapse = ",\n  "), ","),
-    ")",
-    "#set text(size: 9pt)",
-    "```",
-    ""
-  )
-}
-
-
 todo_pdf_body <- function(
   rows,
   team_marks = NULL,
@@ -959,26 +837,17 @@ todo_pdf_body <- function(
         )
       }
 
-      task_table <- if (todo %in% c(
-        "Hiding spot photos needed",
-        "Parent capture",
-        "Parent resighting"
-      )) {
-        todo_pdf_task_table(todo_rows, nest_summary)
-      } else {
-        c(
-          knitr::kable(
-            todo_rows,
-            format = "pipe",
-            align = c(rep("c", ncol(todo_rows) - 1), "l")
-          ),
-          "",
-          ': {tbl-colwidths="[8,6,10,9,10,14,14,29]"}',
-          ""
-        )
-      }
-
-      out <- c(out, task_table)
+      out <- c(
+        out,
+        knitr::kable(
+          todo_rows,
+          format = "pipe",
+          align = c(rep("c", ncol(todo_rows) - 1), "l")
+        ),
+        "",
+        ': {tbl-colwidths="[8,6,10,9,10,14,14,29]"}',
+        ""
+      )
     }
   }
 
