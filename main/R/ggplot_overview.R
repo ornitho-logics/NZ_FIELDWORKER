@@ -570,11 +570,17 @@ overview_tagged_display_mark <- function(
 overview_tagged_resighting_plot <- function(x, date_limits = NULL) {
   x <- data.table(x)
   caption <- paste(
-    "Diamond = geolocator deployment; circles = resightings.",
-    paste(
-      "Limp status is inferred from comments; comments without limp or",
-      "walking information are treated as no limp."
-    )
+    strwrap(
+      paste(
+        "Diamond = geolocator deployment; circles = resightings.",
+        paste(
+          "Limp status is inferred from comments; comments without limp or",
+          "walking information are treated as no limp."
+        )
+      ),
+      width = 54L
+    ),
+    collapse = "\n"
   )
 
   if (!nrow(x)) {
@@ -719,16 +725,20 @@ overview_tagged_resighting_plot <- function(x, date_limits = NULL) {
     labs(x = NULL, caption = caption) +
     overview_date_scale() +
     overview_date_coordinates(date_limits) +
-    guides(fill = guide_legend(nrow = 1, byrow = TRUE)) +
+    guides(fill = guide_legend(ncol = 1, byrow = TRUE)) +
     theme_bw(base_size = 18) +
     theme(
       panel.grid.minor = element_blank(),
       axis.text.x = element_text(angle = 30, hjust = 1),
       legend.position = "bottom",
+      legend.direction = "vertical",
+      legend.title.position = "top",
+      legend.justification = "left",
+      legend.box.just = "left",
       legend.title = element_text(face = "bold"),
       strip.background = element_rect(fill = "white", color = NA),
       strip.text = element_text(face = "bold"),
-      plot.caption = element_text(hjust = 0.5),
+      plot.caption = element_text(hjust = 0, lineheight = 1.1),
       plot.caption.position = "plot"
     )
 }
