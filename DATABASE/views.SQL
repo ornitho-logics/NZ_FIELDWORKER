@@ -3866,7 +3866,13 @@ geo_parent_plan AS (
               deployment_status.female_quota_remaining,
               deployment_status.preferred_balance_sex,
               deployment_status.release_ceiling,
-              capture_age.capture_allowed_after_completion,
+              CASE
+                -- Hatched nests no longer need the clutch-completion gate;
+                -- retain the 36-hour parent-capture gate below.
+                WHEN UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) = 'H'
+                THEN 1
+                ELSE COALESCE(capture_age.capture_allowed_after_completion, 0)
+              END AS capture_allowed_after_completion,
               capture_interval.no_parent_capture_yet,
               capture_interval.any_target_capture_window_open,
               capture_interval.M_target_capture_window_open,
@@ -3949,7 +3955,7 @@ geo_parent_plan AS (
               ON active_nests.nest_id = deployments.nest_id
             CROSS JOIN geo_deployment_status deployment_status
             WHERE (
-                UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I')
+                UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I', 'H')
                 OR (
                   active_nests.hatch_signs_present = 1
                   AND active_nests.latest_float_date IS NULL
@@ -4082,7 +4088,13 @@ todo_untrapped_parent_candidate AS (
     adult_capture_interval_status.any_target_capture_window_open,
     adult_capture_interval_status.M_target_capture_window_open,
     adult_capture_interval_status.F_target_capture_window_open,
-    adult_capture_age_status.capture_allowed_after_completion,
+    CASE
+      -- Hatched nests no longer need the clutch-completion gate; retain the
+      -- 36-hour parent-capture gate below.
+      WHEN UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) = 'H'
+      THEN 1
+      ELSE COALESCE(adult_capture_age_status.capture_allowed_after_completion, 0)
+    END AS capture_allowed_after_completion,
     CASE
       WHEN adult_parent_status.M_unknown_status = 1
         OR adult_parent_status.F_unknown_status = 1
@@ -4293,7 +4305,7 @@ todo_untrapped_parent_candidate AS (
   WHERE (
       active_nests.is_negative_brood = 1
       OR
-      UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I')
+      UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I', 'H')
       OR (
         active_nests.hatch_signs_present = 1
         AND active_nests.latest_float_date IS NULL
@@ -4801,7 +4813,7 @@ todo_mm_parent_resighting_by_sex AS (
     ON active_nests.nest_id = adult_parent_status.nest_id
   WHERE (
       active_nests.is_negative_brood = 1
-      OR UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I')
+      OR UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I', 'H')
       OR (
         active_nests.hatch_signs_present = 1
         AND active_nests.latest_float_date IS NULL
@@ -4934,7 +4946,8 @@ todo_unprocessed_nest AS (
     ON active_nests.nest_id = complete_clutch_processing_status.nest_id
   LEFT JOIN initial_clutch_status
     ON active_nests.nest_id = initial_clutch_status.nest_id
-  WHERE UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I')
+  WHERE UPPER(TRIM(COALESCE(active_nests.species, ''))) = 'BADO'
+    AND UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I')
     AND COALESCE(adult_capture_age_status.clutch_completion_confirmed, 0) = 1
     AND (
       (
@@ -5357,7 +5370,15 @@ FROM (
   SELECT * FROM todo_nota_nest_check
 ) t
 LEFT JOIN geo_parent_plan
-  ON t.nest_id = geo_parent_plan.nest_id;
+  ON t.nest_id = geo_parent_plan.nest_id
+-- WRYB remains available to map/summary consumers, but is not a Cass
+-- operational task in TODO_LIST.
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM FIELD_2026_BADOatNZ.NESTS_LATEST wryb_nest
+  WHERE wryb_nest.nest_id = t.nest_id
+    AND UPPER(TRIM(COALESCE(wryb_nest.species, ''))) = 'WRYB'
+);
 
 
 CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.VIEW_1 AS
