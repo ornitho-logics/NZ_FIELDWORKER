@@ -186,11 +186,15 @@ test_that("overview limp status distinguishes comment evidence", {
       "No limp reported",
       "Possible/slight limp",
       "Limping",
-      "Not assessed",
+      "No limp reported",
       "Limping",
       "No limp reported",
       "No limp reported"
     )
+  )
+  expect_identical(
+    app$env$overview_tagged_mark_label(c("WY_GO_F", "BY_L_M")),
+    c("WY-GO", "BY-L")
   )
 
   mock_histories <- data.frame(

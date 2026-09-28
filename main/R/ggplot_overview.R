@@ -107,7 +107,7 @@ overview_histogram_plot <- function(x, ylab, date_limits = NULL) {
 overview_cumulative_base <- function(ylab) {
   ggplot() +
     labs(
-      x = "Date",
+      x = NULL,
       y = ylab
     ) +
     overview_integer_y_scale() +
@@ -364,7 +364,7 @@ overview_limp_status <- function(comments) {
   comments[is.na(comments)] <- ""
   comments <- gsub("[[:space:]]+", " ", comments)
 
-  normal_gait <- grepl(
+  normal_movement <- grepl(
     paste0(
       "\\b(walk(?:s|ed|ing)?|run(?:s|ning)?)\\b.{0,40}",
       "\\b(well|fine|normal(?:ly)?|great|ok(?:ay)?)\\b|",
@@ -405,8 +405,8 @@ overview_limp_status <- function(comments) {
     perl = TRUE
   )
 
-  status <- rep("Not assessed", length(comments))
-  status[normal_gait] <- "No limp reported"
+  status <- rep("No limp reported", length(comments))
+  status[normal_movement] <- "No limp reported"
   status[limping] <- "Limping"
   status[possible_limp] <- "Possible/slight limp"
   status[explicit_no_limp] <- "No limp reported"
@@ -414,11 +414,20 @@ overview_limp_status <- function(comments) {
 }
 
 
+overview_tagged_mark_label <- function(x) {
+  mark <- sub("_[FM]$", "", x)
+  gsub("_", "-", mark, fixed = TRUE)
+}
+
+
 overview_tagged_resighting_plot <- function(x, date_limits = NULL) {
   x <- data.table(x)
   caption <- paste(
     "Diamond = geolocator deployment; circles = resightings.",
-    "Gait status is inferred from comments; grey = not assessed."
+    paste(
+      "Limp status is inferred from comments; comments without limp or",
+      "walking information are treated as no limp."
+    )
   )
 
   if (!nrow(x)) {
@@ -440,12 +449,16 @@ overview_tagged_resighting_plot <- function(x, date_limits = NULL) {
           y = 0,
           label = "No qualifying tagged-bird histories"
         ) +
-        labs(x = "Date", y = NULL, caption = caption) +
+        labs(x = NULL, y = NULL, caption = caption) +
         overview_date_scale() +
         overview_date_coordinates(plot_limits) +
         scale_y_continuous(breaks = NULL) +
         theme_bw(base_size = 18) +
-        theme(panel.grid = element_blank())
+        theme(
+          panel.grid = element_blank(),
+          plot.caption = element_text(hjust = 0.5),
+          plot.caption.position = "plot"
+        )
     )
   }
 
@@ -478,7 +491,6 @@ overview_tagged_resighting_plot <- function(x, date_limits = NULL) {
   events[, status_rank := match(
     limp_status,
     c(
-      "Not assessed",
       "No limp reported",
       "Possible/slight limp",
       "Limping"
@@ -499,8 +511,7 @@ overview_tagged_resighting_plot <- function(x, date_limits = NULL) {
     levels = c(
       "No limp reported",
       "Possible/slight limp",
-      "Limping",
-      "Not assessed"
+      "Limping"
     )
   )]
 
@@ -537,20 +548,23 @@ overview_tagged_resighting_plot <- function(x, date_limits = NULL) {
       vars(sex),
       nrow = 1,
       scales = "free_y",
-      labeller = as_labeller(c(Female = "F", Male = "M"))
+      labeller = as_labeller(c(Female = "Females", Male = "Males"))
     ) +
-    scale_y_discrete(name = NULL, position = "right") +
+    scale_y_discrete(
+      name = NULL,
+      position = "right",
+      labels = overview_tagged_mark_label
+    ) +
     scale_fill_manual(
-      name = "Comment-derived gait status",
+      name = "Comment-derived limp status",
       values = c(
         "No limp reported" = "#2a9d8f",
         "Possible/slight limp" = "#e9c46a",
-        "Limping" = "#d1495b",
-        "Not assessed" = "#b8b8b8"
+        "Limping" = "#d1495b"
       ),
       drop = FALSE
     ) +
-    labs(x = "Date", caption = caption) +
+    labs(x = NULL, caption = caption) +
     overview_date_scale() +
     overview_date_coordinates(date_limits) +
     guides(fill = guide_legend(nrow = 1, byrow = TRUE)) +
@@ -560,7 +574,10 @@ overview_tagged_resighting_plot <- function(x, date_limits = NULL) {
       axis.text.x = element_text(angle = 30, hjust = 1),
       legend.position = "bottom",
       legend.title = element_text(face = "bold"),
-      plot.caption = element_text(hjust = 0)
+      strip.background = element_rect(fill = "white", color = NA),
+      strip.text = element_text(face = "bold"),
+      plot.caption = element_text(hjust = 0.5),
+      plot.caption.position = "plot"
     )
 }
 
