@@ -46,6 +46,98 @@ test_that("TODO_LIST contains the bounded operational rules", {
 })
 
 
+test_that("MM parent follow-up needs two matching resightings and nest behaviour", {
+  sql <- todo_list_view_sql()
+
+  expect_match(
+    sql,
+    "n_matching_post_mm_resightings",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "COALESCE(followup.n_matching_post_mm_resightings, 0) < 2",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "'(^|[^A-Z])(BW|NM|IN)([^A-Z]|$)'",
+    fixed = TRUE
+  )
+  expect_match(sql, "post_mm_xx_seen", fixed = TRUE)
+
+  matching_followup_resolved <- function(resightings, reference_date) {
+    post_mm <- resightings[
+      resightings$date > as.Date("2026-09-01") &
+        resightings$date <= as.Date(reference_date),
+    ]
+    matching <- toupper(trimws(post_mm$mark)) == "BY-YY"
+    has_nest_behaviour <- grepl(
+      "(^|[^A-Z])(BW|NM|IN)([^A-Z]|$)",
+      toupper(trimws(post_mm$behav)),
+      perl = TRUE
+    )
+    sum(matching) >= 2 && any(matching & has_nest_behaviour)
+  }
+
+  mock_resightings <- data.frame(
+    date = as.Date(c("2026-09-02", "2026-09-03", "2026-09-04")),
+    mark = c("X-X", "BY-YY", "BY-YY"),
+    behav = c("AT", "AT", "BW"),
+    stringsAsFactors = FALSE
+  )
+
+  expect_false(matching_followup_resolved(mock_resightings, "2026-09-03"))
+  expect_true(matching_followup_resolved(mock_resightings, "2026-09-04"))
+
+  one_matching_resighting <- mock_resightings[2:3, ]
+  one_matching_resighting$mark[2] <- "YO-OR"
+  expect_false(
+    matching_followup_resolved(one_matching_resighting, "2026-09-05")
+  )
+})
+
+
+test_that("resolved MM follow-up uses the canonical captured parent mark", {
+  sql <- todo_list_view_sql()
+
+  expect_match(
+    sql,
+    "COALESCE(adult_mm_followup_status.F_mm_resight_pending, 0) = 1",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "adult_parent_identity_status.F_identity_mark",
+    fixed = TRUE
+  )
+
+  displayed_female_mark <- function(
+    followup_pending,
+    mm_capture_mark,
+    identity_mark,
+    post_mm_xx_seen
+  ) {
+    if (isTRUE(followup_pending) && !is.null(mm_capture_mark)) {
+      if (isTRUE(post_mm_xx_seen)) {
+        return(paste(mm_capture_mark, "& X-X"))
+      }
+      return(mm_capture_mark)
+    }
+    identity_mark
+  }
+
+  expect_identical(
+    displayed_female_mark(TRUE, "BY-YY", "BY-YY", TRUE),
+    "BY-YY & X-X"
+  )
+  expect_identical(
+    displayed_female_mark(FALSE, "BY-YY", "BY-YY", TRUE),
+    "BY-YY"
+  )
+})
+
+
 test_that("TODO_LIST stays within the known MariaDB CTE limit", {
   sql <- todo_list_view_sql()
   lines <- strsplit(sql, "\n", fixed = TRUE)[[1]]

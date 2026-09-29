@@ -2927,7 +2927,13 @@ adult_association_resighting_candidates AS (
         OR UPPER(TRIM(COALESCE(r.UR, ''))) REGEXP '^T[A-Z0-9]*$'
       THEN 1
       ELSE 0
-    END AS has_geo
+    END AS has_geo,
+    CASE
+      WHEN UPPER(TRIM(COALESCE(r.behav, ''))) REGEXP
+        '(^|[^A-Z])(BW|NM|IN)([^A-Z]|$)'
+      THEN 1
+      ELSE 0
+    END AS has_matching_nest_behav
   FROM FIELD_2026_BADOatNZ.RESIGHTINGS r
   CROSS JOIN sr
   WHERE r.nest_id IS NOT NULL
@@ -2955,24 +2961,55 @@ adult_mm_post_resighting_ranked AS (
     association.is_confirmed_xx,
     association.has_geo,
     association.association_date,
+    association.pk,
+    CASE
+      WHEN UPPER(TRIM(association.mark)) = UPPER(TRIM(mm.mark))
+      THEN 1
+      ELSE 0
+    END AS identity_match,
+    SUM(
+      CASE
+        WHEN UPPER(TRIM(association.mark)) = UPPER(TRIM(mm.mark))
+        THEN 1
+        ELSE 0
+      END
+    ) OVER (
+      PARTITION BY mm.nest_id, mm.sex
+    ) AS n_matching_post_mm_resightings,
+    MAX(
+      CASE
+        WHEN UPPER(TRIM(association.mark)) = UPPER(TRIM(mm.mark))
+         AND association.has_matching_nest_behav = 1
+        THEN 1
+        ELSE 0
+      END
+    ) OVER (
+      PARTITION BY mm.nest_id, mm.sex
+    ) AS has_matching_nest_behav,
+    MAX(
+      CASE
+        WHEN association.is_confirmed_xx = 1 THEN 1
+        ELSE 0
+      END
+    ) OVER (
+      PARTITION BY mm.nest_id, mm.sex
+    ) AS post_mm_xx_seen,
     ROW_NUMBER() OVER (
       PARTITION BY mm.nest_id, mm.sex
-      ORDER BY association.association_date DESC, association.pk DESC
+      ORDER BY
+        CASE
+          WHEN UPPER(TRIM(association.mark)) = UPPER(TRIM(mm.mark))
+          THEN 1
+          ELSE 0
+        END DESC,
+        association.association_date DESC,
+        association.pk DESC
     ) AS row_num
   FROM adult_mm_capture_latest mm
   JOIN adult_association_resighting_candidates association
     ON mm.nest_id = association.nest_id
    AND mm.sex = association.sex
    AND association.association_date > mm.mm_capture_date
-   AND UPPER(TRIM(association.mark)) = UPPER(TRIM(mm.mark))
-   AND NOT EXISTS (
-     SELECT 1
-     FROM adult_resighting_latest later_xx
-     WHERE later_xx.nest_id = mm.nest_id
-       AND later_xx.sex = mm.sex
-       AND later_xx.is_confirmed_xx = 1
-       AND later_xx.obs_date > association.association_date
-   )
 ),
 adult_mm_post_resighting_latest AS (
   SELECT
@@ -2981,20 +3018,60 @@ adult_mm_post_resighting_latest AS (
     mark,
     is_confirmed_xx,
     has_geo,
-    association_date
+    association_date,
+    identity_match,
+    n_matching_post_mm_resightings,
+    has_matching_nest_behav,
+    post_mm_xx_seen
   FROM adult_mm_post_resighting_ranked
   WHERE row_num = 1
 ),
 adult_mm_followup_status AS (
   SELECT
     mm.nest_id,
-    MAX(CASE WHEN mm.sex = 'M' AND followup.nest_id IS NULL THEN 1 ELSE 0 END)
+    MAX(
+      CASE
+        WHEN mm.sex = 'M'
+         AND (
+           COALESCE(followup.n_matching_post_mm_resightings, 0) < 2
+           OR COALESCE(followup.has_matching_nest_behav, 0) = 0
+         )
+        THEN 1
+        ELSE 0
+      END
+    )
       AS M_mm_resight_pending,
-    MAX(CASE WHEN mm.sex = 'F' AND followup.nest_id IS NULL THEN 1 ELSE 0 END)
+    MAX(
+      CASE
+        WHEN mm.sex = 'F'
+         AND (
+           COALESCE(followup.n_matching_post_mm_resightings, 0) < 2
+           OR COALESCE(followup.has_matching_nest_behav, 0) = 0
+         )
+        THEN 1
+        ELSE 0
+      END
+    )
       AS F_mm_resight_pending,
-    MAX(CASE WHEN mm.sex = 'M' AND followup.nest_id IS NOT NULL THEN 1 ELSE 0 END)
+    MAX(
+      CASE
+        WHEN mm.sex = 'M'
+         AND COALESCE(followup.n_matching_post_mm_resightings, 0) >= 2
+         AND COALESCE(followup.has_matching_nest_behav, 0) = 1
+        THEN 1
+        ELSE 0
+      END
+    )
       AS M_mm_followup_found,
-    MAX(CASE WHEN mm.sex = 'F' AND followup.nest_id IS NOT NULL THEN 1 ELSE 0 END)
+    MAX(
+      CASE
+        WHEN mm.sex = 'F'
+         AND COALESCE(followup.n_matching_post_mm_resightings, 0) >= 2
+         AND COALESCE(followup.has_matching_nest_behav, 0) = 1
+        THEN 1
+        ELSE 0
+      END
+    )
       AS F_mm_followup_found,
     MAX(CASE WHEN mm.sex = 'M' THEN followup.mark END) AS M_mm_followup_mark,
     MAX(CASE WHEN mm.sex = 'F' THEN followup.mark END) AS F_mm_followup_mark,
@@ -3009,8 +3086,7 @@ adult_mm_followup_status AS (
     MAX(
       CASE
         WHEN mm.sex = 'M'
-         AND latest_resighting.is_confirmed_xx = 1
-         AND latest_resighting.obs_date > mm.mm_capture_date
+         AND followup.post_mm_xx_seen = 1
          AND mm.mark IS NOT NULL
          AND mm.mark <> 'X-X'
          AND LOWER(TRIM(mm.mark)) <> 'dead'
@@ -3021,8 +3097,7 @@ adult_mm_followup_status AS (
     MAX(
       CASE
         WHEN mm.sex = 'F'
-         AND latest_resighting.is_confirmed_xx = 1
-         AND latest_resighting.obs_date > mm.mm_capture_date
+         AND followup.post_mm_xx_seen = 1
          AND mm.mark IS NOT NULL
          AND mm.mark <> 'X-X'
          AND LOWER(TRIM(mm.mark)) <> 'dead'
@@ -3034,9 +3109,6 @@ adult_mm_followup_status AS (
   LEFT JOIN adult_mm_post_resighting_latest followup
     ON mm.nest_id = followup.nest_id
    AND mm.sex = followup.sex
-  LEFT JOIN adult_resighting_latest latest_resighting
-    ON mm.nest_id = latest_resighting.nest_id
-   AND mm.sex = latest_resighting.sex
   GROUP BY mm.nest_id
 ),
 scrape_parent_identity AS (
