@@ -2988,6 +2988,16 @@ adult_mm_post_resighting_ranked AS (
     ) AS has_matching_nest_behav,
     MAX(
       CASE
+        WHEN association.is_confirmed_xx = 1
+         AND association.has_matching_nest_behav = 1
+        THEN 1
+        ELSE 0
+      END
+    ) OVER (
+      PARTITION BY mm.nest_id, mm.sex
+    ) AS has_xx_nest_behav,
+    MAX(
+      CASE
         WHEN association.is_confirmed_xx = 1 THEN 1
         ELSE 0
       END
@@ -3022,6 +3032,7 @@ adult_mm_post_resighting_latest AS (
     identity_match,
     n_matching_post_mm_resightings,
     has_matching_nest_behav,
+    has_xx_nest_behav,
     post_mm_xx_seen
   FROM adult_mm_post_resighting_ranked
   WHERE row_num = 1
@@ -3034,8 +3045,10 @@ adult_mm_followup_status AS (
         WHEN mm.sex = 'M'
          AND (
            COALESCE(followup.n_matching_post_mm_resightings, 0) = 0
+           AND COALESCE(followup.has_xx_nest_behav, 0) = 0
            OR (
              COALESCE(followup.has_matching_nest_behav, 0) = 0
+             AND COALESCE(followup.has_xx_nest_behav, 0) = 0
              AND COALESCE(followup.n_matching_post_mm_resightings, 0) < 3
            )
          )
@@ -3049,8 +3062,10 @@ adult_mm_followup_status AS (
         WHEN mm.sex = 'F'
          AND (
            COALESCE(followup.n_matching_post_mm_resightings, 0) = 0
+           AND COALESCE(followup.has_xx_nest_behav, 0) = 0
            OR (
              COALESCE(followup.has_matching_nest_behav, 0) = 0
+             AND COALESCE(followup.has_xx_nest_behav, 0) = 0
              AND COALESCE(followup.n_matching_post_mm_resightings, 0) < 3
            )
          )
@@ -3093,6 +3108,22 @@ adult_mm_followup_status AS (
       AS F_mm_followup_confirmed_xx,
     MAX(CASE WHEN mm.sex = 'M' THEN followup.has_geo END) AS M_mm_followup_has_geo,
     MAX(CASE WHEN mm.sex = 'F' THEN followup.has_geo END) AS F_mm_followup_has_geo,
+    MAX(
+      CASE
+        WHEN mm.sex = 'M'
+         AND followup.has_xx_nest_behav = 1
+        THEN 1
+        ELSE 0
+      END
+    ) AS M_mm_xx_parent_confirmed,
+    MAX(
+      CASE
+        WHEN mm.sex = 'F'
+         AND followup.has_xx_nest_behav = 1
+        THEN 1
+        ELSE 0
+      END
+    ) AS F_mm_xx_parent_confirmed,
     MAX(CASE WHEN mm.sex = 'M' THEN mm.mark END) AS M_mm_capture_mark,
     MAX(CASE WHEN mm.sex = 'F' THEN mm.mark END) AS F_mm_capture_mark,
     MAX(
@@ -3190,6 +3221,11 @@ adult_parent_status AS (
   SELECT
     todo_parent_source.nest_id,
     CASE
+      WHEN COALESCE(
+             adult_mm_followup_status.M_mm_xx_parent_confirmed,
+             0
+           ) = 1
+      THEN 'X-X'
       WHEN COALESCE(adult_mm_followup_status.M_mm_resight_pending, 0) = 1
        AND adult_mm_followup_status.M_mm_capture_mark IS NOT NULL
       THEN CASE
@@ -3230,6 +3266,11 @@ adult_parent_status AS (
       )
     END AS M_parent_mark,
     CASE
+      WHEN COALESCE(
+             adult_mm_followup_status.F_mm_xx_parent_confirmed,
+             0
+           ) = 1
+      THEN 'X-X'
       WHEN COALESCE(adult_mm_followup_status.F_mm_resight_pending, 0) = 1
        AND adult_mm_followup_status.F_mm_capture_mark IS NOT NULL
       THEN CASE
@@ -3301,20 +3342,30 @@ adult_parent_status AS (
       )
     END AS F_single_colour_recruit,
     CASE
+      WHEN COALESCE(
+             adult_mm_followup_status.M_mm_xx_parent_confirmed,
+             0
+           ) = 1
+      THEN 1
       WHEN COALESCE(adult_mm_followup_status.M_mm_resight_pending, 0) = 1
       THEN 0
       ELSE COALESCE(adult_parent_identity_status.M_identity_confirmed_xx, 0)
     END AS M_confirmed_unbanded,
     CASE
+      WHEN COALESCE(
+             adult_mm_followup_status.F_mm_xx_parent_confirmed,
+             0
+           ) = 1
+      THEN 1
       WHEN COALESCE(adult_mm_followup_status.F_mm_resight_pending, 0) = 1
       THEN 0
       ELSE COALESCE(adult_parent_identity_status.F_identity_confirmed_xx, 0)
     END AS F_confirmed_unbanded,
     CASE
-      -- A mark from an MM capture is not a confirmed nest association.
-      -- Keep the sex operationally unknown until the MM follow-up resolves.
+      -- MM association uncertainty is handled by the resighting task below;
+      -- it must not make this sex a capture candidate.
       WHEN COALESCE(adult_mm_followup_status.M_mm_resight_pending, 0) = 1
-      THEN 1
+      THEN 0
       WHEN COALESCE(
              adult_parent_identity_status.M_identity_mark,
              todo_parent_source.M_mark
@@ -3323,9 +3374,9 @@ adult_parent_status AS (
       ELSE 0
     END AS M_unknown_status,
     CASE
-      -- A mark from an MM capture is not a confirmed nest association.
+      -- Keep MM follow-up separate from ordinary unknown-status capture work.
       WHEN COALESCE(adult_mm_followup_status.F_mm_resight_pending, 0) = 1
-      THEN 1
+      THEN 0
       WHEN COALESCE(
              adult_parent_identity_status.F_identity_mark,
              todo_parent_source.F_mark
@@ -4482,18 +4533,8 @@ todo_untrapped_parent AS (
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
            AND COALESCE(capture_interval_open, 0) = 1
-          THEN CASE
-            WHEN COALESCE(F_mm_resight_pending, 0) = 1
-             AND NULLIF(TRIM(F_mark), '') IS NOT NULL
-            THEN 'resight/band F (MM cap); band X-X M'
-            ELSE 'resight/band F; band X-X M'
-          END
-          ELSE CASE
-            WHEN COALESCE(F_mm_resight_pending, 0) = 1
-             AND NULLIF(TRIM(F_mark), '') IS NOT NULL
-            THEN 'resight F (MM cap)'
-            ELSE 'resight F'
-          END
+          THEN 'resight/band F; band X-X M'
+          ELSE 'resight F'
         END,
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
@@ -4507,7 +4548,7 @@ todo_untrapped_parent AS (
       )
       WHEN COALESCE(M_confirmed_unbanded, 0) = 1
        AND COALESCE(F_unknown_status, 0) = 0
-       AND NULLIF(TRIM(F_mark), '') IS NOT NULL
+       AND F_mark IS NOT NULL
       THEN CONCAT(
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
@@ -4544,18 +4585,8 @@ todo_untrapped_parent AS (
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
            AND COALESCE(capture_interval_open, 0) = 1
-          THEN CASE
-            WHEN COALESCE(M_mm_resight_pending, 0) = 1
-             AND NULLIF(TRIM(M_mark), '') IS NOT NULL
-            THEN 'band X-X F; resight/band M (MM cap)'
-            ELSE 'band X-X F; resight/band M'
-          END
-          ELSE CASE
-            WHEN COALESCE(M_mm_resight_pending, 0) = 1
-             AND NULLIF(TRIM(M_mark), '') IS NOT NULL
-            THEN 'resight M (MM cap)'
-            ELSE 'resight M'
-          END
+          THEN 'band X-X F; resight/band M'
+          ELSE 'resight M'
         END,
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
@@ -4647,36 +4678,8 @@ todo_untrapped_parent AS (
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
            AND COALESCE(capture_interval_open, 0) = 1
-          THEN CONCAT(
-            CASE
-              WHEN COALESCE(M_mm_resight_pending, 0) = 1
-               AND NULLIF(TRIM(M_mark), '') IS NOT NULL
-              THEN 'resight/band M (MM cap)'
-              ELSE 'resight/band M (status ?)'
-            END,
-            '; ',
-            CASE
-              WHEN COALESCE(F_mm_resight_pending, 0) = 1
-               AND NULLIF(TRIM(F_mark), '') IS NOT NULL
-              THEN 'resight/band F (MM cap)'
-              ELSE 'resight/band F (status ?)'
-            END
-          )
-          ELSE CONCAT(
-            CASE
-              WHEN COALESCE(M_mm_resight_pending, 0) = 1
-               AND NULLIF(TRIM(M_mark), '') IS NOT NULL
-              THEN 'resight M (MM cap)'
-              ELSE 'resight M (status ?)'
-            END,
-            '; ',
-            CASE
-              WHEN COALESCE(F_mm_resight_pending, 0) = 1
-               AND NULLIF(TRIM(F_mark), '') IS NOT NULL
-              THEN 'resight F (MM cap)'
-              ELSE 'resight F (status ?)'
-            END
-          )
+          THEN 'resight/band any (status ?)'
+          ELSE 'resight any (status ?)'
         END,
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
@@ -4694,18 +4697,8 @@ todo_untrapped_parent AS (
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
            AND COALESCE(capture_interval_open, 0) = 1
-          THEN CASE
-            WHEN COALESCE(M_mm_resight_pending, 0) = 1
-             AND NULLIF(TRIM(M_mark), '') IS NOT NULL
-            THEN 'resight/band M (MM cap; F w/GEO)'
-            ELSE 'resight/band M (F w/GEO)'
-          END
-          ELSE CASE
-            WHEN COALESCE(M_mm_resight_pending, 0) = 1
-             AND NULLIF(TRIM(M_mark), '') IS NOT NULL
-            THEN 'resight M (MM cap; F w/GEO)'
-            ELSE 'resight M (F w/GEO)'
-          END
+          THEN 'resight/band M (F w/GEO)'
+          ELSE 'resight M (F w/GEO)'
         END,
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
@@ -4723,18 +4716,8 @@ todo_untrapped_parent AS (
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
            AND COALESCE(capture_interval_open, 0) = 1
-          THEN CASE
-            WHEN COALESCE(F_mm_resight_pending, 0) = 1
-             AND NULLIF(TRIM(F_mark), '') IS NOT NULL
-            THEN 'resight/band F (MM cap; M w/GEO)'
-            ELSE 'resight/band F (M w/GEO)'
-          END
-          ELSE CASE
-            WHEN COALESCE(F_mm_resight_pending, 0) = 1
-             AND NULLIF(TRIM(F_mark), '') IS NOT NULL
-            THEN 'resight F (MM cap; M w/GEO)'
-            ELSE 'resight F (M w/GEO)'
-          END
+          THEN 'resight/band F (M w/GEO)'
+          ELSE 'resight F (M w/GEO)'
         END,
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
@@ -4751,18 +4734,8 @@ todo_untrapped_parent AS (
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
            AND COALESCE(capture_interval_open, 0) = 1
-          THEN CASE
-            WHEN COALESCE(M_mm_resight_pending, 0) = 1
-             AND NULLIF(TRIM(M_mark), '') IS NOT NULL
-            THEN 'resight/band M (MM cap)'
-            ELSE 'resight/band M (status ?)'
-          END
-          ELSE CASE
-            WHEN COALESCE(M_mm_resight_pending, 0) = 1
-             AND NULLIF(TRIM(M_mark), '') IS NOT NULL
-            THEN 'resight M (MM cap)'
-            ELSE 'resight M (status ?)'
-          END
+          THEN 'resight/band M (status ?)'
+          ELSE 'resight M (status ?)'
         END,
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
@@ -4779,18 +4752,8 @@ todo_untrapped_parent AS (
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
            AND COALESCE(capture_interval_open, 0) = 1
-          THEN CASE
-            WHEN COALESCE(F_mm_resight_pending, 0) = 1
-             AND NULLIF(TRIM(F_mark), '') IS NOT NULL
-            THEN 'resight/band F (MM cap)'
-            ELSE 'resight/band F (status ?)'
-          END
-          ELSE CASE
-            WHEN COALESCE(F_mm_resight_pending, 0) = 1
-             AND NULLIF(TRIM(F_mark), '') IS NOT NULL
-            THEN 'resight F (MM cap)'
-            ELSE 'resight F (status ?)'
-          END
+          THEN 'resight/band F (status ?)'
+          ELSE 'resight F (status ?)'
         END,
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1

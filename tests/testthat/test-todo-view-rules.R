@@ -189,12 +189,12 @@ test_that("hatch-stage parent work bypasses the clutch-age gate", {
 })
 
 
-test_that("pending MM parents retain known marks in capture notes", {
+test_that("pending MM parents stay in resighting rather than capture work", {
   sql <- todo_list_view_sql()
 
   expect_match(
     sql,
-    "WHEN COALESCE(adult_mm_followup_status.M_mm_resight_pending, 0) = 1\n      THEN 1",
+    "WHEN COALESCE(adult_mm_followup_status.M_mm_resight_pending, 0) = 1\n      THEN 0",
     fixed = TRUE
   )
   expect_match(
@@ -208,53 +208,36 @@ test_that("pending MM parents retain known marks in capture notes", {
     fixed = TRUE
   )
   expect_no_match(sql, "AND followup.nest_id IS NULL", fixed = TRUE)
-  expect_match(sql, "resight/band M (status ?)", fixed = TRUE)
-  expect_match(sql, "resight/band M (MM cap)", fixed = TRUE)
-  expect_match(sql, "M_mm_resight_pending, 0) = 1\n             AND NULLIF(TRIM(M_mark), '') IS NOT NULL", fixed = TRUE)
-  expect_match(sql, "F_mm_resight_pending, 0) = 1\n             AND NULLIF(TRIM(F_mark), '') IS NOT NULL", fixed = TRUE)
+  expect_no_match(sql, "'resight/band M (MM cap)'", fixed = TRUE)
+  expect_match(sql, "' had MM cap'", fixed = TRUE)
+  expect_match(sql, "has_xx_nest_behav", fixed = TRUE)
+  expect_match(sql, "M_mm_xx_parent_confirmed", fixed = TRUE)
+  expect_match(
+    sql,
+    "WHEN COALESCE(\n             adult_mm_followup_status.M_mm_xx_parent_confirmed,\n             0\n           ) = 1\n      THEN 'X-X'",
+    fixed = TRUE
+  )
 
   mm_followup_pending <- function(n_matching, has_nest_behaviour) {
     n_matching == 0L ||
       (!isTRUE(has_nest_behaviour) && n_matching < 3L)
   }
 
-  parent_note <- function(
-    mm_pending,
-    mark = NULL,
-    capture_allowed = TRUE,
-    capture_interval_open = TRUE
-  ) {
-    if (isTRUE(mm_pending)) {
-      if (capture_allowed && capture_interval_open) {
-        if (!is.null(mark)) {
-          return("resight/band M (MM cap)")
-        }
-        return("resight/band M (status ?)")
-      }
-      if (!is.null(mark)) {
-        return("resight M (MM cap)")
-      }
-      return("resight M (status ?)")
-    }
-    ""
+  capture_candidate <- function(mm_pending, unknown_status) {
+    isTRUE(unknown_status) && !isTRUE(mm_pending)
+  }
+
+  xx_parent_confirmed <- function(is_xx, has_nest_behaviour) {
+    isTRUE(is_xx) && isTRUE(has_nest_behaviour)
   }
 
   expect_true(mm_followup_pending(1L, FALSE))
   expect_false(mm_followup_pending(1L, TRUE))
   expect_false(mm_followup_pending(3L, FALSE))
-  expect_identical(
-    parent_note(TRUE, mark = "BY-TY.L"),
-    "resight/band M (MM cap)"
-  )
-  expect_identical(parent_note(TRUE), "resight/band M (status ?)")
-  expect_identical(
-    parent_note(TRUE, mark = "BY-TY.L", capture_interval_open = FALSE),
-    "resight M (MM cap)"
-  )
-  expect_identical(
-    parent_note(TRUE, capture_interval_open = FALSE),
-    "resight M (status ?)"
-  )
+  expect_false(capture_candidate(TRUE, TRUE))
+  expect_true(capture_candidate(FALSE, TRUE))
+  expect_true(xx_parent_confirmed(TRUE, TRUE))
+  expect_false(xx_parent_confirmed(TRUE, FALSE))
 })
 
 
