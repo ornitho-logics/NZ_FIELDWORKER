@@ -61,3 +61,16 @@ test_that("dbview_is_updated keeps unmapped views stable", {
     glue::glue("UNMAPPED_VIEW:unmapped")
   )
 })
+
+
+test_that("RDS database downloads do not materialize SQL views", {
+  env <- new.env(parent = globalenv())
+  env$glue <- glue::glue
+
+  source_app_file(app_file("main", "R", "system_utils.R"), env)
+
+  dump_body <- paste(deparse(body(env$dump_schema)), collapse = "\n")
+
+  expect_match(dump_body, "table_type = 'BASE TABLE'", fixed = TRUE)
+  expect_no_match(dump_body, "'VIEW'", fixed = TRUE)
+})

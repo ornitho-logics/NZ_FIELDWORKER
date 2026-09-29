@@ -213,6 +213,8 @@ dump_schema <- function(schema, path = tempfile(fileext = ".rds")) {
 
   schema_sql <- DBI::dbQuoteString(con, schema)
 
+  # Views are derived from these tables and may be too complex to materialize
+  # inside a web download request. The SQL download preserves their definitions.
   tabs <- DBI::dbGetQuery(
     con,
     glue(
@@ -220,7 +222,7 @@ dump_schema <- function(schema, path = tempfile(fileext = ".rds")) {
       SELECT table_name
       FROM information_schema.tables
       WHERE table_schema = {schema_sql}
-        AND table_type IN ('BASE TABLE', 'VIEW')
+        AND table_type = 'BASE TABLE'
       ORDER BY table_name
       "
     )
