@@ -484,6 +484,22 @@ overview_limp_status <- function(comments) {
   comments[is.na(comments)] <- ""
   comments <- gsub("[[:space:]]+", " ", comments)
 
+  structured_no_limp <- grepl(
+    "\\blimp\\s*[:=]?\\s*0\\b",
+    comments,
+    perl = TRUE
+  )
+  structured_slight_limp <- grepl(
+    "\\blimp\\s*[:=]?\\s*1\\b",
+    comments,
+    perl = TRUE
+  )
+  structured_severe_limp <- grepl(
+    "\\blimp\\s*[:=]?\\s*2\\b",
+    comments,
+    perl = TRUE
+  )
+
   normal_movement <- grepl(
     paste0(
       "\\b(walk(?:s|ed|ing)?|run(?:s|ning)?)\\b.{0,40}",
@@ -530,6 +546,9 @@ overview_limp_status <- function(comments) {
   status[limping] <- "Limping"
   status[possible_limp] <- "Possible/slight limp"
   status[explicit_no_limp] <- "No limp reported"
+  status[structured_no_limp] <- "No limp reported"
+  status[structured_slight_limp] <- "Possible/slight limp"
+  status[structured_severe_limp] <- "Severe limp"
   status
 }
 
@@ -574,8 +593,8 @@ overview_tagged_resighting_plot <- function(x, date_limits = NULL) {
       paste(
         "Diamond = geolocator deployment; circles = resightings.",
         paste(
-          "Limp status is inferred from comments; comments without limp or",
-          "walking information are treated as no limp."
+          "limp0, limp1, and limp2 are used directly; older comments are",
+          "interpreted from text, and no limp information is treated as no limp."
         )
       ),
       width = 54L
@@ -623,6 +642,15 @@ overview_tagged_resighting_plot <- function(x, date_limits = NULL) {
     return(overview_tagged_resighting_plot(data.table(), date_limits))
   }
 
+  tagged_date_limits <- c(
+    min(x$deployment_date) - 2L,
+    if (is.null(date_limits)) {
+      max(c(x$deployment_date, x$resighting_date), na.rm = TRUE)
+    } else {
+      as.Date(date_limits)[2]
+    }
+  )
+
   x[, display_mark := overview_tagged_display_mark(
     tarsus_mark,
     right_upper,
@@ -651,7 +679,8 @@ overview_tagged_resighting_plot <- function(x, date_limits = NULL) {
     c(
       "No limp reported",
       "Possible/slight limp",
-      "Limping"
+      "Limping",
+      "Severe limp"
     )
   )]
   setorder(
@@ -669,7 +698,8 @@ overview_tagged_resighting_plot <- function(x, date_limits = NULL) {
     levels = c(
       "No limp reported",
       "Possible/slight limp",
-      "Limping"
+      "Limping",
+      "Severe limp"
     )
   )]
 
@@ -702,10 +732,10 @@ overview_tagged_resighting_plot <- function(x, date_limits = NULL) {
       stroke = 0.7,
       inherit.aes = FALSE
     ) +
-    facet_wrap(
-      vars(sex),
-      ncol = 1,
+    facet_grid(
+      rows = vars(sex),
       scales = "free_y",
+      space = "free_y",
       labeller = as_labeller(c(Female = "Females", Male = "Males"))
     ) +
     scale_y_discrete(
@@ -718,13 +748,14 @@ overview_tagged_resighting_plot <- function(x, date_limits = NULL) {
       values = c(
         "No limp reported" = "#2a9d8f",
         "Possible/slight limp" = "#e9c46a",
-        "Limping" = "#d1495b"
+        "Limping" = "#d1495b",
+        "Severe limp" = "#7f0000"
       ),
       drop = FALSE
     ) +
     labs(x = NULL, caption = caption) +
     overview_date_scale() +
-    overview_date_coordinates(date_limits) +
+    overview_date_coordinates(tagged_date_limits) +
     guides(fill = guide_legend(ncol = 1, byrow = TRUE)) +
     theme_bw(base_size = 18) +
     theme(
