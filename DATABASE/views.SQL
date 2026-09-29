@@ -4482,8 +4482,18 @@ todo_untrapped_parent AS (
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
            AND COALESCE(capture_interval_open, 0) = 1
-          THEN 'resight/band F; band X-X M'
-          ELSE 'resight F'
+          THEN CASE
+            WHEN COALESCE(F_mm_resight_pending, 0) = 1
+             AND NULLIF(TRIM(F_mark), '') IS NOT NULL
+            THEN 'resight/band F (MM cap); band X-X M'
+            ELSE 'resight/band F; band X-X M'
+          END
+          ELSE CASE
+            WHEN COALESCE(F_mm_resight_pending, 0) = 1
+             AND NULLIF(TRIM(F_mark), '') IS NOT NULL
+            THEN 'resight F (MM cap)'
+            ELSE 'resight F'
+          END
         END,
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
@@ -4497,7 +4507,7 @@ todo_untrapped_parent AS (
       )
       WHEN COALESCE(M_confirmed_unbanded, 0) = 1
        AND COALESCE(F_unknown_status, 0) = 0
-       AND F_mark IS NOT NULL
+       AND NULLIF(TRIM(F_mark), '') IS NOT NULL
       THEN CONCAT(
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
@@ -4534,8 +4544,18 @@ todo_untrapped_parent AS (
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
            AND COALESCE(capture_interval_open, 0) = 1
-          THEN 'band X-X F; resight/band M'
-          ELSE 'resight M'
+          THEN CASE
+            WHEN COALESCE(M_mm_resight_pending, 0) = 1
+             AND NULLIF(TRIM(M_mark), '') IS NOT NULL
+            THEN 'band X-X F; resight/band M (MM cap)'
+            ELSE 'band X-X F; resight/band M'
+          END
+          ELSE CASE
+            WHEN COALESCE(M_mm_resight_pending, 0) = 1
+             AND NULLIF(TRIM(M_mark), '') IS NOT NULL
+            THEN 'resight M (MM cap)'
+            ELSE 'resight M'
+          END
         END,
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
@@ -4627,8 +4647,36 @@ todo_untrapped_parent AS (
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
            AND COALESCE(capture_interval_open, 0) = 1
-          THEN 'resight/band any (status ?)'
-          ELSE 'resight any (status ?)'
+          THEN CONCAT(
+            CASE
+              WHEN COALESCE(M_mm_resight_pending, 0) = 1
+               AND NULLIF(TRIM(M_mark), '') IS NOT NULL
+              THEN 'resight/band M (MM cap)'
+              ELSE 'resight/band M (status ?)'
+            END,
+            '; ',
+            CASE
+              WHEN COALESCE(F_mm_resight_pending, 0) = 1
+               AND NULLIF(TRIM(F_mark), '') IS NOT NULL
+              THEN 'resight/band F (MM cap)'
+              ELSE 'resight/band F (status ?)'
+            END
+          )
+          ELSE CONCAT(
+            CASE
+              WHEN COALESCE(M_mm_resight_pending, 0) = 1
+               AND NULLIF(TRIM(M_mark), '') IS NOT NULL
+              THEN 'resight M (MM cap)'
+              ELSE 'resight M (status ?)'
+            END,
+            '; ',
+            CASE
+              WHEN COALESCE(F_mm_resight_pending, 0) = 1
+               AND NULLIF(TRIM(F_mark), '') IS NOT NULL
+              THEN 'resight F (MM cap)'
+              ELSE 'resight F (status ?)'
+            END
+          )
         END,
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
@@ -4646,8 +4694,18 @@ todo_untrapped_parent AS (
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
            AND COALESCE(capture_interval_open, 0) = 1
-          THEN 'resight/band M (F w/GEO)'
-          ELSE 'resight M (F w/GEO)'
+          THEN CASE
+            WHEN COALESCE(M_mm_resight_pending, 0) = 1
+             AND NULLIF(TRIM(M_mark), '') IS NOT NULL
+            THEN 'resight/band M (MM cap; F w/GEO)'
+            ELSE 'resight/band M (F w/GEO)'
+          END
+          ELSE CASE
+            WHEN COALESCE(M_mm_resight_pending, 0) = 1
+             AND NULLIF(TRIM(M_mark), '') IS NOT NULL
+            THEN 'resight M (MM cap; F w/GEO)'
+            ELSE 'resight M (F w/GEO)'
+          END
         END,
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
@@ -4665,8 +4723,18 @@ todo_untrapped_parent AS (
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
            AND COALESCE(capture_interval_open, 0) = 1
-          THEN 'resight/band F (M w/GEO)'
-          ELSE 'resight F (M w/GEO)'
+          THEN CASE
+            WHEN COALESCE(F_mm_resight_pending, 0) = 1
+             AND NULLIF(TRIM(F_mark), '') IS NOT NULL
+            THEN 'resight/band F (MM cap; M w/GEO)'
+            ELSE 'resight/band F (M w/GEO)'
+          END
+          ELSE CASE
+            WHEN COALESCE(F_mm_resight_pending, 0) = 1
+             AND NULLIF(TRIM(F_mark), '') IS NOT NULL
+            THEN 'resight F (MM cap; M w/GEO)'
+            ELSE 'resight F (M w/GEO)'
+          END
         END,
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
@@ -4683,8 +4751,18 @@ todo_untrapped_parent AS (
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
            AND COALESCE(capture_interval_open, 0) = 1
-          THEN 'resight/band M (status ?)'
-          ELSE 'resight M (status ?)'
+          THEN CASE
+            WHEN COALESCE(M_mm_resight_pending, 0) = 1
+             AND NULLIF(TRIM(M_mark), '') IS NOT NULL
+            THEN 'resight/band M (MM cap)'
+            ELSE 'resight/band M (status ?)'
+          END
+          ELSE CASE
+            WHEN COALESCE(M_mm_resight_pending, 0) = 1
+             AND NULLIF(TRIM(M_mark), '') IS NOT NULL
+            THEN 'resight M (MM cap)'
+            ELSE 'resight M (status ?)'
+          END
         END,
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
@@ -4701,8 +4779,18 @@ todo_untrapped_parent AS (
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
            AND COALESCE(capture_interval_open, 0) = 1
-          THEN 'resight/band F (status ?)'
-          ELSE 'resight F (status ?)'
+          THEN CASE
+            WHEN COALESCE(F_mm_resight_pending, 0) = 1
+             AND NULLIF(TRIM(F_mark), '') IS NOT NULL
+            THEN 'resight/band F (MM cap)'
+            ELSE 'resight/band F (status ?)'
+          END
+          ELSE CASE
+            WHEN COALESCE(F_mm_resight_pending, 0) = 1
+             AND NULLIF(TRIM(F_mark), '') IS NOT NULL
+            THEN 'resight F (MM cap)'
+            ELSE 'resight F (status ?)'
+          END
         END,
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
