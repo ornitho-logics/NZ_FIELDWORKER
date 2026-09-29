@@ -50,7 +50,7 @@ test_that("PDF includes the main-version footer", {
   app <- load_main_app()
   qmd <- app$env$todo_pdf_qmd(
     pdf = list(
-      title = "To-do",
+      title = "Cass To-Dos for 2026-09-30",
       rows = data.table::data.table(),
       team_marks = data.table::data.table(),
       nest_summary = data.table::data.table(),
@@ -61,6 +61,9 @@ test_that("PDF includes the main-version footer", {
   )
   qmd_text <- paste(qmd, collapse = "\n")
 
+  expect_true(grepl("#set page(header:", qmd_text, fixed = TRUE))
+  expect_true(grepl("Cass To-Dos for 2026-09-30", qmd_text, fixed = TRUE))
+  expect_false(grepl('title: "Cass To-Dos for 2026-09-30"', qmd_text, fixed = TRUE))
   expect_true(grepl("#set page(footer:", qmd_text, fixed = TRUE))
   expect_true(grepl(
     "version e28b7dd - 21:56 CEST Sep 29, 2026",
