@@ -3009,7 +3009,7 @@ adult_mm_post_resighting_ranked AS (
   JOIN adult_association_resighting_candidates association
     ON mm.nest_id = association.nest_id
    AND mm.sex = association.sex
-   AND association.association_date > mm.mm_capture_date
+   AND association.association_date >= mm.mm_capture_date
 ),
 adult_mm_post_resighting_latest AS (
   SELECT
@@ -3033,8 +3033,11 @@ adult_mm_followup_status AS (
       CASE
         WHEN mm.sex = 'M'
          AND (
-           COALESCE(followup.n_matching_post_mm_resightings, 0) < 2
-           OR COALESCE(followup.has_matching_nest_behav, 0) = 0
+           COALESCE(followup.n_matching_post_mm_resightings, 0) = 0
+           OR (
+             COALESCE(followup.has_matching_nest_behav, 0) = 0
+             AND COALESCE(followup.n_matching_post_mm_resightings, 0) < 3
+           )
          )
         THEN 1
         ELSE 0
@@ -3045,8 +3048,11 @@ adult_mm_followup_status AS (
       CASE
         WHEN mm.sex = 'F'
          AND (
-           COALESCE(followup.n_matching_post_mm_resightings, 0) < 2
-           OR COALESCE(followup.has_matching_nest_behav, 0) = 0
+           COALESCE(followup.n_matching_post_mm_resightings, 0) = 0
+           OR (
+             COALESCE(followup.has_matching_nest_behav, 0) = 0
+             AND COALESCE(followup.n_matching_post_mm_resightings, 0) < 3
+           )
          )
         THEN 1
         ELSE 0
@@ -3056,8 +3062,11 @@ adult_mm_followup_status AS (
     MAX(
       CASE
         WHEN mm.sex = 'M'
-         AND COALESCE(followup.n_matching_post_mm_resightings, 0) >= 2
-         AND COALESCE(followup.has_matching_nest_behav, 0) = 1
+         AND COALESCE(followup.n_matching_post_mm_resightings, 0) >= 1
+         AND (
+           COALESCE(followup.has_matching_nest_behav, 0) = 1
+           OR COALESCE(followup.n_matching_post_mm_resightings, 0) >= 3
+         )
         THEN 1
         ELSE 0
       END
@@ -3066,8 +3075,11 @@ adult_mm_followup_status AS (
     MAX(
       CASE
         WHEN mm.sex = 'F'
-         AND COALESCE(followup.n_matching_post_mm_resightings, 0) >= 2
-         AND COALESCE(followup.has_matching_nest_behav, 0) = 1
+         AND COALESCE(followup.n_matching_post_mm_resightings, 0) >= 1
+         AND (
+           COALESCE(followup.has_matching_nest_behav, 0) = 1
+           OR COALESCE(followup.n_matching_post_mm_resightings, 0) >= 3
+         )
         THEN 1
         ELSE 0
       END
