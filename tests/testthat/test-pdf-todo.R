@@ -63,6 +63,11 @@ test_that("PDF includes the main-version footer", {
 
   expect_true(grepl("#set page(header:", qmd_text, fixed = TRUE))
   expect_true(grepl("Cass To-Dos for 2026-09-30", qmd_text, fixed = TRUE))
+  expect_true(grepl(
+    '#text(size: 18pt, weight: "bold"',
+    qmd_text,
+    fixed = TRUE
+  ))
   expect_false(grepl('title: "Cass To-Dos for 2026-09-30"', qmd_text, fixed = TRUE))
   expect_true(grepl("#set page(footer:", qmd_text, fixed = TRUE))
   expect_true(grepl(
@@ -90,6 +95,29 @@ test_that("PDF note key includes only definitions used by task notes", {
   expect_false(grepl("FO marker", observed, fixed = TRUE))
   expect_false(grepl("M/F w/GEO", observed, fixed = TRUE))
   expect_false(grepl("Status ?", observed, fixed = TRUE))
+
+  revised_key <- paste(
+    note_key(c(
+      "tag M (pair completion)",
+      "resight M; MM cap; status ?"
+    )),
+    collapse = "\n"
+  )
+  expect_true(grepl(
+    "Captured with mobile mist net. Three subsequent nest-linked resightings with matching sex and identity confirms association OR a single nest-linked resighting with behav 'IN', 'NM', or 'BW'.",
+    revised_key,
+    fixed = TRUE
+  ))
+  expect_true(grepl(
+    "Prioritize tagging the eligible untagged mate so that both pair members are tagged",
+    revised_key,
+    fixed = TRUE
+  ))
+  expect_true(grepl(
+    "Identity or X-X status is unknown.",
+    revised_key,
+    fixed = TRUE
+  ))
 })
 
 
@@ -229,6 +257,41 @@ test_that("PDF rows normalize negative broods and collapse duplicate tasks", {
   expect_identical(unique(observed$State), "NA")
   expect_identical(unique(observed$`Clutch–Brood`), "NA–3")
   expect_identical(unique(observed$Female), "")
+})
+
+
+test_that("B0208 unresolved brood size is displayed as unknown", {
+  app <- load_main_app()
+  prepare <- app$env$todo_pdf_prepare
+
+  todo <- data.frame(
+    nest_id = c("B0208", "B0208", "B0209"),
+    reference_date = as.Date(rep("2026-09-30", 3)),
+    todo = c("Parent capture", "Parent resighting", "Parent capture"),
+    notes = rep("mock task", 3),
+    nest_state = c("H", "H", "H"),
+    clutch_size = c(3, 3, 3),
+    brood_size = c(0, 0, 0),
+    min_days_to_hatch = c(-1, -1, -1),
+    last_visit_days_ago = c(1, 1, 1),
+    M_mark = NA,
+    F_mark = NA,
+    stringsAsFactors = FALSE
+  )
+
+  observed <- prepare(
+    todo = todo,
+    available_combos = data.frame(mark = paste0("MOCK-", seq_len(30)))
+  )$rows
+
+  expect_identical(
+    observed$`Clutch–Brood`[observed$Nest == "B0208"],
+    c("3–?", "3–?")
+  )
+  expect_identical(
+    observed$`Clutch–Brood`[observed$Nest == "B0209"],
+    "3–0"
+  )
 })
 
 
