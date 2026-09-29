@@ -3956,6 +3956,8 @@ geo_parent_plan AS (
               parent_status.F_has_geo,
               parent_status.M_captured_has_geo,
               parent_status.F_captured_has_geo,
+              parent_status.M_mm_resight_pending,
+              parent_status.F_mm_resight_pending,
               parent_status.both_parents_need_geo,
               parent_status.M_is_au_migrant,
               parent_status.F_is_au_migrant,
