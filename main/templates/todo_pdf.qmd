@@ -23,4 +23,8 @@ execute:
 #show heading.where(level: 2): set block(above: 0.8em, below: 0.4em)
 ```
 
+```{=typst}
+{{ footer }}
+```
+
 {{ body }}

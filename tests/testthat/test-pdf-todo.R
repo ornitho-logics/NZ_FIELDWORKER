@@ -46,6 +46,30 @@ test_that("tagged-bird follow-up table is included in the PDF body", {
 })
 
 
+test_that("PDF includes the main-version footer", {
+  app <- load_main_app()
+  qmd <- app$env$todo_pdf_qmd(
+    pdf = list(
+      title = "To-do",
+      rows = data.table::data.table(),
+      team_marks = data.table::data.table(),
+      nest_summary = data.table::data.table(),
+      unseen_tagged_birds = data.table::data.table()
+    ),
+    map_file = NULL,
+    template = app_file("main/templates/todo_pdf.qmd")
+  )
+  qmd_text <- paste(qmd, collapse = "\n")
+
+  expect_true(grepl("#set page(footer:", qmd_text, fixed = TRUE))
+  expect_true(grepl(
+    "version e28b7dd - 21:56 CEST Sep 29, 2026",
+    qmd_text,
+    fixed = TRUE
+  ))
+})
+
+
 test_that("PDF note key includes only definitions used by task notes", {
   app <- load_main_app()
   note_key <- app$env$todo_pdf_note_key

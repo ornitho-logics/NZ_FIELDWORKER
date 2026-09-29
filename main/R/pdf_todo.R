@@ -71,6 +71,12 @@ todo_pdf_as_numeric <- function(x) {
 }
 
 
+todo_pdf_version_footer <- function() {
+  # This identifies the main-branch baseline used to produce the PDF.
+  "version e28b7dd - 21:56 CEST Sep 29, 2026"
+}
+
+
 todo_pdf_prepare_unseen_tagged_birds <- function(view_1) {
   output_columns <- c("Mark", "Sex", "Nest", "Days Since Cap")
   empty_output <- function() {
@@ -1085,6 +1091,9 @@ todo_pdf_qmd <- function(
       switch(
         line,
         "{{ title }}" = glue('title: "{pdf$title}"'),
+        "{{ footer }}" = glue(
+          '#set page(footer: context [#align(right)[#text(size: 6pt, fill: rgb("#7b858b"))[{todo_pdf_version_footer()}]]])'
+        ),
         "{{ body }}" = body,
         line
       )
