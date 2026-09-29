@@ -252,9 +252,15 @@ test_that("pending MM parents stay in resighting rather than capture work", {
   expect_match(sql, "' had MM cap'", fixed = TRUE)
   expect_match(sql, "has_xx_nest_behav", fixed = TRUE)
   expect_match(sql, "xx_nest_behav_date", fixed = TRUE)
+  expect_match(sql, "matching_post_mm_resight_date", fixed = TRUE)
   expect_match(
     sql,
     "later_capture.capture_date >= followup.xx_nest_behav_date",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "followup.matching_post_mm_resight_date\n              <= followup.xx_nest_behav_date",
     fixed = TRUE
   )
   expect_match(sql, "M_mm_xx_parent_confirmed", fixed = TRUE)
@@ -279,10 +285,30 @@ test_that("pending MM parents stay in resighting rather than capture work", {
 
   xx_parent_remains_confirmed <- function(
     xx_behaviour_date,
-    later_banded_capture_date = NA
+    later_banded_capture_date = NA,
+    later_matching_resight_date = NA
   ) {
-    is.na(later_banded_capture_date) ||
+    capture_is_before_xx <- is.na(later_banded_capture_date) ||
       as.Date(later_banded_capture_date) < as.Date(xx_behaviour_date)
+    matching_resight_is_not_later <- is.na(later_matching_resight_date) ||
+      as.Date(later_matching_resight_date) <= as.Date(xx_behaviour_date)
+    capture_is_before_xx && matching_resight_is_not_later
+  }
+
+  displayed_mm_parent_mark <- function(
+    capture_mark,
+    xx_behaviour_date,
+    later_banded_capture_date = NA,
+    later_matching_resight_date = NA
+  ) {
+    if (xx_parent_remains_confirmed(
+      xx_behaviour_date,
+      later_banded_capture_date,
+      later_matching_resight_date
+    )) {
+      return("X-X")
+    }
+    capture_mark
   }
 
   expect_true(mm_followup_pending(1L, FALSE))
@@ -298,6 +324,20 @@ test_that("pending MM parents stay in resighting rather than capture work", {
   )
   expect_false(
     xx_parent_remains_confirmed("2026-09-01", "2026-09-02")
+  )
+  expect_false(
+    xx_parent_remains_confirmed(
+      "2026-09-25",
+      later_matching_resight_date = "2026-09-26"
+    )
+  )
+  expect_identical(
+    displayed_mm_parent_mark(
+      "BY-TY.YW",
+      "2026-09-25",
+      later_matching_resight_date = "2026-09-26"
+    ),
+    "BY-TY.YW"
   )
 })
 
