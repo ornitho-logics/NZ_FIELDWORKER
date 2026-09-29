@@ -71,6 +71,12 @@ todo_pdf_as_numeric <- function(x) {
 }
 
 
+todo_pdf_version_footer <- function() {
+  # This identifies the main-branch baseline used to produce the PDF.
+  "version e28b7dd - 21:56 CEST Sep 29, 2026"
+}
+
+
 todo_pdf_prepare_unseen_tagged_birds <- function(view_1) {
   output_columns <- c("Mark", "Sex", "Nest", "Days Since Cap")
   empty_output <- function() {
@@ -131,6 +137,82 @@ todo_pdf_prepare_unseen_tagged_birds <- function(view_1) {
     Nest = fifelse(is.na(nest_id), "", nest_id),
     `Days Since Cap` = as.character(days_since_cap)
   )]
+}
+
+todo_pdf_parent_task_marks <- function(todo) {
+  output_columns <- c("Nest", "M_todo_mark", "F_todo_mark")
+  empty_output <- function() {
+    data.table(setNames(
+      rep(list(character()), length(output_columns)),
+      output_columns
+    ))
+  }
+
+  todo_dt <- data.table(todo)
+  parent_todos <- c("Untrapped parent", "Parent capture", "Parent resighting")
+  parent_mark_columns <- c("M_mark", "F_mark")
+  if (
+    !nrow(todo_dt)
+      || !all(c("nest_id", "todo", parent_mark_columns) %in% names(todo_dt))
+  ) {
+    return(empty_output())
+  }
+
+  parent_marks <- todo_dt[
+    todo %chin% parent_todos
+      & !is.na(nest_id)
+      & nzchar(trimws(as.character(nest_id))),
+    c(
+      list(Nest = trimws(as.character(nest_id))),
+      lapply(.SD, function(x) {
+        x <- trimws(as.character(x))
+        x[
+          is.na(x)
+            | !nzchar(x)
+            | toupper(x) %chin% c("NULL", "NA")
+        ] <- NA_character_
+        x
+      })
+    ),
+    .SDcols = parent_mark_columns
+  ]
+  if (!nrow(parent_marks)) {
+    return(empty_output())
+  }
+
+  # Parent task rows already contain the resolved adult_parent_status result.
+  # Prefer a composite mark because it preserves an informative identity plus
+  # a later/alternative X-X association used by the operational task tables.
+  parent_marks <- melt(
+    parent_marks,
+    id.vars = "Nest",
+    variable.name = "sex_mark",
+    value.name = "mark",
+    na.rm = TRUE
+  )
+  parent_marks[, mark_rank := fifelse(
+    grepl("&", mark, fixed = TRUE),
+    2L,
+    1L
+  )]
+  parent_marks[, mark_length := nchar(mark)]
+  setorder(parent_marks, Nest, sex_mark, -mark_rank, -mark_length, mark)
+  parent_marks <- parent_marks[, .SD[1L], by = .(Nest, sex_mark)]
+  parent_marks <- dcast(
+    parent_marks,
+    Nest ~ sex_mark,
+    value.var = "mark"
+  )
+  setnames(
+    parent_marks,
+    old = intersect(parent_mark_columns, names(parent_marks)),
+    new = sub(
+      "_mark$",
+      "_todo_mark",
+      intersect(parent_mark_columns, names(parent_marks))
+    )
+  )
+  parent_marks[]
 }
 
 
@@ -208,64 +290,16 @@ todo_pdf_prepare_nest_summary <- function(
   todo_dt <- data.table(todo)
   check_todos <- c("Clutch check", "Unprocessed nest", "nest check")
   if (nrow(todo_dt) && all(c("nest_id", "todo") %in% names(todo_dt))) {
-    parent_todos <- c("Untrapped parent", "Parent capture", "Parent resighting")
-    parent_mark_columns <- c("M_mark", "F_mark")
-    if (all(parent_mark_columns %in% names(todo_dt))) {
-      parent_marks <- todo_dt[
-        todo %chin% parent_todos &
-          !is.na(nest_id) &
-          nzchar(trimws(as.character(nest_id))),
-        c(
-          list(Nest = trimws(as.character(nest_id))),
-          lapply(.SD, function(x) {
-            x <- trimws(as.character(x))
-            x[
-              is.na(x)
-                | !nzchar(x)
-                | toupper(x) == "NULL"
-            ] <- NA_character_
-            x
-          })
-        ),
-        .SDcols = parent_mark_columns
-      ]
-
-      if (nrow(parent_marks)) {
-        parent_marks <- melt(
-          parent_marks,
-          id.vars = "Nest",
-          variable.name = "sex_mark",
-          value.name = "mark",
-          na.rm = TRUE
-        )
-        parent_marks[, mark_rank := fifelse(
-          grepl("\\s&\\s", mark),
-          2L,
-          1L
-        )]
-        parent_marks[, mark_length := nchar(mark)]
-        setorder(parent_marks, Nest, sex_mark, -mark_rank, -mark_length, mark)
-        parent_marks <- parent_marks[, .SD[1L], by = .(Nest, sex_mark)]
-        parent_marks <- dcast(
-          parent_marks,
-          Nest ~ sex_mark,
-          value.var = "mark"
-        )
-        setnames(
-          parent_marks,
-          old = intersect(parent_mark_columns, names(parent_marks)),
-          new = sub("_mark$", "_todo_mark", intersect(parent_mark_columns, names(parent_marks)))
-        )
-
-        summary <- merge(summary, parent_marks, by = "Nest", all.x = TRUE, sort = FALSE)
-        if ("M_todo_mark" %in% names(summary)) {
-          summary[!is.na(M_todo_mark), Male := M_todo_mark]
-          summary[, M_todo_mark := NULL]
-        }
-        if ("F_todo_mark" %in% names(summary)) {
-          summary[!is.na(F_todo_mark), Female := F_todo_mark]
-          summary[, F_todo_mark := NULL]
-        }
+    parent_marks <- todo_pdf_parent_task_marks(todo_dt)
+    if (nrow(parent_marks)) {
+      summary <- merge(summary, parent_marks, by = "Nest", all.x = TRUE, sort = FALSE)
+      if ("M_todo_mark" %in% names(summary)) {
+        summary[!is.na(M_todo_mark), Male := M_todo_mark]
+        summary[, M_todo_mark := NULL]
+      }
+      if ("F_todo_mark" %in% names(summary)) {
+        summary[!is.na(F_todo_mark), Female := F_todo_mark]
+        summary[, F_todo_mark := NULL]
       }
     }
 
@@ -1057,6 +1091,9 @@ todo_pdf_qmd <- function(
       switch(
         line,
         "{{ title }}" = glue('title: "{pdf$title}"'),
+        "{{ footer }}" = glue(
+          '#set page(footer: context [#align(right)[#text(size: 6pt, fill: rgb("#7b858b"))[{todo_pdf_version_footer()}]]])'
+        ),
         "{{ body }}" = body,
         line
       )

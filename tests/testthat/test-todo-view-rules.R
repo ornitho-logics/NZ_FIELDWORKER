@@ -162,6 +162,71 @@ test_that("MM parent follow-up accepts qualifying behaviour or three matching re
 })
 
 
+test_that("MM identity matching can use LL and LR without UL or UR", {
+  sql <- todo_list_view_sql()
+
+  expect_match(sql, "adult_mm_post_resighting_matched", fixed = TRUE)
+  expect_match(sql, "mm.LL_norm IS NOT NULL", fixed = TRUE)
+  expect_match(sql, "association.LL_obs = mm.LL_norm", fixed = TRUE)
+  expect_match(sql, "association.LR_obs = mm.LR_norm", fixed = TRUE)
+  expect_match(sql, "requires_spacer_identity", fixed = TRUE)
+  expect_match(sql, "'CP19738'", fixed = TRUE)
+  expect_match(sql, "'CP19739'", fixed = TRUE)
+  expect_match(sql, "'CP19693'", fixed = TRUE)
+  expect_match(sql, "'CP19848'", fixed = TRUE)
+
+  mm_identity_match <- function(
+    mm_ll,
+    mm_lr,
+    mm_mark,
+    resighting_ll,
+    resighting_lr,
+    resighting_mark,
+    requires_spacer_identity = FALSE
+  ) {
+    if (isTRUE(requires_spacer_identity)) {
+      return(identical(toupper(trimws(mm_mark)), toupper(trimws(resighting_mark))))
+    }
+    !is.na(mm_ll) && !is.na(mm_lr) &&
+      !is.na(resighting_ll) && !is.na(resighting_lr) &&
+      identical(resighting_ll, mm_ll) &&
+      identical(resighting_lr, mm_lr)
+  }
+
+  # A missing UL/UR does not prevent a complete lower-leg match.
+  expect_true(
+    mm_identity_match(
+      "BY", "OL", "YO-TO.OL", "BY", "OL", "BY-OL"
+    )
+  )
+  # A different lower-leg combination remains a non-match.
+  expect_false(
+    mm_identity_match(
+      "BY", "OL", "YO-TO.OL", "BY", "OY", "BY-OY"
+    )
+  )
+  # Missing LL or LR cannot establish the identity.
+  expect_false(
+    mm_identity_match(
+      "BY", "OL", "YO-TO.OL", NA_character_, "OL", "-OL"
+    )
+  )
+  # The four approved single-LR birds still require the spacer-inclusive mark.
+  expect_false(
+    mm_identity_match(
+      "BY", "L", "BY-TY.L", "BY", "L", "BY-L",
+      requires_spacer_identity = TRUE
+    )
+  )
+  expect_true(
+    mm_identity_match(
+      "BY", "L", "BY-TY.L", "BY", "L", "BY-TY.L",
+      requires_spacer_identity = TRUE
+    )
+  )
+})
+
+
 test_that("hatched brood task Hatch values use the recorded H date", {
   sql <- todo_list_view_sql()
 
@@ -288,6 +353,12 @@ test_that("pending MM parents stay in resighting rather than capture work", {
   expect_no_match(sql, "'resight/band M (MM cap)'", fixed = TRUE)
   expect_match(sql, "' had MM cap'", fixed = TRUE)
   expect_match(sql, "has_xx_nest_behav", fixed = TRUE)
+  expect_match(sql, "matched.has_nest_behav = 1", fixed = TRUE)
+  expect_no_match(
+    sql,
+    "association.is_confirmed_xx = 1\n         AND association.has_matching_nest_behav = 1",
+    fixed = TRUE
+  )
   expect_match(sql, "xx_nest_behav_date", fixed = TRUE)
   expect_match(sql, "matching_post_mm_resight_date", fixed = TRUE)
   expect_match(
@@ -306,6 +377,21 @@ test_that("pending MM parents stay in resighting rather than capture work", {
     "WHEN COALESCE(\n             adult_mm_followup_status.M_mm_xx_parent_confirmed,\n             0\n           ) = 1\n      THEN 'X-X'",
     fixed = TRUE
   )
+
+  alternate_xx_parent <- function(
+    is_xx,
+    has_nest_behaviour,
+    later_non_xx_capture = FALSE
+  ) {
+    isTRUE(is_xx) &&
+      isTRUE(has_nest_behaviour) &&
+      !isTRUE(later_non_xx_capture)
+  }
+
+  # A different X-X bird with IN is a confirmed alternate parent after MM.
+  expect_true(alternate_xx_parent(TRUE, TRUE))
+  expect_false(alternate_xx_parent(TRUE, FALSE))
+  expect_false(alternate_xx_parent(TRUE, TRUE, TRUE))
 
   mm_followup_pending <- function(n_matching, has_nest_behaviour) {
     n_matching == 0L ||
@@ -384,12 +470,12 @@ test_that("pair completion requires a confirmed GEO association", {
 
   expect_match(
     sql,
-    "COALESCE(base.F_captured_has_geo, 0) = 1\n                   AND COALESCE(base.F_mm_resight_pending, 0) = 0",
+    "COALESCE(base.F_captured_has_geo, 0) = 1\n                   AND (\n                     COALESCE(base.F_mm_resight_pending, 0) = 0\n                     OR COALESCE(base.M_confirmed_unbanded, 0) = 1\n                   )",
     fixed = TRUE
   )
   expect_match(
     sql,
-    "COALESCE(base.M_captured_has_geo, 0) = 1\n                   AND COALESCE(base.M_mm_resight_pending, 0) = 0",
+    "COALESCE(base.M_captured_has_geo, 0) = 1\n                   AND (\n                     COALESCE(base.M_mm_resight_pending, 0) = 0\n                     OR COALESCE(base.F_confirmed_unbanded, 0) = 1\n                   )",
     fixed = TRUE
   )
 
@@ -528,6 +614,108 @@ test_that("one tagged parent produces pair completion without deployment-date ga
     ),
     NULL
   )
+})
+
+
+test_that("confirmed X-X alternate parent can complete a tagged pair", {
+  sql <- todo_list_view_sql()
+
+  expect_match(
+    sql,
+    "COALESCE(base.M_captured_has_geo, 0) = 1\n                   AND (\n                     COALESCE(base.M_mm_resight_pending, 0) = 0\n                     OR COALESCE(base.F_confirmed_unbanded, 0) = 1\n                   )",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "COALESCE(base.F_captured_has_geo, 0) = 1\n                   AND (\n                     COALESCE(base.F_mm_resight_pending, 0) = 0\n                     OR COALESCE(base.M_confirmed_unbanded, 0) = 1\n                   )",
+    fixed = TRUE
+  )
+  expect_match(sql, "THEN 'X-X F'", fixed = TRUE)
+
+  pair_completion_target <- function(
+    target_sex,
+    target_is_xx,
+    opposite_captured_has_geo,
+    opposite_mm_pending,
+    target_tag_eligible = TRUE,
+    target_quota_remaining = 1
+  ) {
+    alternate_parent_resolves <- target_is_xx && opposite_mm_pending
+    if (
+      target_sex == "F" &&
+        target_tag_eligible &&
+        target_quota_remaining > 0 &&
+        opposite_captured_has_geo &&
+        (!opposite_mm_pending || alternate_parent_resolves)
+    ) {
+      return("F")
+    }
+    NULL
+  }
+
+  pair_note <- function(target_sex, target_mark) {
+    target_label <- if (identical(target_mark, "X-X")) {
+      paste("X-X", target_sex)
+    } else {
+      target_sex
+    }
+    paste0("tag ", target_label, " (pair completion)")
+  }
+
+  expect_identical(
+    pair_completion_target("F", TRUE, TRUE, TRUE),
+    "F"
+  )
+  expect_identical(
+    pair_note("F", "X-X"),
+    "tag X-X F (pair completion)"
+  )
+  expect_null(
+    pair_completion_target("F", TRUE, TRUE, TRUE, target_tag_eligible = FALSE)
+  )
+  expect_null(
+    pair_completion_target("F", TRUE, FALSE, TRUE)
+  )
+})
+
+
+test_that("live X-X after a dead MM capture remains GEO eligible", {
+  sql <- todo_list_view_sql()
+
+  expect_match(
+    sql,
+    "COALESCE(parent_status.M_is_dead, 0) = 0\n                   OR (\n                     COALESCE(parent_status.M_mm_xx_parent_confirmed, 0) = 1\n                     AND COALESCE(parent_status.M_confirmed_unbanded, 0) = 1\n                     AND COALESCE(parent_status.M_mm_resight_pending, 0) = 0\n                   )",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "AS M_mm_xx_parent_confirmed",
+    fixed = TRUE
+  )
+
+  tag_eligible <- function(
+    is_dead,
+    mm_xx_parent_confirmed,
+    confirmed_unbanded,
+    mm_resight_pending = FALSE
+  ) {
+    !isTRUE(mm_resight_pending) &&
+      (
+        !isTRUE(is_dead) ||
+          (
+            isTRUE(mm_xx_parent_confirmed) &&
+              isTRUE(confirmed_unbanded) &&
+              !isTRUE(mm_resight_pending)
+          )
+      )
+  }
+
+  # C0217-like chronology: dead MM capture, then live X-X with IN.
+  expect_true(tag_eligible(TRUE, TRUE, TRUE))
+  # A dead parent without a later qualifying live X-X remains ineligible.
+  expect_false(tag_eligible(TRUE, FALSE, FALSE))
+  # Pending MM uncertainty still blocks tag deployment.
+  expect_false(tag_eligible(TRUE, TRUE, TRUE, mm_resight_pending = TRUE))
 })
 
 
