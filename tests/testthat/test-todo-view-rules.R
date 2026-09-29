@@ -25,7 +25,7 @@ todo_list_view_sql <- function() {
 test_that("TODO_LIST contains the bounded operational rules", {
   sql <- todo_list_view_sql()
 
-  expect_match(sql, "IN ('F', 'I', 'H')", fixed = TRUE)
+  expect_match(sql, "IN ('F', 'I', 'H', 'PP', 'PD')", fixed = TRUE)
   expect_match(
     sql,
     "WHEN UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) = 'H'",

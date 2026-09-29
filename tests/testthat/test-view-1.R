@@ -71,7 +71,7 @@ test_that("VIEW_1 uses stable cohort and collision-safe identity rules", {
   )
   expect_match(
     sql,
-    "UPPER(TRIM(COALESCE(c.tag_action, ''))) IN ('D', 'N')",
+    "UPPER(TRIM(COALESCE(raw_capture.tag_action, ''))) IN ('D', 'N')",
     fixed = TRUE
   )
   expect_no_match(sql, "IN ('D', 'S', 'N')", fixed = TRUE)
@@ -88,7 +88,7 @@ test_that("VIEW_1 uses stable cohort and collision-safe identity rules", {
   )
   expect_match(
     sql,
-    "FIELD_2026_BADOatNZ.format_mark(r.UL, r.LL, r.UR, r.LR)",
+    "FIELD_2026_BADOatNZ.format_mark(",
     fixed = TRUE
   )
   expect_match(sql, "latest_nest.nest_id AS nest_id", fixed = TRUE)
@@ -99,11 +99,108 @@ test_that("VIEW_1 uses stable cohort and collision-safe identity rules", {
 })
 
 
+test_that("VIEW_1 canonicalizes GEO spacer identities and fails closed when ambiguous", {
+  sql <- view_1_sql()
+
+  expect_match(sql, "capture_mark_versions AS (", fixed = TRUE)
+  expect_match(sql, "capture_mark_identity_values AS (", fixed = TRUE)
+  expect_match(sql, "resighting_mark_identities AS (", fixed = TRUE)
+  expect_match(
+    sql,
+    "COALESCE(NULLIF(TRIM(c.LL), ''), NULLIF(TRIM(c.LL_in), ''))",
+    fixed = TRUE
+  )
+  expect_match(sql, "versions.UR_norm REGEXP '^T[A-Z]$'", fixed = TRUE)
+  expect_match(sql, "SUBSTRING(versions.UR_norm, 2)", fixed = TRUE)
+  expect_match(sql, "resighting.UR_norm IS NULL", fixed = TRUE)
+  expect_match(sql, "alias_partial_owner_counts", fixed = TRUE)
+  expect_match(sql, "resighting.sex_key = alias.sex_key", fixed = TRUE)
+
+  canonical_mark <- function(ll, ur, lr) {
+    if (
+      !is.na(lr) && nchar(lr) == 1L
+        && !is.na(ur) && grepl("^T[A-Z]$", ur)
+        && substr(ur, 2L, 2L) %notin% c("X", "M")
+    ) {
+      return(paste0(ifelse(is.na(ll) || !nzchar(ll), "X", ll), "-", substr(ur, 2L, 2L), ".", lr))
+    }
+    paste0(ifelse(is.na(ll) || !nzchar(ll), "X", ll), "-", ifelse(is.na(ur) || !nzchar(ur), "X", ur), ".", ifelse(is.na(lr) || !nzchar(lr), "X", lr))
+  }
+  `%notin%` <- Negate(`%in%`)
+
+  captures <- data.frame(
+    bird_id = c("MOCK-M-Y", "MOCK-M-G", "MOCK-F-Y", "MOCK-MULTI"),
+    sex_key = c("M", "M", "F", "M"),
+    LL = c("BY", "BY", "BY", "BY"),
+    UR = c("TY", "TG", "TY", "TY"),
+    LR = c("L", "L", "L", "LG"),
+    cap_date = as.Date(c("2026-09-01", "2026-09-01", "2026-09-01", "2026-09-01")),
+    stringsAsFactors = FALSE
+  )
+  captures$mark_key <- mapply(canonical_mark, captures$LL, captures$UR, captures$LR)
+
+  resightings <- data.frame(
+    event = c("before-reference", "future", "ambiguous-no-UR", "female-exact"),
+    sex_key = c("M", "M", NA, "F"),
+    LL = c("BY", "BY", "BY", "BY"),
+    UR = c("TY", "TY", NA, "TY"),
+    LR = c("L", "L", "L", "L"),
+    date = as.Date(c("2026-09-10", "2026-09-30", "2026-09-10", "2026-09-10")),
+    stringsAsFactors = FALSE
+  )
+  reference_date <- as.Date("2026-09-15")
+  resightings <- resightings[resightings$date <= reference_date, , drop = FALSE]
+
+  expect_identical(
+    captures$mark_key,
+    c("BY-Y.L", "BY-G.L", "BY-Y.L", "BY-TY.LG")
+  )
+  expect_identical(resightings$event, c("before-reference", "ambiguous-no-UR", "female-exact"))
+
+  mock_match <- function(resighting, captures) {
+    if (is.na(resighting$UR)) {
+      candidates <- captures[
+        captures$LL == resighting$LL & captures$LR == resighting$LR,
+        ,
+        drop = FALSE
+      ]
+      if (!is.na(resighting$sex_key)) {
+        candidates <- candidates[candidates$sex_key == resighting$sex_key, , drop = FALSE]
+      }
+      return(if (nrow(candidates) == 1L) candidates$bird_id else character())
+    }
+
+    candidates <- captures[captures$mark_key == canonical_mark(
+      resighting$LL,
+      resighting$UR,
+      resighting$LR
+    ), , drop = FALSE]
+    if (!is.na(resighting$sex_key)) {
+      candidates <- candidates[candidates$sex_key == resighting$sex_key, , drop = FALSE]
+    }
+    if (nrow(candidates) == 1L) candidates$bird_id else character()
+  }
+
+  expect_length(mock_match(resightings[resightings$event == "ambiguous-no-UR", ], captures), 0L)
+  expect_identical(
+    mock_match(resightings[resightings$event == "female-exact", ], captures),
+    "MOCK-F-Y"
+  )
+  expect_identical(
+    mock_match(
+      data.frame(sex_key = "M", LL = "BY", UR = "TY", LR = "L"),
+      captures
+    ),
+    "MOCK-M-Y"
+  )
+})
+
+
 test_that("VIEW_1 uses reference-date and distinct-day aggregations", {
   sql <- view_1_sql()
 
   expect_match(sql, "HAVING COUNT(*) = 1", fixed = TRUE)
-  expect_match(sql, "r.date >= bird.cap_date", fixed = TRUE)
+  expect_match(sql, "resighting.resighting_date >= bird.cap_date", fixed = TRUE)
   expect_match(sql, "r.date <= reference.reference_date", fixed = TRUE)
   expect_match(
     sql,

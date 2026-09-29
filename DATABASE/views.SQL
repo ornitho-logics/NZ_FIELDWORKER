@@ -322,7 +322,7 @@ nest_state_summary AS (
     n.nest_id,
     MAX(
       CASE
-        WHEN UPPER(TRIM(COALESCE(n.nest_state, ''))) IN ('F', 'I') THEN 1
+        WHEN UPPER(TRIM(COALESCE(n.nest_state, ''))) IN ('F', 'I', 'PP', 'PD') THEN 1
         ELSE 0
       END
     ) AS has_found_or_incubated_state
@@ -1052,7 +1052,7 @@ positive_units AS (
   CROSS JOIN sr
   WHERE p.row_num = 1
     AND NOT (
-      UPPER(TRIM(COALESCE(p.nest_state, ''))) IN ('NOTA', 'P', 'PD', 'D')
+      UPPER(TRIM(COALESCE(p.nest_state, ''))) IN ('NOTA', 'P', 'D')
       AND h.has_hatch_evidence = 0
     )
     AND NOT (
@@ -1965,7 +1965,11 @@ latest_float_status AS (
     CAST(
       AVG(p.predicted_days_since_laying + p.days_since_float)
       AS DECIMAL(6,1)
-    ) AS average_ref_date_days_since_laid
+    ) AS average_ref_date_days_since_laid,
+    CAST(
+      ROUND(AVG(p.min_days_to_hatch), 0)
+      AS SIGNED
+    ) AS min_days_to_hatch
   FROM FIELD_2026_BADOatNZ.EGGS_HATCH_PREDICTION p
   JOIN latest_float_dates d
     ON p.nest_id = d.nest_id
@@ -2067,7 +2071,10 @@ latest_nests AS (
         initial_clutch_status.inferred_hatch_date,
         sr.reference_date
       )
-      ELSE n.min_days_to_hatch
+      ELSE COALESCE(
+        latest_float_status.min_days_to_hatch,
+        n.min_days_to_hatch
+      )
     END AS min_days_to_hatch,
     n.nest_photo,
     n.tent_photo,
@@ -2087,8 +2094,10 @@ active_nests AS (
   SELECT DISTINCT
     n.*
   FROM latest_nests n
+  -- pP and pD are uncertain and remain operationally active like I until a
+  -- definitive fate or hatch state is recorded.
   WHERE n.nest_state IS NULL
-    OR n.nest_state NOT IN ('pP', 'pD', 'P', 'D', 'notA')
+    OR UPPER(TRIM(COALESCE(n.nest_state, ''))) NOT IN ('P', 'D', 'NOTA')
 ),
 nest_history AS (
   SELECT DISTINCT
@@ -2108,7 +2117,7 @@ first_processable_visit AS (
       CAST(CONCAT(date, ' ', COALESCE(time_visit, '00:00:00')) AS DATETIME)
     ) AS first_processable_datetime
   FROM nest_history
-  WHERE nest_state IN ('F', 'I')
+  WHERE UPPER(TRIM(COALESCE(nest_state, ''))) IN ('F', 'I', 'PP', 'PD')
   GROUP BY nest_id
 ),
 photo_summary AS (
@@ -2215,8 +2224,8 @@ nest_discovery AS (
   SELECT
     nest_id,
     COALESCE(
-      MIN(CASE WHEN nest_state = 'F' THEN date END),
-      MIN(CASE WHEN nest_state = 'I' THEN date END),
+      MIN(CASE WHEN UPPER(TRIM(COALESCE(nest_state, ''))) = 'F' THEN date END),
+      MIN(CASE WHEN UPPER(TRIM(COALESCE(nest_state, ''))) IN ('I', 'PP', 'PD') THEN date END),
       MIN(date)
     ) AS first_found_date
   FROM nest_history
@@ -2312,7 +2321,7 @@ nota_followup_nests AS (
   SELECT
     n.*
   FROM latest_nests n
-  WHERE n.nest_state IN ('pP', 'pD', 'P', 'D')
+  WHERE UPPER(TRIM(COALESCE(n.nest_state, ''))) IN ('P', 'D')
      OR (
        n.nest_state = 'H'
        AND COALESCE(n.clutch_size, 0) = 0
@@ -3334,7 +3343,7 @@ adult_capture_current_clutch AS (
     ON active_nests.nest_id = latest_clutch_history.nest_id
    AND latest_clutch_history.row_num = 1
   WHERE (
-      UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I')
+      UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I', 'PP', 'PD')
       OR (
         active_nests.hatch_signs_present = 1
         AND active_nests.latest_float_date IS NULL
@@ -3955,7 +3964,7 @@ geo_parent_plan AS (
               ON active_nests.nest_id = deployments.nest_id
             CROSS JOIN geo_deployment_status deployment_status
             WHERE (
-                UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I', 'H')
+                UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I', 'H', 'PP', 'PD')
                 OR (
                   active_nests.hatch_signs_present = 1
                   AND active_nests.latest_float_date IS NULL
@@ -4305,7 +4314,7 @@ todo_untrapped_parent_candidate AS (
   WHERE (
       active_nests.is_negative_brood = 1
       OR
-      UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I', 'H')
+      UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I', 'H', 'PP', 'PD')
       OR (
         active_nests.hatch_signs_present = 1
         AND active_nests.latest_float_date IS NULL
@@ -4813,7 +4822,7 @@ todo_mm_parent_resighting_by_sex AS (
     ON active_nests.nest_id = adult_parent_status.nest_id
   WHERE (
       active_nests.is_negative_brood = 1
-      OR UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I', 'H')
+      OR UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I', 'H', 'PP', 'PD')
       OR (
         active_nests.hatch_signs_present = 1
         AND active_nests.latest_float_date IS NULL
@@ -4947,7 +4956,7 @@ todo_unprocessed_nest AS (
   LEFT JOIN initial_clutch_status
     ON active_nests.nest_id = initial_clutch_status.nest_id
   WHERE UPPER(TRIM(COALESCE(active_nests.species, ''))) = 'BADO'
-    AND UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I')
+    AND UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I', 'PP', 'PD')
     AND COALESCE(adult_capture_age_status.clutch_completion_confirmed, 0) = 1
     AND (
       (
@@ -5050,7 +5059,7 @@ todo_reprocess_nest AS (
   LEFT JOIN adult_parent_status
     ON active_nests.nest_id = adult_parent_status.nest_id
   WHERE processing_summary.last_processed_datetime IS NOT NULL
-    AND active_nests.nest_state IN ('F', 'I')
+    AND UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I', 'PP', 'PD')
     AND COALESCE(initial_clutch_status.found_as_incomplete, 0) = 0
     AND COALESCE(active_nests.brood_size, 0) = 0
     AND latest_clutch_history.clutch_datetime
@@ -5089,7 +5098,7 @@ todo_clutch_check AS (
     ON active_nests.nest_id = adult_capture_current_clutch_start.nest_id
   LEFT JOIN adult_parent_status
     ON active_nests.nest_id = adult_parent_status.nest_id
-  WHERE UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I')
+  WHERE UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I', 'PP', 'PD')
     AND latest_nest_event.clutch_size IN (1, 2)
     AND DATEDIFF(
           latest_nest_event.event_date,
@@ -5157,7 +5166,7 @@ todo_nest_check AS (
         AND active_nests.days_ago >= 1
       )
       OR (
-        active_nests.nest_state = 'I'
+        UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('I', 'PP', 'PD')
         AND active_nests.min_days_to_hatch IS NOT NULL
         AND CEILING(active_nests.min_days_to_hatch)
             <= nest_check_rules.start_days_before_hatch
@@ -5294,8 +5303,6 @@ todo_nota_nest_check AS (
     nota_followup_nests.reference_date,
     'notA nest-check' AS todo,
     CASE
-      WHEN nota_followup_nests.nest_state IN ('pP', 'pD')
-      THEN 'confirm fate + remove nest marks'
       WHEN nota_followup_nests.nest_state = 'H'
        AND COALESCE(nota_followup_nests.clutch_size, 0) = 0
        AND COALESCE(nota_followup_nests.brood_size, 0) > 0
@@ -5442,26 +5449,110 @@ geo_device_owners AS (
   FROM geo_device_history
   GROUP BY device_id
 ),
-outgoing_geo_events AS (
+capture_mark_versions AS (
+  -- Post-handling fields define the current identity. The *_in fields are
+  -- retained as a separate historical alias and as a fallback when a
+  -- post-handling field is blank.
   SELECT
     UPPER(TRIM(c.ring)) AS bird_id,
     UPPER(TRIM(c.tag_id)) AS device_id,
     c.date AS cap_date,
     c.caught AS cap_time,
     c.field_sex AS sex,
-    FIELD_2026_BADOatNZ.format_mark(c.UL, c.LL, c.UR, c.LR) AS mark,
-    UPPER(
-      FIELD_2026_BADOatNZ.format_mark(c.UL, c.LL, c.UR, c.LR)
-    ) AS mark_key,
-    c.pk
+    LEFT(UPPER(TRIM(c.field_sex)), 1) AS sex_key,
+    c.pk,
+    'post' AS mark_source,
+    UPPER(COALESCE(NULLIF(TRIM(c.UL), ''), NULLIF(TRIM(c.UL_in), ''))) AS UL_norm,
+    UPPER(COALESCE(NULLIF(TRIM(c.LL), ''), NULLIF(TRIM(c.LL_in), ''))) AS LL_norm,
+    UPPER(COALESCE(NULLIF(TRIM(c.UR), ''), NULLIF(TRIM(c.UR_in), ''))) AS UR_norm,
+    UPPER(COALESCE(NULLIF(TRIM(c.LR), ''), NULLIF(TRIM(c.LR_in), ''))) AS LR_norm
   FROM FIELD_2026_BADOatNZ.CAPTURES c
   CROSS JOIN reference_setting reference
   WHERE c.date IS NOT NULL
     AND c.date <= reference.reference_date
-    AND UPPER(TRIM(COALESCE(c.tag_type, ''))) = 'GEO'
-    AND UPPER(TRIM(COALESCE(c.tag_action, ''))) IN ('D', 'N')
-    AND NULLIF(TRIM(c.tag_id), '') IS NOT NULL
     AND NULLIF(TRIM(c.ring), '') IS NOT NULL
+
+  UNION ALL
+
+  SELECT
+    UPPER(TRIM(c.ring)) AS bird_id,
+    UPPER(TRIM(c.tag_id)) AS device_id,
+    c.date AS cap_date,
+    c.caught AS cap_time,
+    c.field_sex AS sex,
+    LEFT(UPPER(TRIM(c.field_sex)), 1) AS sex_key,
+    c.pk,
+    'in' AS mark_source,
+    UPPER(NULLIF(TRIM(c.UL_in), '')) AS UL_norm,
+    UPPER(NULLIF(TRIM(c.LL_in), '')) AS LL_norm,
+    UPPER(NULLIF(TRIM(c.UR_in), '')) AS UR_norm,
+    UPPER(NULLIF(TRIM(c.LR_in), '')) AS LR_norm
+  FROM FIELD_2026_BADOatNZ.CAPTURES c
+  CROSS JOIN reference_setting reference
+  WHERE c.date IS NOT NULL
+    AND c.date <= reference.reference_date
+    AND NULLIF(TRIM(c.ring), '') IS NOT NULL
+    AND (
+      NULLIF(TRIM(c.UL_in), '') IS NOT NULL
+      OR NULLIF(TRIM(c.LL_in), '') IS NOT NULL
+      OR NULLIF(TRIM(c.UR_in), '') IS NOT NULL
+      OR NULLIF(TRIM(c.LR_in), '') IS NOT NULL
+    )
+),
+capture_mark_identity_values AS (
+  SELECT
+    versions.*,
+    CASE
+      WHEN versions.LR_norm REGEXP '^[A-Z]$'
+       AND versions.UR_norm REGEXP '^T[A-Z]$'
+       AND SUBSTRING(versions.UR_norm, 2) NOT IN ('X', 'M')
+      THEN CONCAT(
+        COALESCE(NULLIF(versions.LL_norm, ''), 'X'),
+        '-',
+        SUBSTRING(versions.UR_norm, 2),
+        '.',
+        versions.LR_norm
+      )
+      ELSE FIELD_2026_BADOatNZ.format_mark(
+        versions.UL_norm,
+        versions.LL_norm,
+        versions.UR_norm,
+        versions.LR_norm
+      )
+    END AS mark
+  FROM capture_mark_versions versions
+),
+capture_mark_identities AS (
+  SELECT
+    identities.*,
+    UPPER(identities.mark) AS mark_key,
+    CASE
+      WHEN identities.LL_norm IS NOT NULL
+       AND identities.LR_norm IS NOT NULL
+      THEN CONCAT(identities.LL_norm, '|', identities.LR_norm)
+      ELSE NULL
+    END AS partial_key
+  FROM capture_mark_identity_values identities
+),
+outgoing_geo_events AS (
+  SELECT
+    c.bird_id,
+    c.device_id,
+    c.cap_date,
+    c.cap_time,
+    c.sex,
+    c.sex_key,
+    c.mark,
+    c.mark_key,
+    c.pk
+  FROM capture_mark_identities c
+  JOIN FIELD_2026_BADOatNZ.CAPTURES raw_capture
+    ON UPPER(TRIM(raw_capture.ring)) = c.bird_id
+   AND raw_capture.pk = c.pk
+  WHERE c.mark_source = 'post'
+    AND UPPER(TRIM(COALESCE(raw_capture.tag_type, ''))) = 'GEO'
+    AND UPPER(TRIM(COALESCE(raw_capture.tag_action, ''))) IN ('D', 'N')
+    AND NULLIF(TRIM(c.device_id), '') IS NOT NULL
 ),
 deployment_ranked AS (
   SELECT
@@ -5489,6 +5580,7 @@ tagged_birds AS (
     device_id,
     cap_date,
     sex,
+    sex_key,
     mark,
     mark_key
   FROM deployment_ranked
@@ -5498,80 +5590,191 @@ capture_alias_values AS (
   -- Later captures provide exact pre/post-handling aliases for changed marks.
   SELECT
     bird.bird_id,
-    UPPER(
-      FIELD_2026_BADOatNZ.format_mark(c.UL, c.LL, c.UR, c.LR)
-    ) AS mark_key
+    bird.sex_key,
+    aliases.mark_key,
+    aliases.partial_key
   FROM tagged_birds bird
-  JOIN FIELD_2026_BADOatNZ.CAPTURES c
-    ON UPPER(TRIM(c.ring)) = bird.bird_id
+  JOIN capture_mark_identities aliases
+    ON aliases.bird_id = bird.bird_id
   CROSS JOIN reference_setting reference
-  WHERE c.date >= bird.cap_date
-    AND c.date <= reference.reference_date
-
-  UNION
-
-  SELECT
-    bird.bird_id,
-    UPPER(
-      FIELD_2026_BADOatNZ.format_mark(
-        c.UL_in,
-        c.LL_in,
-        c.UR_in,
-        c.LR_in
-      )
-    ) AS mark_key
-  FROM tagged_birds bird
-  JOIN FIELD_2026_BADOatNZ.CAPTURES c
-    ON UPPER(TRIM(c.ring)) = bird.bird_id
-  CROSS JOIN reference_setting reference
-  WHERE c.date >= bird.cap_date
-    AND c.date <= reference.reference_date
+  WHERE aliases.cap_date >= bird.cap_date
+    AND aliases.cap_date <= reference.reference_date
 ),
 complete_bird_aliases AS (
   SELECT DISTINCT
     bird_id,
-    mark_key
+    sex_key,
+    mark_key,
+    partial_key
   FROM capture_alias_values
   WHERE mark_key <> 'X-X'
     AND mark_key <> 'XX-XX'
     AND SUBSTRING_INDEX(mark_key, '-', 1) NOT IN ('X', 'XX')
     AND SUBSTRING_INDEX(mark_key, '-', -1) NOT IN ('X', 'XX')
 ),
-alias_owner_counts AS (
+alias_mark_owner_counts AS (
   SELECT
     mark_key,
     COUNT(DISTINCT bird_id) AS n_birds
   FROM complete_bird_aliases
   GROUP BY mark_key
 ),
-unique_bird_aliases AS (
-  -- Ambiguous marks are retained nowhere in the RESIGHTINGS attribution path.
+alias_mark_sex_owner_counts AS (
   SELECT
-    alias.bird_id,
-    alias.mark_key
-  FROM complete_bird_aliases alias
-  JOIN alias_owner_counts owner
-    ON alias.mark_key = owner.mark_key
-   AND owner.n_birds = 1
+    mark_key,
+    sex_key,
+    COUNT(DISTINCT bird_id) AS n_birds
+  FROM complete_bird_aliases
+  GROUP BY mark_key, sex_key
 ),
-matched_resightings AS (
+unique_bird_aliases AS (
+  -- Ambiguous marks are retained nowhere in the exact RESIGHTINGS path.
   SELECT
     alias.bird_id,
+    alias.sex_key,
+    alias.mark_key,
+    alias.partial_key
+  FROM complete_bird_aliases alias
+  JOIN alias_mark_owner_counts owner
+    ON alias.mark_key = owner.mark_key
+  JOIN alias_mark_sex_owner_counts sex_owner
+    ON alias.mark_key = sex_owner.mark_key
+   AND alias.sex_key = sex_owner.sex_key
+   AND sex_owner.n_birds = 1
+),
+alias_partial_owner_counts AS (
+  SELECT
+    partial_key,
+    COUNT(DISTINCT bird_id) AS n_birds
+  FROM complete_bird_aliases
+  WHERE partial_key IS NOT NULL
+  GROUP BY partial_key
+),
+alias_partial_sex_owner_counts AS (
+  SELECT
+    partial_key,
+    sex_key,
+    COUNT(DISTINCT bird_id) AS n_birds
+  FROM complete_bird_aliases
+  WHERE partial_key IS NOT NULL
+  GROUP BY partial_key, sex_key
+),
+unique_bird_partial_aliases AS (
+  SELECT DISTINCT
+    alias.bird_id,
+    alias.sex_key,
+    alias.partial_key
+  FROM complete_bird_aliases alias
+  JOIN alias_partial_owner_counts owner
+    ON alias.partial_key = owner.partial_key
+  JOIN alias_partial_sex_owner_counts sex_owner
+    ON alias.partial_key = sex_owner.partial_key
+   AND alias.sex_key = sex_owner.sex_key
+   AND sex_owner.n_birds = 1
+  WHERE alias.partial_key IS NOT NULL
+),
+resighting_mark_identity_values AS (
+  SELECT
     r.date AS resighting_date,
     r.pk,
     NULLIF(TRIM(r.nest_id), '') AS nest_id,
     NULLIF(TRIM(r.comments), '') AS comment_text,
-    LOWER(COALESCE(NULLIF(TRIM(r.comments), ''), '')) AS comment_lower
+    LOWER(COALESCE(NULLIF(TRIM(r.comments), ''), '')) AS comment_lower,
+    LEFT(UPPER(TRIM(r.sex)), 1) AS sex_key,
+    UPPER(NULLIF(TRIM(r.UL), '')) AS UL_norm,
+    UPPER(NULLIF(TRIM(r.LL), '')) AS LL_norm,
+    UPPER(NULLIF(TRIM(r.UR), '')) AS UR_norm,
+    UPPER(NULLIF(TRIM(r.LR), '')) AS LR_norm
   FROM FIELD_2026_BADOatNZ.RESIGHTINGS r
+  CROSS JOIN reference_setting reference
+  WHERE r.date IS NOT NULL
+    AND r.date <= reference.reference_date
+),
+resighting_mark_identities AS (
+  SELECT
+    identities.*,
+    CASE
+      WHEN identities.LR_norm REGEXP '^[A-Z]$'
+       AND identities.UR_norm REGEXP '^T[A-Z]$'
+       AND SUBSTRING(identities.UR_norm, 2) NOT IN ('X', 'M')
+      THEN CONCAT(
+        COALESCE(NULLIF(identities.LL_norm, ''), 'X'),
+        '-',
+        SUBSTRING(identities.UR_norm, 2),
+        '.',
+        identities.LR_norm
+      )
+      ELSE FIELD_2026_BADOatNZ.format_mark(
+        identities.UL_norm,
+        identities.LL_norm,
+        identities.UR_norm,
+        identities.LR_norm
+      )
+    END AS mark,
+    CASE
+      WHEN identities.LL_norm IS NOT NULL
+       AND identities.LR_norm IS NOT NULL
+      THEN CONCAT(identities.LL_norm, '|', identities.LR_norm)
+      ELSE NULL
+    END AS partial_key
+  FROM resighting_mark_identity_values identities
+),
+matched_resightings AS (
+  SELECT
+    alias.bird_id,
+    resighting.resighting_date,
+    resighting.pk,
+    resighting.nest_id,
+    resighting.comment_text,
+    resighting.comment_lower
+  FROM resighting_mark_identities resighting
   JOIN unique_bird_aliases alias
-    ON UPPER(
-      FIELD_2026_BADOatNZ.format_mark(r.UL, r.LL, r.UR, r.LR)
-    ) = alias.mark_key
+    ON UPPER(resighting.mark) = alias.mark_key
+  JOIN alias_mark_owner_counts owner
+    ON alias.mark_key = owner.mark_key
   JOIN tagged_birds bird
     ON alias.bird_id = bird.bird_id
-  CROSS JOIN reference_setting reference
-  WHERE r.date >= bird.cap_date
-    AND r.date <= reference.reference_date
+  WHERE resighting.UR_norm IS NOT NULL
+    AND resighting.resighting_date >= bird.cap_date
+    AND (
+      (
+        resighting.sex_key IS NOT NULL
+        AND resighting.sex_key = alias.sex_key
+      )
+      OR (
+        resighting.sex_key IS NULL
+        AND owner.n_birds = 1
+      )
+    )
+
+  UNION ALL
+
+  SELECT
+    alias.bird_id,
+    resighting.resighting_date,
+    resighting.pk,
+    resighting.nest_id,
+    resighting.comment_text,
+    resighting.comment_lower
+  FROM resighting_mark_identities resighting
+  JOIN unique_bird_partial_aliases alias
+    ON resighting.partial_key = alias.partial_key
+  JOIN alias_partial_owner_counts owner
+    ON alias.partial_key = owner.partial_key
+  JOIN tagged_birds bird
+    ON alias.bird_id = bird.bird_id
+  WHERE resighting.UR_norm IS NULL
+    AND resighting.resighting_date >= bird.cap_date
+    AND (
+      (
+        resighting.sex_key IS NOT NULL
+        AND resighting.sex_key = alias.sex_key
+      )
+      OR (
+        resighting.sex_key IS NULL
+        AND owner.n_birds = 1
+      )
+    )
 ),
 nest_association_events AS (
   -- Keep only explicit nest/brood associations; NO_NEST does not clear an
