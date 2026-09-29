@@ -428,6 +428,109 @@ test_that("pair completion requires a confirmed GEO association", {
 })
 
 
+test_that("one tagged parent produces pair completion without deployment-date gating", {
+  sql <- todo_list_view_sql()
+
+  expect_match(
+    sql,
+    "COALESCE(base.F_has_geo, 0) = 1",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "COALESCE(base.M_has_geo, 0) = 1",
+    fixed = TRUE
+  )
+  expect_no_match(
+    sql,
+    "base.is_pre25_nest = 1\n                 OR base.F_geo_deployment_date >= base.first_found_date",
+    fixed = TRUE
+  )
+  expect_no_match(
+    sql,
+    "base.is_pre25_nest = 1\n                 OR base.M_geo_deployment_date >= base.first_found_date",
+    fixed = TRUE
+  )
+
+  pair_completion_target <- function(
+    male_tagged,
+    female_tagged,
+    male_tag_eligible = TRUE,
+    female_tag_eligible = TRUE,
+    male_quota_remaining = 1,
+    female_quota_remaining = 1,
+    male_mm_pending = FALSE,
+    female_mm_pending = FALSE
+  ) {
+    if (
+      female_tagged &&
+        !male_tagged &&
+        male_tag_eligible &&
+        male_quota_remaining > 0 &&
+        !female_mm_pending
+    ) {
+      return("M")
+    }
+    if (
+      male_tagged &&
+        !female_tagged &&
+        female_tag_eligible &&
+        female_quota_remaining > 0 &&
+        !male_mm_pending
+    ) {
+      return("F")
+    }
+    NULL
+  }
+
+  parent_capture_note <- function(pair_target, actionable = TRUE) {
+    if (isTRUE(actionable) && !is.null(pair_target)) {
+      return(paste0("tag ", pair_target, " (pair completion)"))
+    }
+    "ordinary parent work"
+  }
+
+  # C0217-like: tagged female, untagged/unknown male. The female's
+  # deployment date is deliberately absent from this mock.
+  expect_identical(
+    parent_capture_note(pair_completion_target(FALSE, TRUE)),
+    "tag M (pair completion)"
+  )
+  # C2205-like: tagged male, X-X female. The male's deployment date is
+  # deliberately absent from this mock.
+  expect_identical(
+    parent_capture_note(pair_completion_target(TRUE, FALSE)),
+    "tag F (pair completion)"
+  )
+  # MM uncertainty still belongs in Parents to resight, not pair completion.
+  expect_identical(
+    pair_completion_target(
+      FALSE,
+      TRUE,
+      female_mm_pending = TRUE
+    ),
+    NULL
+  )
+  expect_identical(
+    pair_completion_target(
+      TRUE,
+      FALSE,
+      male_mm_pending = TRUE
+    ),
+    NULL
+  )
+  # Quota and parent eligibility remain authoritative.
+  expect_identical(
+    pair_completion_target(
+      FALSE,
+      TRUE,
+      male_quota_remaining = 0
+    ),
+    NULL
+  )
+})
+
+
 test_that("resolved MM follow-up uses the canonical captured parent mark", {
   sql <- todo_list_view_sql()
 

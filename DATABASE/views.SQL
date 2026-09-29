@@ -4158,10 +4158,6 @@ geo_parent_plan AS (
                    AND COALESCE(base.F_mm_resight_pending, 0) = 0
                  )
                )
-               AND (
-                 base.is_pre25_nest = 1
-                 OR base.F_geo_deployment_date >= base.first_found_date
-               )
               THEN 'M'
               WHEN base.F_tag_eligible = 1
                AND base.female_quota_remaining > 0
@@ -4171,10 +4167,6 @@ geo_parent_plan AS (
                    COALESCE(base.M_captured_has_geo, 0) = 1
                    AND COALESCE(base.M_mm_resight_pending, 0) = 0
                  )
-               )
-               AND (
-                 base.is_pre25_nest = 1
-                 OR base.M_geo_deployment_date >= base.first_found_date
                )
               THEN 'F'
               ELSE NULL
@@ -4246,8 +4238,6 @@ geo_parent_plan AS (
               parent_status.both_parents_need_geo,
               parent_status.M_is_au_migrant,
               parent_status.F_is_au_migrant,
-              deployments.M_geo_deployment_date,
-              deployments.F_geo_deployment_date,
               deployment_status.n_geo_deployed,
               deployment_status.n_male_geo_deployed,
               deployment_status.n_female_geo_deployed,
@@ -4267,10 +4257,6 @@ geo_parent_plan AS (
               capture_interval.any_target_capture_window_open,
               capture_interval.M_target_capture_window_open,
               capture_interval.F_target_capture_window_open,
-              CASE
-                WHEN nest_discovery.first_found_date <= CAST('2026-09-24' AS DATE)
-                THEN 1 ELSE 0
-              END AS is_pre25_nest,
               CASE
                 WHEN parent_status.M_parent_mark IS NOT NULL
                  AND parent_status.M_parent_mark <> 'X-X'
@@ -4324,25 +4310,6 @@ geo_parent_plan AS (
               ON active_nests.nest_id = capture_age.nest_id
             LEFT JOIN adult_capture_interval_status capture_interval
               ON active_nests.nest_id = capture_interval.nest_id
-            LEFT JOIN (
-              SELECT
-                c.nest_id,
-                MAX(CASE WHEN LEFT(c.field_sex, 1) = 'M' THEN c.date END)
-                  AS M_geo_deployment_date,
-                MAX(CASE WHEN LEFT(c.field_sex, 1) = 'F' THEN c.date END)
-                  AS F_geo_deployment_date
-              FROM FIELD_2026_BADOatNZ.CAPTURES c
-              CROSS JOIN sr
-              WHERE c.date <= sr.reference_date
-                AND c.nest_id IS NOT NULL
-                AND TRIM(c.nest_id) <> ''
-                AND UPPER(TRIM(COALESCE(c.site, ''))) = 'CR'
-                AND UPPER(TRIM(COALESCE(c.tag_type, ''))) = 'GEO'
-                AND UPPER(TRIM(COALESCE(c.tag_action, ''))) IN ('D', 'S', 'N')
-                AND NULLIF(TRIM(c.tag_id), '') IS NOT NULL
-              GROUP BY c.nest_id
-            ) deployments
-              ON active_nests.nest_id = deployments.nest_id
             CROSS JOIN geo_deployment_status deployment_status
             WHERE (
                 UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I', 'H', 'PP', 'PD')
