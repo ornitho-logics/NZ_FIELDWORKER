@@ -1,5 +1,5 @@
 ---
-{{ title }}
+title: ""
 format:
   typst:
     papersize: a4
@@ -21,6 +21,10 @@ execute:
   none
 })
 #show heading.where(level: 2): set block(above: 0.8em, below: 0.4em)
+```
+
+```{=typst}
+{{ header }}
 ```
 
 ```{=typst}

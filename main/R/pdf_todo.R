@@ -1090,7 +1090,9 @@ todo_pdf_qmd <- function(
       out,
       switch(
         line,
-        "{{ title }}" = glue('title: "{pdf$title}"'),
+        "{{ header }}" = glue(
+          '#set page(header: context [#align(left)[#text(size: 6pt, weight: "bold", fill: rgb("#5f6b70"))[{pdf$title}]]])'
+        ),
         "{{ footer }}" = glue(
           '#set page(footer: context [#align(right)[#text(size: 6pt, fill: rgb("#7b858b"))[{todo_pdf_version_footer()}]]])'
         ),
