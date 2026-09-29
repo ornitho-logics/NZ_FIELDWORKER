@@ -46,7 +46,7 @@ test_that("TODO_LIST contains the bounded operational rules", {
 })
 
 
-test_that("MM parent follow-up needs two matching resightings and nest behaviour", {
+test_that("MM parent follow-up accepts qualifying behaviour or three matching resightings", {
   sql <- todo_list_view_sql()
 
   expect_match(
@@ -56,7 +56,12 @@ test_that("MM parent follow-up needs two matching resightings and nest behaviour
   )
   expect_match(
     sql,
-    "COALESCE(followup.n_matching_post_mm_resightings, 0) < 2",
+    "COALESCE(followup.n_matching_post_mm_resightings, 0) < 3",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "association.association_date >= mm.mm_capture_date",
     fixed = TRUE
   )
   expect_match(
@@ -66,9 +71,13 @@ test_that("MM parent follow-up needs two matching resightings and nest behaviour
   )
   expect_match(sql, "post_mm_xx_seen", fixed = TRUE)
 
-  matching_followup_resolved <- function(resightings, reference_date) {
+  matching_followup_resolved <- function(
+    resightings,
+    reference_date,
+    capture_date = "2026-09-01"
+  ) {
     post_mm <- resightings[
-      resightings$date > as.Date("2026-09-01") &
+      resightings$date >= as.Date(capture_date) &
         resightings$date <= as.Date(reference_date),
     ]
     matching <- toupper(trimws(post_mm$mark)) == "BY-YY"
@@ -77,21 +86,39 @@ test_that("MM parent follow-up needs two matching resightings and nest behaviour
       toupper(trimws(post_mm$behav)),
       perl = TRUE
     )
-    sum(matching) >= 2 && any(matching & has_nest_behaviour)
+    sum(matching) >= 1 && (
+      any(matching & has_nest_behaviour) || sum(matching) >= 3
+    )
   }
 
   mock_resightings <- data.frame(
-    date = as.Date(c("2026-09-02", "2026-09-03", "2026-09-04")),
-    mark = c("X-X", "BY-YY", "BY-YY"),
-    behav = c("AT", "AT", "BW"),
+    date = as.Date(c(
+      "2026-09-02", "2026-09-03", "2026-09-04", "2026-09-05"
+    )),
+    mark = c("X-X", "BY-YY", "BY-YY", "BY-YY"),
+    behav = c("AT", "AT", "AT", "AT"),
     stringsAsFactors = FALSE
   )
 
-  expect_false(matching_followup_resolved(mock_resightings, "2026-09-03"))
-  expect_true(matching_followup_resolved(mock_resightings, "2026-09-04"))
+  expect_false(matching_followup_resolved(mock_resightings, "2026-09-04"))
+  expect_true(matching_followup_resolved(mock_resightings, "2026-09-05"))
 
-  one_matching_resighting <- mock_resightings[2:3, ]
-  one_matching_resighting$mark[2] <- "YO-OR"
+  same_day_behaviour <- data.frame(
+    date = as.Date("2026-09-01"),
+    mark = "BY-YY",
+    behav = "AT, BW",
+    stringsAsFactors = FALSE
+  )
+  expect_true(
+    matching_followup_resolved(same_day_behaviour, "2026-09-01")
+  )
+
+  one_matching_resighting <- data.frame(
+    date = as.Date(c("2026-09-02", "2026-09-03")),
+    mark = c("BY-YY", "YO-OR"),
+    behav = c("AT", "BW"),
+    stringsAsFactors = FALSE
+  )
   expect_false(
     matching_followup_resolved(one_matching_resighting, "2026-09-05")
   )
