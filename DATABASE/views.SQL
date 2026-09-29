@@ -3166,7 +3166,7 @@ adult_mm_followup_status AS (
            followup.matching_post_mm_resight_date IS NULL
            OR followup.matching_post_mm_resight_date
               <= followup.xx_nest_behav_date
-         )
+          )
         THEN 1
         ELSE 0
       END
@@ -3189,7 +3189,7 @@ adult_mm_followup_status AS (
            followup.matching_post_mm_resight_date IS NULL
            OR followup.matching_post_mm_resight_date
               <= followup.xx_nest_behav_date
-         )
+          )
         THEN 1
         ELSE 0
       END
