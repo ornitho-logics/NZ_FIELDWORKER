@@ -110,6 +110,52 @@ test_that("PDF parent summary keeps mobile broods and hatched notA nests", {
 })
 
 
+test_that("parent summary uses the resolved parent-task identities", {
+  app <- load_main_app()
+  prepare_summary <- app$env$todo_pdf_prepare_nest_summary
+
+  nests <- data.frame(
+    nest_id = c("C0217", "C0220", "C0221"),
+    nest_state = rep("I", 3),
+    min_days_to_hatch = rep(5, 3),
+    M_mark = c("BY-STALE", "BASE-M", "BASE-M2"),
+    F_mark = c("BASE-F", "BASE-F2", "BASE-F3"),
+    stringsAsFactors = FALSE
+  )
+  todo <- data.frame(
+    nest_id = c("C0217", "C0217", "C0220"),
+    todo = c("Parent capture", "Parent resighting", "Parent resighting"),
+    M_mark = c("X-X", "X-X", "BY-TAG & X-X"),
+    F_mark = c("YY-TY.YL", "YY-TY.YL", "BASE-F2"),
+    stringsAsFactors = FALSE
+  )
+
+  summary <- prepare_summary(
+    nests,
+    as.Date("2026-09-30"),
+    todo = todo,
+    chick_captures = data.frame()
+  )
+
+  expect_identical(
+    summary[summary$Nest == "C0217", Male],
+    "X-X"
+  )
+  expect_identical(
+    summary[summary$Nest == "C0217", Female],
+    "YY-TY.YL"
+  )
+  expect_identical(
+    summary[summary$Nest == "C0220", Male],
+    "BY-TAG & X-X"
+  )
+  expect_identical(
+    summary[summary$Nest == "C0221", Male],
+    "BASE-M2"
+  )
+})
+
+
 test_that("PDF rows normalize negative broods and collapse duplicate tasks", {
   app <- load_main_app()
   prepare <- app$env$todo_pdf_prepare
