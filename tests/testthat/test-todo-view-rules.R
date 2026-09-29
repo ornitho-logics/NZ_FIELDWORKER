@@ -189,7 +189,7 @@ test_that("hatch-stage parent work bypasses the clutch-age gate", {
 })
 
 
-test_that("pending MM parents remain visible as status-unknown capture work", {
+test_that("pending MM parents retain known marks in capture notes", {
   sql <- todo_list_view_sql()
 
   expect_match(
@@ -209,6 +209,9 @@ test_that("pending MM parents remain visible as status-unknown capture work", {
   )
   expect_no_match(sql, "AND followup.nest_id IS NULL", fixed = TRUE)
   expect_match(sql, "resight/band M (status ?)", fixed = TRUE)
+  expect_match(sql, "resight/band M (MM cap)", fixed = TRUE)
+  expect_match(sql, "M_mm_resight_pending, 0) = 1\n             AND NULLIF(TRIM(M_mark), '') IS NOT NULL", fixed = TRUE)
+  expect_match(sql, "F_mm_resight_pending, 0) = 1\n             AND NULLIF(TRIM(F_mark), '') IS NOT NULL", fixed = TRUE)
 
   mm_followup_pending <- function(n_matching, has_nest_behaviour) {
     n_matching == 0L ||
@@ -217,12 +220,19 @@ test_that("pending MM parents remain visible as status-unknown capture work", {
 
   parent_note <- function(
     mm_pending,
+    mark = NULL,
     capture_allowed = TRUE,
     capture_interval_open = TRUE
   ) {
     if (isTRUE(mm_pending)) {
       if (capture_allowed && capture_interval_open) {
+        if (!is.null(mark)) {
+          return("resight/band M (MM cap)")
+        }
         return("resight/band M (status ?)")
+      }
+      if (!is.null(mark)) {
+        return("resight M (MM cap)")
       }
       return("resight M (status ?)")
     }
@@ -232,7 +242,15 @@ test_that("pending MM parents remain visible as status-unknown capture work", {
   expect_true(mm_followup_pending(1L, FALSE))
   expect_false(mm_followup_pending(1L, TRUE))
   expect_false(mm_followup_pending(3L, FALSE))
+  expect_identical(
+    parent_note(TRUE, mark = "BY-TY.L"),
+    "resight/band M (MM cap)"
+  )
   expect_identical(parent_note(TRUE), "resight/band M (status ?)")
+  expect_identical(
+    parent_note(TRUE, mark = "BY-TY.L", capture_interval_open = FALSE),
+    "resight M (MM cap)"
+  )
   expect_identical(
     parent_note(TRUE, capture_interval_open = FALSE),
     "resight M (status ?)"
