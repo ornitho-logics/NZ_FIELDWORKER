@@ -2066,6 +2066,11 @@ latest_nests AS (
     latest_float_status.latest_float_date,
     latest_float_status.average_ref_date_days_since_laid,
     CASE
+      WHEN observed_hatch_dates.hatch_date IS NOT NULL
+      THEN DATEDIFF(
+        observed_hatch_dates.hatch_date,
+        sr.reference_date
+      )
       WHEN initial_clutch_status.found_as_incomplete = 1
       THEN DATEDIFF(
         initial_clutch_status.inferred_hatch_date,
@@ -2086,6 +2091,20 @@ latest_nests AS (
     ON n.nest_id = cr_current_nest_ids.nest_id
   LEFT JOIN initial_clutch_status
     ON n.nest_id = initial_clutch_status.nest_id
+  LEFT JOIN (
+    SELECT
+      observed_nest.nest_id,
+      MIN(observed_nest.date) AS hatch_date
+    FROM FIELD_2026_BADOatNZ.NESTS observed_nest
+    CROSS JOIN sr
+    WHERE observed_nest.nest_id IS NOT NULL
+      AND TRIM(observed_nest.nest_id) <> ''
+      AND UPPER(TRIM(COALESCE(observed_nest.site, ''))) = 'CR'
+      AND UPPER(TRIM(COALESCE(observed_nest.nest_state, ''))) = 'H'
+      AND observed_nest.date <= sr.reference_date
+    GROUP BY observed_nest.nest_id
+  ) observed_hatch_dates
+    ON n.nest_id = observed_hatch_dates.nest_id
   LEFT JOIN latest_float_status
     ON n.nest_id = latest_float_status.nest_id
   CROSS JOIN sr
@@ -2998,6 +3017,16 @@ adult_mm_post_resighting_ranked AS (
     ) AS has_xx_nest_behav,
     MAX(
       CASE
+        WHEN association.is_confirmed_xx = 1
+         AND association.has_matching_nest_behav = 1
+        THEN association.association_date
+        ELSE NULL
+      END
+    ) OVER (
+      PARTITION BY mm.nest_id, mm.sex
+    ) AS xx_nest_behav_date,
+    MAX(
+      CASE
         WHEN association.is_confirmed_xx = 1 THEN 1
         ELSE 0
       END
@@ -3033,6 +3062,7 @@ adult_mm_post_resighting_latest AS (
     n_matching_post_mm_resightings,
     has_matching_nest_behav,
     has_xx_nest_behav,
+    xx_nest_behav_date,
     post_mm_xx_seen
   FROM adult_mm_post_resighting_ranked
   WHERE row_num = 1
@@ -3112,6 +3142,16 @@ adult_mm_followup_status AS (
       CASE
         WHEN mm.sex = 'M'
          AND followup.has_xx_nest_behav = 1
+         AND NOT EXISTS (
+           SELECT 1
+           FROM adult_capture_events later_capture
+           WHERE later_capture.nest_id = mm.nest_id
+             AND later_capture.sex = mm.sex
+             AND later_capture.mark IS NOT NULL
+             AND later_capture.mark <> 'X-X'
+             AND LOWER(TRIM(later_capture.mark)) <> 'dead'
+             AND later_capture.capture_date >= followup.xx_nest_behav_date
+         )
         THEN 1
         ELSE 0
       END
@@ -3120,6 +3160,16 @@ adult_mm_followup_status AS (
       CASE
         WHEN mm.sex = 'F'
          AND followup.has_xx_nest_behav = 1
+         AND NOT EXISTS (
+           SELECT 1
+           FROM adult_capture_events later_capture
+           WHERE later_capture.nest_id = mm.nest_id
+             AND later_capture.sex = mm.sex
+             AND later_capture.mark IS NOT NULL
+             AND later_capture.mark <> 'X-X'
+             AND LOWER(TRIM(later_capture.mark)) <> 'dead'
+             AND later_capture.capture_date >= followup.xx_nest_behav_date
+         )
         THEN 1
         ELSE 0
       END

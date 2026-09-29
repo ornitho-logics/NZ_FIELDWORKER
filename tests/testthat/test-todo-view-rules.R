@@ -128,6 +128,22 @@ test_that("MM parent follow-up accepts qualifying behaviour or three matching re
 test_that("hatched brood task Hatch values use the recorded H date", {
   sql <- todo_list_view_sql()
 
+  expect_match(sql, "MIN(observed_nest.date) AS hatch_date", fixed = TRUE)
+  expect_match(
+    sql,
+    "AND UPPER(TRIM(COALESCE(observed_nest.nest_state, ''))) = 'H'",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "WHEN observed_hatch_dates.hatch_date IS NOT NULL",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "observed_hatch_dates.hatch_date,\n        sr.reference_date",
+    fixed = TRUE
+  )
   expect_match(
     sql,
     "DATEDIFF(\n      brood_followup_nests.hatch_date,\n      brood_followup_nests.reference_date\n    ) AS min_days_to_hatch",
@@ -152,6 +168,30 @@ test_that("hatched brood task Hatch values use the recorded H date", {
   expect_identical(
     hatch_value("2026-09-28", "2026-09-29", is_negative = TRUE),
     NA_integer_
+  )
+
+  parent_hatch_value <- function(
+    observed_hatch_date,
+    reference_date,
+    inferred_hatch_date = NA,
+    predicted_hatch_days = NA_integer_
+  ) {
+    if (!is.na(observed_hatch_date)) {
+      return(as.integer(
+        as.Date(observed_hatch_date) - as.Date(reference_date)
+      ))
+    }
+    if (!is.na(inferred_hatch_date)) {
+      return(as.integer(
+        as.Date(inferred_hatch_date) - as.Date(reference_date)
+      ))
+    }
+    predicted_hatch_days
+  }
+
+  expect_identical(
+    parent_hatch_value("2026-09-28", "2026-09-29", "2026-10-04", 5L),
+    -1L
   )
 })
 
@@ -211,6 +251,12 @@ test_that("pending MM parents stay in resighting rather than capture work", {
   expect_no_match(sql, "'resight/band M (MM cap)'", fixed = TRUE)
   expect_match(sql, "' had MM cap'", fixed = TRUE)
   expect_match(sql, "has_xx_nest_behav", fixed = TRUE)
+  expect_match(sql, "xx_nest_behav_date", fixed = TRUE)
+  expect_match(
+    sql,
+    "later_capture.capture_date >= followup.xx_nest_behav_date",
+    fixed = TRUE
+  )
   expect_match(sql, "M_mm_xx_parent_confirmed", fixed = TRUE)
   expect_match(
     sql,
@@ -231,6 +277,14 @@ test_that("pending MM parents stay in resighting rather than capture work", {
     isTRUE(is_xx) && isTRUE(has_nest_behaviour)
   }
 
+  xx_parent_remains_confirmed <- function(
+    xx_behaviour_date,
+    later_banded_capture_date = NA
+  ) {
+    is.na(later_banded_capture_date) ||
+      as.Date(later_banded_capture_date) < as.Date(xx_behaviour_date)
+  }
+
   expect_true(mm_followup_pending(1L, FALSE))
   expect_false(mm_followup_pending(1L, TRUE))
   expect_false(mm_followup_pending(3L, FALSE))
@@ -238,6 +292,13 @@ test_that("pending MM parents stay in resighting rather than capture work", {
   expect_true(capture_candidate(FALSE, TRUE))
   expect_true(xx_parent_confirmed(TRUE, TRUE))
   expect_false(xx_parent_confirmed(TRUE, FALSE))
+  expect_true(xx_parent_remains_confirmed("2026-09-01"))
+  expect_false(
+    xx_parent_remains_confirmed("2026-09-01", "2026-09-01")
+  )
+  expect_false(
+    xx_parent_remains_confirmed("2026-09-01", "2026-09-02")
+  )
 })
 
 
