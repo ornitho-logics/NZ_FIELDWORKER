@@ -586,12 +586,22 @@ overview_tagged_display_mark <- function(
 }
 
 
+overview_deployment_linetype <- function(capture_status) {
+  capture_status <- toupper(trimws(as.character(capture_status)))
+  ifelse(!is.na(capture_status) & capture_status == "C", "dashed", "solid")
+}
+
+
 overview_tagged_resighting_plot <- function(x, date_limits = NULL) {
   x <- data.table(x)
   caption <- paste(
     strwrap(
       paste(
         "Diamond = geolocator deployment; circles = resightings.",
+        paste(
+          "Dashed lines indicate deployment during a band-combination change",
+          "(capture_status = C)."
+        ),
         paste(
           "limp0 = no limp, limp1 = possible/slight limp, and limp2 = limping;",
           "older comments are interpreted from text, and no limp information",
@@ -643,6 +653,10 @@ overview_tagged_resighting_plot <- function(x, date_limits = NULL) {
     return(overview_tagged_resighting_plot(data.table(), date_limits))
   }
 
+  if (!"deployment_capture_status" %in% names(x)) {
+    x[, deployment_capture_status := NA_character_]
+  }
+
   tagged_date_limits <- c(
     min(x$deployment_date) - 2L,
     if (is.null(date_limits)) {
@@ -666,7 +680,10 @@ overview_tagged_resighting_plot <- function(x, date_limits = NULL) {
   histories <- x[, .(
     sex = sex[1],
     deployment_date = min(deployment_date),
-    last_date = max(c(deployment_date, resighting_date), na.rm = TRUE)
+    last_date = max(c(deployment_date, resighting_date), na.rm = TRUE),
+    deployment_linetype = overview_deployment_linetype(
+      deployment_capture_status[1]
+    )
   ), by = bird_id]
   setorder(histories, deployment_date, sex, bird_id)
   bird_levels <- histories$bird_id
@@ -716,7 +733,8 @@ overview_tagged_resighting_plot <- function(x, date_limits = NULL) {
       aes(
         x = deployment_date,
         xend = last_date,
-        yend = bird_id
+        yend = bird_id,
+        linetype = deployment_linetype
       ),
       color = "#343a40",
       linewidth = 0.7
@@ -772,6 +790,7 @@ overview_tagged_resighting_plot <- function(x, date_limits = NULL) {
       ),
       drop = FALSE
     ) +
+    scale_linetype_identity(guide = "none") +
     labs(x = NULL, caption = caption) +
     overview_date_scale() +
     overview_date_coordinates(tagged_date_limits) +
@@ -1018,6 +1037,7 @@ overview_tagged_resightings_graph <- function(
           WHEN UPPER(TRIM(c.field_sex)) IN ('M', 'MU') THEN 'Male'
           WHEN UPPER(TRIM(c.field_sex)) IN ('F', 'FU') THEN 'Female'
         END AS capture_sex,
+        UPPER(TRIM(c.capture_status)) AS deployment_capture_status,
         c.date AS deployment_date
       FROM CAPTURES c
       CROSS JOIN sr
@@ -1034,6 +1054,7 @@ overview_tagged_resightings_graph <- function(
         right_upper,
         right_tarsus,
         capture_sex,
+        deployment_capture_status,
         deployment_date,
         ROW_NUMBER() OVER (
           PARTITION BY tarsus_mark, capture_sex
@@ -1049,6 +1070,7 @@ overview_tagged_resightings_graph <- function(
         right_upper,
         right_tarsus,
         capture_sex,
+        deployment_capture_status,
         deployment_date
       FROM ranked_deployments
       WHERE deployment_rank = 1
@@ -1078,6 +1100,7 @@ overview_tagged_resightings_graph <- function(
       d.right_upper,
       d.right_tarsus,
       d.capture_sex AS sex,
+      d.deployment_capture_status,
       d.deployment_date,
       r.resighting_pk,
       r.resighting_date,

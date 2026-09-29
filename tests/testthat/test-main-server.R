@@ -173,6 +173,11 @@ test_that("overview graph helpers use aligned reference-date queries", {
     "r.resighting_sex = d.capture_sex",
     fixed = TRUE
   )
+  expect_match(
+    queries[[4]]$sql,
+    "c.capture_status",
+    fixed = TRUE
+  )
   expect_match(queries[[5]]$sql, "FROM CAPTURES_ARCHIVE", fixed = TRUE)
   expect_match(queries[[6]]$sql, "COALESCE(site, ''))) = 'CR'", fixed = TRUE)
   expect_match(
@@ -259,12 +264,17 @@ test_that("overview limp status distinguishes comment evidence", {
     ),
     c("BY_Y.L", "BY_G.L", "WY_GO")
   )
+  expect_identical(
+    app$env$overview_deployment_linetype(c("C", "F", NA_character_)),
+    c("dashed", "solid", "solid")
+  )
 
   mock_histories <- data.frame(
     tarsus_mark = c("MOCK_A", "MOCK_A", "MOCK_B"),
     right_upper = c("TY", "TY", "TG"),
     right_tarsus = c("A", "A", "B"),
     sex = c("Female", "Female", "Male"),
+    deployment_capture_status = c("C", "C", "F"),
     deployment_date = as.Date(c(
       "2026-09-01",
       "2026-09-01",
@@ -296,8 +306,13 @@ test_that("overview limp status distinguishes comment evidence", {
   expect_s3_class(plot$facet, "FacetGrid")
   expect_true(plot$facet$params$free$y)
   expect_true(plot$facet$params$space_free$y)
+  expect_setequal(
+    plot$data$deployment_linetype,
+    c("dashed", "solid")
+  )
   expect_s3_class(plot$theme$strip.text.y, "element_blank")
   expect_match(plot$labels$caption, "\n", fixed = TRUE)
+  expect_match(plot$labels$caption, "capture_status = C", fixed = TRUE)
   expect_identical(plot$guides$guides$fill$params$ncol, 1)
   expect_identical(
     plot$theme$legend.title.position,
@@ -320,6 +335,7 @@ test_that("overview limp status distinguishes comment evidence", {
       right_upper = c("TY", "TG"),
       right_tarsus = c("YB", "YB"),
       sex = c("Female", "Male"),
+      deployment_capture_status = c("C", "F"),
       deployment_date = as.Date(c("2026-09-02", "2026-09-03")),
       resighting_pk = c(11L, 12L),
       resighting_date = as.Date(c("2026-09-06", "2026-09-07")),
