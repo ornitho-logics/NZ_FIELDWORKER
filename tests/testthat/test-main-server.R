@@ -104,6 +104,13 @@ test_that("overview graph helpers use aligned reference-date queries", {
       return(data.frame(start_date = as.character(refdate - 30)))
     }
 
+    if (grepl("WITH parent_events", sql, fixed = TRUE)) {
+      return(data.frame(
+        n_confirmed_pairs = 0,
+        n_pairs_total = 0
+      ))
+    }
+
     if (grepl("SELECT COUNT", sql, fixed = TRUE)) {
       return(data.frame(n = 0))
     }
@@ -140,17 +147,25 @@ test_that("overview graph helpers use aligned reference-date queries", {
   quota_plots <- app$env$overview_quota_graph(refdate)
 
   expect_length(quota_plots, 4)
-  expect_length(queries, 10)
+  expect_length(queries, 12)
   expect_true(all(vapply(
     queries,
-    function(query) identical(
-      query$params,
-      list(as.character(refdate))
-    ),
+    function(query) {
+      expected_params <- if (grepl(
+        "WITH parent_events",
+        query$sql,
+        fixed = TRUE
+      )) {
+        list(as.character(refdate), as.character(refdate))
+      } else {
+        list(as.character(refdate))
+      }
+      identical(query$params, expected_params)
+    },
     logical(1)
   )))
 
-  geolocator_quota_sql <- queries[[7]]$sql
+  geolocator_quota_sql <- queries[[9]]$sql
 
   expect_match(
     geolocator_quota_sql,
@@ -161,33 +176,36 @@ test_that("overview graph helpers use aligned reference-date queries", {
   expect_match(queries[[1]]$sql, "MIN(date_) AS start_date", fixed = TRUE)
   expect_match(queries[[2]]$sql, "COALESCE(site, ''))) = 'CR'", fixed = TRUE)
   expect_match(queries[[3]]$sql, "COALESCE(site, ''))) = 'CR'", fixed = TRUE)
-  expect_match(queries[[4]]$sql, "FROM deployments d", fixed = TRUE)
-  expect_match(queries[[4]]$sql, "r.comments", fixed = TRUE)
+  expect_match(queries[[4]]$sql, "WITH parent_events", fixed = TRUE)
+  expect_match(queries[[4]]$sql, "n_confirmed_pairs", fixed = TRUE)
+  expect_match(queries[[5]]$sql, "FROM deployments d", fixed = TRUE)
+  expect_match(queries[[5]]$sql, "r.comments", fixed = TRUE)
   expect_match(
-    queries[[4]]$sql,
+    queries[[5]]$sql,
     "PARTITION BY tarsus_mark, capture_sex",
     fixed = TRUE
   )
   expect_match(
-    queries[[4]]$sql,
+    queries[[5]]$sql,
     "r.resighting_sex = d.capture_sex",
     fixed = TRUE
   )
   expect_match(
-    queries[[4]]$sql,
+    queries[[5]]$sql,
     "c.capture_status",
     fixed = TRUE
   )
-  expect_match(queries[[5]]$sql, "FROM CAPTURES_ARCHIVE", fixed = TRUE)
-  expect_match(queries[[6]]$sql, "COALESCE(site, ''))) = 'CR'", fixed = TRUE)
+  expect_match(queries[[6]]$sql, "FROM CAPTURES_ARCHIVE", fixed = TRUE)
+  expect_match(queries[[7]]$sql, "has_banded_mark = 1", fixed = TRUE)
+  expect_match(queries[[8]]$sql, "COALESCE(site, ''))) = 'CR'", fixed = TRUE)
   expect_match(
-    queries[[6]]$sql,
+    queries[[8]]$sql,
     "LEFT JOIN geolocator_deployments",
     fixed = TRUE
   )
-  expect_match(queries[[6]]$sql, "c.age, ''))) = 'A'", fixed = TRUE)
-  expect_match(queries[[6]]$sql, "c.tag_type, ''))) = 'GEO'", fixed = TRUE)
-  expect_match(queries[[6]]$sql, "c.tag_action, ''))) = 'D'", fixed = TRUE)
+  expect_match(queries[[8]]$sql, "c.age, ''))) = 'A'", fixed = TRUE)
+  expect_match(queries[[8]]$sql, "c.tag_type, ''))) = 'GEO'", fixed = TRUE)
+  expect_match(queries[[8]]$sql, "c.tag_action, ''))) = 'D'", fixed = TRUE)
 })
 
 
