@@ -664,6 +664,156 @@ WHERE n.row_num = 1
 
 
 /*
+  H-class RESIGHTINGS may omit nest_id when the chick is photographed away
+  from a known nest. Resolve those rows once so BROODS_LATEST and TODO_LIST
+  use the same operational association without altering the raw row.
+*/
+CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.RESIGHTINGS_H_BROOD_ASSOCIATIONS AS
+
+WITH sr AS (
+  SELECT value AS reference_date
+  FROM FIELD_2026_BADOatNZ.settings
+  WHERE variable = 'reference_date'
+    AND value IS NOT NULL
+),
+h_events AS (
+  SELECT
+    r.pk AS resighting_pk,
+    r.date AS resighting_date,
+    r.nest_id AS raw_nest_id,
+    NULLIF(TRIM(r.nest_id), '') AS raw_nest_id_key,
+    NULLIF(
+      NULLIF(UPPER(TRIM(COALESCE(r.ring, ''))), ''),
+      'NA'
+    ) AS ring_key,
+    r.gps_id,
+    r.gps_point,
+    sr.reference_date
+  FROM FIELD_2026_BADOatNZ.RESIGHTINGS r
+  CROSS JOIN sr
+  WHERE UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'
+    AND r.age = 'C'
+    AND r.rclass = 'H'
+    AND r.date <= sr.reference_date
+    AND NULLIF(
+          NULLIF(UPPER(TRIM(COALESCE(r.ring, ''))), ''),
+          'NA'
+        ) IS NOT NULL
+),
+same_occasion_adult_candidates AS (
+  SELECT
+    h.resighting_pk,
+    TRIM(a.nest_id) AS adult_nest_id
+  FROM h_events h
+  JOIN FIELD_2026_BADOatNZ.RESIGHTINGS a
+    ON a.date = h.resighting_date
+   AND UPPER(TRIM(COALESCE(a.site, ''))) = 'CR'
+   AND a.age = 'A'
+   AND a.nest_id IS NOT NULL
+   AND TRIM(a.nest_id) <> ''
+   AND UPPER(TRIM(a.nest_id)) <> 'NO_NEST'
+   AND h.gps_id IS NOT NULL
+   AND h.gps_point IS NOT NULL
+   AND a.gps_id = h.gps_id
+   AND a.gps_point = h.gps_point
+  WHERE h.raw_nest_id_key IS NULL
+),
+same_occasion_adult_summary AS (
+  SELECT
+    resighting_pk,
+    COUNT(DISTINCT adult_nest_id) AS n_adult_nest_ids,
+    MIN(adult_nest_id) AS adult_nest_id
+  FROM same_occasion_adult_candidates
+  GROUP BY resighting_pk
+),
+ring_capture_candidates AS (
+  SELECT
+    h.resighting_pk,
+    TRIM(c.nest_id) AS capture_nest_id,
+    CAST(
+      CONCAT(
+        c.date,
+        ' ',
+        COALESCE(c.released, c.caught, '00:00:00')
+      ) AS DATETIME
+    ) AS capture_datetime,
+    c.pk AS capture_pk
+  FROM h_events h
+  JOIN FIELD_2026_BADOatNZ.CAPTURES c
+    ON NULLIF(
+         NULLIF(UPPER(TRIM(COALESCE(c.ring, ''))), ''),
+         'NA'
+       ) = h.ring_key
+   AND c.age = 'C'
+   AND UPPER(TRIM(COALESCE(c.site, ''))) = 'CR'
+   AND c.nest_id IS NOT NULL
+   AND TRIM(c.nest_id) <> ''
+   AND UPPER(TRIM(c.nest_id)) <> 'NO_NEST'
+   AND c.date < h.resighting_date
+  WHERE h.raw_nest_id_key IS NULL
+),
+latest_ring_capture_datetime AS (
+  SELECT
+    resighting_pk,
+    MAX(capture_datetime) AS latest_capture_datetime
+  FROM ring_capture_candidates
+  GROUP BY resighting_pk
+),
+latest_ring_capture_summary AS (
+  SELECT
+    candidates.resighting_pk,
+    COUNT(DISTINCT candidates.capture_nest_id) AS n_capture_nest_ids,
+    MIN(candidates.capture_nest_id) AS capture_nest_id
+  FROM ring_capture_candidates candidates
+  JOIN latest_ring_capture_datetime latest
+    ON candidates.resighting_pk = latest.resighting_pk
+   AND candidates.capture_datetime = latest.latest_capture_datetime
+  GROUP BY candidates.resighting_pk
+)
+SELECT
+  h.resighting_pk,
+  h.resighting_date,
+  h.reference_date,
+  h.raw_nest_id,
+  h.ring_key AS ring,
+  h.gps_id,
+  h.gps_point,
+  CASE
+    WHEN UPPER(TRIM(COALESCE(h.raw_nest_id_key, ''))) = 'NO_NEST'
+    THEN NULL
+    WHEN h.raw_nest_id_key IS NOT NULL
+    THEN h.raw_nest_id_key
+    WHEN COALESCE(adults.n_adult_nest_ids, 0) = 1
+    THEN adults.adult_nest_id
+    WHEN COALESCE(adults.n_adult_nest_ids, 0) > 1
+    THEN NULL
+    WHEN COALESCE(captures.n_capture_nest_ids, 0) = 1
+    THEN captures.capture_nest_id
+    ELSE NULL
+  END AS resolved_nest_id,
+  CASE
+    WHEN UPPER(TRIM(COALESCE(h.raw_nest_id_key, ''))) = 'NO_NEST'
+    THEN 'explicit_no_nest'
+    WHEN h.raw_nest_id_key IS NOT NULL
+    THEN 'direct'
+    WHEN COALESCE(adults.n_adult_nest_ids, 0) > 1
+    THEN 'ambiguous_same_occasion_adult'
+    WHEN COALESCE(adults.n_adult_nest_ids, 0) = 1
+    THEN 'same_occasion_adult'
+    WHEN COALESCE(captures.n_capture_nest_ids, 0) > 1
+    THEN 'ambiguous_capture_history'
+    WHEN COALESCE(captures.n_capture_nest_ids, 0) = 1
+    THEN 'ring_capture'
+    ELSE 'unresolved'
+  END AS association_method
+FROM h_events h
+LEFT JOIN same_occasion_adult_summary adults
+  ON h.resighting_pk = adults.resighting_pk
+LEFT JOIN latest_ring_capture_summary captures
+  ON h.resighting_pk = captures.resighting_pk;
+
+
+/*
   BROODS_LATEST is the unified operational source for the PDF map and parent
   summary. Positive IDs retain their stationary NESTS history. Negative IDs
   represent mobile broods with no NESTS or EGGS rows and are discovered from
@@ -824,7 +974,7 @@ chick_events AS (
     AND c.date <= sr.reference_date
   UNION ALL
   SELECT
-    r.nest_id,
+    COALESCE(h_assoc.resolved_nest_id, r.nest_id) AS nest_id,
     r.date AS event_date,
     '00:00:00' AS event_time,
     CAST(CONCAT(r.date, ' 00:00:00') AS DATETIME) AS event_datetime,
@@ -836,13 +986,20 @@ chick_events AS (
     r.age,
     r.rclass
   FROM FIELD_2026_BADOatNZ.RESIGHTINGS r
+  LEFT JOIN FIELD_2026_BADOatNZ.RESIGHTINGS_H_BROOD_ASSOCIATIONS h_assoc
+    ON r.pk = h_assoc.resighting_pk
   CROSS JOIN sr
-  WHERE r.nest_id IS NOT NULL
-    AND TRIM(r.nest_id) <> ''
-    AND UPPER(TRIM(r.nest_id)) <> 'NO_NEST'
-    AND UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'
+  WHERE UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'
     AND r.age = 'C'
     AND r.date <= sr.reference_date
+    AND (
+      (
+        r.nest_id IS NOT NULL
+        AND TRIM(r.nest_id) <> ''
+        AND UPPER(TRIM(r.nest_id)) <> 'NO_NEST'
+      )
+      OR h_assoc.resolved_nest_id IS NOT NULL
+    )
 ),
 chick_events_ranked AS (
   SELECT
@@ -2363,21 +2520,16 @@ chick_captures AS (
 ),
 hiding_spot_photos AS (
   SELECT
-    r.nest_id,
+    h.resolved_nest_id AS nest_id,
     COUNT(*) AS n_hiding_spot_photos
-  FROM FIELD_2026_BADOatNZ.RESIGHTINGS r
-  CROSS JOIN sr
-  WHERE r.nest_id IS NOT NULL
-    AND TRIM(r.nest_id) <> ''
-    AND UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'
-    AND r.age = 'C'
-    AND r.rclass = 'H'
-    AND NULLIF(
-          NULLIF(UPPER(TRIM(COALESCE(r.ring, ''))), ''),
-          'NA'
-        ) IS NOT NULL
-    AND r.date <= sr.reference_date
-  GROUP BY r.nest_id
+  FROM FIELD_2026_BADOatNZ.RESIGHTINGS_H_BROOD_ASSOCIATIONS h
+  WHERE h.resolved_nest_id IS NOT NULL
+    AND h.association_method IN (
+      'direct',
+      'same_occasion_adult',
+      'ring_capture'
+    )
+  GROUP BY h.resolved_nest_id
 ),
 adult_capture_events AS (
   SELECT

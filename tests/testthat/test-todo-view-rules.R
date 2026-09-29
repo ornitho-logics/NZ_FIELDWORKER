@@ -22,6 +22,14 @@ todo_list_view_sql <- function() {
 }
 
 
+views_source_sql <- function() {
+  paste(
+    readLines(app_file("DATABASE", "views.SQL"), warn = FALSE),
+    collapse = "\n"
+  )
+}
+
+
 test_that("TODO_LIST contains the bounded operational rules", {
   sql <- todo_list_view_sql()
 
@@ -42,7 +50,36 @@ test_that("TODO_LIST contains the bounded operational rules", {
     fixed = TRUE
   )
   expect_match(sql, "WHERE NOT EXISTS", fixed = TRUE)
-  expect_no_match(sql, "RESIGHTINGS_H_BROOD_ASSOCIATIONS", fixed = TRUE)
+  expect_match(
+    sql,
+    "FROM FIELD_2026_BADOatNZ.RESIGHTINGS_H_BROOD_ASSOCIATIONS h",
+    fixed = TRUE
+  )
+})
+
+
+test_that("H hiding-photo association is shared by BROODS_LATEST and TODO_LIST", {
+  sql <- views_source_sql()
+
+  expect_match(
+    sql,
+    "CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.RESIGHTINGS_H_BROOD_ASSOCIATIONS AS",
+    fixed = TRUE
+  )
+  expect_match(sql, "same_occasion_adult_summary", fixed = TRUE)
+  expect_match(sql, "latest_ring_capture_summary", fixed = TRUE)
+  expect_match(
+    sql,
+    "COALESCE(h_assoc.resolved_nest_id, r.nest_id) AS nest_id",
+    fixed = TRUE
+  )
+  expect_match(sql, "'ambiguous_same_occasion_adult'", fixed = TRUE)
+  expect_match(sql, "'ambiguous_capture_history'", fixed = TRUE)
+  expect_match(
+    sql,
+    "h.association_method IN (\n      'direct',\n      'same_occasion_adult',\n      'ring_capture'",
+    fixed = TRUE
+  )
 })
 
 
