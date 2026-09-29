@@ -3062,11 +3062,11 @@ adult_mm_followup_status AS (
     MAX(
       CASE
         WHEN mm.sex = 'M'
-         AND COALESCE(followup.n_matching_post_mm_resightings, 0) >= 1
-         AND (
-           COALESCE(followup.has_matching_nest_behav, 0) = 1
-           OR COALESCE(followup.n_matching_post_mm_resightings, 0) >= 3
-         )
+        AND COALESCE(followup.n_matching_post_mm_resightings, 0) >= 1
+        AND (
+          COALESCE(followup.has_matching_nest_behav, 0) = 1
+          OR COALESCE(followup.n_matching_post_mm_resightings, 0) >= 3
+        )
         THEN 1
         ELSE 0
       END
@@ -3075,11 +3075,11 @@ adult_mm_followup_status AS (
     MAX(
       CASE
         WHEN mm.sex = 'F'
-         AND COALESCE(followup.n_matching_post_mm_resightings, 0) >= 1
-         AND (
-           COALESCE(followup.has_matching_nest_behav, 0) = 1
-           OR COALESCE(followup.n_matching_post_mm_resightings, 0) >= 3
-         )
+        AND COALESCE(followup.n_matching_post_mm_resightings, 0) >= 1
+        AND (
+          COALESCE(followup.has_matching_nest_behav, 0) = 1
+          OR COALESCE(followup.n_matching_post_mm_resightings, 0) >= 3
+        )
         THEN 1
         ELSE 0
       END
