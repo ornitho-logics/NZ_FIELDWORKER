@@ -74,3 +74,90 @@ test_that("RDS database downloads do not materialize SQL views", {
   expect_match(dump_body, "table_type = 'BASE TABLE'", fixed = TRUE)
   expect_no_match(dump_body, "'VIEW'", fixed = TRUE)
 })
+
+
+test_that("SQL database downloads use an available dump client", {
+  env <- new.env(parent = globalenv())
+  source_app_file(app_file("main", "R", "system_utils.R"), env)
+
+  find_program <- function(commands) {
+    paths <- rep("", length(commands))
+    paths[commands == "mysqldump"] <- "/usr/local/bin/mysqldump"
+    stats::setNames(paths, commands)
+  }
+
+  expect_identical(
+    env$mariadb_dump_command(find_program = find_program),
+    "/usr/local/bin/mysqldump"
+  )
+})
+
+
+test_that("SQL database downloads tolerate a faulty derived view", {
+  env <- new.env(parent = globalenv())
+  env$glue <- glue::glue
+  env$group <- "nz_fieldworker"
+  env$read.ini <- function(...) {
+    list(nz_fieldworker = list(host = "localhost", user = "mock"))
+  }
+  env$write.ini <- function(x, file) {
+    writeLines("[client]", file)
+  }
+  source_app_file(app_file("main", "R", "system_utils.R"), env)
+
+  fake_dump <- tempfile("fake-mariadb-dump-")
+  writeLines(
+    c(
+      "#!/bin/sh",
+      "force=0",
+      "for arg in \"$@\"; do",
+      "  case \"$arg\" in",
+      "    --force) force=1 ;;",
+      "    --result-file=*) output=${arg#*=} ;;",
+      "  esac",
+      "done",
+      "[ \"$force\" -eq 1 ] || exit 9",
+      "printf '%s\\n' '-- mock SQL backup' > \"$output\""
+    ),
+    fake_dump
+  )
+  Sys.chmod(fake_dump, "0700")
+
+  output <- tempfile(fileext = ".sql")
+  result <- env$mariadb_dump(
+    output,
+    database = "MOCK_DATABASE",
+    dump_command = fake_dump
+  )
+
+  expect_identical(result, output)
+  expect_gt(file.info(output)$size, 0)
+})
+
+
+test_that("SQL database downloads reject an empty dump", {
+  env <- new.env(parent = globalenv())
+  env$glue <- glue::glue
+  env$group <- "nz_fieldworker"
+  env$read.ini <- function(...) {
+    list(nz_fieldworker = list(host = "localhost", user = "mock"))
+  }
+  env$write.ini <- function(x, file) {
+    writeLines("[client]", file)
+  }
+  source_app_file(app_file("main", "R", "system_utils.R"), env)
+
+  fake_dump <- tempfile("empty-mariadb-dump-")
+  writeLines(c("#!/bin/sh", "exit 0"), fake_dump)
+  Sys.chmod(fake_dump, "0700")
+
+  expect_error(
+    env$mariadb_dump(
+      tempfile(fileext = ".sql"),
+      database = "MOCK_DATABASE",
+      dump_command = fake_dump
+    ),
+    "failed to create a non-empty SQL backup",
+    fixed = TRUE
+  )
+})

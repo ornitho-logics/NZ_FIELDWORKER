@@ -244,7 +244,34 @@ dump_schema <- function(schema, path = tempfile(fileext = ".rds")) {
 }
 
 
-mariadb_dump <- function(file, database) {
+mariadb_dump_command <- function(
+  configured = Sys.getenv("MARIADB_DUMP", unset = ""),
+  find_program = Sys.which
+) {
+  candidates <- unique(c(
+    configured[nzchar(configured)],
+    "mariadb-dump",
+    "mysqldump"
+  ))
+  commands <- find_program(candidates)
+  commands <- unname(commands[nzchar(commands)])
+
+  if (!length(commands)) {
+    stop(
+      "Neither mariadb-dump nor mysqldump is available to create the SQL backup.",
+      call. = FALSE
+    )
+  }
+
+  commands[[1]]
+}
+
+
+mariadb_dump <- function(
+  file,
+  database,
+  dump_command = mariadb_dump_command()
+) {
   # mariadb-dump needs standard group [client]
 
   cnf <- read.ini(path.expand(Sys.getenv("DATAENTRY_CNF")))
@@ -257,10 +284,12 @@ mariadb_dump <- function(file, database) {
   write.ini(client, client_cnf)
   Sys.chmod(client_cnf, "0600")
 
-  status <- system2(
-    "mariadb-dump",
+  output <- suppressWarnings(system2(
+    dump_command,
     args = c(
       glue("--defaults-extra-file={client_cnf}"),
+      # Keep the base-table backup usable if a derived view is invalid.
+      "--force",
       "--single-transaction",
       "--routines",
       "--events",
@@ -268,12 +297,30 @@ mariadb_dump <- function(file, database) {
       "--databases",
       database,
       glue("--result-file={file}")
-    )
-  )
+    ),
+    stdout = TRUE,
+    stderr = TRUE
+  ))
+  status <- attr(output, "status") %||% 0L
 
-  if (status != 0) {
-    stop(glue("mariadb-dump failed with exit status {status}."), call. = FALSE)
+  if (
+    status != 0L ||
+      !file.exists(file) ||
+      is.na(file.info(file)$size) ||
+      file.info(file)$size == 0
+  ) {
+    detail <- paste(tail(output, 3), collapse = " ")
+    detail <- if (nzchar(detail)) glue(" {detail}") else ""
+    stop(
+      glue(
+        "{basename(dump_command)} failed to create a non-empty SQL backup ",
+        "(exit status {status}).{detail}"
+      ),
+      call. = FALSE
+    )
   }
+
+  invisible(file)
 }
 
 
