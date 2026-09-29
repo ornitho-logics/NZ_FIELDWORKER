@@ -267,6 +267,27 @@ mariadb_dump_command <- function(
 }
 
 
+mariadb_dump_is_complete <- function(file, tail_bytes = 8192L) {
+  if (
+    !file.exists(file) ||
+      is.na(file.info(file)$size) ||
+      file.info(file)$size == 0
+  ) {
+    return(FALSE)
+  }
+
+  size <- file.info(file)$size
+  con <- file(file, open = "rb")
+  on.exit(close(con), add = TRUE)
+
+  offset <- max(0, size - tail_bytes)
+  seek(con, where = offset, origin = "start")
+  suffix <- readBin(con, what = "raw", n = min(size, tail_bytes))
+
+  grepl("-- Dump completed on ", rawToChar(suffix), fixed = TRUE)
+}
+
+
 mariadb_dump <- function(
   file,
   database,
@@ -303,12 +324,9 @@ mariadb_dump <- function(
   ))
   status <- attr(output, "status") %||% 0L
 
-  if (
-    status != 0L ||
-      !file.exists(file) ||
-      is.na(file.info(file)$size) ||
-      file.info(file)$size == 0
-  ) {
+  # With --force, mariadb-dump may finish a usable backup but still return 2
+  # after reporting an invalid view. Its completion marker is authoritative.
+  if (!mariadb_dump_is_complete(file)) {
     detail <- paste(tail(output, 3), collapse = " ")
     detail <- if (nzchar(detail)) glue(" {detail}") else ""
     stop(
