@@ -226,7 +226,10 @@ test_that("overview limp status distinguishes comment evidence", {
     "foraging beside the river",
     "walks fine and limps",
     "walks well, no limp",
-    "not limping today"
+    "not limping today",
+    "limp0",
+    "limp: 1",
+    "LIMP = 2"
   )
 
   expect_identical(
@@ -238,7 +241,10 @@ test_that("overview limp status distinguishes comment evidence", {
       "No limp reported",
       "Limping",
       "No limp reported",
-      "No limp reported"
+      "No limp reported",
+      "No limp reported",
+      "Possible/slight limp",
+      "Severe limp"
     )
   )
   expect_identical(
@@ -285,8 +291,11 @@ test_that("overview limp status distinguishes comment evidence", {
   expect_silent(ggplot2::ggplot_build(plot))
   expect_equal(
     plot$coordinates$limits$x,
-    as.Date(c("2026-09-01", "2026-09-10"))
+    as.Date(c("2026-08-30", "2026-09-10"))
   )
+  expect_s3_class(plot$facet, "FacetGrid")
+  expect_true(plot$facet$params$free$y)
+  expect_true(plot$facet$params$space_free$y)
   expect_match(plot$labels$caption, "\n", fixed = TRUE)
   expect_identical(plot$guides$guides$fill$params$ncol, 1)
   expect_identical(
