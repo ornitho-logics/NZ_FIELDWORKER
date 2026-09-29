@@ -93,7 +93,7 @@ test_that("SQL database downloads use an available dump client", {
 })
 
 
-test_that("SQL database downloads tolerate a faulty derived view", {
+test_that("SQL database downloads keep a completed dump with view warnings", {
   env <- new.env(parent = globalenv())
   env$glue <- glue::glue
   env$group <- "nz_fieldworker"
@@ -117,7 +117,9 @@ test_that("SQL database downloads tolerate a faulty derived view", {
       "  esac",
       "done",
       "[ \"$force\" -eq 1 ] || exit 9",
-      "printf '%s\\n' '-- mock SQL backup' > \"$output\""
+      "printf '%s\\n' '-- mock SQL backup' > \"$output\"",
+      "printf '%s\\n' '-- Dump completed on 2026-09-29 21:00:00' >> \"$output\"",
+      "exit 2"
     ),
     fake_dump
   )
@@ -135,7 +137,7 @@ test_that("SQL database downloads tolerate a faulty derived view", {
 })
 
 
-test_that("SQL database downloads reject an empty dump", {
+test_that("SQL database downloads reject an incomplete dump", {
   env <- new.env(parent = globalenv())
   env$glue <- glue::glue
   env$group <- "nz_fieldworker"
@@ -147,8 +149,20 @@ test_that("SQL database downloads reject an empty dump", {
   }
   source_app_file(app_file("main", "R", "system_utils.R"), env)
 
-  fake_dump <- tempfile("empty-mariadb-dump-")
-  writeLines(c("#!/bin/sh", "exit 0"), fake_dump)
+  fake_dump <- tempfile("incomplete-mariadb-dump-")
+  writeLines(
+    c(
+      "#!/bin/sh",
+      "for arg in \"$@\"; do",
+      "  case \"$arg\" in",
+      "    --result-file=*) output=${arg#*=} ;;",
+      "  esac",
+      "done",
+      "printf '%s\\n' '-- partial SQL backup' > \"$output\"",
+      "exit 2"
+    ),
+    fake_dump
+  )
   Sys.chmod(fake_dump, "0700")
 
   expect_error(
