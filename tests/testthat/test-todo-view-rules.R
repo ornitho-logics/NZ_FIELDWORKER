@@ -125,6 +125,170 @@ test_that("MM parent follow-up accepts qualifying behaviour or three matching re
 })
 
 
+test_that("hatched brood task Hatch values use the recorded H date", {
+  sql <- todo_list_view_sql()
+
+  expect_match(
+    sql,
+    "DATEDIFF(\n      brood_followup_nests.hatch_date,\n      brood_followup_nests.reference_date\n    ) AS min_days_to_hatch",
+    fixed = TRUE
+  )
+
+  hatch_value <- function(hatch_date, reference_date, is_negative = FALSE) {
+    if (isTRUE(is_negative)) {
+      return(NA_integer_)
+    }
+    as.integer(as.Date(hatch_date) - as.Date(reference_date))
+  }
+
+  expect_identical(
+    hatch_value("2026-09-28", "2026-09-29"),
+    -1L
+  )
+  expect_identical(
+    hatch_value("2026-09-24", "2026-09-25"),
+    -1L
+  )
+  expect_identical(
+    hatch_value("2026-09-28", "2026-09-29", is_negative = TRUE),
+    NA_integer_
+  )
+})
+
+
+test_that("hatch-stage parent work bypasses the clutch-age gate", {
+  sql <- todo_list_view_sql()
+
+  expect_match(
+    sql,
+    "WHEN UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) = 'H'",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "OR active_nests.hatch_signs_present = 1",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "ELSE COALESCE(capture_age.capture_allowed_after_completion, 0)",
+    fixed = TRUE
+  )
+
+  capture_gate <- function(nest_state, hatch_signs_present, age_gate = 0) {
+    if (toupper(trimws(nest_state)) == "H" || hatch_signs_present == 1) {
+      return(1L)
+    }
+    as.integer(age_gate)
+  }
+
+  expect_identical(capture_gate("H", 0), 1L)
+  expect_identical(capture_gate("I", 1), 1L)
+  expect_identical(capture_gate("I", 0, 1), 1L)
+  expect_identical(capture_gate("I", 0, 0), 0L)
+})
+
+
+test_that("pending MM parents remain visible as status-unknown capture work", {
+  sql <- todo_list_view_sql()
+
+  expect_match(
+    sql,
+    "WHEN COALESCE(adult_mm_followup_status.M_mm_resight_pending, 0) = 1\n      THEN 1",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "(mm.sex = 'M' AND COALESCE(adult_parent_status.M_mm_resight_pending, 0) = 1)",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "(mm.sex = 'F' AND COALESCE(adult_parent_status.F_mm_resight_pending, 0) = 1)",
+    fixed = TRUE
+  )
+  expect_no_match(sql, "AND followup.nest_id IS NULL", fixed = TRUE)
+  expect_match(sql, "resight/band M (status ?)", fixed = TRUE)
+
+  mm_followup_pending <- function(n_matching, has_nest_behaviour) {
+    n_matching == 0L ||
+      (!isTRUE(has_nest_behaviour) && n_matching < 3L)
+  }
+
+  parent_note <- function(
+    mm_pending,
+    capture_allowed = TRUE,
+    capture_interval_open = TRUE
+  ) {
+    if (isTRUE(mm_pending)) {
+      if (capture_allowed && capture_interval_open) {
+        return("resight/band M (status ?)")
+      }
+      return("resight M (status ?)")
+    }
+    ""
+  }
+
+  expect_true(mm_followup_pending(1L, FALSE))
+  expect_false(mm_followup_pending(1L, TRUE))
+  expect_false(mm_followup_pending(3L, FALSE))
+  expect_identical(parent_note(TRUE), "resight/band M (status ?)")
+  expect_identical(
+    parent_note(TRUE, capture_interval_open = FALSE),
+    "resight M (status ?)"
+  )
+})
+
+
+test_that("pair completion requires a confirmed GEO association", {
+  sql <- todo_list_view_sql()
+
+  expect_match(
+    sql,
+    "COALESCE(base.F_captured_has_geo, 0) = 1\n                   AND COALESCE(base.F_mm_resight_pending, 0) = 0",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "COALESCE(base.M_captured_has_geo, 0) = 1\n                   AND COALESCE(base.M_mm_resight_pending, 0) = 0",
+    fixed = TRUE
+  )
+
+  pair_target <- function(
+    male_tag_eligible,
+    female_quota_remaining,
+    male_quota_remaining,
+    female_has_geo,
+    female_captured_has_geo,
+    female_mm_pending
+  ) {
+    if (
+      male_tag_eligible &&
+        male_quota_remaining > 0 &&
+        (
+          female_has_geo ||
+            (female_captured_has_geo && !female_mm_pending)
+        )
+    ) {
+      return("M")
+    }
+    if (female_quota_remaining > 0 && male_quota_remaining >= 0) {
+      return(NULL)
+    }
+    NULL
+  }
+
+  expect_identical(
+    pair_target(TRUE, 1, 1, TRUE, FALSE, FALSE),
+    "M"
+  )
+  expect_identical(
+    pair_target(TRUE, 1, 1, FALSE, TRUE, TRUE),
+    NULL
+  )
+})
+
+
 test_that("resolved MM follow-up uses the canonical captured parent mark", {
   sql <- todo_list_view_sql()
 
