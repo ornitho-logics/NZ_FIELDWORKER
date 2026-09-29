@@ -63,16 +63,48 @@ test_that("dbview_is_updated keeps unmapped views stable", {
 })
 
 
-test_that("RDS database downloads do not materialize SQL views", {
+test_that("RDS database downloads include only the required archive view", {
   env <- new.env(parent = globalenv())
   env$glue <- glue::glue
 
   source_app_file(app_file("main", "R", "system_utils.R"), env)
 
-  dump_body <- paste(deparse(body(env$dump_schema)), collapse = "\n")
+  objects <- data.frame(
+    table_name = c(
+      "CAPTURES",
+      "captures_archive",
+      "TODO_LIST",
+      "OVERVIEW"
+    ),
+    table_type = c("BASE TABLE", "VIEW", "VIEW", "VIEW")
+  )
 
-  expect_match(dump_body, "table_type = 'BASE TABLE'", fixed = TRUE)
-  expect_no_match(dump_body, "'VIEW'", fixed = TRUE)
+  expect_equal(
+    env$rds_export_objects(objects),
+    data.frame(
+      table_name = c("CAPTURES", "captures_archive"),
+      export_name = c("CAPTURES", "CAPTURES_ARCHIVE")
+    )
+  )
+})
+
+
+test_that("RDS database downloads require the archive view", {
+  env <- new.env(parent = globalenv())
+  env$glue <- glue::glue
+
+  source_app_file(app_file("main", "R", "system_utils.R"), env)
+
+  objects <- data.frame(
+    table_name = c("CAPTURES", "TODO_LIST"),
+    table_type = c("BASE TABLE", "VIEW")
+  )
+
+  expect_error(
+    env$rds_export_objects(objects),
+    "Required RDS export view(s) unavailable: CAPTURES_ARCHIVE.",
+    fixed = TRUE
+  )
 })
 
 
