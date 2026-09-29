@@ -265,7 +265,23 @@ git_remote_main_id <- function(timeout = 5L) {
 }
 
 
+git_commit_time <- function(app_dir, ref) {
+  output <- git_output(
+    app_dir,
+    c("show", "-s", "--format=%cI", ref)
+  )
+
+  if (length(output) == 0L || !nzchar(trimws(output[[1L]]))) {
+    return(NULL)
+  }
+
+  trimws(output[[1L]])
+}
+
+
 resolve_git_version <- function(app_dir = getwd()) {
+  app_dir <- normalizePath(app_dir, mustWork = FALSE)
+
   environment_names <- c(
     "FIELDWORKER_GIT_ID",
     "GITHUB_SHA",
@@ -277,11 +293,13 @@ resolve_git_version <- function(app_dir = getwd()) {
     id <- normalize_git_id(Sys.getenv(name, unset = NA_character_))
 
     if (!is.null(id)) {
-      return(list(id = id, source = paste0("env:", name)))
+      return(list(
+        id = id,
+        source = paste0("env:", name),
+        commit_time = git_commit_time(app_dir, id)
+      ))
     }
   }
-
-  app_dir <- normalizePath(app_dir, mustWork = FALSE)
 
   for (ref in c("HEAD", "origin/main", "main")) {
     if (!git_ref_matches_app(app_dir, ref)) {
@@ -293,17 +311,25 @@ resolve_git_version <- function(app_dir = getwd()) {
     )
 
     if (!is.null(id)) {
-      return(list(id = id, source = paste0("git:", ref)))
+      return(list(
+        id = id,
+        source = paste0("git:", ref),
+        commit_time = git_commit_time(app_dir, ref)
+      ))
     }
   }
 
   id <- git_remote_main_id()
 
   if (!is.null(id)) {
-    return(list(id = id, source = "remote:origin/main"))
+    return(list(
+      id = id,
+      source = "remote:origin/main",
+      commit_time = git_commit_time(app_dir, id)
+    ))
   }
 
-  list(id = "unknown", source = "unavailable")
+  list(id = "unknown", source = "unavailable", commit_time = NULL)
 }
 
 

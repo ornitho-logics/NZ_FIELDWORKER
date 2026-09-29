@@ -71,9 +71,64 @@ todo_pdf_as_numeric <- function(x) {
 }
 
 
-todo_pdf_version_footer <- function() {
-  # This identifies the main-branch baseline used to produce the PDF.
-  "version e28b7dd - 21:56 CEST Sep 29, 2026"
+todo_pdf_version_footer <- function(version = NULL) {
+  if (is.null(version)) {
+    version <- get0("git_version", ifnotfound = NULL, inherits = TRUE)
+  }
+  if (is.null(version) || !is.list(version)) {
+    version <- list(id = "unknown", commit_time = NULL)
+  }
+
+  commit_id <- version$id
+  if (is.null(commit_id) || !length(commit_id) || is.na(commit_id[[1L]])) {
+    commit_id <- "unknown"
+  } else {
+    commit_id <- as.character(commit_id[[1L]])
+  }
+  commit_time <- version$commit_time
+  formatted_time <- NULL
+  if (!is.null(commit_time) && length(commit_time)) {
+    commit_time <- trimws(as.character(commit_time[[1L]]))
+    time_parts <- regexec(
+      "^(.*T[0-9]{2}:[0-9]{2}:[0-9]{2})([+-])([0-9]{2}):?([0-9]{2})$",
+      commit_time
+    )
+    time_parts <- regmatches(commit_time, time_parts)[[1L]]
+    if (length(time_parts) == 5L) {
+      parsed_time <- suppressWarnings(
+        as.POSIXct(
+          time_parts[[2L]],
+          format = "%Y-%m-%dT%H:%M:%S",
+          tz = "UTC"
+        )
+      )
+      offset_seconds <- (
+        as.numeric(time_parts[[4L]]) * 3600
+          + as.numeric(time_parts[[5L]]) * 60
+      )
+      if (time_parts[[3L]] == "-") {
+        offset_seconds <- -offset_seconds
+      }
+      parsed_time <- parsed_time - offset_seconds
+    } else {
+      parsed_time <- suppressWarnings(
+        as.POSIXct(commit_time, tz = "UTC")
+      )
+    }
+    if (!is.na(parsed_time)) {
+      formatted_time <- format(
+        parsed_time,
+        tz = "Europe/Berlin",
+        format = "%H:%M %Z %b %d, %Y"
+      )
+    }
+  }
+
+  if (is.null(formatted_time) || !nzchar(formatted_time)) {
+    return(glue("version {commit_id} - commit time unavailable"))
+  }
+
+  glue("version {commit_id} - {formatted_time}")
 }
 
 
@@ -1100,7 +1155,7 @@ todo_pdf_qmd <- function(
       switch(
         line,
         "{{ header }}" = glue(
-          '#set page(header: context [#align(left)[#text(size: 18pt, weight: "bold", fill: rgb("#5f6b70"))[{pdf$title}]]])'
+          '#set page(header: context [#align(center)[#text(size: 12pt, weight: "bold", fill: rgb("#5f6b70"))[{pdf$title}]]])'
         ),
         "{{ footer }}" = glue(
           '#set page(footer: context [#align(right)[#text(size: 6pt, fill: rgb("#7b858b"))[{todo_pdf_version_footer()}]]])'
