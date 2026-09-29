@@ -5770,8 +5770,8 @@ todo_nota_nest_check AS (
       WHEN nota_followup_nests.nest_state = 'H'
        AND COALESCE(nota_followup_nests.clutch_size, 0) = 0
        AND COALESCE(nota_followup_nests.brood_size, 0) > 0
-      THEN 'brood away; remove nest marks + enter notA'
-      ELSE 'remove nest marks + enter notA'
+      THEN 'hatched; remove flag + do notA'
+      ELSE 'remove flag + do notA'
     END AS notes,
     nota_followup_nests.days_ago AS days_overdue,
     325 + nota_followup_nests.days_ago AS priority,

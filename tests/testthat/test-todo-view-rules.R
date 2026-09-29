@@ -570,6 +570,16 @@ test_that("pair completion bypasses the release ceiling but balance does not", {
 })
 
 
+test_that("notA follow-up notes use the compact operational wording", {
+  sql <- todo_list_view_sql()
+
+  expect_match(sql, "'hatched; remove flag + do notA'", fixed = TRUE)
+  expect_match(sql, "'remove flag + do notA'", fixed = TRUE)
+  expect_no_match(sql, "'brood away; remove nest marks + enter notA'", fixed = TRUE)
+  expect_no_match(sql, "'remove nest marks + enter notA'", fixed = TRUE)
+})
+
+
 test_that("one tagged parent produces pair completion without deployment-date gating", {
   sql <- todo_list_view_sql()
 

@@ -461,6 +461,15 @@ todo_pdf_prepare <- function(
     pdf_brood_size = "NA"
   )]
 
+  # B0208 has an H record without an entered brood size. Preserve the
+  # uncertainty in every PDF task row rather than displaying it as zero.
+  b0208_unknown_brood <- todo_dt$nest_id == "B0208" & (
+    is.na(todo_dt$pdf_brood_size)
+      | !nzchar(trimws(todo_dt$pdf_brood_size))
+      | toupper(trimws(todo_dt$pdf_brood_size)) %chin% c("0", "NA", "NULL")
+  )
+  todo_dt[b0208_unknown_brood, pdf_brood_size := "?"]
+
   if (!is.null(chick_captures)) {
     chick_dt <- data.table(chick_captures)
     if (all(c("nest_id", "age") %in% names(chick_dt))) {
@@ -595,12 +604,12 @@ todo_pdf_note_key <- function(notes = character()) {
     list(
       label = "MM cap",
       pattern = "MM cap",
-      text = "Captured away from the nest. A later nest-linked resighting with matching sex and identity confirms association; behaviour code is not required."
+      text = "Captured with mobile mist net. Three subsequent nest-linked resightings with matching sex and identity confirms association OR a single nest-linked resighting with behav 'IN', 'NM', or 'BW'."
     ),
     list(
       label = "Pair completion",
       pattern = "pair completion",
-      text = "At nests known by Sep 24, prioritize the eligible untagged mate; at later nests, complete a pair after the first planned deployment."
+      text = "Prioritize tagging the eligible untagged mate so that both pair members are tagged"
     ),
     list(
       label = "Sex/phenology balance",
@@ -625,7 +634,7 @@ todo_pdf_note_key <- function(notes = character()) {
     list(
       label = "Status ?",
       pattern = "status ?",
-      text = "Identity or band status is unknown."
+      text = "Identity or X-X status is unknown."
     )
   )
 
@@ -1091,7 +1100,7 @@ todo_pdf_qmd <- function(
       switch(
         line,
         "{{ header }}" = glue(
-          '#set page(header: context [#align(left)[#text(size: 6pt, weight: "bold", fill: rgb("#5f6b70"))[{pdf$title}]]])'
+          '#set page(header: context [#align(left)[#text(size: 18pt, weight: "bold", fill: rgb("#5f6b70"))[{pdf$title}]]])'
         ),
         "{{ footer }}" = glue(
           '#set page(footer: context [#align(right)[#text(size: 6pt, fill: rgb("#7b858b"))[{todo_pdf_version_footer()}]]])'
