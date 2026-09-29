@@ -3599,19 +3599,32 @@ adult_parent_status AS (
       )
     END AS F_parent_mark,
     CASE
+      WHEN COALESCE(adult_mm_followup_status.M_mm_xx_parent_confirmed, 0) = 1
+      THEN 0
       WHEN COALESCE(adult_mm_followup_status.M_mm_resight_pending, 0) = 1
       THEN 0
       ELSE COALESCE(adult_parent_identity_status.M_identity_has_geo, 0)
     END AS M_has_geo,
     CASE
+      WHEN COALESCE(adult_mm_followup_status.F_mm_xx_parent_confirmed, 0) = 1
+      THEN 0
       WHEN COALESCE(adult_mm_followup_status.F_mm_resight_pending, 0) = 1
       THEN 0
       ELSE COALESCE(adult_parent_identity_status.F_identity_has_geo, 0)
     END AS F_has_geo,
-    -- Preserve tagged-parent evidence separately from the association gate.
-    COALESCE(adult_parent_identity_status.M_identity_has_geo, 0)
+    -- Preserve captured GEO evidence only while that capture remains the
+    -- resolved parent identity used for pair-completion decisions.
+    CASE
+      WHEN COALESCE(adult_mm_followup_status.M_mm_xx_parent_confirmed, 0) = 1
+      THEN 0
+      ELSE COALESCE(adult_parent_identity_status.M_identity_has_geo, 0)
+    END
       AS M_captured_has_geo,
-    COALESCE(adult_parent_identity_status.F_identity_has_geo, 0)
+    CASE
+      WHEN COALESCE(adult_mm_followup_status.F_mm_xx_parent_confirmed, 0) = 1
+      THEN 0
+      ELSE COALESCE(adult_parent_identity_status.F_identity_has_geo, 0)
+    END
       AS F_captured_has_geo,
     CASE
       WHEN COALESCE(adult_mm_followup_status.M_mm_resight_pending, 0) = 1
@@ -4002,10 +4015,6 @@ geo_parent_plan AS (
     CASE
       WHEN ranked.geo_is_actionable = 1
        AND ranked.pair_target IS NOT NULL
-       AND ranked.geo_rank <= GREATEST(
-         0,
-         ranked.release_ceiling - ranked.n_geo_deployed
-       )
       THEN ranked.geo_target
       ELSE NULL
     END AS geo_tag_target,
@@ -4039,7 +4048,6 @@ geo_parent_plan AS (
         CASE ranked.band_target WHEN 'A' THEN 'either' ELSE ranked.band_target END
       )
       WHEN ranked.pair_target IS NOT NULL
-       AND ranked.n_geo_deployed < ranked.release_ceiling
        AND ranked.is_candidate = 0
       THEN CONCAT(
         'resight ',
@@ -4062,7 +4070,6 @@ geo_parent_plan AS (
         ')'
       )
       WHEN ranked.pair_target IS NOT NULL
-       AND ranked.n_geo_deployed < ranked.release_ceiling
        AND ranked.is_candidate = 1
       THEN CONCAT(
         'resight ',
@@ -4105,7 +4112,6 @@ geo_parent_plan AS (
     END AS geo_instruction,
     CASE
       WHEN ranked.pair_target IS NOT NULL
-       AND ranked.n_geo_deployed < ranked.release_ceiling
       THEN 1 ELSE 0
     END AS is_pair_completion,
     ranked.M_is_au_migrant,
@@ -4115,10 +4121,12 @@ geo_parent_plan AS (
       ranked_base.*,
       CASE
         WHEN ranked_base.is_candidate = 1
-         AND ranked_base.pair_target IS NOT NULL
-         AND ranked_base.geo_rank <= GREATEST(
-           0,
-           ranked_base.release_ceiling - ranked_base.n_geo_deployed
+         AND (
+           ranked_base.pair_target IS NOT NULL
+           OR ranked_base.geo_rank <= GREATEST(
+             0,
+             ranked_base.release_ceiling - ranked_base.n_geo_deployed
+           )
          )
         THEN 1
         ELSE 0
@@ -4197,7 +4205,10 @@ geo_parent_plan AS (
             CASE
                WHEN COALESCE(targets.pair_target, targets.balance_target)
                    IS NOT NULL
-               AND targets.n_geo_deployed < targets.release_ceiling
+               AND (
+                 targets.pair_target IS NOT NULL
+                 OR targets.n_geo_deployed < targets.release_ceiling
+               )
                AND COALESCE(targets.capture_allowed_after_completion, 0) = 1
                AND CASE COALESCE(targets.pair_target, targets.balance_target)
                  WHEN 'M' THEN CASE
@@ -4221,9 +4232,10 @@ geo_parent_plan AS (
           FROM (
             SELECT
               base.*,
-            -- A pair completion is the first tier, but it cannot exceed the
-            -- final 50-per-sex quota. Once F reaches 50, an eligible M can
-            -- still be selected; the reverse applies if M reaches 50 first.
+            -- Pair completion has priority and bypasses the release ceiling;
+            -- the final 50-per-sex quota remains the hard limit for the
+            -- target sex. Once F reaches 50, an eligible M can still be
+            -- selected; the reverse applies if M reaches 50 first.
             CASE
               WHEN base.M_tag_eligible = 1
                AND base.male_quota_remaining > 0

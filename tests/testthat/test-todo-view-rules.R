@@ -469,6 +469,18 @@ test_that("pair completion requires a confirmed GEO association", {
   sql <- todo_list_view_sql()
 
   expect_match(sql, "THEN '; status ?'", fixed = TRUE)
+  expect_match(
+    sql,
+    "WHEN COALESCE(adult_mm_followup_status.F_mm_xx_parent_confirmed, 0) = 1\n      THEN 0\n      WHEN COALESCE(adult_mm_followup_status.F_mm_resight_pending, 0) = 1",
+    fixed = TRUE
+  )
+
+  resolved_parent_geo <- function(identity_has_geo, xx_parent_confirmed, pending) {
+    if (isTRUE(xx_parent_confirmed) || isTRUE(pending)) 0 else identity_has_geo
+  }
+  expect_identical(resolved_parent_geo(1, TRUE, FALSE), 0)
+  expect_identical(resolved_parent_geo(1, FALSE, TRUE), 0)
+  expect_identical(resolved_parent_geo(1, FALSE, FALSE), 1)
 
   expect_match(
     sql,
@@ -513,6 +525,48 @@ test_that("pair completion requires a confirmed GEO association", {
     pair_target(TRUE, 1, 1, FALSE, TRUE, TRUE),
     NULL
   )
+})
+
+
+test_that("pair completion bypasses the release ceiling but balance does not", {
+  sql <- todo_list_view_sql()
+
+  expect_match(
+    sql,
+    "ranked_base.pair_target IS NOT NULL\n           OR ranked_base.geo_rank <= GREATEST(",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "targets.pair_target IS NOT NULL\n                 OR targets.n_geo_deployed < targets.release_ceiling",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "WHEN ranked.pair_target IS NOT NULL\n      THEN 1 ELSE 0",
+    fixed = TRUE
+  )
+  expect_no_match(
+    sql,
+    "WHEN ranked.geo_is_actionable = 1\n       AND ranked.pair_target IS NOT NULL\n       AND ranked.geo_rank <= GREATEST(",
+    fixed = TRUE
+  )
+
+  geo_is_actionable <- function(
+    is_candidate,
+    pair_target,
+    geo_rank,
+    release_slots_remaining
+  ) {
+    isTRUE(is_candidate) && (
+      !is.null(pair_target) ||
+        geo_rank <= max(0, release_slots_remaining)
+    )
+  }
+
+  expect_true(geo_is_actionable(TRUE, "F", 8, 0))
+  expect_false(geo_is_actionable(TRUE, NULL, 1, 0))
+  expect_true(geo_is_actionable(TRUE, NULL, 1, 1))
 })
 
 
