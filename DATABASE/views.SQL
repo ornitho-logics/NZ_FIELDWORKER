@@ -3311,8 +3311,10 @@ adult_parent_status AS (
       ELSE COALESCE(adult_parent_identity_status.F_identity_confirmed_xx, 0)
     END AS F_confirmed_unbanded,
     CASE
+      -- A mark from an MM capture is not a confirmed nest association.
+      -- Keep the sex operationally unknown until the MM follow-up resolves.
       WHEN COALESCE(adult_mm_followup_status.M_mm_resight_pending, 0) = 1
-      THEN 0
+      THEN 1
       WHEN COALESCE(
              adult_parent_identity_status.M_identity_mark,
              todo_parent_source.M_mark
@@ -3321,8 +3323,9 @@ adult_parent_status AS (
       ELSE 0
     END AS M_unknown_status,
     CASE
+      -- A mark from an MM capture is not a confirmed nest association.
       WHEN COALESCE(adult_mm_followup_status.F_mm_resight_pending, 0) = 1
-      THEN 0
+      THEN 1
       WHEN COALESCE(
              adult_parent_identity_status.F_identity_mark,
              todo_parent_source.F_mark
@@ -3865,7 +3868,10 @@ geo_parent_plan AS (
                AND base.male_quota_remaining > 0
                AND (
                  COALESCE(base.F_has_geo, 0) = 1
-                 OR COALESCE(base.F_captured_has_geo, 0) = 1
+                 OR (
+                   COALESCE(base.F_captured_has_geo, 0) = 1
+                   AND COALESCE(base.F_mm_resight_pending, 0) = 0
+                 )
                )
                AND (
                  base.is_pre25_nest = 1
@@ -3876,7 +3882,10 @@ geo_parent_plan AS (
                AND base.female_quota_remaining > 0
                AND (
                  COALESCE(base.M_has_geo, 0) = 1
-                 OR COALESCE(base.M_captured_has_geo, 0) = 1
+                 OR (
+                   COALESCE(base.M_captured_has_geo, 0) = 1
+                   AND COALESCE(base.M_mm_resight_pending, 0) = 0
+                 )
                )
                AND (
                  base.is_pre25_nest = 1
@@ -3963,6 +3972,7 @@ geo_parent_plan AS (
                 -- Hatched nests no longer need the clutch-completion gate;
                 -- retain the 36-hour parent-capture gate below.
                 WHEN UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) = 'H'
+                  OR active_nests.hatch_signs_present = 1
                 THEN 1
                 ELSE COALESCE(capture_age.capture_allowed_after_completion, 0)
               END AS capture_allowed_after_completion,
@@ -4899,9 +4909,6 @@ todo_mm_parent_resighting_by_sex AS (
   ) active_nests
   JOIN adult_mm_capture_latest mm
     ON active_nests.nest_id = mm.nest_id
-  LEFT JOIN adult_mm_post_resighting_latest followup
-    ON mm.nest_id = followup.nest_id
-   AND mm.sex = followup.sex
   LEFT JOIN adult_parent_status
     ON active_nests.nest_id = adult_parent_status.nest_id
   WHERE (
@@ -4912,7 +4919,10 @@ todo_mm_parent_resighting_by_sex AS (
         AND active_nests.latest_float_date IS NULL
       )
     )
-    AND followup.nest_id IS NULL
+    AND (
+      (mm.sex = 'M' AND COALESCE(adult_parent_status.M_mm_resight_pending, 0) = 1)
+      OR (mm.sex = 'F' AND COALESCE(adult_parent_status.F_mm_resight_pending, 0) = 1)
+    )
     AND DATEDIFF(
           active_nests.reference_date,
           mm.mm_capture_date
@@ -5272,7 +5282,10 @@ todo_untrapped_brood AS (
       brood_followup_nests.reference_date,
       brood_followup_nests.hatch_date
     ) AS priority,
-    brood_followup_nests.min_days_to_hatch,
+    DATEDIFF(
+      brood_followup_nests.hatch_date,
+      brood_followup_nests.reference_date
+    ) AS min_days_to_hatch,
     brood_followup_nests.days_ago AS last_visit_days_ago,
     brood_followup_nests.nest_state,
     brood_followup_nests.clutch_size,
@@ -5334,7 +5347,10 @@ todo_hiding_spot_photos AS (
         brood_followup_nests.hatch_date
       ) - 1
     ) AS priority,
-    brood_followup_nests.min_days_to_hatch,
+    DATEDIFF(
+      brood_followup_nests.hatch_date,
+      brood_followup_nests.reference_date
+    ) AS min_days_to_hatch,
     brood_followup_nests.days_ago AS last_visit_days_ago,
     brood_followup_nests.nest_state,
     brood_followup_nests.clutch_size,
