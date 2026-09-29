@@ -207,28 +207,69 @@ download_plot_pdf <- function(filename, plot, width = 11, height = 8.5) {
 }
 
 
+rds_export_objects <- function(
+  objects,
+  included_views = "CAPTURES_ARCHIVE"
+) {
+  normalized_names <- toupper(objects$table_name)
+  normalized_types <- toupper(objects$table_type)
+  normalized_views <- toupper(included_views)
+
+  missing_views <- setdiff(
+    normalized_views,
+    normalized_names[normalized_types == "VIEW"]
+  )
+
+  if (length(missing_views)) {
+    stop(
+      sprintf(
+        "Required RDS export view(s) unavailable: %s.",
+        paste(missing_views, collapse = ", ")
+      ),
+      call. = FALSE
+    )
+  }
+
+  selected <- normalized_types == "BASE TABLE" |
+    (
+      normalized_types == "VIEW" &
+        normalized_names %in% normalized_views
+    )
+  export_objects <- objects[selected, "table_name", drop = FALSE]
+  export_objects$export_name <- export_objects$table_name
+
+  selected_views <- normalized_types[selected] == "VIEW"
+  export_objects$export_name[selected_views] <- included_views[
+    match(normalized_names[selected][selected_views], normalized_views)
+  ]
+
+  export_objects
+}
+
+
 dump_schema <- function(schema, path = tempfile(fileext = ".rds")) {
   con <- db_con()
   on.exit(DBI::dbDisconnect(con), add = TRUE)
 
   schema_sql <- DBI::dbQuoteString(con, schema)
 
-  # Views are derived from these tables and may be too complex to materialize
-  # inside a web download request. The SQL download preserves their definitions.
-  tabs <- DBI::dbGetQuery(
+  objects <- DBI::dbGetQuery(
     con,
     glue(
       "
-      SELECT table_name
+      SELECT table_name, table_type
       FROM information_schema.tables
       WHERE table_schema = {schema_sql}
-        AND table_type = 'BASE TABLE'
       ORDER BY table_name
       "
     )
-  )$table_name
+  )
 
-  o <- lapply(tabs, function(tab) {
+  # CAPTURES_ARCHIVE is small and safety-critical for available band marks.
+  # Other derived views remain excluded from the web download request.
+  export_objects <- rds_export_objects(objects)
+
+  o <- lapply(export_objects$table_name, function(tab) {
     table_sql <- DBI::dbQuoteIdentifier(
       con,
       DBI::Id(schema = schema, table = tab)
@@ -237,7 +278,7 @@ dump_schema <- function(schema, path = tempfile(fileext = ".rds")) {
     DBI::dbGetQuery(con, glue("SELECT * FROM {table_sql}"))
   })
 
-  names(o) <- tabs
+  names(o) <- export_objects$export_name
 
   saveRDS(o, path, compress = "xz")
   path
