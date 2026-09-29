@@ -3027,6 +3027,15 @@ adult_mm_post_resighting_ranked AS (
     ) AS xx_nest_behav_date,
     MAX(
       CASE
+        WHEN UPPER(TRIM(association.mark)) = UPPER(TRIM(mm.mark))
+        THEN association.association_date
+        ELSE NULL
+      END
+    ) OVER (
+      PARTITION BY mm.nest_id, mm.sex
+    ) AS matching_post_mm_resight_date,
+    MAX(
+      CASE
         WHEN association.is_confirmed_xx = 1 THEN 1
         ELSE 0
       END
@@ -3063,6 +3072,7 @@ adult_mm_post_resighting_latest AS (
     has_matching_nest_behav,
     has_xx_nest_behav,
     xx_nest_behav_date,
+    matching_post_mm_resight_date,
     post_mm_xx_seen
   FROM adult_mm_post_resighting_ranked
   WHERE row_num = 1
@@ -3151,6 +3161,11 @@ adult_mm_followup_status AS (
              AND later_capture.mark <> 'X-X'
              AND LOWER(TRIM(later_capture.mark)) <> 'dead'
              AND later_capture.capture_date >= followup.xx_nest_behav_date
+           )
+         AND (
+           followup.matching_post_mm_resight_date IS NULL
+           OR followup.matching_post_mm_resight_date
+              <= followup.xx_nest_behav_date
          )
         THEN 1
         ELSE 0
@@ -3169,6 +3184,11 @@ adult_mm_followup_status AS (
              AND later_capture.mark <> 'X-X'
              AND LOWER(TRIM(later_capture.mark)) <> 'dead'
              AND later_capture.capture_date >= followup.xx_nest_behav_date
+           )
+         AND (
+           followup.matching_post_mm_resight_date IS NULL
+           OR followup.matching_post_mm_resight_date
+              <= followup.xx_nest_behav_date
          )
         THEN 1
         ELSE 0
@@ -3180,6 +3200,12 @@ adult_mm_followup_status AS (
       CASE
         WHEN mm.sex = 'M'
          AND followup.post_mm_xx_seen = 1
+         AND NOT (
+           followup.has_xx_nest_behav = 1
+           AND followup.matching_post_mm_resight_date IS NOT NULL
+           AND followup.matching_post_mm_resight_date
+               > followup.xx_nest_behav_date
+         )
          AND mm.mark IS NOT NULL
          AND mm.mark <> 'X-X'
          AND LOWER(TRIM(mm.mark)) <> 'dead'
@@ -3191,6 +3217,12 @@ adult_mm_followup_status AS (
       CASE
         WHEN mm.sex = 'F'
          AND followup.post_mm_xx_seen = 1
+         AND NOT (
+           followup.has_xx_nest_behav = 1
+           AND followup.matching_post_mm_resight_date IS NOT NULL
+           AND followup.matching_post_mm_resight_date
+               > followup.xx_nest_behav_date
+         )
          AND mm.mark IS NOT NULL
          AND mm.mark <> 'X-X'
          AND LOWER(TRIM(mm.mark)) <> 'dead'
