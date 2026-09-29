@@ -468,6 +468,8 @@ test_that("pending MM parents stay in resighting rather than capture work", {
 test_that("pair completion requires a confirmed GEO association", {
   sql <- todo_list_view_sql()
 
+  expect_match(sql, "THEN '; status ?'", fixed = TRUE)
+
   expect_match(
     sql,
     "COALESCE(base.F_captured_has_geo, 0) = 1\n                   AND (\n                     COALESCE(base.F_mm_resight_pending, 0) = 0\n                     OR COALESCE(base.M_confirmed_unbanded, 0) = 1\n                   )",

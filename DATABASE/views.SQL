@@ -4027,7 +4027,7 @@ geo_parent_plan AS (
         CASE
           WHEN (ranked.pair_target = 'M' AND ranked.M_parent_mark IS NULL)
             OR (ranked.pair_target = 'F' AND ranked.F_parent_mark IS NULL)
-          THEN '; confirm identity/GEO'
+          THEN '; status ?'
           ELSE ''
         END,
         ')'
