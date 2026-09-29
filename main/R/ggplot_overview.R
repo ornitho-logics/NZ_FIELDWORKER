@@ -352,6 +352,154 @@ overview_cumulative_total <- function(
 }
 
 
+overview_pair_tallies <- function(
+  refdate = get_reference_date(),
+  require_geolocator = TRUE
+) {
+  refdate <- as.Date(refdate)
+  tagged_condition <- if (isTRUE(require_geolocator)) {
+    "has_geolocator = 1"
+  } else {
+    "has_banded_mark = 1"
+  }
+
+  x <- db_get(
+    paste0(
+      "\n",
+      "    WITH parent_events AS (\n",
+      "      SELECT\n",
+      "        NULLIF(TRIM(c.nest_id), '') AS nest_id,\n",
+      "        LEFT(UPPER(TRIM(c.field_sex)), 1) AS sex,\n",
+      "        CASE\n",
+      "          WHEN (\n",
+      "            UPPER(TRIM(COALESCE(c.tag_type, ''))) = 'GEO'\n",
+      "            AND UPPER(TRIM(COALESCE(c.tag_action, '')))\n",
+      "                IN ('D', 'S', 'N')\n",
+      "            AND NULLIF(TRIM(c.tag_id), '') IS NOT NULL\n",
+      "          )\n",
+      "          OR UPPER(TRIM(COALESCE(c.UL, ''))) REGEXP '^T[A-Z0-9]*$'\n",
+      "          OR UPPER(TRIM(COALESCE(c.UR, ''))) REGEXP '^T[A-Z0-9]*$'\n",
+      "          THEN 1\n",
+      "          ELSE 0\n",
+      "        END AS has_geolocator,\n",
+      "        CASE\n",
+      "          WHEN (\n",
+      "            NULLIF(TRIM(c.UL), '') IS NOT NULL\n",
+      "            AND UPPER(TRIM(c.UL)) NOT REGEXP '^(X+|M)$'\n",
+      "          ) OR (\n",
+      "            NULLIF(TRIM(c.LL), '') IS NOT NULL\n",
+      "            AND UPPER(TRIM(c.LL)) NOT REGEXP '^(X+|M)$'\n",
+      "          ) OR (\n",
+      "            NULLIF(TRIM(c.UR), '') IS NOT NULL\n",
+      "            AND UPPER(TRIM(c.UR)) NOT REGEXP '^(X+|M)$'\n",
+      "          ) OR (\n",
+      "            NULLIF(TRIM(c.LR), '') IS NOT NULL\n",
+      "            AND UPPER(TRIM(c.LR)) NOT REGEXP '^(X+|M)$'\n",
+      "          )\n",
+      "          THEN 1\n",
+      "          ELSE 0\n",
+      "        END AS has_banded_mark,\n",
+      "        CASE\n",
+      "          WHEN UPPER(TRIM(COALESCE(c.capture_method, ''))) = 'MM'\n",
+      "          THEN 0\n",
+      "          ELSE 1\n",
+      "        END AS association_confirmed\n",
+      "      FROM CAPTURES c\n",
+      "      WHERE NULLIF(TRIM(c.nest_id), '') IS NOT NULL\n",
+      "        AND UPPER(TRIM(c.nest_id)) <> 'NO_NEST'\n",
+      "        AND UPPER(TRIM(COALESCE(c.site, ''))) = 'CR'\n",
+      "        AND UPPER(TRIM(COALESCE(c.age, ''))) = 'A'\n",
+      "        AND LEFT(UPPER(TRIM(c.field_sex)), 1) IN ('M', 'F')\n",
+      "        AND c.date IS NOT NULL\n",
+      "        AND c.date <= ?\n",
+      "\n",
+      "      UNION ALL\n",
+      "\n",
+      "      SELECT\n",
+      "        NULLIF(TRIM(r.nest_id), '') AS nest_id,\n",
+      "        LEFT(UPPER(TRIM(r.sex)), 1) AS sex,\n",
+      "        CASE\n",
+      "          WHEN UPPER(TRIM(COALESCE(r.UL, ''))) REGEXP '^T[A-Z0-9]*$'\n",
+      "            OR UPPER(TRIM(COALESCE(r.UR, ''))) REGEXP '^T[A-Z0-9]*$'\n",
+      "          THEN 1\n",
+      "          ELSE 0\n",
+      "        END AS has_geolocator,\n",
+      "        CASE\n",
+      "          WHEN (\n",
+      "            NULLIF(TRIM(r.UL), '') IS NOT NULL\n",
+      "            AND UPPER(TRIM(r.UL)) NOT REGEXP '^(X+|M)$'\n",
+      "          ) OR (\n",
+      "            NULLIF(TRIM(r.LL), '') IS NOT NULL\n",
+      "            AND UPPER(TRIM(r.LL)) NOT REGEXP '^(X+|M)$'\n",
+      "          ) OR (\n",
+      "            NULLIF(TRIM(r.UR), '') IS NOT NULL\n",
+      "            AND UPPER(TRIM(r.UR)) NOT REGEXP '^(X+|M)$'\n",
+      "          ) OR (\n",
+      "            NULLIF(TRIM(r.LR), '') IS NOT NULL\n",
+      "            AND UPPER(TRIM(r.LR)) NOT REGEXP '^(X+|M)$'\n",
+      "          )\n",
+      "          THEN 1\n",
+      "          ELSE 0\n",
+      "        END AS has_banded_mark,\n",
+      "        1 AS association_confirmed\n",
+      "      FROM RESIGHTINGS r\n",
+      "      WHERE NULLIF(TRIM(r.nest_id), '') IS NOT NULL\n",
+      "        AND UPPER(TRIM(r.nest_id)) <> 'NO_NEST'\n",
+      "        AND UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'\n",
+      "        AND UPPER(TRIM(COALESCE(r.age, ''))) = 'A'\n",
+      "        AND LEFT(UPPER(TRIM(r.sex)), 1) IN ('M', 'F')\n",
+      "        AND r.date IS NOT NULL\n",
+      "        AND r.date <= ?\n",
+      "    ),\n",
+      "    parent_status AS (\n",
+      "      SELECT\n",
+      "        nest_id,\n",
+      "        sex,\n",
+      "        MAX(has_geolocator) AS has_geolocator,\n",
+      "        MAX(has_banded_mark) AS has_banded_mark,\n",
+      "        MAX(association_confirmed) AS association_confirmed\n",
+      "      FROM parent_events\n",
+      "      GROUP BY nest_id, sex\n",
+      "    )\n",
+      "    SELECT\n",
+      "      COUNT(CASE WHEN m.", tagged_condition, "\n",
+      "        AND f.", tagged_condition, "\n",
+      "        AND m.association_confirmed = 1\n",
+      "        AND f.association_confirmed = 1\n",
+      "        THEN 1 END) AS n_confirmed_pairs,\n",
+      "      COUNT(CASE WHEN m.", tagged_condition, "\n",
+      "        AND f.", tagged_condition, "\n",
+      "        THEN 1 END) AS n_pairs_total\n",
+      "    FROM parent_status m\n",
+      "    INNER JOIN parent_status f\n",
+      "      ON m.nest_id = f.nest_id\n",
+      "    WHERE m.sex = 'M'\n",
+      "      AND f.sex = 'F'\n",
+      "    "
+    ),
+    params = list(as.character(refdate), as.character(refdate))
+  )
+
+  x <- data.table(x)
+
+  if (!nrow(x)) {
+    return(c(confirmed_pairs = 0L, total_pairs = 0L))
+  }
+
+  as_count <- function(value) {
+    if (!length(value) || is.na(value[1])) {
+      return(0L)
+    }
+    as.integer(value[1])
+  }
+
+  c(
+    confirmed_pairs = as_count(x$n_confirmed_pairs),
+    total_pairs = as_count(x$n_pairs_total)
+  )
+}
+
+
 overview_summary_annotation <- function(label = NULL, annotation_date = NULL) {
   if (is.null(label) || !nzchar(label)) {
     return(NULL)
@@ -433,6 +581,16 @@ overview_cumulative_plot <- function(
 
   x[, sex := factor(sex, levels = c("Female", "Male"))]
   ribbon_data[, sex := factor(sex, levels = c("Female", "Male"))]
+  summary_lines <- if (is.null(summary_label)) {
+    0L
+  } else {
+    length(strsplit(summary_label, "\n", fixed = TRUE)[[1]])
+  }
+  legend_y <- if (!summary_lines) {
+    0.98
+  } else {
+    max(0.48, 0.98 - (0.11 * summary_lines))
+  }
 
   overview_cumulative_base(ylab) +
     geom_ribbon(
@@ -472,7 +630,7 @@ overview_cumulative_plot <- function(
       legend.position = "inside",
       legend.position.inside = c(
         0.02,
-        if (is.null(summary_label)) 0.98 else 0.76
+        legend_y
       ),
       legend.justification = c(0, 1)
     )
@@ -980,6 +1138,10 @@ overview_geolocator_graph <- function(
   }
 
   plot_data <- overview_cumulative_counts(x, group_col = "sex")
+  pair_tallies <- overview_pair_tallies(
+    refdate = refdate,
+    require_geolocator = TRUE
+  )
 
   overview_cumulative_plot(
     x = plot_data,
@@ -990,7 +1152,11 @@ overview_geolocator_graph <- function(
       "N females = ",
       "{overview_cumulative_total(plot_data, 'Female')}\n",
       "N males = ",
-      "{overview_cumulative_total(plot_data, 'Male')}"
+      "{overview_cumulative_total(plot_data, 'Male')}\n",
+      "N confirmed pairs = ",
+      "{pair_tallies[['confirmed_pairs']]}\n",
+      "N pairs total = ",
+      "{pair_tallies[['total_pairs']]}"
     )
   )
 }
@@ -1211,6 +1377,10 @@ overview_band_combos_graph <- function(
   )
 
   plot_data <- overview_cumulative_counts(x, group_col = "sex")
+  pair_tallies <- overview_pair_tallies(
+    refdate = refdate,
+    require_geolocator = FALSE
+  )
 
   overview_cumulative_plot(
     x = plot_data,
@@ -1221,7 +1391,11 @@ overview_band_combos_graph <- function(
       "N females = ",
       "{overview_cumulative_total(plot_data, 'Female')}\n",
       "N males = ",
-      "{overview_cumulative_total(plot_data, 'Male')}"
+      "{overview_cumulative_total(plot_data, 'Male')}\n",
+      "N confirmed pairs = ",
+      "{pair_tallies[['confirmed_pairs']]}\n",
+      "N pairs total = ",
+      "{pair_tallies[['total_pairs']]}"
     )
   )
 }
