@@ -244,7 +244,7 @@ test_that("overview limp status distinguishes comment evidence", {
       "No limp reported",
       "No limp reported",
       "Possible/slight limp",
-      "Severe limp"
+      "Limping"
     )
   )
   expect_identical(
@@ -296,6 +296,7 @@ test_that("overview limp status distinguishes comment evidence", {
   expect_s3_class(plot$facet, "FacetGrid")
   expect_true(plot$facet$params$free$y)
   expect_true(plot$facet$params$space_free$y)
+  expect_s3_class(plot$theme$strip.text.y, "element_blank")
   expect_match(plot$labels$caption, "\n", fixed = TRUE)
   expect_identical(plot$guides$guides$fill$params$ncol, 1)
   expect_identical(
@@ -303,6 +304,15 @@ test_that("overview limp status distinguishes comment evidence", {
     "top"
   )
   expect_identical(plot$theme$legend.direction, "vertical")
+  facet_annotation_data <- Filter(
+    function(layer_data) "facet_label" %in% names(layer_data),
+    lapply(plot$layers, function(layer) layer$data)
+  )
+  expect_length(facet_annotation_data, 1)
+  expect_setequal(
+    facet_annotation_data[[1]]$facet_label,
+    c("Females", "Males")
+  )
 
   shared_mark_plot <- app$env$overview_tagged_resighting_plot(
     data.frame(

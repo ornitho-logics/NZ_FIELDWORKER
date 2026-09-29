@@ -494,7 +494,7 @@ overview_limp_status <- function(comments) {
     comments,
     perl = TRUE
   )
-  structured_severe_limp <- grepl(
+  structured_limping <- grepl(
     "\\blimp\\s*[:=]?\\s*2\\b",
     comments,
     perl = TRUE
@@ -548,7 +548,7 @@ overview_limp_status <- function(comments) {
   status[explicit_no_limp] <- "No limp reported"
   status[structured_no_limp] <- "No limp reported"
   status[structured_slight_limp] <- "Possible/slight limp"
-  status[structured_severe_limp] <- "Severe limp"
+  status[structured_limping] <- "Limping"
   status
 }
 
@@ -593,8 +593,9 @@ overview_tagged_resighting_plot <- function(x, date_limits = NULL) {
       paste(
         "Diamond = geolocator deployment; circles = resightings.",
         paste(
-          "limp0, limp1, and limp2 are used directly; older comments are",
-          "interpreted from text, and no limp information is treated as no limp."
+          "limp0 = no limp, limp1 = possible/slight limp, and limp2 = limping;",
+          "older comments are interpreted from text, and no limp information",
+          "is treated as no limp."
         )
       ),
       width = 54L
@@ -671,6 +672,15 @@ overview_tagged_resighting_plot <- function(x, date_limits = NULL) {
   bird_levels <- histories$bird_id
   histories[, bird_id := factor(bird_id, levels = bird_levels)]
   histories[, sex := factor(sex, levels = c("Female", "Male"))]
+  facet_labels <- histories[
+    , .SD[which.max(as.integer(bird_id))],
+    by = sex
+  ][, .(
+    sex,
+    bird_id,
+    label_date = tagged_date_limits[1] + 0.25,
+    facet_label = fifelse(sex == "Female", "Females", "Males")
+  )]
 
   events <- x[!is.na(resighting_date)]
   events[, limp_status := overview_limp_status(comments)]
@@ -679,8 +689,7 @@ overview_tagged_resighting_plot <- function(x, date_limits = NULL) {
     c(
       "No limp reported",
       "Possible/slight limp",
-      "Limping",
-      "Severe limp"
+      "Limping"
     )
   )]
   setorder(
@@ -698,8 +707,7 @@ overview_tagged_resighting_plot <- function(x, date_limits = NULL) {
     levels = c(
       "No limp reported",
       "Possible/slight limp",
-      "Limping",
-      "Severe limp"
+      "Limping"
     )
   )]
 
@@ -732,11 +740,23 @@ overview_tagged_resighting_plot <- function(x, date_limits = NULL) {
       stroke = 0.7,
       inherit.aes = FALSE
     ) +
+    geom_text(
+      data = facet_labels,
+      aes(
+        x = label_date,
+        y = bird_id,
+        label = facet_label
+      ),
+      hjust = 0,
+      vjust = 1.2,
+      fontface = "bold",
+      size = 5,
+      inherit.aes = FALSE
+    ) +
     facet_grid(
       rows = vars(sex),
       scales = "free_y",
-      space = "free_y",
-      labeller = as_labeller(c(Female = "Females", Male = "Males"))
+      space = "free_y"
     ) +
     scale_y_discrete(
       name = NULL,
@@ -748,8 +768,7 @@ overview_tagged_resighting_plot <- function(x, date_limits = NULL) {
       values = c(
         "No limp reported" = "#2a9d8f",
         "Possible/slight limp" = "#e9c46a",
-        "Limping" = "#d1495b",
-        "Severe limp" = "#7f0000"
+        "Limping" = "#d1495b"
       ),
       drop = FALSE
     ) +
@@ -767,8 +786,8 @@ overview_tagged_resighting_plot <- function(x, date_limits = NULL) {
       legend.justification = "left",
       legend.box.just = "left",
       legend.title = element_text(face = "bold"),
-      strip.background = element_rect(fill = "white", color = NA),
-      strip.text = element_text(face = "bold"),
+      strip.background = element_blank(),
+      strip.text.y = element_blank(),
       plot.caption = element_text(hjust = 0, lineheight = 1.1),
       plot.caption.position = "plot"
     )

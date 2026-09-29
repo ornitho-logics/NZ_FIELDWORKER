@@ -203,16 +203,17 @@ test_that("chick colour labels are used in operational parent and brood tables",
     Todo = c(
       "Hiding spot photos needed",
       "Parent capture",
-      "Parent resighting"
+      "Parent resighting",
+      "Untrapped brood"
     ),
-    Nest = c("-MOCK_BROOD", "MOCK_NEST", "MOCK_NEST"),
-    State = c("NA", "I", "I"),
-    `Clutch–Brood` = c("NA–3", "3–0", "3–0"),
-    Hatch = c("", "09-25", "09-25"),
-    `Last Visit` = c("2", "1", "1"),
-    Male = c("", "MOCK-M", "MOCK-M"),
-    Female = c("", "MOCK-F", "MOCK-F"),
-    Notes = c("photo", "capture", "resight")
+    Nest = c("-MOCK_BROOD", "MOCK_NEST", "MOCK_NEST", "MOCK_BROOD"),
+    State = c("NA", "I", "I", "NA"),
+    `Clutch–Brood` = c("NA–3", "3–0", "3–0", "NA–3"),
+    Hatch = c("", "09-25", "09-25", ""),
+    `Last Visit` = c("2", "1", "1", "2"),
+    Male = c("", "MOCK-M", "MOCK-M", ""),
+    Female = c("", "MOCK-F", "MOCK-F", ""),
+    Notes = c("photo", "capture", "resight", "band")
   )
   nest_summary <- data.table::data.table(
     Nest = c("-MOCK_BROOD", "MOCK_NEST"),
@@ -229,6 +230,8 @@ test_that("chick colour labels are used in operational parent and brood tables",
   expect_true(grepl("## Broods to photograph", body_text, fixed = TRUE))
   expect_true(grepl("## Parents to capture", body_text, fixed = TRUE))
   expect_true(grepl("## Parents to resight", body_text, fixed = TRUE))
+  expect_true(grepl("## Broods to band", body_text, fixed = TRUE))
+  expect_true(grepl("Nest/Brood", body_text, fixed = TRUE))
   expect_true(grepl("#f4d03f", body_text, fixed = TRUE))
   expect_true(grepl("#1565c0", body_text, fixed = TRUE))
   expect_true(grepl("stroke: none", body_text, fixed = TRUE))

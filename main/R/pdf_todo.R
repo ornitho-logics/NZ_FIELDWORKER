@@ -519,6 +519,10 @@ todo_pdf_heading <- function(todo_name) {
       title = "Parents to resight",
       subtitle = "confirm parent identity or association with the nest"
     ),
+    "Untrapped brood" = list(
+      title = "Broods to band",
+      subtitle = NULL
+    ),
     "nest check" = list(
       title = "Nests to check for potential hatch",
       subtitle = NULL
@@ -937,7 +941,7 @@ todo_pdf_body <- function(
 
       if (todo == "Hiding spot photos needed") {
         names(todo_rows)[names(todo_rows) == "Nest"] <- "Brood"
-      } else if (todo %in% c("Parent capture", "Parent resighting")) {
+      } else if (todo %in% c("Parent capture", "Parent resighting", "Untrapped brood")) {
         names(todo_rows)[names(todo_rows) == "Nest"] <- "Nest/Brood"
       }
 
