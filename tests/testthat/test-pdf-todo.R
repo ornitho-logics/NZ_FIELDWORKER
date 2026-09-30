@@ -22,6 +22,33 @@ test_that("tagged-bird PDF follow-up uses the strict unseen threshold", {
 })
 
 
+test_that("to-do headings use the current operational subtitles", {
+  app <- load_main_app()
+  heading <- app$env$todo_pdf_heading
+
+  expect_identical(
+    heading("Hiding spot photos needed")$subtitle,
+    "find these broods and take in-situ and tent photos before the chicks are 7 days old"
+  )
+  expect_identical(
+    heading("Parent capture")$subtitle,
+    "follow notes for tag deployment or band-only instructions"
+  )
+  expect_identical(
+    heading("Parent resighting")$subtitle,
+    "confirm parent identity or association with the nest; if a parent had a MM-cap, three subsequent resightings OR one behav \"IN\", \"NM\", or \"BW\" will resolve its association"
+  )
+  expect_identical(
+    heading("nest check")$subtitle,
+    "egg floatation data estimates that these nests are within 7 days of hatching"
+  )
+  expect_identical(
+    heading("notA nest-check")$subtitle,
+    "these nests have been finished and can be closed"
+  )
+})
+
+
 test_that("tagged-bird follow-up table is included in the PDF body", {
   app <- load_main_app()
   body <- app$env$todo_pdf_body(
@@ -78,6 +105,16 @@ test_that("PDF includes the main-version footer", {
   expect_true(grepl("#set page(footer:", qmd_text, fixed = TRUE))
   expect_true(grepl(
     "version abcdef1",
+    qmd_text,
+    fixed = TRUE
+  ))
+  expect_true(grepl(
+    "#counter(page).display()",
+    qmd_text,
+    fixed = TRUE
+  ))
+  expect_true(grepl(
+    "#align(left)",
     qmd_text,
     fixed = TRUE
   ))
