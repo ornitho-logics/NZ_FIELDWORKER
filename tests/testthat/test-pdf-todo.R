@@ -48,10 +48,7 @@ test_that("tagged-bird follow-up table is included in the PDF body", {
 
 test_that("PDF includes the main-version footer", {
   app <- load_main_app()
-  version <- list(
-    id = "abcdef1",
-    commit_time = "2026-09-29T19:57:00+00:00"
-  )
+  version <- list(id = "abcdef1")
   app$env$git_version <- version
   qmd <- app$env$todo_pdf_qmd(
     pdf = list(
@@ -68,7 +65,7 @@ test_that("PDF includes the main-version footer", {
 
   expect_equal(
     app$env$todo_pdf_version_footer(version),
-    "version abcdef1 - 21:57 CEST Sep 29, 2026"
+    "version abcdef1"
   )
   expect_true(grepl("#set page(header:", qmd_text, fixed = TRUE))
   expect_true(grepl("Cass To-Dos for 2026-09-30", qmd_text, fixed = TRUE))
@@ -80,10 +77,12 @@ test_that("PDF includes the main-version footer", {
   expect_false(grepl('title: "Cass To-Dos for 2026-09-30"', qmd_text, fixed = TRUE))
   expect_true(grepl("#set page(footer:", qmd_text, fixed = TRUE))
   expect_true(grepl(
-    "version abcdef1 - 21:57 CEST Sep 29, 2026",
+    "version abcdef1",
     qmd_text,
     fixed = TRUE
   ))
+  expect_false(grepl("CEST", qmd_text, fixed = TRUE))
+  expect_false(grepl("commit time", qmd_text, fixed = TRUE))
 })
 
 

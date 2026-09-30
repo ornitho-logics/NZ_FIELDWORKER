@@ -76,7 +76,7 @@ todo_pdf_version_footer <- function(version = NULL) {
     version <- get0("git_version", ifnotfound = NULL, inherits = TRUE)
   }
   if (is.null(version) || !is.list(version)) {
-    version <- list(id = "unknown", commit_time = NULL)
+    version <- list(id = "unknown")
   }
 
   commit_id <- version$id
@@ -85,50 +85,7 @@ todo_pdf_version_footer <- function(version = NULL) {
   } else {
     commit_id <- as.character(commit_id[[1L]])
   }
-  commit_time <- version$commit_time
-  formatted_time <- NULL
-  if (!is.null(commit_time) && length(commit_time)) {
-    commit_time <- trimws(as.character(commit_time[[1L]]))
-    time_parts <- regexec(
-      "^(.*T[0-9]{2}:[0-9]{2}:[0-9]{2})([+-])([0-9]{2}):?([0-9]{2})$",
-      commit_time
-    )
-    time_parts <- regmatches(commit_time, time_parts)[[1L]]
-    if (length(time_parts) == 5L) {
-      parsed_time <- suppressWarnings(
-        as.POSIXct(
-          time_parts[[2L]],
-          format = "%Y-%m-%dT%H:%M:%S",
-          tz = "UTC"
-        )
-      )
-      offset_seconds <- (
-        as.numeric(time_parts[[4L]]) * 3600
-          + as.numeric(time_parts[[5L]]) * 60
-      )
-      if (time_parts[[3L]] == "-") {
-        offset_seconds <- -offset_seconds
-      }
-      parsed_time <- parsed_time - offset_seconds
-    } else {
-      parsed_time <- suppressWarnings(
-        as.POSIXct(commit_time, tz = "UTC")
-      )
-    }
-    if (!is.na(parsed_time)) {
-      formatted_time <- format(
-        parsed_time,
-        tz = "Europe/Berlin",
-        format = "%H:%M %Z %b %d, %Y"
-      )
-    }
-  }
-
-  if (is.null(formatted_time) || !nzchar(formatted_time)) {
-    return(glue("version {commit_id} - commit time unavailable"))
-  }
-
-  glue("version {commit_id} - {formatted_time}")
+  glue("version {commit_id}")
 }
 
 
