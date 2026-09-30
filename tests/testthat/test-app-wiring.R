@@ -157,6 +157,31 @@ test_that("main app UI and entrypoint load", {
 })
 
 
+test_that("git version falls back to local HEAD when remote lookup is unavailable", {
+  withr::local_envvar(FIELDWORKER_GIT_ID = "ABCDEF1234567890")
+  app <- load_main_app()
+
+  withr::local_envvar(c(
+    FIELDWORKER_GIT_ID = NA,
+    GITHUB_SHA = NA,
+    SOURCE_VERSION = NA,
+    RENDER_GIT_COMMIT = NA
+  ))
+  app$env$git_ref_matches_app <- function(...) FALSE
+  app$env$git_remote_main_id <- function(...) NULL
+
+  expected_id <- app$env$git_local_head_id(app_file("main"))
+  observed <- app$env$resolve_git_version(app_file("main"))
+
+  expect_identical(observed$id, expected_id)
+  expect_identical(observed$source, "git:HEAD-working-tree")
+  expect_identical(
+    observed$commit_time,
+    app$env$git_commit_time(app_file("main"), "HEAD")
+  )
+})
+
+
 test_that("database overview view is defined", {
   views_sql <- paste(
     readLines(app_file("DATABASE", "views.SQL")),
