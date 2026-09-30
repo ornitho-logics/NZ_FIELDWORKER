@@ -473,14 +473,21 @@ todo_pdf_prepare <- function(
     pdf_brood_size = "NA"
   )]
 
-  # B0208 has an H record without an entered brood size. Preserve the
-  # uncertainty in every PDF task row rather than displaying it as zero.
-  b0208_unknown_brood <- todo_dt$nest_id == "B0208" & (
-    is.na(todo_dt$pdf_brood_size)
-      | !nzchar(trimws(todo_dt$pdf_brood_size))
-      | toupper(trimws(todo_dt$pdf_brood_size)) %chin% c("0", "NA", "NULL")
+  # An H event without an entered brood size remains uncertain until valid
+  # age-C capture rings provide an observed brood count.
+  brood_size_text <- trimws(as.character(todo_dt$pdf_brood_size))
+  h_brood_needs_observed_count <- !is_negative_brood &
+    toupper(trimws(as.character(todo_dt$pdf_state))) == "H" & (
+      is.na(brood_size_text)
+        | !nzchar(brood_size_text)
+        | toupper(brood_size_text) %chin% c("0", "NA", "NULL", "?")
+    )
+  unknown_h_brood <- h_brood_needs_observed_count & (
+    is.na(brood_size_text)
+      | !nzchar(brood_size_text)
+      | toupper(brood_size_text) %chin% c("NA", "NULL", "?")
   )
-  todo_dt[b0208_unknown_brood, pdf_brood_size := "?"]
+  todo_dt[unknown_h_brood, pdf_brood_size := "?"]
 
   if (!is.null(chick_captures)) {
     chick_dt <- data.table(chick_captures)
@@ -488,12 +495,39 @@ todo_pdf_prepare <- function(
       chick_dt <- chick_dt[
         toupper(trimws(as.character(age))) == "C"
           & !is.na(nest_id)
-          & grepl("^-", trimws(as.character(nest_id)))
       ]
-      chick_counts <- chick_dt[, .N, by = nest_id]
+      if ("site" %in% names(chick_dt)) {
+        chick_dt <- chick_dt[
+          toupper(trimws(as.character(site))) == "CR"
+        ]
+      }
+      if ("date" %in% names(chick_dt) && !is.na(refdate)) {
+        capture_dates <- suppressWarnings(
+          as.Date(as.character(chick_dt$date))
+        )
+        chick_dt <- chick_dt[
+          !is.na(capture_dates) & capture_dates <= refdate
+        ]
+      }
+      if ("ring" %in% names(chick_dt)) {
+        chick_dt[, ring_key := toupper(trimws(as.character(ring)))]
+        chick_dt[
+          is.na(ring_key)
+            | !nzchar(ring_key)
+            | ring_key %chin% c("NA", "NULL"),
+          ring_key := NA_character_
+        ]
+        chick_dt <- chick_dt[!is.na(ring_key)]
+        chick_counts <- chick_dt[, .(N = uniqueN(ring_key)), by = nest_id]
+      } else {
+        # Keep older local preview callers working when they provide only
+        # the historical nest_id/age columns.
+        chick_counts <- chick_dt[, .(N = .N), by = nest_id]
+      }
       for (i in seq_len(nrow(chick_counts))) {
         todo_dt[
-          nest_id == chick_counts$nest_id[i],
+          nest_id == chick_counts$nest_id[i]
+            & (is_negative_brood | h_brood_needs_observed_count),
           pdf_brood_size := as.character(chick_counts$N[i])
         ]
       }
@@ -1160,7 +1194,7 @@ todo_pdf_save <- function(
   }
   if (is.null(chick_captures)) {
     chick_captures <- DBq("
-      SELECT nest_id, date, caught, age, site, LL, LR, pk
+      SELECT nest_id, date, caught, age, site, ring, LL, LR, pk
       FROM CAPTURES
       WHERE age = 'C'
         AND site = 'CR'
