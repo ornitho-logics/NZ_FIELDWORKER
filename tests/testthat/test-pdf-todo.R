@@ -108,6 +108,16 @@ test_that("PDF includes the main-version footer", {
     qmd_text,
     fixed = TRUE
   ))
+  expect_true(grepl(
+    "#counter(page).display()",
+    qmd_text,
+    fixed = TRUE
+  ))
+  expect_true(grepl(
+    "#align(left)",
+    qmd_text,
+    fixed = TRUE
+  ))
   expect_false(grepl("CEST", qmd_text, fixed = TRUE))
   expect_false(grepl("commit time", qmd_text, fixed = TRUE))
 })

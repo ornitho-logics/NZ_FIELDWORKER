@@ -1149,7 +1149,13 @@ todo_pdf_qmd <- function(
           '#set page(header: context [#align(center)[#text(size: 12pt, weight: "bold", fill: rgb("#5f6b70"))[{pdf$title}]]])'
         ),
         "{{ footer }}" = glue(
-          '#set page(footer: context [#align(right)[#text(size: 6pt, fill: rgb("#7b858b"))[{todo_pdf_version_footer()}]]])'
+          paste0(
+            '#set page(footer: context [#grid(columns: (1fr, 1fr), ',
+            '[#align(left)[#text(size: 6pt, fill: rgb("#7b858b"))',
+            '[#counter(page).display()]]], ',
+            '[#align(right)[#text(size: 6pt, fill: rgb("#7b858b"))',
+            '[', todo_pdf_version_footer(), ']]])])'
+          )
         ),
         "{{ body }}" = body,
         line
