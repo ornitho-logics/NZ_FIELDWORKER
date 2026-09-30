@@ -83,6 +83,32 @@ test_that("H hiding-photo association is shared by BROODS_LATEST and TODO_LIST",
 })
 
 
+test_that("hiding-photo TODO counts distinct captured and photographed rings", {
+  sql <- todo_list_view_sql()
+
+  expect_match(
+    sql,
+    "COUNT(DISTINCT NULLIF(\n      NULLIF(UPPER(TRIM(COALESCE(c.ring, ''))), ''),\n      'NA'\n    )) AS n_captured_chick_rings",
+    fixed = TRUE
+  )
+  expect_match(sql, "COUNT(*) AS n_chick_captures", fixed = TRUE)
+  expect_match(
+    sql,
+    "COUNT(DISTINCT h.ring) AS n_hiding_spot_photos",
+    fixed = TRUE
+  )
+  expect_match(sql, "r.photo_start", fixed = TRUE)
+  expect_match(sql, "r.photo_end", fixed = TRUE)
+  expect_match(
+    sql,
+    "COALESCE(hiding_spot_photos.n_hiding_spot_photos, 0)\n           < chick_captures.n_captured_chick_rings",
+    fixed = TRUE
+  )
+  expect_match(sql, "' chicks photographed'", fixed = TRUE)
+  expect_false(grepl("need H resightings", sql, fixed = TRUE))
+})
+
+
 test_that("MM parent follow-up accepts qualifying behaviour or three matching resightings", {
   sql <- todo_list_view_sql()
 

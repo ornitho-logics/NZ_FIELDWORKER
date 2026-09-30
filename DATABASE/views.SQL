@@ -2507,7 +2507,11 @@ nota_followup_nests AS (
 chick_captures AS (
   SELECT
     c.nest_id,
-    COUNT(*) AS n_chick_captures
+    COUNT(*) AS n_chick_captures,
+    COUNT(DISTINCT NULLIF(
+      NULLIF(UPPER(TRIM(COALESCE(c.ring, ''))), ''),
+      'NA'
+    )) AS n_captured_chick_rings
   FROM FIELD_2026_BADOatNZ.CAPTURES c
   CROSS JOIN sr
   WHERE c.nest_id IS NOT NULL
@@ -2521,14 +2525,34 @@ chick_captures AS (
 hiding_spot_photos AS (
   SELECT
     h.resolved_nest_id AS nest_id,
-    COUNT(*) AS n_hiding_spot_photos
+    COUNT(DISTINCT h.ring) AS n_hiding_spot_photos
   FROM FIELD_2026_BADOatNZ.RESIGHTINGS_H_BROOD_ASSOCIATIONS h
+  JOIN FIELD_2026_BADOatNZ.RESIGHTINGS r
+    ON r.pk = h.resighting_pk
+  JOIN FIELD_2026_BADOatNZ.GPS_POINTS g
+    ON r.gps_id = g.gps_id
+   AND r.gps_point = g.gps_point
+  CROSS JOIN sr
   WHERE h.resolved_nest_id IS NOT NULL
     AND h.association_method IN (
       'direct',
       'same_occasion_adult',
       'ring_capture'
     )
+    AND UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'
+    AND r.age = 'C'
+    AND r.rclass = 'H'
+    AND r.date <= sr.reference_date
+    AND r.gps_id IS NOT NULL
+    AND r.gps_point IS NOT NULL
+    AND NULLIF(
+          NULLIF(UPPER(TRIM(COALESCE(r.photo_start, ''))), ''),
+          'NA'
+        ) IS NOT NULL
+    AND NULLIF(
+          NULLIF(UPPER(TRIM(COALESCE(r.photo_end, ''))), ''),
+          'NA'
+        ) IS NOT NULL
   GROUP BY h.resolved_nest_id
 ),
 adult_capture_events AS (
@@ -5696,7 +5720,12 @@ todo_hiding_spot_photos AS (
     brood_followup_nests.nest_id,
     brood_followup_nests.reference_date,
     'Hiding spot photos needed' AS todo,
-    'need H resightings' AS notes,
+    CONCAT(
+      COALESCE(hiding_spot_photos.n_hiding_spot_photos, 0),
+      '/',
+      COALESCE(chick_captures.n_captured_chick_rings, 0),
+      ' chicks photographed'
+    ) AS notes,
     GREATEST(
       0,
       DATEDIFF(
@@ -5726,19 +5755,30 @@ todo_hiding_spot_photos AS (
   FROM brood_followup_nests
   LEFT JOIN hiding_spot_photos
     ON brood_followup_nests.nest_id = hiding_spot_photos.nest_id
+  LEFT JOIN chick_captures
+    ON brood_followup_nests.nest_id = chick_captures.nest_id
   LEFT JOIN adult_parent_status
     ON brood_followup_nests.nest_id = adult_parent_status.nest_id
   WHERE DATEDIFF(
-          brood_followup_nests.reference_date,
-          brood_followup_nests.hatch_date
-        ) BETWEEN 1 AND 6
-    AND COALESCE(hiding_spot_photos.n_hiding_spot_photos, 0) = 0
+        brood_followup_nests.reference_date,
+        brood_followup_nests.hatch_date
+      ) BETWEEN 1 AND 6
+    AND (
+      COALESCE(chick_captures.n_captured_chick_rings, 0) = 0
+      OR COALESCE(hiding_spot_photos.n_hiding_spot_photos, 0)
+           < chick_captures.n_captured_chick_rings
+    )
   UNION ALL
   SELECT
     b.nest_id,
     b.reference_date,
     'Hiding spot photos needed' AS todo,
-    'need H resightings' AS notes,
+    CONCAT(
+      COALESCE(hiding_spot_photos.n_hiding_spot_photos, 0),
+      '/',
+      COALESCE(chick_captures.n_captured_chick_rings, 0),
+      ' chicks photographed'
+    ) AS notes,
     GREATEST(0, DATEDIFF(b.reference_date, b.discovery_date) - 1) AS days_overdue,
     400 + GREATEST(0, DATEDIFF(b.reference_date, b.discovery_date) - 1) AS priority,
     CAST(NULL AS SIGNED) AS min_days_to_hatch,
@@ -5754,12 +5794,18 @@ todo_hiding_spot_photos AS (
   CROSS JOIN sr
   LEFT JOIN hiding_spot_photos
     ON b.nest_id = hiding_spot_photos.nest_id
+  LEFT JOIN chick_captures
+    ON b.nest_id = chick_captures.nest_id
   LEFT JOIN adult_parent_status
     ON b.nest_id = adult_parent_status.nest_id
   WHERE b.is_negative_brood = 1
     AND b.reference_date = sr.reference_date
     AND DATEDIFF(b.reference_date, b.discovery_date) BETWEEN 1 AND 6
-    AND COALESCE(hiding_spot_photos.n_hiding_spot_photos, 0) = 0
+    AND (
+      COALESCE(chick_captures.n_captured_chick_rings, 0) = 0
+      OR COALESCE(hiding_spot_photos.n_hiding_spot_photos, 0)
+           < chick_captures.n_captured_chick_rings
+    )
 ),
 todo_nota_nest_check AS (
   SELECT
