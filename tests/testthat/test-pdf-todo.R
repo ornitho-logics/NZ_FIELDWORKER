@@ -219,7 +219,7 @@ test_that("parent summary uses the resolved parent-task identities", {
 })
 
 
-test_that("PDF rows normalize negative broods and collapse duplicate tasks", {
+test_that("PDF rows normalize negative broods and count unique captured rings", {
   app <- load_main_app()
   prepare <- app$env$todo_pdf_prepare
 
@@ -245,6 +245,7 @@ test_that("PDF rows normalize negative broods and collapse duplicate tasks", {
   chicks <- data.frame(
     nest_id = rep("-MOCK_BROOD", 3),
     age = rep("C", 3),
+    ring = c("CP00001", "CP00001", "CP00002"),
     stringsAsFactors = FALSE
   )
 
@@ -263,42 +264,63 @@ test_that("PDF rows normalize negative broods and collapse duplicate tasks", {
     1L
   )
   expect_identical(unique(observed$State), "NA")
-  expect_identical(unique(observed$`Clutch–Brood`), "NA–3")
+  expect_identical(unique(observed$`Clutch–Brood`), "NA–2")
   expect_identical(unique(observed$Female), "")
 })
 
 
-test_that("B0208 unresolved brood size is displayed as unknown", {
+test_that("H nests use unique age-C rings when brood size is unresolved", {
   app <- load_main_app()
   prepare <- app$env$todo_pdf_prepare
 
   todo <- data.frame(
-    nest_id = c("B0208", "B0208", "B0209"),
-    reference_date = as.Date(rep("2026-09-30", 3)),
-    todo = c("Parent capture", "Parent resighting", "Parent capture"),
-    notes = rep("mock task", 3),
-    nest_state = c("H", "H", "H"),
-    clutch_size = c(3, 3, 3),
-    brood_size = c(0, 0, 0),
-    min_days_to_hatch = c(-1, -1, -1),
-    last_visit_days_ago = c(1, 1, 1),
+    nest_id = c("B0208", "B0208", "B0209", "B0211"),
+    reference_date = as.Date(rep("2026-09-30", 4)),
+    todo = rep("Parent capture", 4),
+    notes = rep("mock task", 4),
+    nest_state = rep("H", 4),
+    clutch_size = rep(3, 4),
+    brood_size = rep(0, 4),
+    min_days_to_hatch = rep(-1, 4),
+    last_visit_days_ago = rep(1, 4),
     M_mark = NA,
     F_mark = NA,
     stringsAsFactors = FALSE
   )
 
+  chicks <- data.frame(
+    nest_id = c(
+      "B0208", "B0208", "B0208", "B0211", "B0211"
+    ),
+    age = rep("C", 5),
+    ring = c(
+      "CP00001", "CP00001", "CP00002", "CP00003", "CP00003"
+    ),
+    date = as.Date(c(
+      "2026-09-29", "2026-09-30", "2026-09-30",
+      "2026-09-30", "2026-10-01"
+    )),
+    site = rep("CR", 5),
+    stringsAsFactors = FALSE
+  )
+
   observed <- prepare(
     todo = todo,
-    available_combos = data.frame(mark = paste0("MOCK-", seq_len(30)))
+    available_combos = data.frame(mark = paste0("MOCK-", seq_len(30))),
+    chick_captures = chicks
   )$rows
 
   expect_identical(
     observed$`Clutch–Brood`[observed$Nest == "B0208"],
-    c("3–?", "3–?")
+    "3–2"
   )
   expect_identical(
     observed$`Clutch–Brood`[observed$Nest == "B0209"],
     "3–0"
+  )
+  expect_identical(
+    observed$`Clutch–Brood`[observed$Nest == "B0211"],
+    "3–1"
   )
 })
 

@@ -66,6 +66,16 @@ test_that("main app UI and entrypoint load", {
   )
   expect_null(app$env$parse_git_ls_remote(character()))
 
+  expect_identical(
+    app$env$git_local_head_id(app_file("main")),
+    app$env$normalize_git_id(
+      app$env$git_output(
+        app_file("main"),
+        c("rev-parse", "--short=7", "HEAD")
+      )
+    )
+  )
+
   expect_match(html, "FIELDWORKER", fixed = TRUE)
   expect_match(html, "abcdef1", fixed = TRUE)
   expect_match(

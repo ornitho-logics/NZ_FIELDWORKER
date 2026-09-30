@@ -279,6 +279,13 @@ git_commit_time <- function(app_dir, ref) {
 }
 
 
+git_local_head_id <- function(app_dir) {
+  normalize_git_id(
+    git_output(app_dir, c("rev-parse", "--short=7", "HEAD"))
+  )
+}
+
+
 resolve_git_version <- function(app_dir = getwd()) {
   app_dir <- normalizePath(app_dir, mustWork = FALSE)
 
@@ -326,6 +333,18 @@ resolve_git_version <- function(app_dir = getwd()) {
       id = id,
       source = "remote:origin/main",
       commit_time = git_commit_time(app_dir, id)
+    ))
+  }
+
+  # A deployed checkout may be dirty or unable to reach GitHub. In that case
+  # its local HEAD is still more useful than reporting an unknown version.
+  id <- git_local_head_id(app_dir)
+
+  if (!is.null(id)) {
+    return(list(
+      id = id,
+      source = "git:HEAD-working-tree",
+      commit_time = git_commit_time(app_dir, "HEAD")
     ))
   }
 
