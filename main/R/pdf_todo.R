@@ -590,7 +590,7 @@ todo_pdf_heading <- function(todo_name) {
     todo_name,
     "Hiding spot photos needed" = list(
       title = "Broods to photograph",
-      subtitle = "find these broods and take in-situ and tent photos"
+      subtitle = "find these broods and take in-situ and tent photos before the chicks are 7 days old"
     ),
     "Unprocessed nest" = list(
       title = "Nests to process",
@@ -602,11 +602,11 @@ todo_pdf_heading <- function(todo_name) {
     ),
     "Parent capture" = list(
       title = "Parents to capture",
-      subtitle = "follow GEO note priority; capture only once nest-age and 36-hour rules allow"
+      subtitle = "follow notes for tag deployment or band-only instructions"
     ),
     "Parent resighting" = list(
       title = "Parents to resight",
-      subtitle = "confirm parent identity or association with the nest"
+      subtitle = "confirm parent identity or association with the nest; if a parent had a MM-cap, three subsequent resightings OR one behav \"IN\", \"NM\", or \"BW\" will resolve its association"
     ),
     "Untrapped brood" = list(
       title = "Broods to band",
@@ -614,7 +614,7 @@ todo_pdf_heading <- function(todo_name) {
     ),
     "nest check" = list(
       title = "Nests to check for potential hatch",
-      subtitle = NULL
+      subtitle = "egg floatation data estimates that these nests are within 7 days of hatching"
     ),
     "take scrape photos" = list(
       title = "Take scrape photos",
@@ -626,7 +626,7 @@ todo_pdf_heading <- function(todo_name) {
     ),
     "notA nest-check" = list(
       title = "Nests requiring a 'notA' closure visit",
-      subtitle = NULL
+      subtitle = "these nests have been finished and can be closed"
     ),
     list(
       title = todo_name,
