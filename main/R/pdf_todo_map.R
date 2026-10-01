@@ -139,11 +139,14 @@
         value <- lon[!is.na(lon)]
         if (length(value)) as.numeric(value[1]) else NA_real_
       },
-      check_type = if (any(todo %chin% check_todos)) {
+      check_type = if (any(todo == "notA nest-check")) {
+        "notA visit"
+      } else if (any(todo %chin% check_todos)) {
         "Nest check"
       } else {
         "Other task"
       },
+      notA_visit = any(todo == "notA nest-check"),
       parent_work = fcase(
         any(todo == "Parent capture"), "Capture",
         any(todo == "Parent resighting"), "Resight",
@@ -185,7 +188,7 @@
       !(map_nest_state == "NOTA" & !has_hatch_evidence & !is_negative_brood)
     ]
 
-    nest_tasks <- latest[
+    latest_positions <- latest[
       !is.na(nest_id) & nzchar(nest_id),
       .(
         lat = {
@@ -203,17 +206,18 @@
     task_status <- copy(task_status)
     setnames(task_status, c("lat", "lon"), c("task_lat", "task_lon"))
     nest_tasks <- merge(
-      nest_tasks,
+      latest_positions,
       task_status,
       by = "nest_id",
-      all.x = TRUE,
+      all = TRUE,
       sort = FALSE
     )
     nest_tasks[, let(
       lat = fcoalesce(lat, task_lat),
       lon = fcoalesce(lon, task_lon),
       check_type = fcoalesce(check_type, "Other task"),
-      parent_work = fcoalesce(parent_work, "No capture/resight")
+      parent_work = fcoalesce(parent_work, "No capture/resight"),
+      notA_visit = fcoalesce(notA_visit, FALSE)
     )]
     nest_tasks[, c("task_lat", "task_lon") := NULL]
   } else {
@@ -248,7 +252,7 @@
   nest_tasks <- nest_tasks[plot_name %chin% c("A", "B", "C")]
   nest_tasks[, check_type := factor(
     check_type,
-    levels = c("Nest check", "Other task")
+    levels = c("Nest check", "notA visit", "Other task")
   )]
   nest_tasks[, parent_work := factor(
     parent_work,
@@ -454,7 +458,7 @@
     Resight = "#1976d2",
     `No capture/resight` = "#7b858b"
   )
-  task_shapes <- c(`Nest check` = 24, `Other task` = 21)
+  task_shapes <- c(`Nest check` = 24, `notA visit` = 25, `Other task` = 21)
   point_xy$parent_fill <- unname(task_cols[as.character(point_xy$parent_work)])
 
   panel <- ggplot()
@@ -591,7 +595,7 @@
     scale_shape_manual(
       values = task_shapes,
       limits = names(task_shapes),
-      labels = c("Nest check", "other task (i.e., Parent work)"),
+      labels = c("Nest check", "notA visit", "other task (i.e., Parent work)"),
       drop = FALSE,
       name = "Nest work"
     ) +
@@ -611,13 +615,13 @@
     Resight = "#1976d2",
     `No capture/resight` = "#7b858b"
   )
-  task_shapes <- c(`Nest check` = 24, `Other task` = 21)
+  task_shapes <- c(`Nest check` = 24, `notA visit` = 25, `Other task` = 21)
 
   ggplot(
     data.frame(
       parent_work = factor(names(task_cols), levels = names(task_cols)),
       check_type = factor(
-        c("Nest check", "Other task", "Other task"),
+        c("Nest check", "notA visit", "Other task"),
         levels = names(task_shapes)
       )
     ),
@@ -628,7 +632,7 @@
     scale_fill_manual(values = task_cols, drop = FALSE, name = "Parent work") +
     scale_shape_manual(
       values = task_shapes,
-      labels = c("Nest check", "other task (i.e., Parent work)"),
+      labels = c("Nest check", "notA visit", "other task (i.e., Parent work)"),
       drop = FALSE,
       name = "Nest work"
     ) +

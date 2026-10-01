@@ -154,10 +154,11 @@ todo_pdf_prepare_unseen_tagged_birds <- function(view_1) {
 todo_pdf_parent_task_marks <- function(todo) {
   output_columns <- c("Nest", "M_todo_mark", "F_todo_mark")
   empty_output <- function() {
-    data.table(setNames(
-      rep(list(character()), length(output_columns)),
-      output_columns
-    ))
+    data.table(
+      Nest = character(),
+      M_todo_mark = character(),
+      F_todo_mark = character()
+    )
   }
 
   todo_dt <- data.table(todo)
@@ -235,6 +236,7 @@ todo_pdf_prepare_nest_summary <- function(
   chick_captures = NULL
 ) {
   nests <- data.table(nests_latest)
+  todo_dt <- data.table(todo)
   required_columns <- c(
     "nest_id",
     "nest_state",
@@ -243,7 +245,80 @@ todo_pdf_prepare_nest_summary <- function(
     "F_mark"
   )
 
+  # BROODS_LATEST intentionally omits failed terminal notA nests. Retain a
+  # task-row fallback for those IDs without broadening BROODS_LATEST.
+  not_a_fallback <- data.table()
+  if (
+    nrow(todo_dt)
+      && all(c("nest_id", "todo") %in% names(todo_dt))
+  ) {
+    not_a_fallback <- todo_dt[
+      todo == "notA nest-check"
+        & !is.na(nest_id)
+        & nzchar(trimws(as.character(nest_id))),
+      .(
+        nest_id = trimws(as.character(nest_id)),
+        nest_state = if ("nest_state" %in% names(todo_dt)) {
+          as.character(nest_state)
+        } else {
+          "notA"
+        },
+        min_days_to_hatch = if ("min_days_to_hatch" %in% names(todo_dt)) {
+          todo_pdf_as_numeric(min_days_to_hatch)
+        } else {
+          NA_real_
+        },
+        M_mark = if ("M_mark" %in% names(todo_dt)) {
+          as.character(M_mark)
+        } else {
+          NA_character_
+        },
+        F_mark = if ("F_mark" %in% names(todo_dt)) {
+          as.character(F_mark)
+        } else {
+          NA_character_
+        },
+        brood_size = NA_real_,
+        is_negative_brood = FALSE,
+        has_hatch_evidence = FALSE,
+        task_fallback = TRUE
+      )
+    ]
+    not_a_fallback <- not_a_fallback[!duplicated(nest_id)]
+  }
+
   if (!nrow(nests) || !all(required_columns %in% names(nests))) {
+    if (!nrow(not_a_fallback)) {
+      return(data.table(
+        Nest = character(),
+        `Est. Hatch` = character(),
+        Male = character(),
+        Female = character(),
+        Symbol = character(),
+        SymbolColor = character(),
+        LabelFill = character(),
+        LabelText = character()
+      ))
+    }
+    nests <- not_a_fallback
+  } else {
+    nests[, task_fallback := FALSE]
+    if (nrow(not_a_fallback)) {
+      not_a_fallback <- not_a_fallback[
+        !nest_id %chin% as.character(nests$nest_id)
+      ]
+      nests <- rbind(nests, not_a_fallback, fill = TRUE)
+    }
+  }
+
+  for (column in setdiff(c("is_negative_brood", "has_hatch_evidence"), names(nests))) {
+    nests[, (column) := FALSE]
+  }
+  if (!"task_fallback" %in% names(nests)) {
+    nests[, task_fallback := FALSE]
+  }
+
+  if (!all(required_columns %in% names(nests))) {
     return(data.table(
       Nest = character(),
       `Est. Hatch` = character(),
@@ -274,7 +349,12 @@ todo_pdf_prepare_nest_summary <- function(
     state == "H"
   }
   nests <- nests[
-    !(state == "NOTA" & !has_hatch_evidence & !is_negative_brood)
+    !(
+      state == "NOTA"
+        & !has_hatch_evidence
+        & !is_negative_brood
+        & !task_fallback
+    )
   ]
   nests[, min_days_to_hatch := todo_pdf_as_numeric(min_days_to_hatch)]
   nests[, predicted_hatch_date := as.Date(reference_date) + min_days_to_hatch]
@@ -299,7 +379,6 @@ todo_pdf_prepare_nest_summary <- function(
     gsub("[\r\n]+", " ", x)
   }), .SDcols = c("Male", "Female")]
 
-  todo_dt <- data.table(todo)
   check_todos <- c("Clutch check", "Unprocessed nest", "nest check")
   if (nrow(todo_dt) && all(c("nest_id", "todo") %in% names(todo_dt))) {
     parent_marks <- todo_pdf_parent_task_marks(todo_dt)
@@ -317,8 +396,15 @@ todo_pdf_prepare_nest_summary <- function(
 
     task_symbols <- todo_dt[,
       .(
-        Symbol = if (any(todo %chin% check_todos)) "triangle" else "circle",
+        Symbol = if (any(todo == "notA nest-check")) {
+          "notA"
+        } else if (any(todo %chin% check_todos)) {
+          "triangle"
+        } else {
+          "circle"
+        },
         SymbolColor = fcase(
+          any(todo == "notA nest-check"), "#4b5560",
           any(todo == "Parent capture"), "#d32f2f",
           any(todo == "Parent resighting"), "#1976d2",
           default = "#7b858b"
@@ -469,15 +555,45 @@ todo_pdf_prepare <- function(
   is_negative_brood <- grepl("^-", trimws(as.character(todo_dt$nest_id)))
   todo_dt[is_negative_brood, let(
     pdf_state = "NA",
-    pdf_clutch_size = "NA",
-    pdf_brood_size = "NA"
+    pdf_clutch_size = "?",
+    pdf_brood_size = "?"
   )]
+
+  # H with no clutch is operationally a mobile brood, while negative IDs are
+  # broods by definition. Keep the raw state available below.
+  is_h_zero_clutch <- (
+    !is_negative_brood
+      & toupper(trimws(as.character(todo_dt$nest_state))) == "H"
+      & todo_pdf_as_numeric(todo_dt$clutch_size) == 0
+  )
+  todo_dt[is_negative_brood | is_h_zero_clutch, pdf_state := "Brood"]
+
+  # Avoid displaying database sentinel values for unknown negative-brood
+  # clutch/brood values.
+  negative_clutch <- trimws(as.character(todo_dt$pdf_clutch_size))
+  negative_brood <- trimws(as.character(todo_dt$pdf_brood_size))
+  todo_dt[
+    is_negative_brood & (
+      is.na(negative_clutch)
+        | !nzchar(negative_clutch)
+        | toupper(negative_clutch) %chin% c("NA", "NULL")
+    ),
+    pdf_clutch_size := "?"
+  ]
+  todo_dt[
+    is_negative_brood & (
+      is.na(negative_brood)
+        | !nzchar(negative_brood)
+        | toupper(negative_brood) %chin% c("NA", "NULL")
+    ),
+    pdf_brood_size := "?"
+  ]
 
   # An H event without an entered brood size remains uncertain until valid
   # age-C capture rings provide an observed brood count.
   brood_size_text <- trimws(as.character(todo_dt$pdf_brood_size))
   h_brood_needs_observed_count <- !is_negative_brood &
-    toupper(trimws(as.character(todo_dt$pdf_state))) == "H" & (
+    toupper(trimws(as.character(todo_dt$nest_state))) == "H" & (
       is.na(brood_size_text)
         | !nzchar(brood_size_text)
         | toupper(brood_size_text) %chin% c("0", "NA", "NULL", "?")
@@ -533,6 +649,21 @@ todo_pdf_prepare <- function(
       }
     }
   }
+
+  # These are PDF-only wording changes; the SQL task notes remain stable for
+  # other consumers of TODO_LIST.
+  todo_dt[
+    todo == "notA nest-check",
+    notes := gsub("do notA", "enter 'notA'", as.character(notes), fixed = TRUE)
+  ]
+  parent_capture_notes <- as.character(todo_dt$notes)
+  parent_capture_notes[todo_dt$todo == "Parent capture"] <- gsub(
+    "resight/band ([MF])(?! \\(status \\?\\))",
+    "resight/band \\1 (status ?)",
+    parent_capture_notes[todo_dt$todo == "Parent capture"],
+    perl = TRUE
+  )
+  todo_dt[, notes := parent_capture_notes]
 
   todo_dt[, let(clutch_brood = fifelse(
     is.na(pdf_clutch_size) & is.na(pdf_brood_size),
@@ -605,8 +736,8 @@ todo_pdf_heading <- function(todo_name) {
       subtitle = "follow notes for tag deployment or band-only instructions"
     ),
     "Parent resighting" = list(
-      title = "Parents to resight",
-      subtitle = "confirm parent identity or association with the nest; if a parent had a MM-cap, three subsequent resightings OR one behav \"IN\", \"NM\", or \"BW\" will resolve its association"
+      title = "Parents to resight for nest association",
+      subtitle = "Nest association of MM-cap parent will be resolved after either 1) three subsequent resightings, or 2) one resighting with 'behav' that includes “IN”, “NM”, or “BW”"
     ),
     "Untrapped brood" = list(
       title = "Broods to band",
@@ -626,7 +757,7 @@ todo_pdf_heading <- function(todo_name) {
     ),
     "notA nest-check" = list(
       title = "Nests requiring a 'notA' closure visit",
-      subtitle = "these nests have been finished and can be closed"
+      subtitle = "these nests have finished and can be closed; nest_ids with state \"H\" may still be active mobile broods that require monitoring"
     ),
     list(
       title = todo_name,
@@ -806,14 +937,23 @@ todo_pdf_nest_summary_table <- function(nest_summary, n_blocks = 3L) {
 
     for (row in seq_len(nrow(block))) {
       row_fill <- if (row %% 2L == 0L) stripe_fill else white_fill
-      glyph <- if (block$Symbol[row] == "triangle") "▲" else "●"
+      glyph <- switch(
+        block$Symbol[row],
+        notA = "▼",
+        triangle = "▲",
+        "●"
+      )
+      symbol_size <- format(
+        round(as.numeric(font_size) * 2, 2),
+        trim = TRUE
+      )
       has_chick_label <- !is.na(block$LabelFill[row]) &&
         nzchar(block$LabelFill[row])
       nest_cell <- if (nzchar(block$Nest[row])) {
         if (has_chick_label) {
           glue(
             '#box[',
-            '  #text(fill: rgb("{block$SymbolColor[row]}"))[{glyph}]',
+            '  #text(size: {symbol_size}pt, fill: rgb("{block$SymbolColor[row]}"))[{glyph}]',
             '  #h(1pt)',
             '  #box(',
             '    fill: rgb("{block$LabelFill[row]}"),',
@@ -827,7 +967,7 @@ todo_pdf_nest_summary_table <- function(nest_summary, n_blocks = 3L) {
         } else {
           glue(
             '#box[',
-            '  #text(fill: rgb("{block$SymbolColor[row]}"))[{glyph}]',
+            '  #text(size: {symbol_size}pt, fill: rgb("{block$SymbolColor[row]}"))[{glyph}]',
             '  #h(1pt)',
             '  #strong[{typst_content(block$Nest[row])}]',
             ']'
@@ -1052,24 +1192,9 @@ todo_pdf_body <- function(
         )
       }
 
-      task_table <- if (todo %in% c(
-        "Hiding spot photos needed",
-        "Parent capture",
-        "Parent resighting"
-      )) {
-        todo_pdf_task_table(todo_rows, nest_summary)
-      } else {
-        c(
-          knitr::kable(
-            todo_rows,
-            format = "pipe",
-            align = c(rep("c", ncol(todo_rows) - 1), "l")
-          ),
-          "",
-          ': {tbl-colwidths="[8,6,10,9,10,14,14,29]"}',
-          ""
-        )
-      }
+      # Use one borderless, striped renderer for every operational task table.
+      # This keeps label-aware and ordinary task tables visually consistent.
+      task_table <- todo_pdf_task_table(todo_rows, nest_summary)
 
       out <- c(out, task_table)
     }
@@ -1080,7 +1205,7 @@ todo_pdf_body <- function(
       out,
       "## Tagged birds to resight",
       "",
-      "*The following tagged birds have not been in seen in over 7 days since tag deployment, please resight and assess walking ability*",
+      "*These birds have not been in seen in over 7 days since tag deployment, please resight and comment either \"no limp\", \"slight limp\", or \"severe limp\".*",
       "",
       knitr::kable(
         as.data.frame(unseen_tagged_birds),
@@ -1116,8 +1241,15 @@ todo_pdf_body <- function(
       out,
       "```{=typst}",
       "#pagebreak()",
+      "#align(center)[#text(size: 12pt, weight: \"bold\")[Map of to-dos]]",
+      "#align(center)[#text(size: 8.5pt)[Only nests and broods with to-dos are shown. Nests are labelled in black, broods are labelled according to the band colour assigned to chicks. Nest points are stationary, brood points show the latest recorded location]]",
+      "#v(0.35em)",
       glue('#align(center)[#image("{map_file}", width: 100%)]'),
       "```",
+      "",
+      "## Summary of currently active nests and broods",
+      "",
+      "*Broods are labelled according to the band colour assigned to chicks. Symbols match the task shown on the map*",
       "",
       todo_pdf_nest_summary_table(nest_summary)
     )
