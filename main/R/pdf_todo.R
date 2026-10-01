@@ -314,6 +314,9 @@ todo_pdf_prepare_nest_summary <- function(
   for (column in setdiff(c("is_negative_brood", "has_hatch_evidence"), names(nests))) {
     nests[, (column) := FALSE]
   }
+  for (column in setdiff(c("hatch_evidence_date", "discovery_date"), names(nests))) {
+    nests[, (column) := as.Date(NA)]
+  }
   if (!"task_fallback" %in% names(nests)) {
     nests[, task_fallback := FALSE]
   }
@@ -357,16 +360,17 @@ todo_pdf_prepare_nest_summary <- function(
     )
   ]
   nests[, min_days_to_hatch := todo_pdf_as_numeric(min_days_to_hatch)]
-  nests[, predicted_hatch_date := as.Date(reference_date) + min_days_to_hatch]
+  nests[, hatch_display_date := as.Date(as.character(hatch_evidence_date))]
+  nests[as.logical(nests$is_negative_brood), hatch_display_date := as.Date(as.character(discovery_date))]
 
   summary <- nests[
     !is.na(nest_id) & nzchar(trimws(as.character(nest_id))),
     .(
       Nest = trimws(as.character(nest_id)),
       `Est. Hatch` = fifelse(
-        is.na(predicted_hatch_date),
+        is.na(hatch_display_date),
         "",
-        format(predicted_hatch_date, "%m-%d")
+        format(hatch_display_date, "%m-%d")
       ),
       Male = as.character(M_mark),
       Female = as.character(F_mark)

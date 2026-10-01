@@ -1200,13 +1200,8 @@ positive_units AS (
     loc.gps_point AS fallback_gps_point,
     loc.lat AS fallback_lat,
     loc.lon AS fallback_lon,
-    CASE
-      WHEN h.hatch_evidence_date IS NULL THEN chicks.first_chick_capture_date
-      WHEN chicks.first_chick_capture_date IS NULL THEN h.hatch_evidence_date
-      WHEN chicks.first_chick_capture_date < h.hatch_evidence_date
-      THEN chicks.first_chick_capture_date
-      ELSE h.hatch_evidence_date
-    END AS hatch_evidence_date,
+    COALESCE(h.hatch_evidence_date, chicks.first_chick_capture_date)
+      AS hatch_evidence_date,
     CASE
       WHEN h.has_hatch_evidence = 1 OR chicks.nest_id IS NOT NULL THEN 1
       ELSE 0
