@@ -760,7 +760,7 @@ todo_pdf_map_save <- function(
     filename = file,
     plot = map,
     width = 190,
-    height = 145,
+    height = 160,
     units = "mm",
     dpi = 240,
     bg = "white"
