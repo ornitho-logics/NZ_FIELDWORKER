@@ -36,7 +36,7 @@ test_that("to-do headings use the current operational subtitles", {
   )
   expect_identical(
     heading("Parent resighting")$subtitle,
-    "confirm parent identity or association with the nest; if a parent had a MM-cap, three subsequent resightings OR one behav \"IN\", \"NM\", or \"BW\" will resolve its association"
+    "Nest association of MM-cap parent will be resolved after either 1) three subsequent resightings, or 2) one resighting with 'behav' that includes “IN”, “NM”, or “BW”"
   )
   expect_identical(
     heading("nest check")$subtitle,
@@ -44,7 +44,7 @@ test_that("to-do headings use the current operational subtitles", {
   )
   expect_identical(
     heading("notA nest-check")$subtitle,
-    "these nests have been finished and can be closed"
+    "these nests have finished and can be closed; nest_ids with state \"H\" may still be active mobile broods that require monitoring"
   )
 })
 
@@ -63,13 +63,70 @@ test_that("tagged-bird follow-up table is included in the PDF body", {
 
   expect_true(any(grepl("## Tagged birds to resight", body, fixed = TRUE)))
   expect_true(any(grepl(
-    paste(
-      "The following tagged birds have not been in seen in over 7 days since tag deployment,",
-      "please resight and assess walking ability"
-    ),
+    "These birds have not been in seen in over 7 days since tag deployment, please resight and comment either \"no limp\", \"slight limp\", or \"severe limp\".",
     body,
     fixed = TRUE
   )))
+})
+
+
+test_that("PDF display marks broods, unknown negative clutch, and capture status", {
+  app <- load_main_app()
+  prepare <- app$env$todo_pdf_prepare
+
+  todo <- data.frame(
+    nest_id = c("-C0224", "C0615", "C0307", "C0625", "A0306", "B0220"),
+    reference_date = as.Date(rep("2026-10-01", 6)),
+    todo = c(
+      "Parent capture", "Parent capture", "Parent capture",
+      "Parent capture", "Parent capture", "notA nest-check"
+    ),
+    notes = c(
+      "resight/band M (status ?)",
+      "band X-X F; resight/band M",
+      "resight/band F; band X-X M",
+      "band X-X F; resight/band M",
+      "resight/band F; band X-X M",
+      "remove flag + do notA"
+    ),
+    nest_state = c(NA, "H", "I", "I", "I", "notA"),
+    clutch_size = c(NA, 0, 3, 3, 3, NA),
+    brood_size = c(3, 0, 0, 0, 0, 0),
+    min_days_to_hatch = rep(NA, 6),
+    last_visit_days_ago = rep(1, 6),
+    M_mark = c(NA, "BY-TY.YW", "X-X", NA, NA, "MOCK-M"),
+    F_mark = c("OY-YG", "X-X", "MOCK-F", "MOCK-F", "X-X", "MOCK-F"),
+    stringsAsFactors = FALSE
+  )
+
+  observed <- prepare(
+    todo = todo,
+    available_combos = data.frame(mark = paste0("MOCK-", seq_len(30))),
+    nests_latest = data.frame(),
+    chick_captures = data.frame(
+      nest_id = rep("-C0224", 3),
+      age = rep("C", 3),
+      ring = paste0("CP0000", 1:3),
+      site = rep("CR", 3),
+      date = as.Date(rep("2026-09-30", 3))
+    )
+  )$rows
+
+  expect_identical(observed$State[observed$Nest == "-C0224"], "Brood")
+  expect_identical(observed$`Clutch–Brood`[observed$Nest == "-C0224"], "?–3")
+  expect_identical(observed$State[observed$Nest == "C0615"], "Brood")
+  expect_identical(
+    observed$Notes[observed$Nest == "C0625"],
+    "band X-X F; resight/band M (status ?)"
+  )
+  expect_identical(
+    observed$Notes[observed$Nest == "A0306"],
+    "resight/band F (status ?); band X-X M"
+  )
+  expect_identical(
+    observed$Notes[observed$Nest == "B0220"],
+    "remove flag + enter 'notA'"
+  )
 })
 
 
@@ -210,6 +267,53 @@ test_that("PDF parent summary keeps mobile broods and hatched notA nests", {
 })
 
 
+test_that("notA task rows remain available to the PDF summary and map", {
+  app <- load_main_app()
+  prepare_summary <- app$env$todo_pdf_prepare_nest_summary
+  prepare_map <- app$env$.todo_pdf_map_prepare_nests
+
+  todo <- data.frame(
+    nest_id = c("B0220", "B0604"),
+    todo = c("notA nest-check", "notA nest-check"),
+    nest_state = c("notA", "notA"),
+    min_days_to_hatch = c(NA, NA),
+    M_mark = c("MOCK-M1", "MOCK-M2"),
+    F_mark = c("MOCK-F1", "MOCK-F2"),
+    lat = c(-43.1, -43.2),
+    lon = c(170.1, 170.2),
+    stringsAsFactors = FALSE
+  )
+  nests <- data.frame(
+    nest_id = "B0201",
+    nest_state = "I",
+    min_days_to_hatch = 4,
+    M_mark = "MOCK-M",
+    F_mark = "MOCK-F",
+    lat = -43.3,
+    lon = 170.3,
+    has_hatch_evidence = FALSE,
+    is_negative_brood = FALSE,
+    stringsAsFactors = FALSE
+  )
+
+  summary <- prepare_summary(
+    nests,
+    as.Date("2026-10-01"),
+    todo = todo,
+    chick_captures = data.frame()
+  )
+  expect_true(all(c("B0220", "B0604") %in% summary$Nest))
+  expect_identical(summary$Symbol[summary$Nest == "B0220"], "notA")
+
+  mapped <- prepare_map(todo, data.frame(), nests)
+  expect_true(all(c("B0220", "B0604") %in% mapped$nest_id))
+  expect_identical(
+    as.character(mapped$check_type[mapped$nest_id == "B0220"]),
+    "notA visit"
+  )
+})
+
+
 test_that("parent summary uses the resolved parent-task identities", {
   app <- load_main_app()
   prepare_summary <- app$env$todo_pdf_prepare_nest_summary
@@ -300,8 +404,8 @@ test_that("PDF rows normalize negative broods and count unique captured rings", 
     nrow(observed[observed$Todo == "Hiding spot photos needed", ]),
     1L
   )
-  expect_identical(unique(observed$State), "NA")
-  expect_identical(unique(observed$`Clutch–Brood`), "NA–2")
+  expect_identical(unique(observed$State), "Brood")
+  expect_identical(unique(observed$`Clutch–Brood`), "?–2")
   expect_identical(unique(observed$Female), "")
 })
 
