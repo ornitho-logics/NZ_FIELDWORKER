@@ -534,19 +534,6 @@
       xlim = xlim + c(0.025, -0.025) * x_span,
       ylim = ylim + c(0.025, -0.025) * y_span
     ) +
-    annotate(
-      "label",
-      x = xlim[1] + 0.045 * x_span,
-      y = ylim[2] - 0.035 * y_span,
-      label = paste("Plot", plot_id),
-      hjust = 0,
-      vjust = 1,
-      size = 3.6,
-      fontface = "bold",
-      colour = "#17242d",
-      fill = scales::alpha("white", 0.82),
-      linewidth = 0
-    ) +
     geom_segment(
       data = north,
       aes(x, y, xend = xend, yend = yend),
@@ -599,12 +586,21 @@
       drop = FALSE,
       name = "Nest work"
     ) +
+    labs(title = paste("Plot", plot_id)) +
     coord_sf(xlim = xlim, ylim = ylim, expand = FALSE, datum = NA) +
     theme_void() +
     theme(
       panel.background = element_rect(fill = "#edf0f1", colour = "#7f8b90", linewidth = 0.5),
       plot.background = element_rect(fill = "white", colour = NA),
-      plot.margin = margin(0.5, 0.5, 0.5, 0.5, unit = "mm"),
+      plot.title.position = "plot",
+      plot.title = element_text(
+        size = 10,
+        face = "bold",
+        hjust = 0.5,
+        colour = "#17242d",
+        margin = margin(b = 0.5, unit = "mm")
+      ),
+      plot.margin = margin(2.5, 0.5, 0.5, 0.5, unit = "mm"),
       legend.position = "none"
     )
 }
@@ -690,21 +686,21 @@ todo_pdf_map_save <- function(
       rotation_deg = -90,
       local_image_rotation = TRUE,
       server_rotation = 0,
-      target_ratio = 2.55,
+      target_ratio = 1.55,
       image_size = "1275,500"
     ),
     B = list(
       rotation_deg = -90,
       local_image_rotation = TRUE,
       server_rotation = 0,
-      target_ratio = 2.55,
+      target_ratio = 1.55,
       image_size = "1275,500"
     ),
     C = list(
       rotation_deg = -17.5,
       local_image_rotation = FALSE,
       server_rotation = -17.5,
-      target_ratio = 1 / 2.55,
+      target_ratio = 1 / 1.55,
       image_size = "500,1275"
     )
   )
@@ -760,7 +756,7 @@ todo_pdf_map_save <- function(
     filename = file,
     plot = map,
     width = 190,
-    height = 135,
+    height = 145,
     units = "mm",
     dpi = 240,
     bg = "white"
