@@ -384,6 +384,30 @@ todo_pdf_prepare_nest_summary <- function(
     )
   ]
 
+  # Task rows already carry the authoritative reference-date hatch interval.
+  # Reuse it for matching summary rows so the PDF does not show conflicting
+  # values when BROODS_LATEST was calculated from an older snapshot.
+  if (
+    nrow(todo_dt)
+      && all(c("nest_id", "min_days_to_hatch") %in% names(todo_dt))
+  ) {
+    task_hatch <- todo_dt[
+      !is.na(nest_id)
+        & nzchar(trimws(as.character(nest_id)))
+        & !is.na(todo_pdf_as_numeric(min_days_to_hatch)),
+      .(task_hatch = todo_pdf_as_numeric(min_days_to_hatch)[1L]),
+      by = .(Nest = trimws(as.character(nest_id)))
+    ]
+    if (nrow(task_hatch)) {
+      summary <- merge(summary, task_hatch, by = "Nest", all.x = TRUE, sort = FALSE)
+      summary[
+        !is.na(task_hatch),
+        `Est. Hatch` := format(task_hatch, trim = TRUE, scientific = FALSE)
+      ]
+      summary[, task_hatch := NULL]
+    }
+  }
+
   summary[, c("Male", "Female") := lapply(.SD, function(x) {
     x[is.na(x)] <- ""
     x[toupper(trimws(x)) == "NULL"] <- ""
