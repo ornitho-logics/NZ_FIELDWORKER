@@ -70,6 +70,29 @@ test_that("tagged-bird follow-up table is included in the PDF body", {
 })
 
 
+test_that("tagged-bird and team-mark tables use the shared PDF table style", {
+  app <- load_main_app()
+  body <- app$env$todo_pdf_body(
+    rows = data.table::data.table(),
+    team_marks = data.table::data.table(
+      Team = "Team 1",
+      `1` = "MOCK-1"
+    ),
+    unseen_tagged_birds = data.table::data.table(
+      Mark = "MOCK",
+      Sex = "M",
+      Nest = "MOCK_NEST",
+      `Days Since Cap` = "12"
+    )
+  )
+
+  expect_true(any(grepl("#strong[Mark]", body, fixed = TRUE)))
+  expect_true(any(grepl("#strong[Team]", body, fixed = TRUE)))
+  expect_true(any(grepl('table.cell(fill: rgb("#dfe5e7"))', body, fixed = TRUE)))
+  expect_true(any(grepl("stroke: none", body, fixed = TRUE)))
+})
+
+
 test_that("parent summary subtitle explains hatch intervals", {
   app <- load_main_app()
   body <- app$env$todo_pdf_body(
