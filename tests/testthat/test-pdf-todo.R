@@ -369,6 +369,43 @@ test_that("parent summary displays hatch intervals", {
 })
 
 
+test_that("parent summary reuses task hatch intervals", {
+  app <- load_main_app()
+  prepare_summary <- app$env$todo_pdf_prepare_nest_summary
+
+  nests <- data.frame(
+    nest_id = c("B0608", "C0212"),
+    nest_state = c("I", "I"),
+    min_days_to_hatch = c(17, NA),
+    M_mark = c("MOCK-M1", "MOCK-M2"),
+    F_mark = c("MOCK-F1", "MOCK-F2"),
+    stringsAsFactors = FALSE
+  )
+  todo <- data.frame(
+    nest_id = c("B0608", "C0212"),
+    todo = c("Parent capture", "Hiding spot photos needed"),
+    min_days_to_hatch = c(15, 5),
+    stringsAsFactors = FALSE
+  )
+
+  summary <- prepare_summary(
+    nests,
+    as.Date("2026-10-01"),
+    todo = todo,
+    chick_captures = data.frame()
+  )
+
+  expect_identical(
+    summary[summary$Nest == "B0608", `Est. Hatch`],
+    "15"
+  )
+  expect_identical(
+    summary[summary$Nest == "C0212", `Est. Hatch`],
+    "5"
+  )
+})
+
+
 test_that("parent summary uses the resolved parent-task identities", {
   app <- load_main_app()
   prepare_summary <- app$env$todo_pdf_prepare_nest_summary
