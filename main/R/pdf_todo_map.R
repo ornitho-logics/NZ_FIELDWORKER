@@ -604,7 +604,7 @@
     theme(
       panel.background = element_rect(fill = "#edf0f1", colour = "#7f8b90", linewidth = 0.5),
       plot.background = element_rect(fill = "white", colour = NA),
-      plot.margin = margin(1.5, 1.5, 1.5, 1.5, unit = "mm"),
+      plot.margin = margin(0.5, 0.5, 0.5, 0.5, unit = "mm"),
       legend.position = "none"
     )
 }
@@ -760,7 +760,7 @@ todo_pdf_map_save <- function(
     filename = file,
     plot = map,
     width = 190,
-    height = 175,
+    height = 145,
     units = "mm",
     dpi = 240,
     bg = "white"
