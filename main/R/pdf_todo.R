@@ -362,15 +362,22 @@ todo_pdf_prepare_nest_summary <- function(
   nests[, min_days_to_hatch := todo_pdf_as_numeric(min_days_to_hatch)]
   nests[, hatch_display_date := as.Date(as.character(hatch_evidence_date))]
   nests[as.logical(nests$is_negative_brood), hatch_display_date := as.Date(as.character(discovery_date))]
+  nests[, hatch_display_days := min_days_to_hatch]
+  brood_mask <- as.logical(nests$is_negative_brood) | as.logical(nests$has_hatch_evidence)
+  if (length(reference_date) && !is.na(reference_date[1])) {
+    nests[brood_mask, hatch_display_days := as.numeric(
+      as.Date(reference_date[1]) - hatch_display_date
+    )]
+  }
 
   summary <- nests[
     !is.na(nest_id) & nzchar(trimws(as.character(nest_id))),
     .(
       Nest = trimws(as.character(nest_id)),
       `Est. Hatch` = fifelse(
-        is.na(hatch_display_date),
+        is.na(hatch_display_days),
         "",
-        format(hatch_display_date, "%m-%d")
+        format(hatch_display_days, trim = TRUE, scientific = FALSE)
       ),
       Male = as.character(M_mark),
       Female = as.character(F_mark)

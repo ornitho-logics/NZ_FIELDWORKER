@@ -340,15 +340,15 @@ test_that("parent summary displays actual hatch and negative discovery dates", {
 
   expect_identical(
     summary[summary$Nest == "A_MOCK_HATCHED", `Est. Hatch`],
-    "09-20"
+    "4"
   )
   expect_identical(
     summary[summary$Nest == "A_MOCK_ACTIVE", `Est. Hatch`],
-    ""
+    "6"
   )
   expect_identical(
     summary[summary$Nest == "-B_MOCK", `Est. Hatch`],
-    "09-18"
+    "6"
   )
 })
 
