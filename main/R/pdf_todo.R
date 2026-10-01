@@ -1262,7 +1262,7 @@ todo_pdf_body <- function(
       "```{=typst}",
       "#v(-0.35em)",
       "#align(left)[#text(size: 10pt, weight: \"bold\")[Summary of currently active nests and broods]]",
-      "#align(left)[#emph[#text(size: 8pt)[Broods are labelled according to the band colour assigned to chicks. Symbols match the task shown on the map]]]",
+      "#align(left)[#emph[#text(size: 8pt)[Broods are labelled according to the band colour assigned to chicks. Symbols match the task shown on the map. Number in \"Est. Hatch\" is the days until the estimated hatch date for active nests; negative values show days overdue, while negative values for broods show days since hatch.]]]",
       "```",
       "",
       todo_pdf_nest_summary_table(nest_summary)

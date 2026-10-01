@@ -70,6 +70,22 @@ test_that("tagged-bird follow-up table is included in the PDF body", {
 })
 
 
+test_that("parent summary subtitle explains hatch intervals", {
+  app <- load_main_app()
+  body <- app$env$todo_pdf_body(
+    rows = data.table::data.table(),
+    nest_summary = data.table::data.table(),
+    map_file = "mock-map.png"
+  )
+
+  expect_true(any(grepl(
+    "Number in \"Est. Hatch\" is the days until the estimated hatch date for active nests; negative values show days overdue, while negative values for broods show days since hatch.",
+    body,
+    fixed = TRUE
+  )))
+})
+
+
 test_that("PDF display marks broods, unknown negative clutch, and capture status", {
   app <- load_main_app()
   prepare <- app$env$todo_pdf_prepare
