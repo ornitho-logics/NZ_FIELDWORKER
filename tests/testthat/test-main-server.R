@@ -41,6 +41,9 @@ test_that("main server initializes and updates the reference date", {
   )
   app$env$overview_band_combos_graph <- overview_plot_stub("band_combos")
   app$env$overview_lay_date_graph <- overview_plot_stub("lay_date")
+  app$env$overview_hatching_forecast_graph <- overview_plot_stub(
+    "hatching_forecast"
+  )
   app$env$overview_quota_graph <- overview_plot_stub("quota")
 
   shiny::testServer(app$server, {
@@ -51,6 +54,7 @@ test_that("main server initializes and updates the reference date", {
     output$overview_tagged_resightings_show
     output$overview_cr_combos_show
     output$overview_lay_date_show
+    output$overview_hatching_forecast_show
     output$overview_quota_show
 
     expect_identical(as.Date(reference_date()), today)
@@ -60,6 +64,7 @@ test_that("main server initializes and updates the reference date", {
     expect_identical(overview_calls$tagged_resightings, today)
     expect_identical(overview_calls$band_combos, today)
     expect_identical(overview_calls$lay_date, today)
+    expect_identical(overview_calls$hatching_forecast, today)
     expect_identical(overview_calls$quota, today)
     expect_match(output$ref_date_text$html, as.character(today), fixed = TRUE)
     expect_match(output$open_gps$html, "../gpxui/", fixed = TRUE)
@@ -79,6 +84,10 @@ test_that("main server initializes and updates the reference date", {
     )
     expect_identical(tail(overview_calls$band_combos, 1), next_date)
     expect_identical(tail(overview_calls$lay_date, 1), next_date)
+    expect_identical(
+      tail(overview_calls$hatching_forecast, 1),
+      next_date
+    )
     expect_identical(tail(overview_calls$quota, 1), next_date)
     expect_true(any(grepl(
       as.character(next_date),
@@ -104,7 +113,7 @@ test_that("overview graph helpers use aligned reference-date queries", {
       return(data.frame(start_date = as.character(refdate - 30)))
     }
 
-    if (grepl("WITH parent_events", sql, fixed = TRUE)) {
+    if (grepl("parent_events AS", sql, fixed = TRUE)) {
       return(data.frame(
         n_confirmed_pairs = 0,
         n_pairs_total = 0
@@ -145,18 +154,22 @@ test_that("overview graph helpers use aligned reference-date queries", {
   grDevices::pdf(NULL)
   on.exit(grDevices::dev.off(), add = TRUE)
   quota_plots <- app$env$overview_quota_graph(refdate)
+  expect_s3_class(
+    app$env$overview_hatching_forecast_graph(refdate),
+    "ggplot"
+  )
 
   expect_length(quota_plots, 4)
-  expect_length(queries, 12)
+  expect_length(queries, 13)
   expect_true(all(vapply(
     queries,
     function(query) {
       expected_params <- if (grepl(
-        "WITH parent_events",
+        "parent_events AS",
         query$sql,
         fixed = TRUE
       )) {
-        list(as.character(refdate), as.character(refdate))
+        list(as.character(refdate))
       } else {
         list(as.character(refdate))
       }
@@ -176,8 +189,17 @@ test_that("overview graph helpers use aligned reference-date queries", {
   expect_match(queries[[1]]$sql, "MIN(date_) AS start_date", fixed = TRUE)
   expect_match(queries[[2]]$sql, "COALESCE(site, ''))) = 'CR'", fixed = TRUE)
   expect_match(queries[[3]]$sql, "COALESCE(site, ''))) = 'CR'", fixed = TRUE)
-  expect_match(queries[[4]]$sql, "WITH parent_events", fixed = TRUE)
+  expect_match(queries[[4]]$sql, "parent_events AS", fixed = TRUE)
   expect_match(queries[[4]]$sql, "n_confirmed_pairs", fixed = TRUE)
+  expect_match(queries[[4]]$sql, "identity_match", fixed = TRUE)
+  expect_match(queries[[4]]$sql, "n_matching_post_mm_resightings", fixed = TRUE)
+  expect_match(queries[[4]]$sql, "requires_spacer_identity", fixed = TRUE)
+  expect_match(queries[[4]]$sql, "has_xx_nest_behav", fixed = TRUE)
+  expect_match(
+    queries[[4]]$sql,
+    "has_geolocator AS has_geo",
+    fixed = TRUE
+  )
   expect_match(queries[[5]]$sql, "FROM deployments d", fixed = TRUE)
   expect_match(queries[[5]]$sql, "r.comments", fixed = TRUE)
   expect_match(
@@ -206,6 +228,16 @@ test_that("overview graph helpers use aligned reference-date queries", {
   expect_match(queries[[8]]$sql, "c.age, ''))) = 'A'", fixed = TRUE)
   expect_match(queries[[8]]$sql, "c.tag_type, ''))) = 'GEO'", fixed = TRUE)
   expect_match(queries[[8]]$sql, "c.tag_action, ''))) = 'D'", fixed = TRUE)
+  expect_match(
+    queries[[13]]$sql,
+    "FROM EGGS_HATCH_PREDICTION e",
+    fixed = TRUE
+  )
+  expect_match(
+    queries[[13]]$sql,
+    "e.predicted_hatch_date > sr.reference_date",
+    fixed = TRUE
+  )
 })
 
 
@@ -237,6 +269,29 @@ test_that("lay-date bins tally geolocators by associated nest", {
 
   expect_s3_class(plot, "ggplot")
   expect_silent(ggplot2::ggplot_build(plot))
+})
+
+
+test_that("hatching forecast uses future four-day bins", {
+  app <- load_main_app()
+  refdate <- as.Date("2026-09-01")
+  x <- data.frame(
+    nest_id = c("MOCK_NEST_1", "MOCK_NEST_2", "MOCK_NEST_3"),
+    datetime = as.POSIXct(
+      c("2026-08-31 00:00:00", "2026-09-03 00:00:00", "2026-09-10 00:00:00"),
+      tz = "UTC"
+    )
+  )
+
+  plot <- app$env$overview_hatching_forecast_plot(x, refdate)
+
+  expect_s3_class(plot, "ggplot")
+  expect_silent(ggplot2::ggplot_build(plot))
+  expect_equal(
+    plot$coordinates$limits$x,
+    as.Date(c("2026-09-02", "2026-09-10"))
+  )
+  expect_equal(plot$layers[[1]]$stat_params$binwidth, 4)
 })
 
 

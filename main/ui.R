@@ -313,6 +313,19 @@ dashboardPage(
           )
         ),
         bs4Dash::box(
+          title = "Hatching Forecast",
+          width = 12,
+          collapsible = TRUE,
+          collapsed = FALSE,
+          height = "50vh",
+          style = "overflow: hidden;",
+          spinner(
+            plotOutput(
+              "overview_hatching_forecast_show"
+            )
+          )
+        ),
+        bs4Dash::box(
           title = "Current quotas for manipulations (Cass and elsewhere in NZ).",
           width = 12,
           collapsible = TRUE,

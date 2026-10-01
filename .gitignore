@@ -28,3 +28,13 @@ AGENTS.md
 .DS_Store
 .positai
 ADMIN (link)
+
+# Track reviewed inspector lists while keeping other local notes ignored.
+!/notes/
+/notes/*
+!/notes/codex_proposals/
+/notes/codex_proposals/*
+!/notes/codex_proposals/validator_sandbox/
+/notes/codex_proposals/validator_sandbox/*
+!/notes/codex_proposals/validator_sandbox/inspector_lists_by_table/
+!/notes/codex_proposals/validator_sandbox/inspector_lists_by_table/**

@@ -189,6 +189,16 @@ function(input, output, session) {
     }
   )
 
+  output$overview_hatching_forecast_show <- renderPlot(
+    {
+      try_else(
+        overview_hatching_forecast_graph(active_refdate()),
+        fallback_ggplot,
+        fail = 'overview_hatching_forecast_graph() failed!'
+      )
+    }
+  )
+
   output$overview_quota_show <- renderPlot(
     {
       try_else(
