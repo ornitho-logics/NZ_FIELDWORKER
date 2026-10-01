@@ -543,7 +543,7 @@ overview_pair_tallies_legacy <- function(
 }
 
 
-overview_pair_tallies <- function(
+overview_pair_tallies_current <- function(
   refdate = get_reference_date(),
   require_geolocator = TRUE
 ) {
@@ -874,6 +874,27 @@ overview_pair_tallies <- function(
   c(
     confirmed_pairs = as_count(x$n_confirmed_pairs),
     total_pairs = as_count(x$n_pairs_total)
+  )
+}
+
+
+overview_pair_tallies <- function(
+  refdate = get_reference_date(),
+  require_geolocator = TRUE
+) {
+  tryCatch(
+    overview_pair_tallies_current(
+      refdate = refdate,
+      require_geolocator = require_geolocator
+    ),
+    error = function(error) {
+      # Keep the dashboard panels usable when a deployed database is missing
+      # a newer routine or cannot execute the extended pair-scoring query.
+      overview_pair_tallies_legacy(
+        refdate = refdate,
+        require_geolocator = require_geolocator
+      )
+    }
   )
 }
 

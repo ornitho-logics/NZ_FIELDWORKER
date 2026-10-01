@@ -241,6 +241,34 @@ test_that("overview graph helpers use aligned reference-date queries", {
 })
 
 
+test_that("pair tally falls back when the extended query is unavailable", {
+  app <- load_main_app()
+  calls <- 0L
+
+  app$env$db_get <- function(sql, params) {
+    calls <<- calls + 1L
+
+    if (grepl("identity_match", sql, fixed = TRUE)) {
+      stop("mock database does not support the extended pair query")
+    }
+
+    data.frame(
+      n_confirmed_pairs = 2L,
+      n_pairs_total = 3L
+    )
+  }
+
+  expect_equal(
+    app$env$overview_pair_tallies(
+      refdate = as.Date("2026-07-21"),
+      require_geolocator = TRUE
+    ),
+    c(confirmed_pairs = 2L, total_pairs = 3L)
+  )
+  expect_equal(calls, 2L)
+})
+
+
 test_that("lay-date bins tally geolocators by associated nest", {
   app <- load_main_app()
   x <- data.frame(
