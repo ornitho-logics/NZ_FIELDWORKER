@@ -36,7 +36,7 @@ test_that("to-do headings use the current operational subtitles", {
   )
   expect_identical(
     heading("Parent resighting")$subtitle,
-    "Nest association of MM-cap parent will be resolved after either 1) three subsequent resightings, or 2) one resighting with 'behav' that includes “IN”, “NM”, or “BW”"
+    "Association of MM-cap parent will resolve after either 1) three subsequent resightings, or 2) one ‘behav’ “IN”, “NM”, or “BW” resighting"
   )
   expect_identical(
     heading("nest check")$subtitle,
@@ -310,6 +310,45 @@ test_that("notA task rows remain available to the PDF summary and map", {
   expect_identical(
     as.character(mapped$check_type[mapped$nest_id == "B0220"]),
     "notA visit"
+  )
+})
+
+
+test_that("parent summary displays actual hatch and negative discovery dates", {
+  app <- load_main_app()
+  prepare_summary <- app$env$todo_pdf_prepare_nest_summary
+
+  nests <- data.frame(
+    nest_id = c("A_MOCK_HATCHED", "A_MOCK_ACTIVE", "-B_MOCK"),
+    nest_state = c("H", "I", NA),
+    has_hatch_evidence = c(TRUE, FALSE, TRUE),
+    is_negative_brood = c(FALSE, FALSE, TRUE),
+    hatch_evidence_date = as.Date(c("2026-09-20", NA, NA)),
+    discovery_date = as.Date(c(NA, NA, "2026-09-18")),
+    min_days_to_hatch = c(NA, 6, NA),
+    M_mark = c("MOCK-HM", "MOCK-AM", "MOCK-BM"),
+    F_mark = c("MOCK-HF", "MOCK-AF", "MOCK-BF"),
+    stringsAsFactors = FALSE
+  )
+
+  summary <- prepare_summary(
+    nests,
+    as.Date("2026-09-24"),
+    todo = data.frame(),
+    chick_captures = data.frame()
+  )
+
+  expect_identical(
+    summary[summary$Nest == "A_MOCK_HATCHED", `Est. Hatch`],
+    "09-20"
+  )
+  expect_identical(
+    summary[summary$Nest == "A_MOCK_ACTIVE", `Est. Hatch`],
+    ""
+  )
+  expect_identical(
+    summary[summary$Nest == "-B_MOCK", `Est. Hatch`],
+    "09-18"
   )
 })
 

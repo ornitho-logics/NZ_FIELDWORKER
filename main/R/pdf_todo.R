@@ -314,6 +314,9 @@ todo_pdf_prepare_nest_summary <- function(
   for (column in setdiff(c("is_negative_brood", "has_hatch_evidence"), names(nests))) {
     nests[, (column) := FALSE]
   }
+  for (column in setdiff(c("hatch_evidence_date", "discovery_date"), names(nests))) {
+    nests[, (column) := as.Date(NA)]
+  }
   if (!"task_fallback" %in% names(nests)) {
     nests[, task_fallback := FALSE]
   }
@@ -357,16 +360,17 @@ todo_pdf_prepare_nest_summary <- function(
     )
   ]
   nests[, min_days_to_hatch := todo_pdf_as_numeric(min_days_to_hatch)]
-  nests[, predicted_hatch_date := as.Date(reference_date) + min_days_to_hatch]
+  nests[, hatch_display_date := as.Date(as.character(hatch_evidence_date))]
+  nests[as.logical(nests$is_negative_brood), hatch_display_date := as.Date(as.character(discovery_date))]
 
   summary <- nests[
     !is.na(nest_id) & nzchar(trimws(as.character(nest_id))),
     .(
       Nest = trimws(as.character(nest_id)),
       `Est. Hatch` = fifelse(
-        is.na(predicted_hatch_date),
+        is.na(hatch_display_date),
         "",
-        format(predicted_hatch_date, "%m-%d")
+        format(hatch_display_date, "%m-%d")
       ),
       Male = as.character(M_mark),
       Female = as.character(F_mark)
@@ -404,7 +408,7 @@ todo_pdf_prepare_nest_summary <- function(
           "circle"
         },
         SymbolColor = fcase(
-          any(todo == "notA nest-check"), "#4b5560",
+          any(todo == "notA nest-check"), "#7b858b",
           any(todo == "Parent capture"), "#d32f2f",
           any(todo == "Parent resighting"), "#1976d2",
           default = "#7b858b"
@@ -737,7 +741,7 @@ todo_pdf_heading <- function(todo_name) {
     ),
     "Parent resighting" = list(
       title = "Parents to resight for nest association",
-      subtitle = "Nest association of MM-cap parent will be resolved after either 1) three subsequent resightings, or 2) one resighting with 'behav' that includes “IN”, “NM”, or “BW”"
+      subtitle = "Association of MM-cap parent will resolve after either 1) three subsequent resightings, or 2) one ‘behav’ “IN”, “NM”, or “BW” resighting"
     ),
     "Untrapped brood" = list(
       title = "Broods to band",
@@ -1240,17 +1244,19 @@ todo_pdf_body <- function(
     out <- c(
       out,
       "```{=typst}",
+      "#set page(margin: (x: 1.5cm, y: 1cm))",
       "#pagebreak()",
-      "#align(center)[#text(size: 12pt, weight: \"bold\")[Map of to-dos]]",
-      "#align(center)[#text(size: 8.5pt)[Only nests and broods with to-dos are shown. Nests are labelled in black, broods are labelled according to the band colour assigned to chicks. Nest points are stationary, brood points show the latest recorded location]]",
+      "#align(left)[#text(size: 8.5pt)[Only nests and broods with to-dos are shown. Nests are labelled in black, broods are labelled according to the band colour assigned to chicks. Nest points are stationary, brood points show the latest recorded location]]",
       "#v(0.1em)",
       glue('#align(center)[#image("{map_file}", width: 100%)]'),
-      "#v(-0.6em)",
+      "#v(-0.4em)",
       "```",
       "",
-      "## Summary of currently active nests and broods",
-      "",
-      "*Broods are labelled according to the band colour assigned to chicks. Symbols match the task shown on the map*",
+      "```{=typst}",
+      "#v(-0.35em)",
+      "#align(left)[#text(size: 10pt, weight: \"bold\")[Summary of currently active nests and broods]]",
+      "#align(left)[#text(size: 8pt)[Broods are labelled according to the band colour assigned to chicks. Symbols match the task shown on the map]]",
+      "```",
       "",
       todo_pdf_nest_summary_table(nest_summary)
     )

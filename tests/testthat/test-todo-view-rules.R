@@ -83,6 +83,20 @@ test_that("H hiding-photo association is shared by BROODS_LATEST and TODO_LIST",
 })
 
 
+test_that("BROODS_LATEST treats age-C captures as positive brood evidence", {
+  sql <- views_source_sql()
+
+  expect_match(sql, "positive_chick_status AS", fixed = TRUE)
+  expect_match(
+    sql,
+    "AND UPPER(TRIM(COALESCE(c.age, ''))) = 'C'",
+    fixed = TRUE
+  )
+  expect_match(sql, "chicks.first_chick_capture_date", fixed = TRUE)
+  expect_match(sql, "OR chicks.nest_id IS NOT NULL", fixed = TRUE)
+})
+
+
 test_that("hiding-photo TODO counts distinct captured and photographed rings", {
   sql <- todo_list_view_sql()
 
