@@ -103,9 +103,11 @@ test_that("main app UI and entrypoint load", {
   )
   expect_match(html, 'id="overview_cr_combos_show"', fixed = TRUE)
   expect_match(html, 'id="overview_lay_date_show"', fixed = TRUE)
+  expect_match(html, 'id="overview_hatching_forecast_show"', fixed = TRUE)
   expect_match(html, 'id="overview_quota_show"', fixed = TRUE)
   expect_true(is.function(app$env$overview_nests_graph))
   expect_true(is.function(app$env$overview_tagged_resightings_graph))
+  expect_true(is.function(app$env$overview_hatching_forecast_graph))
   expect_true(is.function(app$env$overview_limp_status))
 
   for (output_id in c(
@@ -114,6 +116,7 @@ test_that("main app UI and entrypoint load", {
     "overview_tagged_resightings_show",
     "overview_cr_combos_show",
     "overview_lay_date_show",
+    "overview_hatching_forecast_show",
     "overview_quota_show"
   )) {
     expect_equal(

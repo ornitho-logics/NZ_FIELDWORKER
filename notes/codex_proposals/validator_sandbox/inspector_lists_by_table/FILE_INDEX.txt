@@ -1,0 +1,12 @@
+OBSERVERS_hard.R
+OBSERVERS_warning.R
+EGGS_hard.R
+EGGS_warning.R
+NESTS_hard.R
+NESTS_warning.R
+RESIGHTINGS_hard.R
+RESIGHTINGS_warning.R
+RESIGHTINGS_PUBLIC_hard.R
+RESIGHTINGS_PUBLIC_warning.R
+CAPTURES_hard.R
+CAPTURES_warning.R

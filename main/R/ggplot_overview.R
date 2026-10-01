@@ -104,6 +104,49 @@ overview_histogram_plot <- function(x, ylab, date_limits = NULL) {
 }
 
 
+overview_hatching_forecast_plot <- function(
+  x,
+  refdate,
+  binwidth = 4L
+) {
+  refdate <- as.Date(refdate)
+  x <- data.table(x)
+  forecast_start <- refdate + 1L
+  empty_limits <- c(forecast_start, forecast_start + binwidth)
+
+  base <- overview_histogram_base("N anticipated hatching events") +
+    overview_date_scale()
+
+  if (!nrow(x) || !"datetime" %in% names(x)) {
+    return(base + overview_date_coordinates(empty_limits))
+  }
+
+  x[, plot_date := as.Date(as.character(datetime))]
+  x <- x[!is.na(plot_date) & plot_date >= forecast_start]
+
+  if (!nrow(x)) {
+    return(base + overview_date_coordinates(empty_limits))
+  }
+
+  max_date <- max(x$plot_date, na.rm = TRUE)
+  plot_limits <- c(
+    forecast_start,
+    max(max_date, forecast_start + binwidth)
+  )
+
+  base +
+    geom_histogram(
+      data = x,
+      mapping = aes(x = plot_date),
+      binwidth = binwidth,
+      boundary = as.numeric(forecast_start),
+      fill = "#6d7577",
+      color = "white"
+    ) +
+    overview_date_coordinates(plot_limits)
+}
+
+
 overview_lay_date_bins <- function(x, binwidth = 4L) {
   x <- data.table(x)
 
@@ -352,7 +395,7 @@ overview_cumulative_total <- function(
 }
 
 
-overview_pair_tallies <- function(
+overview_pair_tallies_legacy <- function(
   refdate = get_reference_date(),
   require_geolocator = TRUE
 ) {
@@ -491,6 +534,341 @@ overview_pair_tallies <- function(
       return(0L)
     }
     as.integer(value[1])
+  }
+
+  c(
+    confirmed_pairs = as_count(x$n_confirmed_pairs),
+    total_pairs = as_count(x$n_pairs_total)
+  )
+}
+
+
+overview_pair_tallies <- function(
+  refdate = get_reference_date(),
+  require_geolocator = TRUE
+) {
+  refdate <- as.Date(refdate)
+  pair_condition <- if (isTRUE(require_geolocator)) {
+    "m.has_geolocator = 1 AND f.has_geolocator = 1"
+  } else {
+    "m.has_banded_mark = 1 AND f.has_banded_mark = 1"
+  }
+
+  # Keep this query aligned with the parent identity and MM-follow-up logic
+  # used by the current TODO_LIST view. In particular, an MM capture is not
+  # treated as an associated parent until the matching-resighting rules pass.
+  sql <- paste(
+    c(
+      "WITH sr AS (",
+      "  SELECT CAST(? AS DATE) AS reference_date",
+      "),",
+      "capture_raw AS (",
+      "  SELECT",
+      "    NULLIF(TRIM(c.nest_id), '') AS nest_id,",
+      "    LEFT(UPPER(TRIM(c.field_sex)), 1) AS sex,",
+      "    UPPER(TRIM(COALESCE(c.capture_method, ''))) AS capture_method,",
+      "    c.date AS event_date,",
+      "    CAST(CONCAT(c.date, ' ', COALESCE(c.released, c.caught, '00:00:00')) AS DATETIME) AS event_datetime,",
+      "    c.pk AS event_pk,",
+      "    CASE WHEN UPPER(TRIM(COALESCE(c.capture_status, ''))) = 'D' THEN 1 ELSE 0 END AS is_dead,",
+      "    CASE WHEN UPPER(TRIM(COALESCE(c.capture_status, ''))) <> 'D'",
+      "      AND UPPER(COALESCE(NULLIF(TRIM(c.LL), ''), NULLIF(TRIM(c.LL_in), ''))) IN ('X', 'XX')",
+      "      AND UPPER(COALESCE(NULLIF(TRIM(c.LR), ''), NULLIF(TRIM(c.LR_in), ''))) IN ('X', 'XX')",
+      "      THEN 1 ELSE 0 END AS is_confirmed_xx,",
+      "    UPPER(COALESCE(NULLIF(TRIM(c.UL), ''), NULLIF(TRIM(c.UL_in), ''))) AS UL_obs,",
+      "    CASE WHEN UPPER(COALESCE(NULLIF(TRIM(c.LL), ''), NULLIF(TRIM(c.LL_in), ''))) IN ('X', 'XX') THEN 'X' ELSE UPPER(COALESCE(NULLIF(TRIM(c.LL), ''), NULLIF(TRIM(c.LL_in), ''))) END AS LL_obs,",
+      "    UPPER(COALESCE(NULLIF(TRIM(c.UR), ''), NULLIF(TRIM(c.UR_in), ''))) AS UR_obs,",
+      "    CASE WHEN UPPER(COALESCE(NULLIF(TRIM(c.LR), ''), NULLIF(TRIM(c.LR_in), ''))) IN ('X', 'XX') THEN 'X' ELSE UPPER(COALESCE(NULLIF(TRIM(c.LR), ''), NULLIF(TRIM(c.LR_in), ''))) END AS LR_obs,",
+      "    UPPER(TRIM(COALESCE(c.tag_type, ''))) AS tag_type,",
+      "    UPPER(TRIM(COALESCE(c.tag_action, ''))) AS tag_action,",
+      "    NULLIF(TRIM(c.tag_id), '') AS tag_id,",
+      "    NULLIF(TRIM(c.ring), '') AS ring",
+      "  FROM CAPTURES c",
+      "  CROSS JOIN sr",
+      "  WHERE NULLIF(TRIM(c.nest_id), '') IS NOT NULL",
+      "    AND UPPER(TRIM(c.nest_id)) <> 'NO_NEST'",
+      "    AND UPPER(TRIM(COALESCE(c.site, ''))) = 'CR'",
+      "    AND UPPER(TRIM(COALESCE(c.age, ''))) = 'A'",
+      "    AND LEFT(UPPER(TRIM(c.field_sex)), 1) IN ('M', 'F')",
+      "    AND c.date IS NOT NULL",
+      "    AND c.date <= sr.reference_date",
+      "),",
+      "capture_events AS (",
+      "  SELECT",
+      "    r.*,",
+      "    CASE",
+      "      WHEN r.is_dead = 1 THEN 'dead'",
+      "      WHEN r.is_confirmed_xx = 1 THEN 'X-X'",
+      "      WHEN (r.UL_obs IS NOT NULL AND UPPER(r.UL_obs) NOT REGEXP '^(X+|M)$')",
+      "        OR (r.LL_obs IS NOT NULL AND UPPER(r.LL_obs) NOT REGEXP '^(X+|M)$')",
+      "        OR (r.UR_obs IS NOT NULL AND UPPER(r.UR_obs) NOT REGEXP '^(X+|M)$')",
+      "        OR (r.LR_obs IS NOT NULL AND UPPER(r.LR_obs) NOT REGEXP '^(X+|M)$')",
+      "      THEN FIELD_2026_BADOatNZ.format_mark(r.UL_obs, r.LL_obs, r.UR_obs, r.LR_obs)",
+      "      ELSE NULL",
+      "    END AS mark,",
+      "    CASE",
+      "      WHEN (r.tag_type = 'GEO' AND r.tag_action IN ('D', 'S', 'N') AND r.tag_id IS NOT NULL)",
+      "        OR UPPER(COALESCE(r.UL_obs, '')) REGEXP '^T[A-Z0-9]*$'",
+      "        OR UPPER(COALESCE(r.UR_obs, '')) REGEXP '^T[A-Z0-9]*$'",
+      "      THEN 1 ELSE 0",
+      "    END AS has_geolocator,",
+      "    CASE WHEN r.LL_obs IS NOT NULL AND r.LR_obs IS NOT NULL THEN 1 ELSE 0 END AS has_complete_tarsal_pair,",
+      "    CASE WHEN r.capture_method = 'TN' THEN 1 ELSE 0 END AS direct_nest_capture_rank,",
+      "    1 AS source_rank",
+      "  FROM capture_raw r",
+      "),",
+      "resighting_raw AS (",
+      "  SELECT",
+      "    NULLIF(TRIM(r.nest_id), '') AS nest_id,",
+      "    LEFT(UPPER(TRIM(r.sex)), 1) AS sex,",
+      "    r.date AS event_date,",
+      "    r.pk AS event_pk,",
+      "    UPPER(TRIM(COALESCE(r.behav, ''))) AS behav,",
+      "    CASE WHEN UPPER(NULLIF(TRIM(r.UL), '')) IN ('X', 'XX') THEN 'X' ELSE UPPER(NULLIF(TRIM(r.UL), '')) END AS UL_obs,",
+      "    CASE WHEN UPPER(NULLIF(TRIM(r.LL), '')) IN ('X', 'XX') THEN 'X' ELSE UPPER(NULLIF(TRIM(r.LL), '')) END AS LL_obs,",
+      "    CASE WHEN UPPER(NULLIF(TRIM(r.UR), '')) IN ('X', 'XX') THEN 'X' ELSE UPPER(NULLIF(TRIM(r.UR), '')) END AS UR_obs,",
+      "    CASE WHEN UPPER(NULLIF(TRIM(r.LR), '')) IN ('X', 'XX') THEN 'X' ELSE UPPER(NULLIF(TRIM(r.LR), '')) END AS LR_obs,",
+      "    CASE WHEN UPPER(NULLIF(TRIM(r.UL), '')) REGEXP '^T[A-Z0-9]*$' OR UPPER(NULLIF(TRIM(r.UR), '')) REGEXP '^T[A-Z0-9]*$' THEN 1 ELSE 0 END AS has_geolocator",
+      "  FROM RESIGHTINGS r",
+      "  CROSS JOIN sr",
+      "  WHERE NULLIF(TRIM(r.nest_id), '') IS NOT NULL",
+      "    AND UPPER(TRIM(r.nest_id)) <> 'NO_NEST'",
+      "    AND UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'",
+      "    AND UPPER(TRIM(COALESCE(r.age, ''))) = 'A'",
+      "    AND LEFT(UPPER(TRIM(r.sex)), 1) IN ('M', 'F')",
+      "    AND r.date IS NOT NULL",
+      "    AND r.date <= sr.reference_date",
+      "),",
+      "resighting_scored AS (",
+      "  SELECT",
+      "    r.*,",
+      "    CASE",
+      "      WHEN r.LL_obs = 'X' AND r.LR_obs = 'X' THEN 'X-X'",
+      "      WHEN (r.UL_obs IS NOT NULL AND r.UL_obs NOT REGEXP '^(X+|M)$')",
+      "        OR (r.LL_obs IS NOT NULL AND r.LL_obs NOT REGEXP '^(X+|M)$')",
+      "        OR (r.UR_obs IS NOT NULL AND r.UR_obs NOT REGEXP '^(X+|M)$')",
+      "        OR (r.LR_obs IS NOT NULL AND r.LR_obs NOT REGEXP '^(X+|M)$')",
+      "      THEN FIELD_2026_BADOatNZ.format_mark(r.UL_obs, r.LL_obs, r.UR_obs, r.LR_obs)",
+      "      ELSE NULL",
+      "    END AS mark,",
+      "    CASE WHEN r.LL_obs = 'X' AND r.LR_obs = 'X' THEN 1 ELSE 0 END AS is_confirmed_xx,",
+      "    CASE WHEN r.LL_obs = 'X' AND r.LR_obs = 'X' THEN 1",
+      "      WHEN (r.UL_obs IS NOT NULL AND r.UL_obs NOT REGEXP '^(X|M)$')",
+      "        OR (r.LL_obs IS NOT NULL AND r.LL_obs NOT REGEXP '^(X|M)$')",
+      "        OR (r.UR_obs IS NOT NULL AND r.UR_obs NOT REGEXP '^(X|M)$')",
+      "        OR (r.LR_obs IS NOT NULL AND r.LR_obs NOT REGEXP '^(X|M)$') THEN 1 ELSE 0 END AS has_informative_band,",
+      "    CASE WHEN r.LL_obs IS NOT NULL AND r.LR_obs IS NOT NULL THEN 1 ELSE 0 END AS has_complete_tarsal_pair,",
+      "    (r.UL_obs IS NOT NULL) + (r.LL_obs IS NOT NULL) + (r.UR_obs IS NOT NULL) + (r.LR_obs IS NOT NULL) AS observed_segment_count,",
+      "    CASE WHEN r.behav REGEXP '(^|[^A-Z])(BW|NM|IN)([^A-Z]|$)' THEN 1 ELSE 0 END AS has_matching_nest_behav",
+      "  FROM resighting_raw r",
+      "),",
+      "resighting_with_latest_values AS (",
+      "  SELECT",
+      "    r.*,",
+      "    FIRST_VALUE(r.UL_obs) OVER (PARTITION BY r.nest_id, r.sex ORDER BY r.event_date DESC, r.event_pk DESC) AS latest_UL_obs,",
+      "    FIRST_VALUE(r.LL_obs) OVER (PARTITION BY r.nest_id, r.sex ORDER BY r.event_date DESC, r.event_pk DESC) AS latest_LL_obs,",
+      "    FIRST_VALUE(r.UR_obs) OVER (PARTITION BY r.nest_id, r.sex ORDER BY r.event_date DESC, r.event_pk DESC) AS latest_UR_obs,",
+      "    FIRST_VALUE(r.LR_obs) OVER (PARTITION BY r.nest_id, r.sex ORDER BY r.event_date DESC, r.event_pk DESC) AS latest_LR_obs",
+      "  FROM resighting_scored r",
+      "),",
+      "resighting_ranked AS (",
+      "  SELECT",
+      "    r.*,",
+      "    ROW_NUMBER() OVER (",
+      "      PARTITION BY r.nest_id, r.sex",
+      "      ORDER BY",
+      "        (CASE WHEN (r.latest_UL_obs IS NULL OR r.UL_obs IS NULL OR r.latest_UL_obs = r.UL_obs)",
+      "          AND (r.latest_LL_obs IS NULL OR r.LL_obs IS NULL OR r.latest_LL_obs = r.LL_obs)",
+      "          AND (r.latest_UR_obs IS NULL OR r.UR_obs IS NULL OR r.latest_UR_obs = r.UR_obs)",
+      "          AND (r.latest_LR_obs IS NULL OR r.LR_obs IS NULL OR r.latest_LR_obs = r.LR_obs) THEN 1 ELSE 0 END) DESC,",
+      "        r.has_informative_band DESC,",
+      "        r.has_complete_tarsal_pair DESC,",
+      "        r.has_geolocator DESC,",
+      "        r.observed_segment_count DESC,",
+      "        r.event_date DESC,",
+      "        r.event_pk DESC",
+      "    ) AS row_num",
+      "  FROM resighting_with_latest_values r",
+      "),",
+      "adult_resighting_latest AS (",
+      "  SELECT r.*",
+      "  FROM resighting_ranked r",
+      "  WHERE r.row_num = 1",
+      "    AND NOT EXISTS (",
+      "      SELECT 1",
+      "      FROM capture_events c",
+      "      WHERE c.nest_id = r.nest_id",
+      "        AND c.sex <> r.sex",
+      "        AND c.LL_obs IS NOT NULL",
+      "        AND c.LR_obs IS NOT NULL",
+      "        AND r.LL_obs = c.LL_obs",
+      "        AND r.LR_obs = c.LR_obs",
+      "    )",
+      "),",
+      "identity_events AS (",
+      "  SELECT",
+      "    c.nest_id, c.sex, c.event_date, c.event_datetime, c.event_pk,",
+      "    c.source_rank, c.direct_nest_capture_rank, c.has_complete_tarsal_pair,",
+      "    c.mark, c.is_confirmed_xx, c.has_geolocator, c.is_dead,",
+      "    CASE WHEN c.has_geolocator = 1 OR UPPER(COALESCE(c.mark, '')) REGEXP '(^|[.-])T[A-Z0-9]*($|[.-])' THEN 1 ELSE 0 END AS tag_segment_rank",
+      "  FROM capture_events c",
+      "  UNION ALL",
+      "  SELECT",
+      "    r.nest_id, r.sex, r.event_date, NULL AS event_datetime, r.event_pk,",
+      "    0 AS source_rank, 0 AS direct_nest_capture_rank, r.has_complete_tarsal_pair,",
+      "    r.mark, r.is_confirmed_xx, r.has_geolocator, 0 AS is_dead,",
+      "    CASE WHEN r.has_geolocator = 1 OR UPPER(COALESCE(r.mark, '')) REGEXP '(^|[.-])T[A-Z0-9]*($|[.-])' THEN 1 ELSE 0 END AS tag_segment_rank",
+      "  FROM adult_resighting_latest r",
+      "  WHERE r.mark IS NOT NULL",
+      "),",
+      "identity_ranked AS (",
+      "  SELECT",
+      "    e.*,",
+      "    ROW_NUMBER() OVER (",
+      "      PARTITION BY e.nest_id, e.sex",
+      "      ORDER BY e.is_dead DESC, e.tag_segment_rank DESC, e.has_complete_tarsal_pair DESC,",
+      "        e.direct_nest_capture_rank DESC, e.source_rank DESC, e.event_date DESC,",
+      "        e.event_datetime DESC, e.event_pk DESC",
+      "    ) AS row_num",
+      "  FROM identity_events e",
+      "),",
+      "identity AS (",
+      "  SELECT * FROM identity_ranked WHERE row_num = 1",
+      "),",
+      "mm_capture_ranked AS (",
+      "  SELECT",
+      "    c.*,",
+      "    ROW_NUMBER() OVER (PARTITION BY c.nest_id, c.sex ORDER BY c.event_date DESC, c.event_datetime DESC, c.event_pk DESC) AS row_num",
+      "  FROM capture_events c",
+      "  WHERE c.capture_method = 'MM'",
+      "),",
+      "mm_capture_latest AS (",
+      "  SELECT",
+      "    m.*,",
+      "    CASE WHEN UPPER(TRIM(COALESCE(m.ring, ''))) IN ('CP19738', 'CP19739', 'CP19693', 'CP19848') THEN 1 ELSE 0 END AS requires_spacer_identity",
+      "  FROM mm_capture_ranked m",
+      "  WHERE m.row_num = 1",
+      "),",
+      "association_resighting_candidates AS (",
+      "  SELECT nest_id, sex, event_date, event_pk, mark, LL_obs, LR_obs, is_confirmed_xx, has_geolocator AS has_geo,",
+      "    has_matching_nest_behav, has_matching_nest_behav AS has_nest_behav",
+      "  FROM resighting_scored",
+      "  WHERE mark IS NOT NULL",
+      "),",
+      "mm_post_matches AS (",
+      "  SELECT",
+      "    mm.nest_id, mm.sex, mm.mark AS mm_capture_mark, mm.LL_obs AS mm_LL_norm, mm.LR_obs AS mm_LR_norm,",
+      "    mm.requires_spacer_identity, a.mark, a.is_confirmed_xx, a.has_geo, a.event_date, a.event_pk,",
+      "    a.has_matching_nest_behav, a.has_nest_behav,",
+      "    CASE",
+      "      WHEN (mm.requires_spacer_identity = 1 AND UPPER(TRIM(a.mark)) = UPPER(TRIM(mm.mark)))",
+      "        OR (mm.requires_spacer_identity = 0 AND mm.LL_obs IS NOT NULL AND mm.LR_obs IS NOT NULL",
+      "          AND a.LL_obs IS NOT NULL AND a.LR_obs IS NOT NULL",
+      "          AND a.LL_obs = mm.LL_obs AND a.LR_obs = mm.LR_obs)",
+      "      THEN 1 ELSE 0",
+      "    END AS identity_match",
+      "  FROM mm_capture_latest mm",
+      "  INNER JOIN association_resighting_candidates a",
+      "    ON a.nest_id = mm.nest_id",
+      "    AND a.sex = mm.sex",
+      "    AND a.event_date >= mm.event_date",
+      "),",
+      "mm_followup_counts AS (",
+      "  SELECT",
+      "    mm.nest_id, mm.sex, mm.mark AS mm_capture_mark,",
+      "    COALESCE(SUM(m.identity_match), 0) AS n_matching_post_mm_resightings,",
+      "    COALESCE(MAX(CASE WHEN m.identity_match = 1 AND m.has_matching_nest_behav = 1 THEN 1 ELSE 0 END), 0) AS has_matching_nest_behav,",
+      "    COALESCE(MAX(CASE WHEN m.is_confirmed_xx = 1 AND m.has_nest_behav = 1 THEN 1 ELSE 0 END), 0) AS has_xx_nest_behav,",
+      "    MAX(CASE WHEN m.is_confirmed_xx = 1 AND m.has_nest_behav = 1 THEN m.event_date ELSE NULL END) AS xx_nest_behav_date,",
+      "    MAX(CASE WHEN m.identity_match = 1 THEN m.event_date ELSE NULL END) AS matching_post_mm_resight_date,",
+      "    COALESCE(MAX(CASE WHEN m.is_confirmed_xx = 1 THEN 1 ELSE 0 END), 0) AS post_mm_xx_seen",
+      "  FROM mm_capture_latest mm",
+      "  LEFT JOIN mm_post_matches m",
+      "    ON m.nest_id = mm.nest_id AND m.sex = mm.sex",
+      "  GROUP BY mm.nest_id, mm.sex, mm.mark",
+      "),",
+      "mm_followup AS (",
+      "  SELECT",
+      "    f.*,",
+      "    CASE",
+      "      WHEN (f.n_matching_post_mm_resightings = 0 AND COALESCE(f.has_xx_nest_behav, 0) = 0)",
+      "        OR (COALESCE(f.has_matching_nest_behav, 0) = 0 AND COALESCE(f.has_xx_nest_behav, 0) = 0 AND f.n_matching_post_mm_resightings < 3)",
+      "      THEN 1 ELSE 0",
+      "    END AS mm_resight_pending,",
+      "    CASE",
+      "      WHEN f.has_xx_nest_behav = 1",
+      "       AND NOT EXISTS (",
+      "         SELECT 1 FROM capture_events later_capture",
+      "         WHERE later_capture.nest_id = f.nest_id",
+      "           AND later_capture.sex = f.sex",
+      "           AND later_capture.mark IS NOT NULL",
+      "           AND later_capture.mark <> 'X-X'",
+      "           AND LOWER(TRIM(later_capture.mark)) <> 'dead'",
+      "           AND later_capture.event_date >= f.xx_nest_behav_date",
+      "       )",
+      "       AND (f.matching_post_mm_resight_date IS NULL OR f.matching_post_mm_resight_date <= f.xx_nest_behav_date)",
+      "      THEN 1 ELSE 0",
+      "    END AS mm_xx_parent_confirmed",
+      "  FROM mm_followup_counts f",
+      "),",
+      "parent_event_flags AS (",
+      "  SELECT",
+      "    i.*,",
+      "    COALESCE(m.mm_resight_pending, 0) AS mm_resight_pending,",
+      "    m.mm_capture_mark,",
+      "    COALESCE(m.mm_xx_parent_confirmed, 0) AS mm_xx_parent_confirmed,",
+      "    COALESCE(m.post_mm_xx_seen, 0) AS post_mm_xx_seen,",
+      "    CASE",
+      "      WHEN COALESCE(m.mm_xx_parent_confirmed, 0) = 1 THEN 'X-X'",
+      "      WHEN COALESCE(m.mm_resight_pending, 0) = 1 AND m.mm_capture_mark IS NOT NULL",
+      "        THEN CASE WHEN COALESCE(m.post_mm_xx_seen, 0) = 1 THEN CONCAT(m.mm_capture_mark, ' & X-X') ELSE m.mm_capture_mark END",
+      "      ELSE i.mark",
+      "    END AS selected_mark",
+      "  FROM identity i",
+      "  LEFT JOIN mm_followup m",
+      "    ON m.nest_id = i.nest_id AND m.sex = i.sex",
+      "),",
+      "parent_events AS (",
+      "  SELECT",
+      "    nest_id, sex,",
+      "    CASE WHEN mm_xx_parent_confirmed = 1 THEN 0 ELSE has_geolocator END AS has_geolocator,",
+      "    CASE WHEN mm_resight_pending = 1 THEN 0 ELSE 1 END AS association_confirmed,",
+      "    CASE WHEN selected_mark IS NOT NULL",
+      "      AND LOWER(selected_mark) <> 'dead'",
+      "      AND UPPER(selected_mark) <> 'X-X' THEN 1 ELSE 0 END AS has_banded_mark",
+      "  FROM parent_event_flags",
+      ")"
+    ),
+    collapse = "\n"
+  )
+
+  sql <- paste0(
+    sql,
+    "\n, eligible_pairs AS (",
+    "\n  SELECT m.nest_id, m.association_confirmed AS m_confirmed,",
+    "\n    f.association_confirmed AS f_confirmed",
+    "\n  FROM parent_events m",
+    "\n  INNER JOIN parent_events f ON m.nest_id = f.nest_id",
+    "\n  WHERE m.sex = 'M' AND f.sex = 'F'",
+    "\n    AND ", pair_condition,
+    "\n)",
+    "\nSELECT",
+    "\n  COUNT(CASE WHEN m_confirmed = 1 AND f_confirmed = 1 THEN 1 END) AS n_confirmed_pairs,",
+    "\n  COUNT(*) AS n_pairs_total",
+    "\nFROM eligible_pairs"
+  )
+
+  x <- data.table(db_get(sql, params = list(as.character(refdate))))
+
+  as_count <- function(value) {
+    if (!length(value) || is.na(value[1])) {
+      return(0L)
+    }
+    as.integer(value[1])
+  }
+
+  if (!nrow(x)) {
+    return(c(confirmed_pairs = 0L, total_pairs = 0L))
   }
 
   c(
@@ -1471,6 +1849,46 @@ overview_lay_date_graph <- function(
     x = x,
     ylab = "N estimated lay dates",
     date_limits = date_limits,
+    binwidth = 4L
+  )
+}
+
+
+overview_hatching_forecast_graph <- function(
+  refdate = get_reference_date()
+) {
+  refdate <- as.Date(refdate)
+
+  x <- db_get(
+    "
+    WITH sr AS (
+      SELECT CAST(? AS DATE) AS reference_date
+    ),
+    future_hatches AS (
+      SELECT
+        TRIM(e.nest_id) AS nest_id,
+        CAST(MIN(e.predicted_hatch_date) AS DATE) AS predicted_hatch_date
+      FROM EGGS_HATCH_PREDICTION e
+      CROSS JOIN sr
+      WHERE NULLIF(TRIM(e.nest_id), '') IS NOT NULL
+        AND e.predicted_hatch_date IS NOT NULL
+        AND e.predicted_hatch_date > sr.reference_date
+      GROUP BY TRIM(e.nest_id)
+    )
+    SELECT
+      nest_id,
+      CAST(
+        CONCAT(predicted_hatch_date, ' 00:00:00') AS DATETIME
+      ) AS datetime
+    FROM future_hatches
+    ORDER BY predicted_hatch_date, nest_id
+    ",
+    params = list(as.character(refdate))
+  )
+
+  overview_hatching_forecast_plot(
+    x = x,
+    refdate = refdate,
     binwidth = 4L
   )
 }
