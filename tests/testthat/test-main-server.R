@@ -349,7 +349,7 @@ test_that("lay-date bins tally geolocators by associated nest", {
 })
 
 
-test_that("hatching forecast uses future one-day bins and marks reference date", {
+test_that("hatching forecast uses one-day bins and seven-day labels", {
   app <- load_main_app()
   refdate <- as.Date("2026-09-01")
   x <- data.frame(
@@ -377,7 +377,7 @@ test_that("hatching forecast uses future one-day bins and marks reference date",
   )))
   x_breaks <- built$layout$panel_params[[1]]$x$breaks
   x_breaks <- x_breaks[is.finite(x_breaks)]
-  expect_equal(diff(x_breaks), rep(1, length(x_breaks) - 1L))
+  expect_equal(diff(x_breaks), rep(7, length(x_breaks) - 1L))
 })
 
 

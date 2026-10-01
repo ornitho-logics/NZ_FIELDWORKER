@@ -60,10 +60,10 @@ overview_date_scale <- function() {
 }
 
 
-overview_daily_date_scale <- function() {
+overview_hatching_date_scale <- function() {
   scale_x_date(
     date_labels = "%d %b",
-    date_breaks = "1 day"
+    date_breaks = "7 days"
   )
 }
 
@@ -123,7 +123,7 @@ overview_hatching_forecast_plot <- function(
   empty_limits <- c(forecast_start, forecast_start + binwidth)
 
   base <- overview_histogram_base("N anticipated hatching events") +
-    overview_daily_date_scale() +
+    overview_hatching_date_scale() +
     geom_vline(
       xintercept = refdate,
       color = "red",
