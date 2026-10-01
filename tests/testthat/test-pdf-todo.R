@@ -36,7 +36,7 @@ test_that("to-do headings use the current operational subtitles", {
   )
   expect_identical(
     heading("Parent resighting")$subtitle,
-    "Nest association of MM-cap parent will be resolved after either 1) three subsequent resightings, or 2) one resighting with 'behav' that includes “IN”, “NM”, or “BW”"
+    "Association of MM-cap parent will resolve after either 1) three subsequent resightings, or 2) one ‘behav’ “IN”, “NM”, or “BW” resighting"
   )
   expect_identical(
     heading("nest check")$subtitle,
