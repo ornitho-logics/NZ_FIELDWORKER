@@ -866,6 +866,21 @@ positive_history_status AS (
   FROM positive_history
   GROUP BY nest_id
 ),
+positive_chick_status AS (
+  SELECT
+    c.nest_id,
+    MIN(c.date) AS first_chick_capture_date
+  FROM FIELD_2026_BADOatNZ.CAPTURES c
+  CROSS JOIN sr
+  WHERE c.nest_id IS NOT NULL
+    AND TRIM(c.nest_id) <> ''
+    AND LEFT(TRIM(c.nest_id), 1) <> '-'
+    AND UPPER(TRIM(c.nest_id)) <> 'NO_NEST'
+    AND UPPER(TRIM(COALESCE(c.site, ''))) = 'CR'
+    AND UPPER(TRIM(COALESCE(c.age, ''))) = 'C'
+    AND c.date <= sr.reference_date
+  GROUP BY c.nest_id
+),
 positive_locations AS (
   SELECT
     n.nest_id,
@@ -1185,8 +1200,17 @@ positive_units AS (
     loc.gps_point AS fallback_gps_point,
     loc.lat AS fallback_lat,
     loc.lon AS fallback_lon,
-    h.hatch_evidence_date,
-    h.has_hatch_evidence,
+    CASE
+      WHEN h.hatch_evidence_date IS NULL THEN chicks.first_chick_capture_date
+      WHEN chicks.first_chick_capture_date IS NULL THEN h.hatch_evidence_date
+      WHEN chicks.first_chick_capture_date < h.hatch_evidence_date
+      THEN chicks.first_chick_capture_date
+      ELSE h.hatch_evidence_date
+    END AS hatch_evidence_date,
+    CASE
+      WHEN h.has_hatch_evidence = 1 OR chicks.nest_id IS NOT NULL THEN 1
+      ELSE 0
+    END AS has_hatch_evidence,
     p.nest_state,
     p.hatch_state,
     p.clutch_size,
@@ -1201,6 +1225,8 @@ positive_units AS (
   FROM positive_history p
   JOIN positive_history_status h
     ON p.nest_id = h.nest_id
+  LEFT JOIN positive_chick_status chicks
+    ON p.nest_id = chicks.nest_id
   LEFT JOIN positive_locations loc
     ON p.nest_id = loc.nest_id
    AND loc.row_num = 1
@@ -1211,6 +1237,7 @@ positive_units AS (
     AND NOT (
       UPPER(TRIM(COALESCE(p.nest_state, ''))) IN ('NOTA', 'P', 'D')
       AND h.has_hatch_evidence = 0
+      AND chicks.nest_id IS NULL
     )
     AND NOT (
       UPPER(TRIM(COALESCE(p.nest_state, ''))) = 'S'

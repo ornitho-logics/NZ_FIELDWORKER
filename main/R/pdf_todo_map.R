@@ -595,7 +595,7 @@
     scale_shape_manual(
       values = task_shapes,
       limits = names(task_shapes),
-      labels = c("Nest check", "notA visit", "other task (i.e., Parent work)"),
+      labels = c("Nest check", "notA visit", "other task (i.e., Parent/brood work)"),
       drop = FALSE,
       name = "Nest work"
     ) +
@@ -632,7 +632,7 @@
     scale_fill_manual(values = task_cols, drop = FALSE, name = "Parent work") +
     scale_shape_manual(
       values = task_shapes,
-      labels = c("Nest check", "notA visit", "other task (i.e., Parent work)"),
+      labels = c("Nest check", "notA visit", "other task (i.e., Parent/brood work)"),
       drop = FALSE,
       name = "Nest work"
     ) +

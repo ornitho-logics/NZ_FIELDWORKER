@@ -404,7 +404,7 @@ todo_pdf_prepare_nest_summary <- function(
           "circle"
         },
         SymbolColor = fcase(
-          any(todo == "notA nest-check"), "#4b5560",
+          any(todo == "notA nest-check"), "#7b858b",
           any(todo == "Parent capture"), "#d32f2f",
           any(todo == "Parent resighting"), "#1976d2",
           default = "#7b858b"
