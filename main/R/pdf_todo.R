@@ -1186,6 +1186,78 @@ todo_pdf_task_table <- function(todo_rows, nest_summary = NULL) {
 }
 
 
+todo_pdf_simple_table <- function(table_data, column_widths = NULL) {
+  table_data <- as.data.frame(table_data, stringsAsFactors = FALSE)
+  if (!nrow(table_data) || !ncol(table_data)) {
+    return(character())
+  }
+
+  typst_content <- function(x) {
+    x <- as.character(x)
+    x[is.na(x)] <- ""
+    x <- gsub("\\", "\\\\", x, fixed = TRUE)
+    x <- gsub("#", "\\#", x, fixed = TRUE)
+    x <- gsub("[", "\\[", x, fixed = TRUE)
+    x <- gsub("]", "\\]", x, fixed = TRUE)
+    x <- gsub("*", "\\*", x, fixed = TRUE)
+    x <- gsub("_", "\\_", x, fixed = TRUE)
+    x <- gsub("$", "\\$", x, fixed = TRUE)
+    x
+  }
+
+  header_fill <- "#dfe5e7"
+  stripe_fill <- "#f1f3f3"
+  white_fill <- "#ffffff"
+  cells <- vapply(
+    names(table_data),
+    function(column) {
+      glue(
+        'table.cell(fill: rgb("{header_fill}"))',
+        glue('[#strong[{typst_content(column)}]]')
+      )
+    },
+    character(1)
+  )
+
+  for (row in seq_len(nrow(table_data))) {
+    row_fill <- if (row %% 2L == 0L) stripe_fill else white_fill
+    cells <- c(
+      cells,
+      vapply(
+        table_data[row, , drop = FALSE],
+        function(value) {
+          glue(
+            'table.cell(fill: rgb("{row_fill}"))',
+            glue('[{typst_content(value)}]')
+          )
+        },
+        character(1)
+      )
+    )
+  }
+
+  if (is.null(column_widths)) {
+    column_widths <- rep(1, ncol(table_data))
+  }
+  columns <- paste0(column_widths, "fr", collapse = ", ")
+
+  c(
+    "```{=typst}",
+    "#set text(size: 8.5pt)",
+    "#table(",
+    glue("  columns: ({columns}),"),
+    "  align: center,",
+    "  inset: (x: 2.2pt, y: 3pt),",
+    "  stroke: none,",
+    paste0("  ", paste(cells, collapse = ",\n  "), ","),
+    ")",
+    "#set text(size: 9pt)",
+    "```",
+    ""
+  )
+}
+
+
 todo_pdf_body <- function(
   rows,
   team_marks = NULL,
@@ -1242,13 +1314,10 @@ todo_pdf_body <- function(
       "",
       "*These birds have not been in seen in over 7 days since tag deployment, please resight and comment either \"no limp\", \"slight limp\", or \"severe limp\".*",
       "",
-      knitr::kable(
-        as.data.frame(unseen_tagged_birds),
-        format = "pipe",
-        align = rep("c", ncol(unseen_tagged_birds))
+      todo_pdf_simple_table(
+        unseen_tagged_birds,
+        column_widths = c(28, 12, 24, 20)
       ),
-      "",
-      ': {tbl-colwidths="[28,12,24,20]"}',
       ""
     )
   }
@@ -1260,13 +1329,10 @@ todo_pdf_body <- function(
       "",
       "*Use non-Lime 1.5x bands for the geolocator spacer on the tibia, and 2x bands on the tarsi*",
       "",
-      knitr::kable(
-        as.data.frame(team_marks),
-        format = "pipe",
-        align = rep("c", ncol(team_marks))
+      todo_pdf_simple_table(
+        team_marks,
+        column_widths = c(12, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8)
       ),
-      "",
-      ': {tbl-colwidths="[12,8,8,8,8,8,8,8,8,8,8]"}',
       ""
     )
   }
