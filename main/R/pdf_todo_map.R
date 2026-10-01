@@ -687,21 +687,21 @@ todo_pdf_map_save <- function(
       local_image_rotation = TRUE,
       server_rotation = 0,
       target_ratio = 1.55,
-      image_size = "1275,500"
+      image_size = "1275,823"
     ),
     B = list(
       rotation_deg = -90,
       local_image_rotation = TRUE,
       server_rotation = 0,
       target_ratio = 1.55,
-      image_size = "1275,500"
+      image_size = "1275,823"
     ),
     C = list(
       rotation_deg = -17.5,
       local_image_rotation = FALSE,
       server_rotation = -17.5,
       target_ratio = 1 / 1.55,
-      image_size = "500,1275"
+      image_size = "500,775"
     )
   )
 
