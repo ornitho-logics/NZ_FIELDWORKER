@@ -753,14 +753,14 @@ todo_pdf_map_save <- function(
     panel_row,
     .todo_pdf_map_legend(),
     ncol = 1,
-    heights = c(1, 0.16)
+    heights = c(1, 0.06)
   )
 
   ggsave(
     filename = file,
     plot = map,
     width = 190,
-    height = 160,
+    height = 135,
     units = "mm",
     dpi = 240,
     bg = "white"
