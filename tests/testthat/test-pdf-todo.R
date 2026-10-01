@@ -314,7 +314,7 @@ test_that("notA task rows remain available to the PDF summary and map", {
 })
 
 
-test_that("parent summary displays actual hatch and negative discovery dates", {
+test_that("parent summary displays hatch intervals", {
   app <- load_main_app()
   prepare_summary <- app$env$todo_pdf_prepare_nest_summary
 
@@ -340,7 +340,7 @@ test_that("parent summary displays actual hatch and negative discovery dates", {
 
   expect_identical(
     summary[summary$Nest == "A_MOCK_HATCHED", `Est. Hatch`],
-    "4"
+    "-4"
   )
   expect_identical(
     summary[summary$Nest == "A_MOCK_ACTIVE", `Est. Hatch`],
@@ -348,7 +348,7 @@ test_that("parent summary displays actual hatch and negative discovery dates", {
   )
   expect_identical(
     summary[summary$Nest == "-B_MOCK", `Est. Hatch`],
-    "6"
+    "-6"
   )
 })
 

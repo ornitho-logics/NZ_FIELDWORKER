@@ -366,7 +366,7 @@ todo_pdf_prepare_nest_summary <- function(
   brood_mask <- as.logical(nests$is_negative_brood) | as.logical(nests$has_hatch_evidence)
   if (length(reference_date) && !is.na(reference_date[1])) {
     nests[brood_mask, hatch_display_days := as.numeric(
-      as.Date(reference_date[1]) - hatch_display_date
+      hatch_display_date - as.Date(reference_date[1])
     )]
   }
 
@@ -1253,7 +1253,7 @@ todo_pdf_body <- function(
       "```{=typst}",
       "#set page(margin: (x: 1.5cm, y: 1cm))",
       "#pagebreak()",
-      "#align(left)[#text(size: 8.5pt)[Only nests and broods with to-dos are shown. Nests are labelled in black, broods are labelled according to the band colour assigned to chicks. Nest points are stationary, brood points show the latest recorded location]]",
+      "#align(left)[#emph[#text(size: 8.5pt)[Only nests and broods with to-dos are shown. Nests are labelled in black, broods are labelled according to the band colour assigned to chicks. Nest points are stationary, brood points show the latest recorded location]]]",
       "#v(0.1em)",
       glue('#align(center)[#image("{map_file}", width: 100%)]'),
       "#v(-0.4em)",
@@ -1262,7 +1262,7 @@ todo_pdf_body <- function(
       "```{=typst}",
       "#v(-0.35em)",
       "#align(left)[#text(size: 10pt, weight: \"bold\")[Summary of currently active nests and broods]]",
-      "#align(left)[#text(size: 8pt)[Broods are labelled according to the band colour assigned to chicks. Symbols match the task shown on the map]]",
+      "#align(left)[#emph[#text(size: 8pt)[Broods are labelled according to the band colour assigned to chicks. Symbols match the task shown on the map]]]",
       "```",
       "",
       todo_pdf_nest_summary_table(nest_summary)
