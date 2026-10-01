@@ -200,6 +200,11 @@ test_that("overview graph helpers use aligned reference-date queries", {
     "has_geolocator AS has_geo",
     fixed = TRUE
   )
+  expect_match(
+    queries[[4]]$sql,
+    "COALESCE(f.n_matching_post_mm_resightings, 0) < 3",
+    fixed = TRUE
+  )
   expect_match(queries[[5]]$sql, "FROM deployments d", fixed = TRUE)
   expect_match(queries[[5]]$sql, "r.comments", fixed = TRUE)
   expect_match(
@@ -269,6 +274,50 @@ test_that("pair tally falls back when the extended query is unavailable", {
 })
 
 
+test_that("pair protocol caption is shown under both pair-tally panels", {
+  app <- load_main_app()
+  refdate <- as.Date("2026-07-21")
+
+  app$env$db_get <- function(sql, params) {
+    if (grepl("MIN(date_) AS start_date", sql, fixed = TRUE)) {
+      return(data.frame(start_date = as.character(refdate - 30)))
+    }
+
+    if (
+      grepl("parent_events AS", sql, fixed = TRUE) &&
+        grepl("m.has_geolocator = 1", sql, fixed = TRUE)
+    ) {
+      return(data.frame(n_confirmed_pairs = 2L, n_pairs_total = 19L))
+    }
+
+    if (grepl("parent_events AS", sql, fixed = TRUE)) {
+      return(data.frame(n_confirmed_pairs = 3L, n_pairs_total = 20L))
+    }
+
+    data.frame()
+  }
+
+  expect_equal(
+    app$env$overview_pair_tallies(refdate, require_geolocator = TRUE),
+    c(confirmed_pairs = 2L, total_pairs = 19L)
+  )
+  expect_equal(
+    app$env$overview_pair_tallies(refdate, require_geolocator = FALSE),
+    c(confirmed_pairs = 3L, total_pairs = 20L)
+  )
+
+  geolocator_plot <- app$env$overview_geolocator_graph(refdate)
+  band_combos_plot <- app$env$overview_band_combos_graph(refdate)
+  caption <- app$env$overview_pair_confirmation_caption()
+
+  expect_identical(geolocator_plot$labels$caption, caption)
+  expect_identical(band_combos_plot$labels$caption, caption)
+  expect_match(caption, "caught with the nest trap", fixed = TRUE)
+  expect_match(caption, "resighted around the nest 3 times", fixed = TRUE)
+  expect_match(caption, "behav class \"IN\", \"NM\", or \"BW\"", fixed = TRUE)
+})
+
+
 test_that("lay-date bins tally geolocators by associated nest", {
   app <- load_main_app()
   x <- data.frame(
@@ -300,7 +349,7 @@ test_that("lay-date bins tally geolocators by associated nest", {
 })
 
 
-test_that("hatching forecast uses future four-day bins", {
+test_that("hatching forecast uses future one-day bins and marks reference date", {
   app <- load_main_app()
   refdate <- as.Date("2026-09-01")
   x <- data.frame(
@@ -314,12 +363,21 @@ test_that("hatching forecast uses future four-day bins", {
   plot <- app$env$overview_hatching_forecast_plot(x, refdate)
 
   expect_s3_class(plot, "ggplot")
-  expect_silent(ggplot2::ggplot_build(plot))
+  built <- NULL
+  expect_silent(built <- ggplot2::ggplot_build(plot))
   expect_equal(
     plot$coordinates$limits$x,
     as.Date(c("2026-09-02", "2026-09-10"))
   )
-  expect_equal(plot$layers[[1]]$stat_params$binwidth, 4)
+  expect_equal(plot$layers[[2]]$stat_params$binwidth, 1)
+  expect_true(any(vapply(
+    plot$layers,
+    function(layer) inherits(layer$geom, "GeomVline"),
+    logical(1)
+  )))
+  x_breaks <- built$layout$panel_params[[1]]$x$breaks
+  x_breaks <- x_breaks[is.finite(x_breaks)]
+  expect_equal(diff(x_breaks), rep(1, length(x_breaks) - 1L))
 })
 
 

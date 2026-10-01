@@ -60,6 +60,14 @@ overview_date_scale <- function() {
 }
 
 
+overview_daily_date_scale <- function() {
+  scale_x_date(
+    date_labels = "%d %b",
+    date_breaks = "1 day"
+  )
+}
+
+
 overview_date_coordinates <- function(date_limits = NULL) {
   coord_cartesian(
     xlim = if (is.null(date_limits)) NULL else as.Date(date_limits)
@@ -107,7 +115,7 @@ overview_histogram_plot <- function(x, ylab, date_limits = NULL) {
 overview_hatching_forecast_plot <- function(
   x,
   refdate,
-  binwidth = 4L
+  binwidth = 1L
 ) {
   refdate <- as.Date(refdate)
   x <- data.table(x)
@@ -115,7 +123,13 @@ overview_hatching_forecast_plot <- function(
   empty_limits <- c(forecast_start, forecast_start + binwidth)
 
   base <- overview_histogram_base("N anticipated hatching events") +
-    overview_date_scale()
+    overview_daily_date_scale() +
+    geom_vline(
+      xintercept = refdate,
+      color = "red",
+      linewidth = 0.8,
+      linetype = "solid"
+    )
 
   if (!nrow(x) || !"datetime" %in% names(x)) {
     return(base + overview_date_coordinates(empty_limits))
@@ -555,8 +569,10 @@ overview_pair_tallies_current <- function(
   }
 
   # Keep this query aligned with the parent identity and MM-follow-up logic
-  # used by the current TODO_LIST view. In particular, an MM capture is not
-  # treated as an associated parent until the matching-resighting rules pass.
+  # used by the current TODO_LIST view. TN (and other non-MM) captures are
+  # confirmed directly; MM captures need either one qualifying nest-behaviour
+  # resighting or three identity-matching resightings, unless X-X follow-up
+  # confirms the parent under the same protocol.
   sql <- paste(
     c(
       "WITH sr AS (",
@@ -791,8 +807,9 @@ overview_pair_tallies_current <- function(
       "  SELECT",
       "    f.*,",
       "    CASE",
-      "      WHEN (f.n_matching_post_mm_resightings = 0 AND COALESCE(f.has_xx_nest_behav, 0) = 0)",
-      "        OR (COALESCE(f.has_matching_nest_behav, 0) = 0 AND COALESCE(f.has_xx_nest_behav, 0) = 0 AND f.n_matching_post_mm_resightings < 3)",
+      "      WHEN COALESCE(f.has_matching_nest_behav, 0) = 0",
+      "       AND COALESCE(f.has_xx_nest_behav, 0) = 0",
+      "       AND COALESCE(f.n_matching_post_mm_resightings, 0) < 3",
       "      THEN 1 ELSE 0",
       "    END AS mm_resight_pending,",
       "    CASE",
@@ -899,6 +916,36 @@ overview_pair_tallies <- function(
 }
 
 
+overview_pair_confirmation_caption <- function() {
+  paste(
+    "Parents are confirmed if they were either:",
+    "1) caught with the nest trap;",
+    "2) caught with the mist net but resighted around the nest 3 times; or",
+    "3) caught with the mist net but resighted with behav class \"IN\", \"NM\", or \"BW\".",
+    sep = "\n"
+  )
+}
+
+
+overview_cumulative_caption <- function(caption) {
+  if (is.null(caption) || !nzchar(caption)) {
+    return(list())
+  }
+
+  list(
+    labs(caption = caption),
+    theme(
+      plot.caption = element_text(
+        hjust = 0.5,
+        size = 10,
+        lineheight = 1.05,
+        margin = ggplot2::margin(t = 8)
+      )
+    )
+  )
+}
+
+
 overview_summary_annotation <- function(label = NULL, annotation_date = NULL) {
   if (is.null(label) || !nzchar(label)) {
     return(NULL)
@@ -927,7 +974,8 @@ overview_cumulative_plot <- function(
   ylab,
   sex_split = FALSE,
   date_limits = NULL,
-  summary_label = NULL
+  summary_label = NULL,
+  caption = NULL
 ) {
   x <- data.table(x)
   annotation_date <- if (!is.null(date_limits)) {
@@ -943,7 +991,8 @@ overview_cumulative_plot <- function(
       overview_cumulative_base(ylab) +
         overview_date_scale() +
         overview_date_coordinates(date_limits) +
-        overview_summary_annotation(summary_label, annotation_date)
+        overview_summary_annotation(summary_label, annotation_date) +
+        overview_cumulative_caption(caption)
     )
   }
 
@@ -973,6 +1022,7 @@ overview_cumulative_plot <- function(
           linewidth = 0.9
         ) +
         overview_summary_annotation(summary_label, annotation_date) +
+        overview_cumulative_caption(caption) +
         overview_date_scale() +
         overview_date_coordinates(date_limits)
     )
@@ -1015,6 +1065,7 @@ overview_cumulative_plot <- function(
       linewidth = 0.9
     ) +
     overview_summary_annotation(summary_label, annotation_date) +
+    overview_cumulative_caption(caption) +
     scale_color_manual(
       name = NULL,
       values = c(Female = "#c43c39", Male = "#2878b5")
@@ -1556,7 +1607,8 @@ overview_geolocator_graph <- function(
       "{pair_tallies[['confirmed_pairs']]}\n",
       "N pairs total = ",
       "{pair_tallies[['total_pairs']]}"
-    )
+    ),
+    caption = overview_pair_confirmation_caption()
   )
 }
 
@@ -1795,7 +1847,8 @@ overview_band_combos_graph <- function(
       "{pair_tallies[['confirmed_pairs']]}\n",
       "N pairs total = ",
       "{pair_tallies[['total_pairs']]}"
-    )
+    ),
+    caption = overview_pair_confirmation_caption()
   )
 }
 
@@ -1910,7 +1963,7 @@ overview_hatching_forecast_graph <- function(
   overview_hatching_forecast_plot(
     x = x,
     refdate = refdate,
-    binwidth = 4L
+    binwidth = 1L
   )
 }
 
