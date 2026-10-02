@@ -23,7 +23,7 @@ list({
             if (is.null(p) || (isTRUE(p$valid) && p$total <= 3)) {
                 NULL
             } else {
-                data.table::data.table(rowid = rowid, variable = "hatch_state", reason = "Hatch state should parse cleanly and will usually total no more than 3 eggs.")
+                data.table::data.table(rowid = rowid, variable = "hatch_state", reason = "Please check hatch_state. Use the project’s hatch-sign format and make sure the counts are biologically plausible—usually no more than three eggs.")
             }
         }, by = rowid]
         if (is.null(out) || nrow(out) == 0) empty else out
@@ -208,7 +208,7 @@ list({
                 .(
                     rowid,
                     variable = "hatch_state",
-                    reason = "Hatching appears to be asynchronous: the previous nest visit recorded hatch signs and this visit still reports unhatched egg(s) and chick(s), but hatch_state is missing or lacks a hatch-sign code. Record the observed current hatch_state."
+                    reason = "Hatching appears to be asynchronous: the previous visit recorded hatch signs, and this visit still has both egg(s) and chick(s). Please record the hatch signs you observed today in hatch_state."
                 )
             ]
             if (nrow(bad) == 0L) empty else unique(bad)
@@ -275,10 +275,10 @@ list({
             has_tent_photo <- identical(one_chr(row$tent_photo), "1")
             has_photo_event <- has_cam || has_start || has_end || has_nest_photo || has_tent_photo
             if (!matches_csv_value(row$gps_id, row$gps_id_ref)) {
-                problems[[length(problems) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = "gps_id", reason = "GPS ID should usually match the observer's default GPS.")
+                problems[[length(problems) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = "gps_id", reason = "This GPS ID is different from the observer’s usual GPS. Please check that the correct device and waypoint were entered.")
             }
             if (has_photo_event && !matches_csv_value(row$cam_id, row$cam_id_ref)) {
-                problems[[length(problems) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = "cam_id", reason = "Camera ID should usually match the observer's default camera when photos are present.")
+                problems[[length(problems) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = "cam_id", reason = "This camera is different from the observer’s usual camera. Please check the camera ID against the photo files and keep it only if another camera was genuinely used.")
             }
             if (length(problems) == 0) {
                 NULL
@@ -338,7 +338,7 @@ list({
             data.table::data.table(
                 rowid = z$rowid[bad_idx],
                 variable = "clutch_size",
-                reason = "Photo fields or hatch_state indicate that clutch information was recorded, but clutch_size is blank. Enter the clutch_size observed during this visit (use 0 if no eggs were present)."
+                reason = "This visit includes photo or hatch information, but clutch_size is blank. Please enter the clutch size observed today; use 0 when no eggs were present."
             )
         }
     }, nam = "photo clutch size")
@@ -409,12 +409,12 @@ list({
             if (nrow(dt) >= 2) {
                 for (i in 2:nrow(dt)) {
                   if (i < first_h && !states[i] %in% c("pD", "D", "pP", "P", "notA") && !is.na(dt$clutch_size[i]) && !is.na(dt$clutch_size[i - 1]) && dt$clutch_size[i] < dt$clutch_size[i - 1]) {
-                    probs[[length(probs) + 1L]] <- data.table::data.table(rowid = dt$rowid[i], variable = "clutch_size", reason = "Clutch size usually stays the same or increases before hatch.")
+                    probs[[length(probs) + 1L]] <- data.table::data.table(rowid = dt$rowid[i], variable = "clutch_size", reason = "Clutch size has decreased before hatch. Please check the egg count and dates; if the decrease is real, add a note explaining what happened.")
                   }
                 }
             }
             if (nrow(dt) >= 2 && !states[2] %in% c("pD", "D", "pP", "P", "notA") && !is.na(dt$clutch_size[1]) && dt$clutch_size[1] %in% c(1, 2) && !is.na(dt$clutch_size[2]) && dt$clutch_size[2] < dt$clutch_size[1]) {
-                probs[[length(probs) + 1L]] <- data.table::data.table(rowid = dt$rowid[2], variable = "clutch_size", reason = "A nest that starts below full clutch will usually increase at the next visit.")
+                probs[[length(probs) + 1L]] <- data.table::data.table(rowid = dt$rowid[2], variable = "clutch_size", reason = "This nest started below a full clutch, but the next visit did not show an increase. Please check the clutch counts and add a note if the smaller clutch is expected.")
             }
             probs <- Filter(function(x) !is.null(x) && nrow(x) > 0, probs)
             if (length(probs) == 0) {
@@ -459,7 +459,7 @@ list({
         if (length(bad_idx) == 0) {
             data.table::data.table(rowid = integer(), variable = character(), reason = character())
         } else {
-            data.table::data.table(rowid = z$rowid[bad_idx], variable = "clutch_size", reason = "More than 3 offspring detected, please double-check that the clutch_size and brood_size is correct.")
+            data.table::data.table(rowid = z$rowid[bad_idx], variable = "clutch_size", reason = "More than three offspring are recorded here. Please double-check clutch_size and brood_size—perhaps there is a very enthusiastic counting error hiding in the sheet.")
         }
     }, nam = "offspring total")
     out <- data.table::as.data.table(out)
@@ -617,7 +617,7 @@ list({
             data.table::data.table(
                 rowid = z$rowid[bad_idx],
                 variable = "clutch_size",
-                reason = "No eggs detected and hence no longer a nest: each chick should be considered as a RESIGHTING or CAPTURE (if captured) event"
+                reason = "No eggs were detected, so this is no longer an active nest record. Please record each chick as its own RESIGHTINGS event, or as a CAPTURES event if it was handled."
             )
         }
     }, nam = "brood without eggs")
@@ -649,8 +649,8 @@ list({
         clutch_bad <- which(as.character(z$nest_state) %in% c("pP", "P") & (is.na(clutch_num) | clutch_num != 0))
         brood_bad <- which(as.character(z$nest_state) %in% c("pP", "P") & nzchar(brood_raw) & (is.na(brood_num) | brood_num != 0))
         out_parts <- list(
-            if (length(clutch_bad) > 0) data.table::data.table(rowid = z$rowid[clutch_bad], variable = "clutch_size", reason = "pP and P rows should usually have clutch_size = 0."),
-            if (length(brood_bad) > 0) data.table::data.table(rowid = z$rowid[brood_bad], variable = "brood_size", reason = "pP and P rows should usually have brood_size blank or 0.")
+            if (length(clutch_bad) > 0) data.table::data.table(rowid = z$rowid[clutch_bad], variable = "clutch_size", reason = "This pP/P event has a non-zero clutch_size. Please check the nest state and enter 0 if no eggs were present."),
+            if (length(brood_bad) > 0) data.table::data.table(rowid = z$rowid[brood_bad], variable = "brood_size", reason = "This pP/P event has a brood_size recorded. Please check the nest state and leave brood_size blank or enter 0 unless chicks were genuinely present.")
         )
         out_parts <- Filter(function(dt) !is.null(dt) && nrow(dt) > 0, out_parts)
         if (length(out_parts) == 0) {
@@ -709,7 +709,7 @@ list({
                 bad <- TRUE
             }
             if (bad) {
-                data.table::data.table(rowid = z$rowid[i], variable = "nest_state", reason = "H rows should usually agree with brood size, clutch size, and hatch state.")
+                data.table::data.table(rowid = z$rowid[i], variable = "nest_state", reason = "This H event does not fully agree with brood_size, clutch_size, and hatch_state. Please check the three fields together and correct them if needed.")
             } else {
                 NULL
             }
@@ -818,7 +818,7 @@ list({
                       second_cs <= 3
                   }
                   if (!allow_two) {
-                    probs[[length(probs) + 1L]] <- data.table::data.table(rowid = dt$rowid[photo_rows], variable = "photo_start", reason = "Most nest histories should have only one photo event.")
+                    probs[[length(probs) + 1L]] <- data.table::data.table(rowid = dt$rowid[photo_rows], variable = "photo_start", reason = "This nest history contains more than one photo event. Please check whether the repeated photo record is intentional and that the photo ranges are correct.")
                   }
                 }
             }
@@ -876,7 +876,7 @@ list({
             all_meta <- has_cam && has_start && has_end
             any_yes <- any(vapply(c("nest_photo", "tent_photo"), function(nm) identical(one_chr(row[[nm]]), "1"), logical(1)))
             if (all_meta && !any_yes) {
-                data.table::data.table(rowid = row$rowid, variable = "cam_id", reason = "When cam_id, photo_start, and photo_end are entered, at least one of nest_photo or tent_photo should usually be 1.")
+                data.table::data.table(rowid = row$rowid, variable = "cam_id", reason = "Photo details are present, but neither nest_photo nor tent_photo is set to 1. Please mark the photo type that was actually taken.")
             } else {
                 NULL
             }
@@ -1019,7 +1019,7 @@ list({
                     .(
                         rowid,
                         variable = "gps_point",
-                        reason = "GPS waypoint timestamp is more than 2 hours from the first biological use of this gps_id/gps_point and should be reviewed."
+                        reason = "The GPS waypoint time is more than two hours from the first use of this gps_id/gps_point. Please check the gps_id/gps_point and event date/time; sometimes a device clock is the little culprit here."
                     )
                 ]
 

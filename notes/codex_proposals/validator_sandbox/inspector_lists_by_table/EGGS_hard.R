@@ -165,7 +165,7 @@ list({
         if (length(bad_idx) == 0) {
             data.table::data.table(rowid = integer(), variable = character(), reason = character())
         } else {
-            data.table::data.table(rowid = z$rowid[bad_idx], variable = "nest_id", reason = "Negative nest IDs describe broods of unknown origin and have no known nest or egg history. Enter the birds in RESIGHTINGS or CAPTURES instead; EGGS requires a positive nest ID.")
+            data.table::data.table(rowid = z$rowid[bad_idx], variable = "nest_id", reason = "A negative nest_id describes a brood of unknown origin and has no known nest or egg history. Enter each observed bird in RESIGHTINGS or each captured bird in CAPTURES instead; EGGS requires a positive nest_id.")
         }
     }, nam = "EGG_004 nest id")
     out <- data.table::as.data.table(out)

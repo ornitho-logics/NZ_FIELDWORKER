@@ -236,14 +236,12 @@ list({
                     rowid = rowid_val,
                     variable = "UL",
                     reason = paste(
-                        "Capture-history combination checks could not be completed because",
-                        "a CAPTURES reference is unavailable; no conclusion was made about",
-                        "whether this combination exists. Please retry after the database",
-                        "connection is restored."
+                        "I could not check this combination because CAPTURES history is temporarily unavailable.",
+                        "Please retry when the database connection is restored; no conclusion has been made about the marks."
                     )
                 )
             } else {
-                data.table::data.table(rowid = rowid_val, variable = "UL", reason = "Adult resighting combo should usually match prior capture history unless it was already recorded earlier in RESIGHTINGS or later confirmed in CAPTURES for the same breeding attempt.")
+                data.table::data.table(rowid = rowid_val, variable = "UL", reason = "This adult’s combination does not yet match the available capture history. Please recheck the leg marks; it may be a new record, a later confirmation, or a small transcription slip.")
             }
         }), use.names = TRUE, fill = TRUE)
         if (is.null(out) || nrow(out) == 0) {
@@ -287,7 +285,7 @@ list({
                 return(FALSE)
             }
             tokens <- trimws(unlist(strsplit(one, ",", fixed = TRUE)))
-            any(tokens %in% c("BC", "FC"))
+            any(tokens %in% c("BW", "BC", "FC"))
         }
         z[, `:=`(
             date_key = suppressWarnings(as.Date(as.character(date))),
@@ -321,7 +319,7 @@ list({
                 missing_chicks[, .(
                     rowid,
                     variable = "behav",
-                    reason = "Awesome that you saw a banded parent with chicks! However you forgot to enter the associated chick resighting(s). Please enter a rclass 'R' RESIGHTINGS event for each chick with the color band seen, linking them to the tending parent with the same gps_id and gps_point. 'ring' can be left blank"
+                    reason = "Awesome that you saw a banded parent with chicks! Please add one rclass 'R' RESIGHTINGS event for each chick, recording the colour band you saw and using the same gps_id and gps_point as the tending parent. You can leave ring blank."
                 )]
             }
         }
@@ -494,7 +492,7 @@ list({
             data.table::data.table(
                 rowid = z$rowid,
                 variable = "sex",
-                reason = "The capture-history sex check could not be completed because CAPTURES or CAPTURES_ARCHIVE history is unavailable; no conclusion was made about this sex entry."
+                reason = "I could not check this sex entry because CAPTURES or CAPTURES_ARCHIVE history is temporarily unavailable. Please retry when the database connection is restored; no conclusion has been made about the sex."
             )
         } else {
             archive[, `:=`(
@@ -545,9 +543,8 @@ list({
                     rowid = row$rowid,
                     variable = "sex",
                     reason = paste0(
-                        "This RESIGHTINGS sex entry (", normalize_chr(row$sex[[1]]),
-                        ") conflicts with the original capture history for this bird, which indicates ",
-                        expected_label, ". Please check the sex entry."
+                        "This bird’s recorded sex does not match its original capture history (",
+                        expected_label, "). Please check the RESIGHTINGS entry; M/MU and F/FU are treated as the same sex group."
                     )
                 )
             }), use.names = TRUE, fill = TRUE)
@@ -605,7 +602,7 @@ list({
                     return(FALSE)
                 }
                 tokens <- trimws(strsplit(value, ",", fixed = TRUE)[[1]])
-                any(tokens %in% c("IN", "NM"))
+                any(tokens %in% c("IN", "NM", "BW", "BC", "FC"))
             }, logical(1))
         }
 
@@ -718,10 +715,8 @@ list({
                     rowid,
                     variable = "UL",
                     reason = paste(
-                        "The social-parent mark check could not be completed because",
-                        "CAPTURES history is unavailable; no conclusion was made about",
-                        "whether these marks match. Please retry after the database",
-                        "connection is restored."
+                        "I could not compare these social-parent marks because CAPTURES history is temporarily unavailable.",
+                        "Please retry when the database connection is restored; no conclusion has been made about the match."
                     )
                 )]
             } else {
@@ -789,14 +784,13 @@ list({
 
                     reason <- if (identical(normalize_chr(latest$capture_method)[1], "MM")) {
                         paste(
-                            "This social-parent resighting mark differs from the latest earlier",
-                            "adult CAPTURES mark for the same nest_id and sex. The earlier capture",
-                            "used MM, so the captured bird may not have been the social parent."
+                            "These marks differ from the latest earlier adult capture for this nest_id and sex.",
+                            "Because the earlier capture used MM, it may have been a different bird rather than the social parent—please check the marks and linkage."
                         )
                     } else {
                         paste(
-                            "This social-parent resighting mark differs from the latest earlier",
-                            "adult CAPTURES mark for the same nest_id and sex."
+                            "These social-parent marks differ from the latest earlier adult capture for this nest_id and sex.",
+                            "Please recheck the marks and nest linkage; the bird may have changed bands or the earlier bird may not have been the social parent."
                         )
                     }
 
@@ -883,8 +877,8 @@ list({
             .(rowid, date_key, gps_id_key, gps_point_key)
         ]
         out_parts <- list(
-            chick_nest[!adult_nest, on = .(date_key, site_key, nest_key)][, .(rowid, variable = "age", reason = "Chick resighting event should usually include a simultaneous adult resighting (i.e., the tending parent).")],
-            chick_gps[!adult_gps, on = .(date_key, gps_id_key, gps_point_key)][, .(rowid, variable = "age", reason = "Chick resighting event should usually include a simultaneous adult resighting (i.e., the tending parent).")]
+            chick_nest[!adult_nest, on = .(date_key, site_key, nest_key)][, .(rowid, variable = "age", reason = "This chick resighting does not yet have a matching adult resighting. If you saw the tending parent, please add that adult row too; it may have been entered in another portal session.")],
+            chick_gps[!adult_gps, on = .(date_key, gps_id_key, gps_point_key)][, .(rowid, variable = "age", reason = "This chick resighting does not yet have a matching adult resighting. If you saw the tending parent, please add that adult row too; it may have been entered in another portal session.")]
         )
         out_parts <- Filter(function(dt) !is.null(dt) && nrow(dt) > 0, out_parts)
         out <- if (length(out_parts) == 0) {
@@ -930,7 +924,7 @@ list({
         if (nrow(grp) == 0) {
             data.table::data.table(rowid = integer(), variable = character(), reason = character())
         } else {
-            merge(z, grp, by = c("date", "gps_id", "gps_point", "nest_id"))[age == "C", .(rowid, variable = "LL", reason = "More than three chicks at one positive-nest event should usually show mixed-brood LL evidence.")]
+            merge(z, grp, by = c("date", "gps_id", "gps_point", "nest_id"))[age == "C", .(rowid, variable = "LL", reason = "More than three chicks are linked to this positive nest event, but their LL marks do not show much variation. Please check the chick rows and nest linkage in case records from another brood were mixed in.")]
         }
     }, nam = "RES_008 mixed brood")
     out <- data.table::as.data.table(out)
@@ -993,7 +987,7 @@ list({
         if (length(bad_idx) == 0) {
             data.table::data.table(rowid = integer(), variable = character(), reason = character())
         } else {
-            data.table::data.table(rowid = bad_idx, variable = "cam_id", reason = "Camera ID should usually match the observer's default camera.")
+            data.table::data.table(rowid = bad_idx, variable = "cam_id", reason = "This camera is different from the observer’s usual camera. Please check the camera ID against the photo files and keep it only if another camera was genuinely used.")
         }
     }, nam = "RES_W001 cam default")
     out <- data.table::as.data.table(out)
@@ -1055,7 +1049,7 @@ list({
         if (length(bad_idx) == 0) {
             data.table::data.table(rowid = integer(), variable = character(), reason = character())
         } else {
-            data.table::data.table(rowid = bad_idx, variable = "gps_id", reason = "GPS ID should usually match the observer's default GPS.")
+            data.table::data.table(rowid = bad_idx, variable = "gps_id", reason = "This GPS ID is different from the observer’s usual GPS. Please check that the correct device and waypoint were entered.")
         }
     }, nam = "RES_W002 gps default")
     out <- data.table::as.data.table(out)
@@ -1099,7 +1093,7 @@ list({
             data.table::data.table(
                 rowid = z$rowid[bad_idx],
                 variable = nm,
-                reason = "This looks like coloured bands may have been entered on the tibia. Please check whether these should instead be recorded on the tarsi (LL/LR). On the tibia, only flags, metal (M), geolocator tag codes such as TY, or blank (X) are normally expected."
+                reason = "These look like coloured bands may have been entered on the tibia. Please check whether they belong on the tarsus fields LL/LR; tibia fields normally contain flags, metal M, a geolocator code such as TY, or X/blank."
             )
         }), use.names = TRUE, fill = TRUE)
         if (is.null(out) || nrow(out) == 0) empty else unique(out)
@@ -1244,7 +1238,7 @@ list({
                     .(
                         rowid,
                         variable = "date",
-                        reason = "GPS waypoint date does not match the first biological use of this gps_id/gps_point and should be reviewed."
+                        reason = "The GPS waypoint date does not match the first use of this gps_id/gps_point. Please check the gps_id/gps_point and event date; an old waypoint or device-date mismatch may be involved."
                     )
                 ]
 

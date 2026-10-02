@@ -8,7 +8,7 @@ list({
         if (nrow(z) == 0) {
             data.table::data.table(rowid = integer(), variable = character(), reason = character())
         } else {
-            is.element_validator(z, v = data.table::data.table(variable = "source", set = list(c("falcon", "email", "ebird", "birdsnz", "facebook", "inaturalist", "instagram"))), reason = "Source is not in the usual public-source list.")
+            is.element_validator(z, v = data.table::data.table(variable = "source", set = list(c("falcon", "email", "ebird", "birdsnz", "facebook", "inaturalist", "instagram"))), reason = "This source is unusual for a public observation. Please check the spelling and source type; keep it if it is genuinely correct.")
         }
     }, nam = "PUB_004 source")
     out <- data.table::as.data.table(out)
@@ -52,7 +52,7 @@ list({
             data.table::data.table(
                 rowid = z$rowid[bad_idx],
                 variable = nm,
-                reason = "This looks like coloured bands may have been entered on the tibia. Please check whether these should instead be recorded on the tarsi (LL/LR). On the tibia, only flags, metal (M), geolocator tag codes such as TY, or blank (X) are normally expected."
+                reason = "These look like coloured bands may have been entered on the tibia. Please check whether they belong on the tarsus fields LL/LR; tibia fields normally contain flags, metal M, a geolocator code such as TY, or X/blank."
             )
         }), use.names = TRUE, fill = TRUE)
         if (is.null(out) || nrow(out) == 0) empty else unique(out)
@@ -258,7 +258,7 @@ list({
             if (prior_archive || prior_current) {
                 empty
             } else {
-                data.table::data.table(rowid = rowid_val, variable = "UL", reason = "Public combo should usually already exist in capture history before this date.")
+                data.table::data.table(rowid = rowid_val, variable = "UL", reason = "This public observation’s colour combination is not yet found in earlier capture history. Please check the marks and date; it may be a new bird or a transcription slip.")
             }
         }), use.names = TRUE, fill = TRUE)
         if (is.null(out) || nrow(out) == 0) {

@@ -4,8 +4,8 @@ list({
         if (!"rowid" %in% names(z)) {
             z[, `:=`(rowid, .I)]
         }
-        out <- data.table::rbindlist(list(z[age == "C" & capture_status != "F", .(rowid, variable = "capture_status", reason = "Chick captures are most likely to use capture_status F.")], z[age == "J" & !(capture_status %in% c("F", "C")), .(rowid, variable = "capture_status", reason = "Juvenile captures are most likely to use capture_status F or C.")], z[age == "C" & capture_method != "HA", .(rowid, variable = "capture_method", reason = "Chick captures are most likely to use capture_method HA.")],
-            z[age %in% c("A", "J") & !(capture_method %in% c("MM", "TN")), .(rowid, variable = "capture_method", reason = "Adult and juvenile captures are most likely to use MM or TN.")]), use.names = TRUE, fill = TRUE)
+        out <- data.table::rbindlist(list(z[age == "C" & capture_status != "F", .(rowid, variable = "capture_status", reason = "This looks like a chick capture. Please check capture_status; it is usually F for a first capture.")], z[age == "J" & !(capture_status %in% c("F", "C")), .(rowid, variable = "capture_status", reason = "This looks like a juvenile capture. Please check capture_status; juveniles usually use F or C.")], z[age == "C" & capture_method != "HA", .(rowid, variable = "capture_method", reason = "This looks like a chick capture. Please check capture_method; chick captures usually use HA.")],
+            z[age %in% c("A", "J") & !(capture_method %in% c("MM", "TN")), .(rowid, variable = "capture_method", reason = "Please check capture_method. Adult and juvenile captures usually use MM or TN.")]), use.names = TRUE, fill = TRUE)
         if (nrow(out) == 0) {
             data.table::data.table(rowid = integer(), variable = character(), reason = character())
         } else {
@@ -48,7 +48,7 @@ list({
             data.table::data.table(
                 rowid = z$rowid[bad_idx],
                 variable = "comments",
-                reason = "It looks like you are trying to enter hiding spot photos (in situ photos) into a capture event of a chick. These should be entered as a separate RESIGHTINGS event with rclass 'H'."
+                reason = "It looks like these are hiding-spot (in-situ) photos of a chick. Please enter them as a separate RESIGHTINGS event with age C and rclass 'H'; keep this CAPTURES row for handling, banding, and tent photos."
             )
         }
     }, nam = "CAP_W013 in situ hiding photo")
@@ -97,7 +97,7 @@ list({
         if (nrow(grp) == 0) {
             data.table::data.table(rowid = integer(), variable = character(), reason = character())
         } else {
-            merge(adults, grp, by = c("nest_id", "sex_group"))[, .(rowid, variable = "field_sex", reason = "This nest_id has more than one adult in the same sex group and should be reviewed.")]
+            merge(adults, grp, by = c("nest_id", "sex_group"))[, .(rowid, variable = "field_sex", reason = "This nest_id has more than one adult recorded as the same sex. That can happen, but please check the sex, nest_id, and leg marks before continuing.")]
         }
     }, nam = "CAP_011 nest sex count")
     out <- data.table::as.data.table(out)
@@ -202,7 +202,7 @@ list({
             if (is.null(flagged) || nrow(flagged) == 0) {
                 empty
             } else {
-                unique(flagged[, .(rowid, variable = "nest_id", reason = "parents caught less than 36 hours apart, please be mindful of potential desertion by reducing further disturbance unless absolutely necessary")])
+                unique(flagged[, .(rowid, variable = "nest_id", reason = "These parents were caught less than 36 hours apart. Please minimise further disturbance where possible, because repeated visits can increase the risk of desertion.")])
             }
         }
     }, nam = "CAP_W011 parent spacing")
@@ -267,7 +267,7 @@ list({
             data.table::data.table(
                 rowid = bad_idx,
                 variable = "nest_id",
-                reason = "Usually, full combination recaptures are limited to first marking, immature remarking, or tag deployment – please check your event."
+                reason = "This is a full-combination recapture. That is usually expected only for first marking, immature remarking, or tag deployment, so please check that the event and marks are correct."
             )
         }
     }, nam = "CAP_016B adult nest target")
@@ -344,7 +344,7 @@ list({
                     .(
                         rowid,
                         variable = "ring",
-                        reason = "Ring is duplicated in current-season or historical capture history and should be reviewed."
+                        reason = "This ring already appears in current or historical capture records. Please check that the ring was copied correctly and belongs to this bird."
                     )
                 ]
             }
@@ -511,7 +511,7 @@ list({
             if (length(dup_combos) == 0) {
                 empty
             } else {
-                x_pairs[combo %in% dup_combos, .(rowid, variable = "UL", reason = "Duplicated leg markings - please double check or add a note that this is a duplicate that should be recaptured for correction.")][, unique(.SD)]
+            x_pairs[combo %in% dup_combos, .(rowid, variable = "UL", reason = "These leg marks duplicate another record. Please check the marks; if the duplicate is genuine, add a note explaining that the bird should be recaptured for correction.")][, unique(.SD)]
             }
         }
     }, nam = "CAP_012B duplicate markings")
@@ -564,7 +564,7 @@ list({
             data.table::data.table(
               rowid = bad_idx,
               variable = "nest_id",
-              reason = "Positive-nest_id chick and juvenile captures require prior or same-day hatch evidence in NESTS, please be sure to update the nest history for this nest_id in NESTS such that there is an event with nest_state H."
+              reason = "This chick or juvenile is linked to a positive nest_id, but the nest history does not yet show prior or same-day hatch evidence. Please check NESTS and add or correct the appropriate nest_state H event if hatch signs were observed."
             )
         }
     }, nam = "CAP_015 hatch evidence warning")
@@ -610,7 +610,7 @@ list({
         if (length(bad_idx) == 0) {
             data.table::data.table(rowid = integer(), variable = character(), reason = character())
         } else {
-            data.table::data.table(rowid = bad_idx, variable = "caught_with", reason = "caught_with should usually reflect the simultaneous brood composition.")
+            data.table::data.table(rowid = bad_idx, variable = "caught_with", reason = "Please check caught_with against the birds handled at the same time. It should usually describe the brood composition present during this capture.")
         }
     }, nam = "CAP_025 caught with")
     out <- data.table::as.data.table(out)
@@ -646,7 +646,7 @@ list({
         if (length(bad_idx) == 0) {
             data.table::data.table(rowid = integer(), variable = character(), reason = character())
         } else {
-            data.table::data.table(rowid = bad_idx, variable = "chick_tent_photo", reason = "When a captured chick also has an H-class hiding-spot RESIGHTINGS row, the CAPTURES row should usually record chick_tent_photo = 1 and leave chick_hide_photo blank or 0. The hiding photo belongs in RESIGHTINGS.")
+            data.table::data.table(rowid = bad_idx, variable = "chick_tent_photo", reason = "This chick also has an H-class hiding-spot photo. Please record the tent photo here with chick_tent_photo = 1, and leave chick_hide_photo blank or 0; the hiding-spot photo belongs in RESIGHTINGS.")
         }
     }, nam = "CAP_029 chick photo logic")
     out <- data.table::as.data.table(out)
@@ -679,7 +679,7 @@ list({
         if (length(bad_idx) == 0) {
             data.table::data.table(rowid = integer(), variable = character(), reason = character())
         } else {
-            data.table::data.table(rowid = bad_idx, variable = "caught", reason = "Capture times outside 07:00-19:00 should usually be reviewed.")
+                data.table::data.table(rowid = bad_idx, variable = "caught", reason = "This capture time is outside the usual 07:00–19:00 field window. Please check the time; if it is correct, keep it and add a brief note if helpful.")
         }
     }, nam = "CAP_W001 daylight")
     out <- data.table::as.data.table(out)
@@ -735,7 +735,7 @@ list({
         ref <- data.table::as.data.table(db_get("SELECT observer, gps_id FROM OBSERVERS"))
         m <- merge(z, ref, by = "observer", all.x = TRUE, suffixes = c("", "_ref"))
         gps_bad <- m[!vapply(seq_len(.N), function(i) matches_csv_value(gps_id[i], gps_id_ref[i]), logical(1))]
-        out <- gps_bad[, .(rowid, variable = "gps_id", reason = "GPS ID should usually match the observer's default GPS.")]
+        out <- gps_bad[, .(rowid, variable = "gps_id", reason = "This GPS ID is different from the observer’s usual GPS. Please check that the correct device and waypoint were entered.")]
         if (nrow(out) == 0) {
             data.table::data.table(rowid = integer(), variable = character(), reason = character())
         } else {
@@ -780,7 +780,7 @@ list({
         }
         out_parts <- list()
         if (has_col("blood_samp")) {
-            out_parts[[length(out_parts) + 1L]] <- z[!is.na(blood_samp) & blood_samp != "BQ", .(rowid, variable = "blood_samp", reason = "Most captures should use blood_samp BQ.")]
+            out_parts[[length(out_parts) + 1L]] <- z[!is.na(blood_samp) & blood_samp != "BQ", .(rowid, variable = "blood_samp", reason = "Please check blood_samp. Most capture samples use BQ, but keep this value if another sample type was genuinely collected.")]
         }
         out_parts <- Filter(function(dt) !is.null(dt) && nrow(dt) > 0, out_parts)
         if (length(out_parts) == 0) {
@@ -838,7 +838,7 @@ list({
             interval_validator(
               sub,
               v = limits[[age_key]],
-              reason = "Morphometric value is outside the central 99% of age-specific historic CAPTURES data."
+              reason = "This measurement is unusual for the selected age group. Please recheck the measurement and units; if it is correct, keep it and add a note if needed."
             )
         }), use.names = TRUE, fill = TRUE)
         if (is.null(out) || nrow(out) == 0) {
@@ -911,15 +911,15 @@ list({
             for (nm in c("LL", "LR")) {
                 val <- one_chr(row[[nm]])
                 if (!is_usual_lower(val)) {
-                    issues[[length(issues) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = nm, reason = "Unusual band code entered on tarsus (usually: B, G, R, O, W, L, Y).")
+                    issues[[length(issues) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = nm, reason = "This tarsus code is unusual. Please check that the colour code is correct; usual colour codes are B, G, R, O, W, L, or Y.")
                 }
             }
             for (nm in c("UL_in", "UR_in", "UL", "UR")) {
                 val <- one_chr(row[[nm]])
                 if (is_tibia_colour_only(val)) {
-                    issues[[length(issues) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = nm, reason = "This looks like coloured bands may have been entered on the tibia. Please check whether these should instead be recorded on the tarsi (LL/LR). On the tibia, only flags, metal (M), geolocator tag codes such as TY, or blank (X) are normally expected.")
+                    issues[[length(issues) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = nm, reason = "These look like coloured bands may have been entered on the tibia. Please check whether they belong on the tarsus fields LL/LR; tibia fields normally contain flags, metal M, a geolocator code such as TY, or X/blank.")
                 } else if (!is_allowed_upper(val)) {
-                    issues[[length(issues) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = nm, reason = "Unusual band code entered on tibia. On the tibia, only flags, metal (M), geolocator tag codes such as TY, or blank (X) are normally expected.")
+                    issues[[length(issues) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = nm, reason = "This tibia code is unusual. Please check the entry; tibia fields normally contain a flag, metal M, a geolocator code such as TY, or X/blank.")
                 }
             }
             if (length(issues) == 0) NULL else data.table::rbindlist(issues, use.names = TRUE, fill = TRUE)
@@ -968,7 +968,7 @@ list({
             has_end <- !is.na(one_chr(row$photo_end))
             any_yes <- any(vapply(c("mugshot_photo", "wing_photo", "chick_tent_photo", "chick_hide_photo"), function(nm) identical(one_chr(row[[nm]]), "1"), logical(1)))
             if (has_cam && has_start && has_end && !any_yes) {
-                data.table::data.table(rowid = row$rowid, variable = "cam_id", reason = "When cam_id, photo_start, and photo_end are entered, at least one photo flag should usually be 1.")
+                data.table::data.table(rowid = row$rowid, variable = "cam_id", reason = "Photo details are present, but none of the photo flags is set to 1. Please check the photo flags and mark the photo type that was actually taken.")
             } else {
                 NULL
             }
@@ -1111,7 +1111,7 @@ list({
                     .(
                         rowid,
                         variable = "gps_point",
-                        reason = "GPS waypoint timestamp is more than 2 hours from the first biological use of this gps_id/gps_point and should be reviewed."
+                        reason = "The GPS waypoint time is more than two hours from the first use of this gps_id/gps_point. Please check the gps_id/gps_point and event date/time; sometimes a device clock is the little culprit here."
                     )
                 ]
 

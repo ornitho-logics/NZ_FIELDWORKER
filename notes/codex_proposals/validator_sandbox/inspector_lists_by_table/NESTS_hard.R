@@ -287,20 +287,20 @@ list({
                 ),
                 reason = ifelse(
                     negative_idx[bad_idx],
-                    "Negative nest IDs describe broods of unknown origin and cannot be entered in NESTS. Enter each observed bird in RESIGHTINGS or each captured bird in CAPTURES using the negative nest ID.",
+                    "A negative nest_id describes a brood of unknown origin and cannot be entered in NESTS. Enter each observed bird in RESIGHTINGS or each captured bird in CAPTURES using that negative nest_id.",
                     ifelse(
                         wr_species_bad[bad_idx],
-                        "Nest IDs beginning with WR are WRYB nest IDs. Set species to WRYB.",
+                        "nest_id values beginning with WR are WRYB nest_id values. Set species to WRYB.",
                         ifelse(
                             bado_species_bad[bad_idx],
-                            "Nest IDs beginning with A, B, C, or BA are BADO nest IDs. Set species to BADO.",
+                            "nest_id values beginning with A, B, C, or BA are BADO nest_id values. Set species to BADO.",
                             ifelse(
                                 site_key[bad_idx] == "CR" & species_key[bad_idx] == "WRYB",
-                                "Cass River WRYB nest ID must use WR + gps_id + sequence, e.g. WR0201.",
+                                "Cass River WRYB nest_id must use WR + gps_id + sequence, e.g. WR0201.",
                                 ifelse(
                                     site_key[bad_idx] == "CR",
-                                    "Cass River BADO nest ID must use plot + gps_id + sequence, e.g. B0112.",
-                                    "Non-CR BADO nest ID must use BA + gps_id + sequence, e.g. BA0804."
+                                    "Cass River BADO nest_id must use plot + gps_id + sequence, e.g. B0112.",
+                                    "Non-CR BADO nest_id must use BA + gps_id + sequence, e.g. BA0804."
                                 )
                             )
                         )
@@ -1492,12 +1492,12 @@ list({
                         nest_key = candidate$nest_key,
                         reason = if (is.na(suggested_id)) {
                             paste0(
-                                "Nest ID tally ", candidate$gps_code, sprintf("%02d", candidate$tally),
+                                "nest_id tally ", candidate$gps_code, sprintf("%02d", candidate$tally),
                                 " is already assigned to another discovered nest or scrape, and no unused two-digit tally remains for this GPS ID."
                             )
                         } else {
                             paste0(
-                                "Nest ID tally ", candidate$gps_code, sprintf("%02d", candidate$tally),
+                                "nest_id tally ", candidate$gps_code, sprintf("%02d", candidate$tally),
                                 " is already assigned to another discovered nest or scrape. The next available tally for this GPS ID is likely ", suggested_id, "."
                             )
                         }

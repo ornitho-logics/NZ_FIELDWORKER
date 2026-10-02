@@ -551,7 +551,7 @@ overview_pair_tallies_current <- function(
       "        OR (r.LR_obs IS NOT NULL AND r.LR_obs NOT REGEXP '^(X|M)$') THEN 1 ELSE 0 END AS has_informative_band,",
       "    CASE WHEN r.LL_obs IS NOT NULL AND r.LR_obs IS NOT NULL THEN 1 ELSE 0 END AS has_complete_tarsal_pair,",
       "    (r.UL_obs IS NOT NULL) + (r.LL_obs IS NOT NULL) + (r.UR_obs IS NOT NULL) + (r.LR_obs IS NOT NULL) AS observed_segment_count,",
-      "    CASE WHEN r.behav REGEXP '(^|[^A-Z])(BW|NM|IN)([^A-Z]|$)' THEN 1 ELSE 0 END AS has_matching_nest_behav",
+      "    CASE WHEN r.behav REGEXP '(^|[^A-Z])(BW|NM|IN|BC|FC)([^A-Z]|$)' THEN 1 ELSE 0 END AS has_matching_nest_behav",
       "  FROM resighting_raw r",
       "),",
       "resighting_with_latest_values AS (",
@@ -801,7 +801,7 @@ overview_pair_confirmation_caption <- function() {
     "Parents are confirmed if they were either:",
     "1) caught with the nest trap;",
     "2) caught with the mist net but resighted around the nest 3 times; or",
-    "3) caught with the mist net but resighted with behav class \"IN\", \"NM\", or \"BW\".",
+    "3) caught with the mist net but resighted with behav class \"IN\", \"NM\", \"BW\", \"BC\", or \"FC\".",
     sep = "\n"
   )
 }
