@@ -350,6 +350,54 @@ test_that("hatched brood task Hatch values use the recorded H date", {
 })
 
 
+test_that("brood banding notes identify broods young enough for leg flags", {
+  sql <- todo_list_view_sql()
+
+  expect_match(
+    sql,
+    "DATEDIFF(\n             brood_followup_nests.hatch_date,\n             brood_followup_nests.reference_date\n           ) <= -21",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "'no chick captures; chicks old enough for leg flags'",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "DATEDIFF(b.reference_date, b.discovery_date) >= 21",
+    fixed = TRUE
+  )
+
+  banding_note <- function(hatch_value = NA_integer_, discovery_age = NA_integer_) {
+    if (!is.na(hatch_value) && hatch_value <= -21L) {
+      return("no chick captures; chicks old enough for leg flags")
+    }
+    if (!is.na(discovery_age) && discovery_age >= 21L) {
+      return("no chick captures; chicks old enough for leg flags")
+    }
+    "no chick captures"
+  }
+
+  expect_identical(
+    banding_note(hatch_value = -21L),
+    "no chick captures; chicks old enough for leg flags"
+  )
+  expect_identical(
+    banding_note(hatch_value = -20L),
+    "no chick captures"
+  )
+  expect_identical(
+    banding_note(discovery_age = 21L),
+    "no chick captures; chicks old enough for leg flags"
+  )
+  expect_identical(
+    banding_note(discovery_age = 20L),
+    "no chick captures"
+  )
+})
+
+
 test_that("hatch-stage parent work bypasses the clutch-age gate", {
   sql <- todo_list_view_sql()
 
