@@ -925,12 +925,20 @@ overview_pair_tallies <- function(
   refdate = get_reference_date(),
   require_geolocator = TRUE
 ) {
-  # The legacy heuristic treated every non-MM capture as confirmed and could
-  # overstate pair counts. The protocol-aware query is authoritative; do not
-  # silently replace it with the obsolete fallback when it cannot run.
-  overview_pair_tallies_current(
-    refdate = refdate,
-    require_geolocator = require_geolocator
+  tryCatch(
+    overview_pair_tallies_current(
+      refdate = refdate,
+      require_geolocator = require_geolocator
+    ),
+    error = function(error) {
+      # Keep the dashboard plots available when a deployed database cannot
+      # execute the extended protocol query. Updated databases use the
+      # protocol-aware path above; this is only a compatibility fallback.
+      overview_pair_tallies_legacy(
+        refdate = refdate,
+        require_geolocator = require_geolocator
+      )
+    }
   )
 }
 
