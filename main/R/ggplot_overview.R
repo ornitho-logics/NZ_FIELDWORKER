@@ -748,8 +748,7 @@ overview_pair_tallies_current <- function(
     "\n    AND ", pair_condition,
     "\n)",
     "\nSELECT",
-    "\n  COUNT(CASE WHEN m_confirmed = 1 AND f_confirmed = 1 THEN 1 END) AS n_confirmed_pairs,",
-    "\n  COUNT(*) AS n_pairs_total",
+    "\n  COUNT(CASE WHEN m_confirmed = 0 OR f_confirmed = 0 THEN 1 END) AS n_unconfirmed_pairs",
     "\nFROM eligible_pairs"
   )
 
@@ -763,7 +762,7 @@ overview_pair_tallies_current <- function(
     )
   }
 
-  required_columns <- c("n_confirmed_pairs", "n_pairs_total")
+  required_columns <- "n_unconfirmed_pairs"
   if (!all(required_columns %in% names(x))) {
     stop(
       "overview_pair_tallies_current() returned an unexpected result.",
@@ -779,13 +778,10 @@ overview_pair_tallies_current <- function(
   }
 
   if (!nrow(x)) {
-    return(c(confirmed_pairs = 0L, total_pairs = 0L))
+    return(c(unconfirmed_pairs = 0L))
   }
 
-  c(
-    confirmed_pairs = as_count(x$n_confirmed_pairs),
-    total_pairs = as_count(x$n_pairs_total)
-  )
+  c(unconfirmed_pairs = as_count(x$n_unconfirmed_pairs))
 }
 
 
@@ -1487,10 +1483,8 @@ overview_geolocator_graph <- function(
       "{overview_cumulative_total(plot_data, 'Female')}\n",
       "N males = ",
       "{overview_cumulative_total(plot_data, 'Male')}\n",
-      "N confirmed pairs = ",
-      "{pair_tallies[['confirmed_pairs']]}\n",
-      "N pairs total = ",
-      "{pair_tallies[['total_pairs']]}"
+      "N unconfirmed pairs = ",
+      "{pair_tallies[['unconfirmed_pairs']]}"
     ),
     caption = overview_pair_confirmation_caption()
   )
@@ -1727,10 +1721,8 @@ overview_band_combos_graph <- function(
       "{overview_cumulative_total(plot_data, 'Female')}\n",
       "N males = ",
       "{overview_cumulative_total(plot_data, 'Male')}\n",
-      "N confirmed pairs = ",
-      "{pair_tallies[['confirmed_pairs']]}\n",
-      "N pairs total = ",
-      "{pair_tallies[['total_pairs']]}"
+      "N unconfirmed pairs = ",
+      "{pair_tallies[['unconfirmed_pairs']]}"
     ),
     caption = overview_pair_confirmation_caption()
   )
