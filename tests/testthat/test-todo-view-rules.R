@@ -118,7 +118,11 @@ test_that("hiding-photo TODO counts distinct captured and photographed rings", {
     "COALESCE(hiding_spot_photos.n_hiding_spot_photos, 0)\n           < chick_captures.n_captured_chick_rings",
     fixed = TRUE
   )
-  expect_match(sql, "' chicks photographed'", fixed = TRUE)
+  expect_match(
+    sql,
+    "' chicks with rclass ''H'' photos'",
+    fixed = TRUE
+  )
   expect_false(grepl("need H resightings", sql, fixed = TRUE))
 })
 

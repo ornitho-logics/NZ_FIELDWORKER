@@ -5777,7 +5777,7 @@ todo_hiding_spot_photos AS (
       COALESCE(hiding_spot_photos.n_hiding_spot_photos, 0),
       '/',
       COALESCE(chick_captures.n_captured_chick_rings, 0),
-      ' chicks photographed'
+      ' chicks with rclass ''H'' photos'
     ) AS notes,
     GREATEST(
       0,
@@ -5830,7 +5830,7 @@ todo_hiding_spot_photos AS (
       COALESCE(hiding_spot_photos.n_hiding_spot_photos, 0),
       '/',
       COALESCE(chick_captures.n_captured_chick_rings, 0),
-      ' chicks photographed'
+      ' chicks with rclass ''H'' photos'
     ) AS notes,
     GREATEST(0, DATEDIFF(b.reference_date, b.discovery_date) - 1) AS days_overdue,
     400 + GREATEST(0, DATEDIFF(b.reference_date, b.discovery_date) - 1) AS priority,
