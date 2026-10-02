@@ -349,7 +349,7 @@ test_that("lay-date bins tally geolocators by associated nest", {
 })
 
 
-test_that("hatching forecast uses one-day bins and seven-day labels", {
+test_that("hatching forecast uses one-day bins, three-day labels, and marks reference date", {
   app <- load_main_app()
   refdate <- as.Date("2026-09-01")
   x <- data.frame(
@@ -367,17 +367,32 @@ test_that("hatching forecast uses one-day bins and seven-day labels", {
   expect_silent(built <- ggplot2::ggplot_build(plot))
   expect_equal(
     plot$coordinates$limits$x,
-    as.Date(c("2026-09-02", "2026-09-10"))
+    as.Date(c("2026-08-29", "2026-09-10"))
   )
-  expect_equal(plot$layers[[2]]$stat_params$binwidth, 1)
+  histogram_index <- which(vapply(
+    plot$layers,
+    function(layer) inherits(layer$geom, "GeomBar"),
+    logical(1)
+  ))
+  expect_length(histogram_index, 1L)
+  expect_equal(plot$layers[[histogram_index]]$stat_params$binwidth, 1)
   expect_true(any(vapply(
     plot$layers,
     function(layer) inherits(layer$geom, "GeomVline"),
     logical(1)
   )))
+  reference_label <- vapply(
+    plot$layers,
+    function(layer) {
+      identical(layer$aes_params$label, "reference date") &&
+        identical(layer$aes_params$angle, 90)
+    },
+    logical(1)
+  )
+  expect_true(any(reference_label))
   x_breaks <- built$layout$panel_params[[1]]$x$breaks
   x_breaks <- x_breaks[is.finite(x_breaks)]
-  expect_equal(diff(x_breaks), rep(7, length(x_breaks) - 1L))
+  expect_equal(diff(x_breaks), rep(3, length(x_breaks) - 1L))
 })
 
 
