@@ -113,12 +113,6 @@ test_that("overview graph helpers use aligned reference-date queries", {
       return(data.frame(start_date = as.character(refdate - 30)))
     }
 
-    if (grepl("parent_events AS", sql, fixed = TRUE)) {
-      return(data.frame(
-        n_unconfirmed_pairs = 0
-      ))
-    }
-
     if (grepl("SELECT COUNT", sql, fixed = TRUE)) {
       return(data.frame(n = 0))
     }
@@ -159,25 +153,14 @@ test_that("overview graph helpers use aligned reference-date queries", {
   )
 
   expect_length(quota_plots, 4)
-  expect_length(queries, 13)
+  expect_length(queries, 11)
   expect_true(all(vapply(
     queries,
-    function(query) {
-      expected_params <- if (grepl(
-        "parent_events AS",
-        query$sql,
-        fixed = TRUE
-      )) {
-        list(as.character(refdate))
-      } else {
-        list(as.character(refdate))
-      }
-      identical(query$params, expected_params)
-    },
+    function(query) identical(query$params, list(as.character(refdate))),
     logical(1)
   )))
 
-  geolocator_quota_sql <- queries[[9]]$sql
+  geolocator_quota_sql <- queries[[7]]$sql
 
   expect_match(
     geolocator_quota_sql,
@@ -188,67 +171,40 @@ test_that("overview graph helpers use aligned reference-date queries", {
   expect_match(queries[[1]]$sql, "MIN(date_) AS start_date", fixed = TRUE)
   expect_match(queries[[2]]$sql, "COALESCE(site, ''))) = 'CR'", fixed = TRUE)
   expect_match(queries[[3]]$sql, "COALESCE(site, ''))) = 'CR'", fixed = TRUE)
-  expect_match(queries[[4]]$sql, "parent_events AS", fixed = TRUE)
-  expect_match(queries[[4]]$sql, "n_unconfirmed_pairs", fixed = TRUE)
-  expect_match(queries[[4]]$sql, "identity_match", fixed = TRUE)
-  expect_match(queries[[4]]$sql, "n_matching_post_mm_resightings", fixed = TRUE)
-  expect_match(queries[[4]]$sql, "requires_spacer_identity", fixed = TRUE)
-  expect_match(queries[[4]]$sql, "has_xx_nest_behav", fixed = TRUE)
+  expect_match(queries[[4]]$sql, "FROM deployments d", fixed = TRUE)
+  expect_match(queries[[4]]$sql, "r.comments", fixed = TRUE)
   expect_match(
     queries[[4]]$sql,
-    "has_geolocator AS has_geo",
-    fixed = TRUE
-  )
-  expect_match(
-    queries[[4]]$sql,
-    "COALESCE(f.n_matching_post_mm_resightings, 0) < 3",
-    fixed = TRUE
-  )
-  expect_match(
-    queries[[4]]$sql,
-    "FROM capture_events c\n  WHERE c.mark IS NOT NULL",
-    fixed = TRUE
-  )
-  expect_match(
-    queries[[4]]$sql,
-    "mm_xx_parent_confirmed = 1 OR mm_resight_pending = 1",
-    fixed = TRUE
-  )
-  expect_match(queries[[5]]$sql, "FROM deployments d", fixed = TRUE)
-  expect_match(queries[[5]]$sql, "r.comments", fixed = TRUE)
-  expect_match(
-    queries[[5]]$sql,
     "PARTITION BY tarsus_mark, capture_sex",
     fixed = TRUE
   )
   expect_match(
-    queries[[5]]$sql,
+    queries[[4]]$sql,
     "r.resighting_sex = d.capture_sex",
     fixed = TRUE
   )
   expect_match(
-    queries[[5]]$sql,
+    queries[[4]]$sql,
     "c.capture_status",
     fixed = TRUE
   )
-  expect_match(queries[[6]]$sql, "FROM CAPTURES_ARCHIVE", fixed = TRUE)
-  expect_match(queries[[7]]$sql, "has_banded_mark = 1", fixed = TRUE)
-  expect_match(queries[[8]]$sql, "COALESCE(site, ''))) = 'CR'", fixed = TRUE)
+  expect_match(queries[[5]]$sql, "FROM CAPTURES_ARCHIVE", fixed = TRUE)
+  expect_match(queries[[6]]$sql, "COALESCE(site, ''))) = 'CR'", fixed = TRUE)
   expect_match(
-    queries[[8]]$sql,
+    queries[[6]]$sql,
     "LEFT JOIN geolocator_deployments",
     fixed = TRUE
   )
-  expect_match(queries[[8]]$sql, "c.age, ''))) = 'A'", fixed = TRUE)
-  expect_match(queries[[8]]$sql, "c.tag_type, ''))) = 'GEO'", fixed = TRUE)
-  expect_match(queries[[8]]$sql, "c.tag_action, ''))) = 'D'", fixed = TRUE)
+  expect_match(queries[[6]]$sql, "c.age, ''))) = 'A'", fixed = TRUE)
+  expect_match(queries[[6]]$sql, "c.tag_type, ''))) = 'GEO'", fixed = TRUE)
+  expect_match(queries[[6]]$sql, "c.tag_action, ''))) = 'D'", fixed = TRUE)
   expect_match(
-    queries[[13]]$sql,
+    queries[[11]]$sql,
     "FROM EGGS_HATCH_PREDICTION e",
     fixed = TRUE
   )
   expect_match(
-    queries[[13]]$sql,
+    queries[[11]]$sql,
     "e.predicted_hatch_date > sr.reference_date",
     fixed = TRUE
   )
@@ -280,7 +236,7 @@ test_that("pair tally does not fall back to the obsolete heuristic", {
 })
 
 
-test_that("pair protocol caption is shown under both pair-tally panels", {
+test_that("pair protocol helper is separate from sex-only panels", {
   app <- load_main_app()
   refdate <- as.Date("2026-07-21")
 
@@ -316,8 +272,8 @@ test_that("pair protocol caption is shown under both pair-tally panels", {
   band_combos_plot <- app$env$overview_band_combos_graph(refdate)
   caption <- app$env$overview_pair_confirmation_caption()
 
-  expect_identical(geolocator_plot$labels$caption, caption)
-  expect_identical(band_combos_plot$labels$caption, caption)
+  expect_null(geolocator_plot$labels$caption)
+  expect_null(band_combos_plot$labels$caption)
   expect_match(caption, "caught with the nest trap", fixed = TRUE)
   expect_match(caption, "resighted around the nest 3 times", fixed = TRUE)
   expect_match(caption, "behav class \"IN\", \"NM\", or \"BW\"", fixed = TRUE)

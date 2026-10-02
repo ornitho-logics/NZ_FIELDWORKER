@@ -1468,11 +1468,6 @@ overview_geolocator_graph <- function(
   }
 
   plot_data <- overview_cumulative_counts(x, group_col = "sex")
-  pair_tallies <- overview_pair_tallies(
-    refdate = refdate,
-    require_geolocator = TRUE
-  )
-
   overview_cumulative_plot(
     x = plot_data,
     ylab = "Cumulative number of\ngeolocators deployed",
@@ -1482,11 +1477,8 @@ overview_geolocator_graph <- function(
       "N females = ",
       "{overview_cumulative_total(plot_data, 'Female')}\n",
       "N males = ",
-      "{overview_cumulative_total(plot_data, 'Male')}\n",
-      "N unconfirmed pairs = ",
-      "{pair_tallies[['unconfirmed_pairs']]}"
-    ),
-    caption = overview_pair_confirmation_caption()
+      "{overview_cumulative_total(plot_data, 'Male')}"
+    )
   )
 }
 
@@ -1706,11 +1698,6 @@ overview_band_combos_graph <- function(
   )
 
   plot_data <- overview_cumulative_counts(x, group_col = "sex")
-  pair_tallies <- overview_pair_tallies(
-    refdate = refdate,
-    require_geolocator = FALSE
-  )
-
   overview_cumulative_plot(
     x = plot_data,
     ylab = "Cumulative number of\nunique band combinations",
@@ -1720,11 +1707,8 @@ overview_band_combos_graph <- function(
       "N females = ",
       "{overview_cumulative_total(plot_data, 'Female')}\n",
       "N males = ",
-      "{overview_cumulative_total(plot_data, 'Male')}\n",
-      "N unconfirmed pairs = ",
-      "{pair_tallies[['unconfirmed_pairs']]}"
-    ),
-    caption = overview_pair_confirmation_caption()
+      "{overview_cumulative_total(plot_data, 'Male')}"
+    )
   )
 }
 
