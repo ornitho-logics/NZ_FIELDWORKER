@@ -3185,13 +3185,13 @@ adult_association_resighting_candidates AS (
     END AS has_geo,
     CASE
       WHEN UPPER(TRIM(COALESCE(r.behav, ''))) REGEXP
-        '(^|[^A-Z])(BW|NM|IN)([^A-Z]|$)'
+        '(^|[^A-Z])(BW|NM|IN|BC|FC)([^A-Z]|$)'
       THEN 1
       ELSE 0
     END AS has_matching_nest_behav,
     CASE
       WHEN UPPER(TRIM(COALESCE(r.behav, ''))) REGEXP
-        '(^|[^A-Z])(BW|NM|IN)([^A-Z]|$)'
+        '(^|[^A-Z])(BW|NM|IN|BC|FC)([^A-Z]|$)'
       THEN 1
       ELSE 0
     END AS has_nest_behav

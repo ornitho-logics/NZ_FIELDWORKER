@@ -143,7 +143,7 @@ test_that("MM parent follow-up accepts qualifying behaviour or three matching re
   )
   expect_match(
     sql,
-    "'(^|[^A-Z])(BW|NM|IN)([^A-Z]|$)'",
+    "'(^|[^A-Z])(BW|NM|IN|BC|FC)([^A-Z]|$)'",
     fixed = TRUE
   )
   expect_match(sql, "post_mm_xx_seen", fixed = TRUE)
@@ -159,7 +159,7 @@ test_that("MM parent follow-up accepts qualifying behaviour or three matching re
     ]
     matching <- toupper(trimws(post_mm$mark)) == "BY-YY"
     has_nest_behaviour <- grepl(
-      "(^|[^A-Z])(BW|NM|IN)([^A-Z]|$)",
+      "(^|[^A-Z])(BW|NM|IN|BC|FC)([^A-Z]|$)",
       toupper(trimws(post_mm$behav)),
       perl = TRUE
     )
@@ -189,6 +189,18 @@ test_that("MM parent follow-up accepts qualifying behaviour or three matching re
   expect_true(
     matching_followup_resolved(same_day_behaviour, "2026-09-01")
   )
+
+  for (behaviour in c("BC", "FC")) {
+    qualifying_behaviour <- data.frame(
+      date = as.Date("2026-09-02"),
+      mark = "BY-YY",
+      behav = behaviour,
+      stringsAsFactors = FALSE
+    )
+    expect_true(
+      matching_followup_resolved(qualifying_behaviour, "2026-09-02")
+    )
+  }
 
   one_matching_resighting <- data.frame(
     date = as.Date(c("2026-09-02", "2026-09-03")),
