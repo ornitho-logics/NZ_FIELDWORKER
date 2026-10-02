@@ -252,14 +252,61 @@ list({
         cr_wryb_pat <- "^WR(0[1-9]|[1-9][0-9])(0[1-9]|[1-9][0-9])$"
         noncr_bado_pat <- "^BA(0[1-9]|[1-9][0-9])(0[1-9]|[1-9][0-9])$"
         raw <- trimws(as.character(z$nest_id))
+        nest_key <- toupper(raw)
         site_key <- toupper(trimws(as.character(z$site)))
         species_key <- toupper(trimws(as.character(z$species)))
+        present_idx <- !is.na(z$nest_id) & nzchar(raw) & toupper(raw) != "NA"
+        negative_idx <- present_idx & startsWith(raw, "-")
+
+        # The prefix identifies the species for these field-season nest IDs:
+        # WR is WRYB; A/B/C and BA are BADO. Report this as a species error
+        # rather than making the fieldworker diagnose it from a nest_id pattern
+        # message. Negative IDs are handled first because they are never valid
+        # in NESTS regardless of their prefix.
+        wr_species_bad <- present_idx & !negative_idx & grepl("^WR", nest_key) &
+            !is.na(species_key) & nzchar(species_key) & species_key != "WRYB"
+        bado_species_bad <- present_idx & !negative_idx & grepl("^(A|B|C|BA)", nest_key) &
+            !is.na(species_key) & nzchar(species_key) & species_key != "BADO"
+        prefix_species_bad <- wr_species_bad | bado_species_bad
+
         cr_valid <- ifelse(species_key == "WRYB", grepl(cr_wryb_pat, raw), grepl(cr_pat, raw))
-        bad_idx <- which(!is.na(z$nest_id) & nzchar(raw) & (substr(raw, 1, 1) == "-" | (site_key == "CR" & !cr_valid) | (site_key != "CR" & species_key == "BADO" & !grepl(noncr_bado_pat, raw))))
+        syntax_bad <- present_idx & !negative_idx & !prefix_species_bad & (
+            (site_key == "CR" & !cr_valid) |
+            (site_key != "CR" & species_key == "BADO" & !grepl(noncr_bado_pat, raw))
+        )
+        bad_idx <- which(present_idx & (negative_idx | prefix_species_bad | syntax_bad))
         if (length(bad_idx) == 0) {
             empty
         } else {
-            data.table::data.table(rowid = z$rowid[bad_idx], variable = "nest_id", reason = ifelse(substr(raw[bad_idx], 1, 1) == "-", "Negative nest IDs describe broods of unknown origin and cannot be entered in NESTS. Enter each observed bird in RESIGHTINGS or each captured bird in CAPTURES using the negative nest ID.", ifelse(site_key[bad_idx] == "CR" & species_key[bad_idx] == "WRYB", "Cass River WRYB nest ID must use WR + gps_id + sequence, e.g. WR0201.", ifelse(site_key[bad_idx] == "CR", "Cass River BADO nest ID must use plot + gps_id + sequence, e.g. B0112.", "Non-CR BADO nest ID must use BA + gps_id + sequence, e.g. BA0804."))))
+            data.table::data.table(
+                rowid = z$rowid[bad_idx],
+                variable = ifelse(
+                    wr_species_bad[bad_idx] | bado_species_bad[bad_idx],
+                    "species",
+                    "nest_id"
+                ),
+                reason = ifelse(
+                    negative_idx[bad_idx],
+                    "Negative nest IDs describe broods of unknown origin and cannot be entered in NESTS. Enter each observed bird in RESIGHTINGS or each captured bird in CAPTURES using the negative nest ID.",
+                    ifelse(
+                        wr_species_bad[bad_idx],
+                        "Nest IDs beginning with WR are WRYB nest IDs. Set species to WRYB.",
+                        ifelse(
+                            bado_species_bad[bad_idx],
+                            "Nest IDs beginning with A, B, C, or BA are BADO nest IDs. Set species to BADO.",
+                            ifelse(
+                                site_key[bad_idx] == "CR" & species_key[bad_idx] == "WRYB",
+                                "Cass River WRYB nest ID must use WR + gps_id + sequence, e.g. WR0201.",
+                                ifelse(
+                                    site_key[bad_idx] == "CR",
+                                    "Cass River BADO nest ID must use plot + gps_id + sequence, e.g. B0112.",
+                                    "Non-CR BADO nest ID must use BA + gps_id + sequence, e.g. BA0804."
+                                )
+                            )
+                        )
+                    )
+                )
+            )
         }
     }, nam = "nest id pattern")
     out <- data.table::as.data.table(out)
