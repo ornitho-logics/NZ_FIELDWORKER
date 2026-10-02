@@ -276,6 +276,80 @@ list({
             z[, `:=`(rowid, .I)]
         }
         empty <- data.table::data.table(rowid = integer(), variable = character(), reason = character())
+        norm_chr <- function(v) {
+            out <- toupper(trimws(as.character(v)))
+            out[is.na(v) | !nzchar(out) | out == "NA"] <- NA_character_
+            out
+        }
+        has_chick_behaviour <- function(v) {
+            one <- norm_chr(v)
+            if (is.na(one)) {
+                return(FALSE)
+            }
+            tokens <- trimws(unlist(strsplit(one, ",", fixed = TRUE)))
+            any(tokens %in% c("BC", "FC"))
+        }
+        z[, `:=`(
+            date_key = suppressWarnings(as.Date(as.character(date))),
+            gps_id_key = norm_chr(gps_id),
+            gps_point_key = norm_chr(gps_point),
+            age_key = norm_chr(age),
+            has_chick_behaviour = vapply(behav, has_chick_behaviour, logical(1))
+        )]
+        adult_keys <- unique(z[
+            age_key == "A" &
+            has_chick_behaviour &
+            !is.na(date_key) &
+            !is.na(gps_id_key) &
+            !is.na(gps_point_key),
+            .(rowid, date_key, gps_id_key, gps_point_key)
+        ])
+        chick_keys <- unique(z[
+            age_key == "C" &
+            !is.na(date_key) &
+            !is.na(gps_id_key) &
+            !is.na(gps_point_key),
+            .(date_key, gps_id_key, gps_point_key)
+        ])
+        if (nrow(adult_keys) == 0L) {
+            empty
+        } else {
+            missing_chicks <- adult_keys[!chick_keys, on = .(date_key, gps_id_key, gps_point_key)]
+            if (nrow(missing_chicks) == 0L) {
+                empty
+            } else {
+                missing_chicks[, .(
+                    rowid,
+                    variable = "behav",
+                    reason = "Awesome that you saw a banded parent with chicks! However you forgot to enter the associated chick resighting(s). Please enter a rclass 'R' RESIGHTINGS event for each chick with the color band seen, linking them to the tending parent with the same gps_id and gps_point. 'ring' can be left blank"
+                )]
+            }
+        }
+    }, nam = "RES_007 adult with chicks")
+    out <- data.table::as.data.table(out)
+    if ("reason" %in% names(out)) {
+        out[, `:=`(reason, {
+            cleaned <- sub("^(ERROR|WARNING):\\s*", "", as.character(reason))
+            cleaned[is.na(reason)] <- NA_character_
+            ok_idx <- !is.na(cleaned) & nzchar(cleaned)
+            cleaned[ok_idx] <- paste0(
+                cleaned[ok_idx],
+                " Please double-check this entry. If it is correct, add a validator bypass comment to the event."
+            )
+            cleaned
+        })]
+    }
+    if ("type" %in% names(out)) {
+        out[, `:=`(type, NULL)]
+    }
+    out
+}, {
+    out <- try_validator({
+        z <- data.table::copy(x)
+        if (!"rowid" %in% names(z)) {
+            z[, `:=`(rowid, .I)]
+        }
+        empty <- data.table::data.table(rowid = integer(), variable = character(), reason = character())
         safe_db_get <- function(sql, columns) {
             result <- tryCatch(db_get(sql), error = function(e) NULL)
             if (is.null(result) || !is.data.frame(result)) {
