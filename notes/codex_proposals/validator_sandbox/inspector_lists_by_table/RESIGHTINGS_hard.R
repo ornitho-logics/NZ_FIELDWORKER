@@ -22,6 +22,7 @@ list({
         )
         negative_brood_flag <- has_negative_brood_id(z$nest_id)
         rclass_key <- toupper(trimws(as.character(z$rclass)))
+        h_flag <- !is.na(rclass_key) & rclass_key == "H"
         h_required_out <- data.table::rbindlist(lapply(c("species", "observer", "date", "rclass", "sex", "age"), function(col) {
             raw <- trimws(as.character(z[[col]]))
             bad_idx <- which(!is.na(z[[col]]) & rclass_key == "H" & (!nzchar(raw) | toupper(raw) == "NA"))
@@ -31,7 +32,7 @@ list({
                 data.table::data.table(rowid = z$rowid[bad_idx], variable = col, reason = "H-class resighting fields must be present.")
             }
         }), use.names = TRUE, fill = TRUE)
-        gps_required <- !has_positive_nest_id(z$nest_id) | rclass_key == "H"
+        gps_required <- !has_positive_nest_id(z$nest_id) | h_flag
         z[, neg_flag := negative_brood_flag]
         positive_partial_gps <- z[
             !gps_required & xor(blankish(gps_id), blankish(gps_point)),
@@ -47,9 +48,9 @@ list({
                 rowid,
                 variable = "gps_id",
                 reason = ifelse(
-                    rclass_key == "H",
+                    h_flag,
                     "Hiding-spot photo events require both gps_id and gps_point, even when nest_id is recorded.",
-                    ifelse(neg_flag, "Negative brood IDs require both gps_id and gps_point because the brood has no NESTS location.", "A GPS ID and GPS point are required when this resighting is not linked to a positive nest.")
+                    ifelse(neg_flag, "Negative nest_id values identify broods found after hatching and require both gps_id and gps_point because there is no NESTS location.", "A GPS ID and GPS point are required when this resighting is not linked to a positive nest.")
                 )
             )
         ]
@@ -59,9 +60,9 @@ list({
                 rowid,
                 variable = "gps_point",
                 reason = ifelse(
-                    rclass_key == "H",
+                    h_flag,
                     "Hiding-spot photo events require both gps_id and gps_point, even when nest_id is recorded.",
-                    ifelse(neg_flag, "Negative brood IDs require both gps_id and gps_point because the brood has no NESTS location.", "A GPS ID and GPS point are required when this resighting is not linked to a positive nest.")
+                    ifelse(neg_flag, "Negative nest_id values identify broods found after hatching and require both gps_id and gps_point because there is no NESTS location.", "A GPS ID and GPS point are required when this resighting is not linked to a positive nest.")
                 )
             )
         ]
@@ -665,7 +666,7 @@ list({
         if (length(bad_idx) == 0) {
             empty
         } else {
-            data.table::data.table(rowid = z$rowid[bad_idx], variable = "nest_id", reason = ifelse(z$site[bad_idx] == "CR", "Cass River nest ID must use plot + gps_id + sequence, e.g. B0112 or -B0203.", "Non-CR nest IDs must use the species prefix plus four digits, e.g. BA0804 or -BA0804."))
+            data.table::data.table(rowid = z$rowid[bad_idx], variable = "nest_id", reason = ifelse(z$site[bad_idx] == "CR", "Cass River nest_id must use plot + gps_id + sequence, e.g. B0112 or -B0203.", "Non-CR nest_id values must use the species prefix plus four digits, e.g. BA0804 or -BA0804."))
         }
     }, nam = "RES_004C nest id")
     out <- data.table::as.data.table(out)
@@ -874,8 +875,11 @@ list({
         z[, `:=`(rclass_key, toupper(trimws(as.character(rclass))))]
         z[, `:=`(behav_tokens, lapply(behav, parse_behav))]
         z[, `:=`(is_chick, !is.na(age_key) & age_key == "C")]
-        z[, `:=`(is_bc_fc, vapply(behav_tokens, function(tok) any(tok %in% c("BC", "FC")), logical(1)))]
-        z[, `:=`(is_adult_in_nm, !is.na(age_key) & age_key == "A" & vapply(behav_tokens, function(tok) any(tok %in% c("IN", "NM")), logical(1)))]
+        parent_behaviour_codes <- c("IN", "NM", "BW", "BC", "FC")
+        z[, `:=`(
+            is_parent_behaviour = !is.na(age_key) & age_key == "A" &
+                vapply(behav_tokens, function(tok) any(tok %in% parent_behaviour_codes), logical(1))
+        )]
         if (!"ring" %in% names(z)) {
             z[, ring := NA_character_]
         }
@@ -904,25 +908,26 @@ list({
                 !blankish(gps_point) &
                 (ring_present | parent_same_gps)
         )]
-        z[, `:=`(needs_nest_id, (is_chick & !allow_unlinked_h_chick) | is_bc_fc | is_adult_in_nm)]
+        z[, `:=`(needs_nest_id, (is_chick & !allow_unlinked_h_chick) | is_parent_behaviour)]
         out <- data.table::rbindlist(lapply(seq_len(nrow(z)), function(i) {
             row <- z[i]
             row_is_chick <- isTRUE(row$is_chick)
-            row_is_bc_fc <- isTRUE(row$is_bc_fc)
+            row_is_parent_behaviour <- isTRUE(row$is_parent_behaviour)
             row_is_h <- isTRUE(row$rclass_key == "H")
             missing_chick_nest_reason <- if (row_is_h) {
                 "An H-class chick may omit nest_id only when ring is entered or a same-session age-A parent with LL and LR is recorded at the same GPS pair."
             } else {
                 "Chick resightings must record nest_id."
             }
+            missing_parent_nest_reason <- "This adult IN/NM/BW/BC/FC resighting is the first active-nest record for this breeding attempt, so please enter nest_id."
             if (!isTRUE(row$needs_nest_id)) {
                 return(empty)
             }
             if ((is.na(row$nest_id) || !nzchar(trimws(as.character(row$nest_id)))) && row_is_chick) {
                 return(data.table::data.table(rowid = row$rowid, variable = "nest_id", reason = missing_chick_nest_reason))
             }
-            if ((is.na(row$nest_id) || !nzchar(trimws(as.character(row$nest_id)))) && row_is_bc_fc) {
-                return(data.table::data.table(rowid = row$rowid, variable = "nest_id", reason = "BC and FC resighting events must record nest_id."))
+            if ((is.na(row$nest_id) || !nzchar(trimws(as.character(row$nest_id)))) && row_is_parent_behaviour) {
+                return(data.table::data.table(rowid = row$rowid, variable = "nest_id", reason = missing_parent_nest_reason))
             }
             row_nest <- trimws(as.character(row$nest_id))
             row_has_real_nest <- !is.na(row_nest) && nzchar(row_nest) && !is_no_nest(row_nest)
@@ -933,7 +938,7 @@ list({
             row_mark <- clean_segment(row$mark)
             row_sex <- trimws(as.character(row$sex))
             if ((!row_has_real_nest) && (row_is_unbanded || is.na(row_mark) || !nzchar(row_mark) || row_mark == "X-X")) {
-                return(data.table::data.table(rowid = row$rowid, variable = "nest_id", reason = "Adult IN/NM resighting event needs a nest_id because this is the first active-nest record for this breeding attempt."))
+                return(data.table::data.table(rowid = row$rowid, variable = "nest_id", reason = missing_parent_nest_reason))
             }
             sex_key_val <- substr(row_sex, 1, 1)
             latest_candidates <- if (sex_key_val %in% c("M", "F")) {
@@ -954,12 +959,12 @@ list({
             if (!row_has_real_nest && row_is_chick) {
                 return(data.table::data.table(rowid = row$rowid, variable = "nest_id", reason = missing_chick_nest_reason))
             }
-            if (!row_has_real_nest && row_is_bc_fc) {
-                return(data.table::data.table(rowid = row$rowid, variable = "nest_id", reason = "BC and FC resighting events must record nest_id."))
+            if (!row_has_real_nest && row_is_parent_behaviour) {
+                return(data.table::data.table(rowid = row$rowid, variable = "nest_id", reason = missing_parent_nest_reason))
             }
             if (!row_has_real_nest) {
                 if (!linked_active) {
-                  problems[[length(problems) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = "nest_id", reason = "Adult IN/NM resighting event needs a nest_id because this is the first active-nest record for this breeding attempt.")
+                  problems[[length(problems) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = "nest_id", reason = missing_parent_nest_reason)
                 }
             }
             if (length(problems) == 0) {
@@ -1017,7 +1022,8 @@ list({
         out <- data.table::rbindlist(lapply(seq_len(nrow(z)), function(i) {
             row <- z[i]
             nest_key <- trimws(as.character(row$nest_id))
-            if (row$age != "A" || is.na(nest_key) || !nzchar(nest_key) || is_no_nest(nest_key) || grepl("^-", nest_key) || is.na(row$event_date) || !any(row$behav_tokens[[1]] %in% c("IN", "NM"))) {
+            parent_behaviour_codes <- c("IN", "NM", "BW", "BC", "FC")
+            if (row$age != "A" || is.na(nest_key) || !nzchar(nest_key) || is_no_nest(nest_key) || grepl("^-", nest_key) || is.na(row$event_date) || !any(row$behav_tokens[[1]] %in% parent_behaviour_codes)) {
                 return(empty)
             }
             tmp <- nests_dt[nest_id == nest_key & !is.na(event_date_nest) & event_date_nest <= row$event_date]

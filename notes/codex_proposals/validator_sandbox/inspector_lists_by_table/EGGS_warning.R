@@ -5,7 +5,7 @@ list({
             z[, `:=`(rowid, .I)]
         }
         empty <- data.table::data.table(rowid = integer(), variable = character(), reason = character())
-        warn_reason <- paste0("Usually an EGGS event has floatation data. If the egg was not floated (e.g., hatch sign), then make a comment and make the correct event in NESTS (e.g., fill out ", "\"hatch_state\"", intToUtf8(41L))
+        warn_reason <- paste0("EGGS events usually include floatation data. If you did not float this egg—for example, because you saw a hatch sign—please add a comment and record the hatch observation in NESTS, including hatch_state.")
         missing_like <- function(v) {
             raw <- trimws(as.character(v))
             is.na(v) | !nzchar(raw) | raw == "NA"
@@ -66,13 +66,13 @@ list({
                 return(empty)
             }
             if (identical(loc, "bottom") && (angle < 0 || angle > 90)) {
-                return(data.table::data.table(rowid = row$rowid, variable = "float_angle", reason = "When float_location is \"bottom\", the angle is typically between 0 and 90."))
+                return(data.table::data.table(rowid = row$rowid, variable = "float_angle", reason = "The angle looks unusual for an egg floating at the bottom. Please check the float_location and angle, and correct either one if needed."))
             }
             if (identical(loc, "suspended") && (angle < 85 || angle > 90)) {
-                return(data.table::data.table(rowid = row$rowid, variable = "float_angle", reason = "When float_location is \"suspended\", the angle is typically between 85 and 90."))
+                return(data.table::data.table(rowid = row$rowid, variable = "float_angle", reason = "The angle looks unusual for a suspended egg. Please check the float_location and angle, and correct either one if needed."))
             }
             if (identical(loc, "surface") && (angle < 75 || angle > 90)) {
-                return(data.table::data.table(rowid = row$rowid, variable = "float_angle", reason = "When float_location is \"surface\", the angle is typically between 75 and 90."))
+                return(data.table::data.table(rowid = row$rowid, variable = "float_angle", reason = "The angle looks unusual for a surface-floating egg. Please check the float_location and angle, and correct either one if needed."))
             }
             empty
         }), use.names = TRUE, fill = TRUE)
@@ -173,7 +173,7 @@ list({
                 if (nrow(bad_keys) == 0) {
                     data.table::data.table(rowid = integer(), variable = character(), reason = character())
                 } else {
-                    merge(current[, .(rowid, nest_key, date_key, time_key, observer_key)], bad_keys, by = c("nest_key", "date_key", "time_key", "observer_key"))[, .(rowid, variable = "float_angle", reason = "Based on their floatation data, the developmental stage of this nest's eggs differ by more than 7 days, please double-check your floatation data")][, unique(.SD)]
+                    merge(current[, .(rowid, nest_key, date_key, time_key, observer_key)], bad_keys, by = c("nest_key", "date_key", "time_key", "observer_key"))[, .(rowid, variable = "float_angle", reason = "The floatation results suggest that eggs in this nest may differ in developmental stage by more than seven days. Please double-check the readings and dates; the eggs may simply be keeping us on our toes.")][, unique(.SD)]
                 }
             }
         }
@@ -249,7 +249,7 @@ list({
         if (nrow(bad_keys) == 0) {
             data.table::data.table(rowid = integer(), variable = character(), reason = character())
         } else {
-            merge(z[, .(rowid, nest_id = trimws(as.character(nest_id)), date = suppressWarnings(as.Date(date)), time_visit = norm_time_key(time_visit), observer = trimws(as.character(observer)))], bad_keys[, .(nest_id, date, time_visit, observer)], by = c("nest_id", "date", "time_visit", "observer"))[, .(rowid, variable = "nest_id", reason = "Each EGGS event should usually match a NESTS event with the same nest_id, date, and observer, with time_visit within one hour.")][, unique(.SD)]
+            merge(z[, .(rowid, nest_id = trimws(as.character(nest_id)), date = suppressWarnings(as.Date(date)), time_visit = norm_time_key(time_visit), observer = trimws(as.character(observer)))], bad_keys[, .(nest_id, date, time_visit, observer)], by = c("nest_id", "date", "time_visit", "observer"))[, .(rowid, variable = "nest_id", reason = "This EGGS event does not closely match a NESTS visit by nest_id, date, observer, and time. Please check the linkage and time_visit; if the records belong together, make the entries consistent.")][, unique(.SD)]
         }
     }, nam = "EGG_005 event match")
     out <- data.table::as.data.table(out)
@@ -275,7 +275,7 @@ list({
         if (!"rowid" %in% names(z)) {
             z[, `:=`(rowid, .I)]
         }
-        flagged <- z[grepl("star|starred|pip|pipping", trimws(as.character(comments)), ignore.case = TRUE) & (!is.na(float_location) | !is.na(float_angle) | !is.na(float_surface)), .(rowid, variable = "float_location", reason = "Starred or pipping eggs should usually not be floated.")]
+        flagged <- z[grepl("star|starred|pip|pipping", trimws(as.character(comments)), ignore.case = TRUE) & (!is.na(float_location) | !is.na(float_angle) | !is.na(float_surface)), .(rowid, variable = "float_location", reason = "This egg is marked as starred or pipping but also has floatation data. Please check the observation; eggs showing these signs are usually left un-floated.")]
         if (nrow(flagged) == 0) {
             data.table::data.table(rowid = integer(), variable = character(), reason = character())
         } else {

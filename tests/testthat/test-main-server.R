@@ -276,7 +276,7 @@ test_that("pair protocol helper is separate from sex-only panels", {
   expect_null(band_combos_plot$labels$caption)
   expect_match(caption, "caught with the nest trap", fixed = TRUE)
   expect_match(caption, "resighted around the nest 3 times", fixed = TRUE)
-  expect_match(caption, "behav class \"IN\", \"NM\", or \"BW\"", fixed = TRUE)
+  expect_match(caption, "behav class \"IN\", \"NM\", \"BW\", \"BC\", or \"FC\"", fixed = TRUE)
 })
 
 

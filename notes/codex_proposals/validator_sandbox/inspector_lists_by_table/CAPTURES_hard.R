@@ -13,21 +13,26 @@ list({
         status_chr[is.na(z$capture_status) | !nzchar(status_chr) | status_chr == "NA"] <- NA_character_
         age_chr <- trimws(as.character(z$age))
         age_chr[is.na(z$age) | !nzchar(age_chr) | age_chr == "NA"] <- NA_character_
+        caught_with_chr <- trimws(as.character(z$caught_with))
+        caught_with_chr[is.na(z$caught_with) | !nzchar(caught_with_chr) | caught_with_chr == "NA"] <- NA_character_
         always_required <- c("date", "caught", "species", "site", "observer", "capture_status", "capture_method", "field_sex", "age", "ring")
         conditional_required <- c("UL", "LL", "UR", "LR")
         nest_key <- trimws(as.character(z$nest_id))
         has_positive_nest <- !missing_like(z$nest_id) & toupper(nest_key) != "NO_NEST" & !grepl("^-", nest_key)
         has_negative_brood <- !missing_like(z$nest_id) & grepl("^-", nest_key)
         first_chick_capture <- !is.na(age_chr) & toupper(age_chr) == "C" & status_chr == "F"
+        adult_captured_with_chicks <- !is.na(age_chr) & toupper(age_chr) == "A" &
+            !is.na(caught_with_chr) & grepl("(^|,)\\s*[0-9]*C\\s*(,|$)", caught_with_chr, perl = TRUE)
         has_real_nest_or_brood <- has_positive_nest | has_negative_brood
-        optional_away_from_nest_gps <- first_chick_capture & has_positive_nest
+        optional_positive_nest_gps <- has_positive_nest & (first_chick_capture | adult_captured_with_chicks)
+        adult_with_chicks_positive_nest <- has_positive_nest & adult_captured_with_chicks
         gps_id_entered <- !missing_like(z$gps_id)
         gps_point_entered <- !missing_like(z$gps_point)
         has_any_gps <- gps_id_entered | gps_point_entered
-        gps_required <- (!has_positive_nest & !first_chick_capture) | has_negative_brood
-        first_chick_partial_gps <- optional_away_from_nest_gps & xor(gps_id_entered, gps_point_entered)
+        gps_required <- (!has_positive_nest & !first_chick_capture) | has_negative_brood | adult_with_chicks_positive_nest
+        optional_positive_nest_partial_gps <- has_positive_nest & first_chick_capture & xor(gps_id_entered, gps_point_entered)
         nest_gps_conflicts <- {
-            bad_idx <- which(has_positive_nest & has_any_gps & !optional_away_from_nest_gps)
+            bad_idx <- which(has_positive_nest & has_any_gps & !optional_positive_nest_gps)
             if (length(bad_idx) == 0) {
                 NULL
             } else {
@@ -39,7 +44,7 @@ list({
                     data.table::data.table(
                         rowid = z$rowid[i],
                         variable = variables,
-                        reason = "Positive nest-linked captures must leave gps_id and gps_point blank; use the nest location instead."
+                        reason = "Positive nest-linked captures normally leave gps_id and gps_point blank and use the nest location. If an adult was captured with chicks from this nest, enter both GPS fields and record the chicks in caught_with (for example, 2C)."
                     )
                 }), use.names = TRUE, fill = TRUE)
             }
@@ -75,7 +80,7 @@ list({
                     data.table::data.table(
                         rowid = z$rowid[bad_idx],
                         variable = "nest_id",
-                        reason = "An age-C first-capture event (capture_status F) must include a positive nest_id or negative brood ID."
+                        reason = "An age-C first-capture event (capture_status F) must include a positive nest_id or a negative nest_id (i.e., found at the brood stage)."
                     )
                 }
             }),
@@ -85,13 +90,21 @@ list({
                     return(NULL)
                 }
                 negative_idx <- bad_idx[has_negative_brood[bad_idx]]
-                ordinary_idx <- setdiff(bad_idx, negative_idx)
+                adult_brood_idx <- bad_idx[adult_with_chicks_positive_nest[bad_idx]]
+                ordinary_idx <- setdiff(bad_idx, c(negative_idx, adult_brood_idx))
                 pieces <- list()
                 if (length(negative_idx) > 0) {
                     pieces[[length(pieces) + 1L]] <- data.table::data.table(
                         rowid = z$rowid[negative_idx],
                         variable = col,
-                        reason = "Negative brood IDs require both gps_id and gps_point because the brood has no NESTS location."
+                        reason = "Negative nest_id values identify broods found after hatching and require both gps_id and gps_point because there is no NESTS location."
+                    )
+                }
+                if (length(adult_brood_idx) > 0) {
+                    pieces[[length(pieces) + 1L]] <- data.table::data.table(
+                        rowid = z$rowid[adult_brood_idx],
+                        variable = col,
+                        reason = "An adult captured with chicks from a positive nest must record both gps_id and gps_point because the capture may be away from the nest."
                     )
                 }
                 if (length(ordinary_idx) > 0) {
@@ -104,7 +117,7 @@ list({
                 data.table::rbindlist(pieces, use.names = TRUE, fill = TRUE)
             }),
             list({
-                bad_idx <- which(first_chick_partial_gps)
+                bad_idx <- which(optional_positive_nest_partial_gps)
                 if (length(bad_idx) == 0) {
                     NULL
                 } else {
@@ -116,7 +129,7 @@ list({
                         data.table::data.table(
                             rowid = z$rowid[i],
                             variable = variables,
-                            reason = "gps_id and gps_point must be entered together when an age-C first-capture chick is captured away from the nest."
+                            reason = "gps_id and gps_point must be entered together when a positive-nest chick is captured away from the nest or an adult is captured with chicks."
                         )
                     }), use.names = TRUE, fill = TRUE)
                 }
@@ -521,7 +534,7 @@ list({
                 return(data.table::data.table(
                     rowid = row$rowid,
                     variable = "capture_method",
-                    reason = "capture_method TB requires a positive or negative nest_id."
+                    reason = "capture_method TB requires either a positive nest_id or a negative nest_id (i.e., found at the brood stage). Please check the nest linkage."
                 ))
             }
             empty
@@ -570,7 +583,7 @@ list({
         if (length(bad_idx) == 0) {
             data.table::data.table(rowid = integer(), variable = character(), reason = character())
         } else {
-            data.table::data.table(rowid = z$rowid[bad_idx], variable = "nest_id", reason = "nest_id must be NO_NEST or match the current site-specific nest or brood scheme.")
+            data.table::data.table(rowid = z$rowid[bad_idx], variable = "nest_id", reason = "nest_id must be NO_NEST or match the current site-specific nest_id format.")
         }
     }, nam = "CAP_009 nest id")
     out <- data.table::as.data.table(out)
