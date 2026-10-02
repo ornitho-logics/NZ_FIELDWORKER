@@ -48,6 +48,192 @@ list({
 }, {
     out <- try_validator({
         empty <- data.table::data.table(rowid = integer(), variable = character(), reason = character())
+        norm_chr <- function(v) {
+            raw <- trimws(as.character(v))
+            raw[is.na(v) | !nzchar(raw) | toupper(raw) == "NA"] <- NA_character_
+            raw
+        }
+        norm_time_seconds <- function(v) {
+            if (inherits(v, "difftime")) {
+                return(suppressWarnings(as.numeric(v, units = "secs")))
+            }
+            raw <- norm_chr(v)
+            out <- suppressWarnings(as.numeric(raw))
+            hms_idx <- !is.na(raw) & grepl("^\\d{1,2}:\\d{2}(:\\d{2})?$", raw, perl = TRUE)
+            if (any(hms_idx)) {
+                out[hms_idx] <- vapply(strsplit(raw[hms_idx], ":", fixed = TRUE), function(parts) {
+                    values <- as.numeric(parts)
+                    if (length(values) == 2L) {
+                        values[1] * 3600 + values[2] * 60
+                    } else {
+                        values[1] * 3600 + values[2] * 60 + values[3]
+                    }
+                }, numeric(1))
+            }
+            seconds_idx <- !is.na(raw) & grepl("^-?[0-9]+(?:\\.[0-9]+)?\\s+secs?$", raw, perl = TRUE, ignore.case = TRUE)
+            if (any(seconds_idx)) {
+                out[seconds_idx] <- suppressWarnings(as.numeric(sub("\\s+secs?$", "", raw[seconds_idx], perl = TRUE, ignore.case = TRUE)))
+            }
+            out
+        }
+        has_hatch_sign <- function(v) {
+            raw <- norm_chr(v)
+            !is.na(raw) & grepl("[0-9]+(?:S|CC|C)", toupper(raw), perl = TRUE)
+        }
+        z <- data.table::copy(x)
+        z[, `:=`(rowid, .I)]
+        if (!"pk" %in% names(z)) {
+            z[, pk := NA_real_]
+        }
+        z[, `:=`(
+            source = "current",
+            nest_key = norm_chr(nest_id),
+            event_date = suppressWarnings(as.Date(norm_chr(date), format = "%Y-%m-%d")),
+            event_time = norm_time_seconds(time_visit),
+            pk_num = suppressWarnings(as.numeric(as.character(pk))),
+            nest_state_key = toupper(norm_chr(nest_state)),
+            species_key = toupper(norm_chr(species)),
+            site_key = toupper(norm_chr(site)),
+            clutch_num = suppressWarnings(as.numeric(as.character(clutch_size))),
+            brood_num = suppressWarnings(as.numeric(as.character(brood_size))),
+            hatch_state_key = norm_chr(hatch_state),
+            hatch_sign = has_hatch_sign(hatch_state)
+        )]
+        ids <- unique(z$nest_key[!is.na(z$nest_key)])
+        hist <- data.table::data.table(
+            nest_key = character(),
+            event_date = as.Date(character()),
+            event_time = numeric(),
+            pk_num = numeric(),
+            nest_state = character(),
+            species_key = character(),
+            site_key = character(),
+            clutch_num = numeric(),
+            brood_num = numeric(),
+            hatch_state_key = character(),
+            hatch_sign = logical(),
+            source = character(),
+            rowid = integer()
+        )
+        if (length(ids) > 0L) {
+            quoted <- paste(sprintf("'%s'", gsub("'", "''", ids)), collapse = ", ")
+            hist0 <- tryCatch(
+                db_get(sprintf(
+                    paste(
+                        "SELECT nest_id, date, time_visit, pk, nest_state, hatch_state,",
+                        "clutch_size, brood_size FROM NESTS WHERE nest_id IN (%s)"
+                    ),
+                    quoted
+                )),
+                error = function(e) NULL
+            )
+            if (!is.null(hist0) && nrow(hist0) > 0L) {
+                hist0 <- data.table::as.data.table(hist0)
+                for (column in c("nest_id", "date", "time_visit", "pk", "nest_state", "hatch_state", "clutch_size", "brood_size")) {
+                    if (!column %in% names(hist0)) {
+                        hist0[, (column) := NA_character_]
+                    }
+                }
+                hist <- hist0[, .(
+                    nest_key = norm_chr(nest_id),
+                    event_date = suppressWarnings(as.Date(norm_chr(date), format = "%Y-%m-%d")),
+                    event_time = norm_time_seconds(time_visit),
+                    pk_num = suppressWarnings(as.numeric(as.character(pk))),
+                    nest_state = norm_chr(nest_state),
+                    species_key = NA_character_,
+                    site_key = NA_character_,
+                    clutch_num = suppressWarnings(as.numeric(as.character(clutch_size))),
+                    brood_num = suppressWarnings(as.numeric(as.character(brood_size))),
+                    hatch_state_key = norm_chr(hatch_state),
+                    hatch_sign = has_hatch_sign(hatch_state),
+                    source = "db",
+                    rowid = NA_integer_
+                )]
+            }
+        }
+        current_hist <- z[, .(
+            nest_key,
+            event_date,
+            event_time,
+            pk_num,
+            nest_state = nest_state_key,
+            species_key,
+            site_key,
+            clutch_num,
+            brood_num,
+            hatch_state_key,
+            hatch_sign,
+            source,
+            rowid
+        )]
+        all_nests <- data.table::rbindlist(list(hist, current_hist), use.names = TRUE, fill = TRUE)
+        all_nests <- all_nests[
+            !is.na(nest_key) & nzchar(nest_key) &
+                !is.na(event_date) & !is.na(event_time)
+        ]
+        if (nrow(all_nests) == 0L) {
+            empty
+        } else {
+            all_nests[, `:=`(
+                source_ord = ifelse(source == "db", 0L, 1L),
+                pk_missing = is.na(pk_num)
+            )]
+            data.table::setorder(
+                all_nests,
+                nest_key,
+                event_date,
+                event_time,
+                pk_missing,
+                pk_num,
+                source_ord,
+                rowid,
+                na.last = TRUE
+            )
+            all_nests[, `:=`(
+                previous_hatch_sign = data.table::shift(hatch_sign)
+            ), by = nest_key]
+            current_rows <- all_nests[
+                source == "current" &
+                    species_key == "BADO" &
+                    site_key == "CR"
+            ]
+            bad <- current_rows[
+                nest_state == "H" &
+                    !is.na(event_date) &
+                    !is.na(event_time) &
+                    clutch_num > 0 &
+                    brood_num > 0 &
+                    previous_hatch_sign == TRUE &
+                    !has_hatch_sign(hatch_state_key),
+                .(
+                    rowid,
+                    variable = "hatch_state",
+                    reason = "Hatching appears to be asynchronous: the previous nest visit recorded hatch signs and this visit still reports unhatched egg(s) and chick(s), but hatch_state is missing or lacks a hatch-sign code. Record the observed current hatch_state."
+                )
+            ]
+            if (nrow(bad) == 0L) empty else unique(bad)
+        }
+    }, nam = "asynchronous hatch_state")
+    out <- data.table::as.data.table(out)
+    if ("reason" %in% names(out)) {
+        out[, `:=`(reason, {
+            cleaned <- sub("^(ERROR|WARNING):\\s*", "", as.character(reason))
+            cleaned[is.na(reason)] <- NA_character_
+            ok_idx <- !is.na(cleaned) & nzchar(cleaned)
+            cleaned[ok_idx] <- paste0(
+                cleaned[ok_idx],
+                " Please double-check this entry. If it is correct, add a validator bypass comment to the event."
+            )
+            cleaned
+        })]
+    }
+    if ("type" %in% names(out)) {
+        out[, `:=`(type, NULL)]
+    }
+    out
+}, {
+    out <- try_validator({
+        empty <- data.table::data.table(rowid = integer(), variable = character(), reason = character())
         one_chr <- function(v) {
             raw <- trimws(as.character(v[[1]]))
             if (length(raw) == 0 || is.na(v[[1]]) || !nzchar(raw) || raw == "NA") {
@@ -404,7 +590,8 @@ list({
                     clutch_size == 0 &
                     brood_size >= 1 &
                     previous_state == "H" &
-                    previous_clutch == 0 &
+                    !is.na(previous_clutch) &
+                    previous_clutch >= 0 &
                     previous_brood >= 1,
                 rowid
             ]

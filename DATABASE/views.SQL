@@ -5628,10 +5628,20 @@ todo_nest_check AS (
       COALESCE(
         NULLIF(TRIM(active_nests.hatch_state), ''),
         'not recorded'
-      )
+      ),
+      CASE
+        WHEN UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) = 'H'
+         AND COALESCE(active_nests.clutch_size, 0) > 0
+        THEN '; unhatched eggs remain'
+        ELSE ''
+      END
     ) AS notes,
     CASE
       WHEN active_nests.hatch_signs_present = 1
+        OR (
+          UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) = 'H'
+          AND COALESCE(active_nests.clutch_size, 0) > 0
+        )
       THEN GREATEST(0, active_nests.days_ago - 1)
       ELSE GREATEST(
         0,
@@ -5641,6 +5651,10 @@ todo_nest_check AS (
     END AS days_overdue,
     CASE
       WHEN active_nests.hatch_signs_present = 1
+        OR (
+          UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) = 'H'
+          AND COALESCE(active_nests.clutch_size, 0) > 0
+        )
       THEN 500 + GREATEST(0, active_nests.days_ago - 1)
       ELSE 300
         + GREATEST(
@@ -5667,6 +5681,11 @@ todo_nest_check AS (
     AND (
       (
         active_nests.hatch_signs_present = 1
+        AND active_nests.days_ago >= 1
+      )
+      OR (
+        UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) = 'H'
+        AND COALESCE(active_nests.clutch_size, 0) > 0
         AND active_nests.days_ago >= 1
       )
       OR (
