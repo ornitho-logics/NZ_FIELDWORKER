@@ -115,8 +115,7 @@ test_that("overview graph helpers use aligned reference-date queries", {
 
     if (grepl("parent_events AS", sql, fixed = TRUE)) {
       return(data.frame(
-        n_confirmed_pairs = 0,
-        n_pairs_total = 0
+        n_unconfirmed_pairs = 0
       ))
     }
 
@@ -190,7 +189,7 @@ test_that("overview graph helpers use aligned reference-date queries", {
   expect_match(queries[[2]]$sql, "COALESCE(site, ''))) = 'CR'", fixed = TRUE)
   expect_match(queries[[3]]$sql, "COALESCE(site, ''))) = 'CR'", fixed = TRUE)
   expect_match(queries[[4]]$sql, "parent_events AS", fixed = TRUE)
-  expect_match(queries[[4]]$sql, "n_confirmed_pairs", fixed = TRUE)
+  expect_match(queries[[4]]$sql, "n_unconfirmed_pairs", fixed = TRUE)
   expect_match(queries[[4]]$sql, "identity_match", fixed = TRUE)
   expect_match(queries[[4]]$sql, "n_matching_post_mm_resightings", fixed = TRUE)
   expect_match(queries[[4]]$sql, "requires_spacer_identity", fixed = TRUE)
@@ -267,7 +266,7 @@ test_that("pair tally does not fall back to the obsolete heuristic", {
       return(data.frame(error = "mock database does not support the extended pair query"))
     }
 
-    data.frame(n_confirmed_pairs = 19L, n_pairs_total = 25L)
+    data.frame(n_unconfirmed_pairs = 17L)
   }
 
   expect_error(
@@ -294,11 +293,11 @@ test_that("pair protocol caption is shown under both pair-tally panels", {
       grepl("parent_events AS", sql, fixed = TRUE) &&
         grepl("m.has_geolocator = 1", sql, fixed = TRUE)
     ) {
-      return(data.frame(n_confirmed_pairs = 2L, n_pairs_total = 19L))
+      return(data.frame(n_unconfirmed_pairs = 17L))
     }
 
     if (grepl("parent_events AS", sql, fixed = TRUE)) {
-      return(data.frame(n_confirmed_pairs = 3L, n_pairs_total = 20L))
+      return(data.frame(n_unconfirmed_pairs = 17L))
     }
 
     data.frame()
@@ -306,11 +305,11 @@ test_that("pair protocol caption is shown under both pair-tally panels", {
 
   expect_equal(
     app$env$overview_pair_tallies(refdate, require_geolocator = TRUE),
-    c(confirmed_pairs = 2L, total_pairs = 19L)
+    c(unconfirmed_pairs = 17L)
   )
   expect_equal(
     app$env$overview_pair_tallies(refdate, require_geolocator = FALSE),
-    c(confirmed_pairs = 3L, total_pairs = 20L)
+    c(unconfirmed_pairs = 17L)
   )
 
   geolocator_plot <- app$env$overview_geolocator_graph(refdate)
