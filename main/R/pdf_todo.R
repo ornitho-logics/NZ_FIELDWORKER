@@ -772,7 +772,7 @@ todo_pdf_heading <- function(todo_name) {
     ),
     "Parent resighting" = list(
       title = "Parents to resight for nest association",
-      subtitle = "Association of MM-cap parent will resolve after either 1) three subsequent resightings, or 2) one ‘behav’ “IN”, “NM”, or “BW” resighting"
+      subtitle = "Association of MM-cap parent resolved after either 1) three subsequent resightings, or 2) one ‘behav’ “IN”, “NM”, “BW”, “BC”, “FC” resighting"
     ),
     "Untrapped brood" = list(
       title = "Broods to band",
@@ -816,7 +816,7 @@ todo_pdf_note_key <- function(notes = character()) {
     list(
       label = "MM cap",
       pattern = "MM cap",
-      text = "Captured with mobile mist net. Three subsequent nest-linked resightings with matching sex and identity confirms association OR a single nest-linked resighting with behav 'IN', 'NM', or 'BW'."
+      text = "Captured with mobile mist net. Three subsequent nest-linked resightings with matching sex and identity confirms association OR a single nest-linked resighting with behav 'IN', 'NM', 'BW', 'BC', or 'FC'."
     ),
     list(
       label = "Pair completion",
