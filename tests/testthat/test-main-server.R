@@ -205,6 +205,16 @@ test_that("overview graph helpers use aligned reference-date queries", {
     "COALESCE(f.n_matching_post_mm_resightings, 0) < 3",
     fixed = TRUE
   )
+  expect_match(
+    queries[[4]]$sql,
+    "FROM capture_events c\n  WHERE c.mark IS NOT NULL",
+    fixed = TRUE
+  )
+  expect_match(
+    queries[[4]]$sql,
+    "mm_xx_parent_confirmed = 1 OR mm_resight_pending = 1",
+    fixed = TRUE
+  )
   expect_match(queries[[5]]$sql, "FROM deployments d", fixed = TRUE)
   expect_match(queries[[5]]$sql, "r.comments", fixed = TRUE)
   expect_match(
@@ -246,7 +256,7 @@ test_that("overview graph helpers use aligned reference-date queries", {
 })
 
 
-test_that("pair tally falls back when the extended query is unavailable", {
+test_that("pair tally does not fall back to the obsolete heuristic", {
   app <- load_main_app()
   calls <- 0L
 
@@ -257,20 +267,17 @@ test_that("pair tally falls back when the extended query is unavailable", {
       stop("mock database does not support the extended pair query")
     }
 
-    data.frame(
-      n_confirmed_pairs = 2L,
-      n_pairs_total = 3L
-    )
+    data.frame(n_confirmed_pairs = 19L, n_pairs_total = 25L)
   }
 
-  expect_equal(
+  expect_error(
     app$env$overview_pair_tallies(
       refdate = as.Date("2026-07-21"),
       require_geolocator = TRUE
     ),
-    c(confirmed_pairs = 2L, total_pairs = 3L)
+    "mock database does not support the extended pair query"
   )
-  expect_equal(calls, 2L)
+  expect_equal(calls, 1L)
 })
 
 
@@ -376,11 +383,13 @@ test_that("hatching forecast uses one-day bins, three-day labels, and marks refe
   ))
   expect_length(histogram_index, 1L)
   expect_equal(plot$layers[[histogram_index]]$stat_params$binwidth, 1)
-  expect_true(any(vapply(
+  vline_index <- which(vapply(
     plot$layers,
     function(layer) inherits(layer$geom, "GeomVline"),
     logical(1)
-  )))
+  ))
+  expect_length(vline_index, 1L)
+  expect_gt(vline_index, histogram_index)
   reference_label <- vapply(
     plot$layers,
     function(layer) {
