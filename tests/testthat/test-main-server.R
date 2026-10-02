@@ -256,7 +256,7 @@ test_that("overview graph helpers use aligned reference-date queries", {
 })
 
 
-test_that("pair tally falls back when the extended query is unavailable", {
+test_that("pair tally does not fall back to the obsolete heuristic", {
   app <- load_main_app()
   calls <- 0L
 
@@ -264,20 +264,20 @@ test_that("pair tally falls back when the extended query is unavailable", {
     calls <<- calls + 1L
 
     if (grepl("identity_match", sql, fixed = TRUE)) {
-      stop("mock database does not support the extended pair query")
+      return(data.frame(error = "mock database does not support the extended pair query"))
     }
 
     data.frame(n_confirmed_pairs = 19L, n_pairs_total = 25L)
   }
 
-  expect_equal(
+  expect_error(
     app$env$overview_pair_tallies(
       refdate = as.Date("2026-07-21"),
       require_geolocator = TRUE
     ),
-    c(confirmed_pairs = 19L, total_pairs = 25L)
+    "mock database does not support the extended pair query"
   )
-  expect_equal(calls, 2L)
+  expect_equal(calls, 1L)
 })
 
 
