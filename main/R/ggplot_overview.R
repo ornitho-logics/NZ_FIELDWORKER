@@ -63,7 +63,7 @@ overview_date_scale <- function() {
 overview_hatching_date_scale <- function() {
   scale_x_date(
     date_labels = "%d %b",
-    date_breaks = "7 days"
+    date_breaks = "3 days"
   )
 }
 
@@ -120,7 +120,7 @@ overview_hatching_forecast_plot <- function(
   refdate <- as.Date(refdate)
   x <- data.table(x)
   forecast_start <- refdate + 1L
-  empty_limits <- c(forecast_start, forecast_start + binwidth)
+  empty_limits <- c(refdate - 3L, forecast_start + binwidth)
 
   base <- overview_histogram_base("N anticipated hatching events") +
     overview_hatching_date_scale() +
@@ -129,6 +129,17 @@ overview_hatching_forecast_plot <- function(
       color = "red",
       linewidth = 0.8,
       linetype = "solid"
+    ) +
+    annotate(
+      "text",
+      x = refdate - 1L,
+      y = Inf,
+      label = "reference date",
+      angle = 90,
+      hjust = 1.05,
+      vjust = 0.5,
+      color = "red",
+      size = 4
     )
 
   if (!nrow(x) || !"datetime" %in% names(x)) {
@@ -144,7 +155,7 @@ overview_hatching_forecast_plot <- function(
 
   max_date <- max(x$plot_date, na.rm = TRUE)
   plot_limits <- c(
-    forecast_start,
+    refdate - 3L,
     max(max_date, forecast_start + binwidth)
   )
 
