@@ -123,14 +123,15 @@ overview_hatching_forecast_plot <- function(
   empty_limits <- c(refdate - 3L, forecast_start + binwidth)
 
   base <- overview_histogram_base("N anticipated hatching events") +
-    overview_hatching_date_scale() +
-    geom_vline(
-      xintercept = refdate,
-      color = "red",
-      linewidth = 0.8,
-      linetype = "solid"
-    ) +
-    annotate(
+    overview_hatching_date_scale()
+
+  reference_vline <- geom_vline(
+    xintercept = refdate,
+    color = "red",
+    linewidth = 0.8,
+    linetype = "solid"
+  )
+  reference_label <- annotate(
       "text",
       x = refdate - 1L,
       y = Inf,
@@ -143,14 +144,24 @@ overview_hatching_forecast_plot <- function(
     )
 
   if (!nrow(x) || !"datetime" %in% names(x)) {
-    return(base + overview_date_coordinates(empty_limits))
+    return(
+      base +
+        reference_vline +
+        reference_label +
+        overview_date_coordinates(empty_limits)
+    )
   }
 
   x[, plot_date := as.Date(as.character(datetime))]
   x <- x[!is.na(plot_date) & plot_date >= forecast_start]
 
   if (!nrow(x)) {
-    return(base + overview_date_coordinates(empty_limits))
+    return(
+      base +
+        reference_vline +
+        reference_label +
+        overview_date_coordinates(empty_limits)
+    )
   }
 
   max_date <- max(x$plot_date, na.rm = TRUE)
@@ -168,6 +179,8 @@ overview_hatching_forecast_plot <- function(
       fill = "#6d7577",
       color = "white"
     ) +
+    reference_vline +
+    reference_label +
     overview_date_coordinates(plot_limits)
 }
 
@@ -739,6 +752,7 @@ overview_pair_tallies_current <- function(
       "    c.mark, c.is_confirmed_xx, c.has_geolocator, c.is_dead,",
       "    CASE WHEN c.has_geolocator = 1 OR UPPER(COALESCE(c.mark, '')) REGEXP '(^|[.-])T[A-Z0-9]*($|[.-])' THEN 1 ELSE 0 END AS tag_segment_rank",
       "  FROM capture_events c",
+      "  WHERE c.mark IS NOT NULL",
       "  UNION ALL",
       "  SELECT",
       "    r.nest_id, r.sex, r.event_date, NULL AS event_datetime, r.event_pk,",
@@ -859,7 +873,8 @@ overview_pair_tallies_current <- function(
       "parent_events AS (",
       "  SELECT",
       "    nest_id, sex,",
-      "    CASE WHEN mm_xx_parent_confirmed = 1 THEN 0 ELSE has_geolocator END AS has_geolocator,",
+      "    CASE WHEN mm_xx_parent_confirmed = 1 OR mm_resight_pending = 1",
+      "      THEN 0 ELSE has_geolocator END AS has_geolocator,",
       "    CASE WHEN mm_resight_pending = 1 THEN 0 ELSE 1 END AS association_confirmed,",
       "    CASE WHEN selected_mark IS NOT NULL",
       "      AND LOWER(selected_mark) <> 'dead'",
@@ -910,19 +925,12 @@ overview_pair_tallies <- function(
   refdate = get_reference_date(),
   require_geolocator = TRUE
 ) {
-  tryCatch(
-    overview_pair_tallies_current(
-      refdate = refdate,
-      require_geolocator = require_geolocator
-    ),
-    error = function(error) {
-      # Keep the dashboard panels usable when a deployed database is missing
-      # a newer routine or cannot execute the extended pair-scoring query.
-      overview_pair_tallies_legacy(
-        refdate = refdate,
-        require_geolocator = require_geolocator
-      )
-    }
+  # The legacy heuristic treated every non-MM capture as confirmed and could
+  # overstate pair counts. The protocol-aware query is authoritative; do not
+  # silently replace it with the obsolete fallback when it cannot run.
+  overview_pair_tallies_current(
+    refdate = refdate,
+    require_geolocator = require_geolocator
   )
 }
 

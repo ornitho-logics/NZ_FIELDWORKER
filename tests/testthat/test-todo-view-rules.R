@@ -383,6 +383,29 @@ test_that("hatch-stage parent work bypasses the clutch-age gate", {
 })
 
 
+test_that("partial H visits remain in potential-hatch checks", {
+  sql <- todo_list_view_sql()
+
+  expect_match(
+    sql,
+    "UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) = 'H'\n        AND COALESCE(active_nests.clutch_size, 0) > 0\n        AND active_nests.days_ago >= 1",
+    fixed = TRUE
+  )
+  expect_match(sql, "'; unhatched eggs remain'", fixed = TRUE)
+
+  asynchronous_hatch_check <- function(nest_state, clutch_size, days_ago) {
+    toupper(trimws(nest_state)) == "H" &&
+      !is.na(clutch_size) && clutch_size > 0 &&
+      days_ago >= 1
+  }
+
+  expect_true(asynchronous_hatch_check("H", 1, 1))
+  expect_false(asynchronous_hatch_check("H", 0, 1))
+  expect_false(asynchronous_hatch_check("H", 1, 0))
+  expect_false(asynchronous_hatch_check("I", 1, 1))
+})
+
+
 test_that("pending MM parents stay in resighting rather than capture work", {
   sql <- todo_list_view_sql()
 
