@@ -5702,7 +5702,14 @@ todo_untrapped_brood AS (
     brood_followup_nests.nest_id,
     brood_followup_nests.reference_date,
     'Untrapped brood' AS todo,
-    'no chick captures' AS notes,
+    CASE
+      WHEN DATEDIFF(
+             brood_followup_nests.hatch_date,
+             brood_followup_nests.reference_date
+           ) <= -21
+      THEN 'no chick captures; chicks old enough for leg flags'
+      ELSE 'no chick captures'
+    END AS notes,
     DATEDIFF(
       brood_followup_nests.reference_date,
       brood_followup_nests.hatch_date
@@ -5734,7 +5741,12 @@ todo_untrapped_brood AS (
     b.nest_id,
     b.reference_date,
     'Untrapped brood' AS todo,
-    'no chick captures' AS notes,
+    CASE
+      WHEN b.discovery_date IS NOT NULL
+       AND DATEDIFF(b.reference_date, b.discovery_date) >= 21
+      THEN 'no chick captures; chicks old enough for leg flags'
+      ELSE 'no chick captures'
+    END AS notes,
     DATEDIFF(b.reference_date, b.discovery_date) AS days_overdue,
     450 + DATEDIFF(b.reference_date, b.discovery_date) AS priority,
     CAST(NULL AS SIGNED) AS min_days_to_hatch,
