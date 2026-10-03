@@ -187,6 +187,27 @@ test_that("hiding-photo TODO counts distinct captured and photographed rings", {
 })
 
 
+test_that("hatch prediction includes complete-clutch and stable one-egg fallbacks", {
+  sql <- views_source_sql()
+
+  expect_match(sql, "latest_clutch_ranked AS", fixed = TRUE)
+  expect_match(sql, "complete_clutch_status AS", fixed = TRUE)
+  expect_match(sql, "stable_one_egg_status AS", fixed = TRUE)
+  expect_match(
+    sql,
+    "DATEDIFF(sr.reference_date, latest.date) >= 2",
+    fixed = TRUE
+  )
+  expect_match(sql, "'complete clutch chronology'", fixed = TRUE)
+  expect_match(sql, "'stable one-egg/no increase'", fixed = TRUE)
+  expect_match(
+    sql,
+    "'complete clutch chronology',\n    'stable one-egg/no increase'",
+    fixed = TRUE
+  )
+})
+
+
 test_that("MM parent follow-up accepts qualifying behaviour or three matching resightings", {
   sql <- todo_list_view_sql()
 
@@ -652,7 +673,7 @@ test_that("pending MM parents stay in resighting rather than capture work", {
 })
 
 
-test_that("pair completion requires a confirmed GEO association", {
+test_that("pair completion can proceed while opposite MM follow-up remains separate", {
   sql <- todo_list_view_sql()
 
   expect_match(sql, "THEN '; status ?'", fixed = TRUE)
@@ -671,12 +692,12 @@ test_that("pair completion requires a confirmed GEO association", {
 
   expect_match(
     sql,
-    "COALESCE(base.F_captured_has_geo, 0) = 1\n                   AND (\n                     COALESCE(base.F_mm_resight_pending, 0) = 0\n                     OR COALESCE(base.M_confirmed_unbanded, 0) = 1\n                   )",
+    "COALESCE(base.F_captured_has_geo, 0) = 1",
     fixed = TRUE
   )
   expect_match(
     sql,
-    "COALESCE(base.M_captured_has_geo, 0) = 1\n                   AND (\n                     COALESCE(base.M_mm_resight_pending, 0) = 0\n                     OR COALESCE(base.F_confirmed_unbanded, 0) = 1\n                   )",
+    "COALESCE(base.M_captured_has_geo, 0) = 1",
     fixed = TRUE
   )
 
@@ -691,10 +712,7 @@ test_that("pair completion requires a confirmed GEO association", {
     if (
       male_tag_eligible &&
         male_quota_remaining > 0 &&
-        (
-          female_has_geo ||
-            (female_captured_has_geo && !female_mm_pending)
-        )
+        (female_has_geo || female_captured_has_geo)
     ) {
       return("M")
     }
@@ -710,7 +728,7 @@ test_that("pair completion requires a confirmed GEO association", {
   )
   expect_identical(
     pair_target(TRUE, 1, 1, FALSE, TRUE, TRUE),
-    NULL
+    "M"
   )
 })
 
@@ -805,8 +823,7 @@ test_that("one tagged parent produces pair completion without deployment-date ga
       female_tagged &&
         !male_tagged &&
         male_tag_eligible &&
-        male_quota_remaining > 0 &&
-        !female_mm_pending
+        male_quota_remaining > 0
     ) {
       return("M")
     }
@@ -814,8 +831,7 @@ test_that("one tagged parent produces pair completion without deployment-date ga
       male_tagged &&
         !female_tagged &&
         female_tag_eligible &&
-        female_quota_remaining > 0 &&
-        !male_mm_pending
+        female_quota_remaining > 0
     ) {
       return("F")
     }
@@ -841,14 +857,15 @@ test_that("one tagged parent produces pair completion without deployment-date ga
     parent_capture_note(pair_completion_target(TRUE, FALSE)),
     "tag F (pair completion)"
   )
-  # MM uncertainty still belongs in Parents to resight, not pair completion.
+  # MM uncertainty remains a Parents-to-resight task, but does not suppress
+  # the opposite mate's pair-completion capture target.
   expect_identical(
     pair_completion_target(
       FALSE,
       TRUE,
       female_mm_pending = TRUE
     ),
-    NULL
+    "M"
   )
   expect_identical(
     pair_completion_target(
@@ -856,7 +873,7 @@ test_that("one tagged parent produces pair completion without deployment-date ga
       FALSE,
       male_mm_pending = TRUE
     ),
-    NULL
+    "F"
   )
   # Quota and parent eligibility remain authoritative.
   expect_identical(
@@ -875,15 +892,32 @@ test_that("confirmed X-X alternate parent can complete a tagged pair", {
 
   expect_match(
     sql,
-    "COALESCE(base.M_captured_has_geo, 0) = 1\n                   AND (\n                     COALESCE(base.M_mm_resight_pending, 0) = 0\n                     OR COALESCE(base.F_confirmed_unbanded, 0) = 1\n                   )",
+    "COALESCE(base.M_captured_has_geo, 0) = 1",
     fixed = TRUE
   )
   expect_match(
     sql,
-    "COALESCE(base.F_captured_has_geo, 0) = 1\n                   AND (\n                     COALESCE(base.F_mm_resight_pending, 0) = 0\n                     OR COALESCE(base.M_confirmed_unbanded, 0) = 1\n                   )",
+    "COALESCE(base.F_captured_has_geo, 0) = 1",
+    fixed = TRUE
+  )
+  expect_no_match(
+    sql,
+    "COALESCE(base.M_captured_has_geo, 0) = 1\n                   AND (",
+    fixed = TRUE
+  )
+  expect_no_match(
+    sql,
+    "COALESCE(base.F_captured_has_geo, 0) = 1\n                   AND (",
     fixed = TRUE
   )
   expect_match(sql, "THEN 'X-X F'", fixed = TRUE)
+  expect_match(sql, "THEN '; CORRECT DUPLICATE'", fixed = TRUE)
+  expect_match(
+    sql,
+    "active_nests.nest_id = 'B2203'",
+    fixed = TRUE
+  )
+  expect_match(sql, "'F: CORRECT DUPLICATE'", fixed = TRUE)
 
   pair_completion_target <- function(
     target_sex,
@@ -898,8 +932,7 @@ test_that("confirmed X-X alternate parent can complete a tagged pair", {
       target_sex == "F" &&
         target_tag_eligible &&
         target_quota_remaining > 0 &&
-        opposite_captured_has_geo &&
-        (!opposite_mm_pending || alternate_parent_resolves)
+        opposite_captured_has_geo
     ) {
       return("F")
     }
@@ -915,14 +948,51 @@ test_that("confirmed X-X alternate parent can complete a tagged pair", {
     paste0("tag ", target_label, " (pair completion)")
   }
 
+  corrected_pair_note <- function(nest_id, target_sex, target_mark) {
+    note <- pair_note(target_sex, target_mark)
+    if (identical(nest_id, "C2208") && identical(target_sex, "M")) {
+      paste0(note, "; CORRECT DUPLICATE")
+    } else {
+      note
+    }
+  }
+
   expect_identical(
     pair_completion_target("F", TRUE, TRUE, TRUE),
+    "F"
+  )
+  expect_identical(
+    pair_completion_target("F", FALSE, TRUE, TRUE),
     "F"
   )
   expect_identical(
     pair_note("F", "X-X"),
     "tag X-X F (pair completion)"
   )
+  expect_identical(
+    corrected_pair_note("C2208", "M", "YO-GR"),
+    "tag M (pair completion); CORRECT DUPLICATE"
+  )
+  expect_identical(
+    corrected_pair_note("C9999", "M", "YO-GR"),
+    "tag M (pair completion)"
+  )
+
+  duplicate_correction_note <- function(nest_id, female_mark) {
+    if (
+      identical(nest_id, "B2203") &&
+        identical(female_mark, "YY-TB.BL")
+    ) {
+      "F: CORRECT DUPLICATE"
+    } else {
+      NA_character_
+    }
+  }
+  expect_identical(
+    duplicate_correction_note("B2203", "YY-TB.BL"),
+    "F: CORRECT DUPLICATE"
+  )
+  expect_true(is.na(duplicate_correction_note("B2203", "YY-TB.BW")))
   expect_null(
     pair_completion_target("F", TRUE, TRUE, TRUE, target_tag_eligible = FALSE)
   )

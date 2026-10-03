@@ -235,7 +235,8 @@ todo_pdf_prepare_nest_summary <- function(
   reference_date,
   todo = NULL,
   chick_captures = NULL,
-  unseen_tagged_birds = NULL
+  unseen_tagged_birds = NULL,
+  hatch_prediction = NULL
 ) {
   nests <- data.table(nests_latest)
   todo_dt <- data.table(todo)
@@ -385,6 +386,45 @@ todo_pdf_prepare_nest_summary <- function(
       Female = as.character(F_mark)
     )
   ]
+
+  # Reuse no-float chronology predictions from EGGS_HATCH_PREDICTION for
+  # summary rows that are not represented by a current TODO_LIST task.
+  if (
+    !is.null(hatch_prediction)
+      && nrow(hatch_prediction)
+      && all(c(
+        "nest_id", "calibration_match_type", "days_to_hatch"
+      ) %in% names(hatch_prediction))
+  ) {
+    prediction <- data.table(hatch_prediction)
+    prediction[, nest_id := trimws(as.character(nest_id))]
+    prediction <- prediction[
+      calibration_match_type %chin% c(
+        "complete clutch chronology",
+        "stable one-egg/no increase"
+      )
+        & !is.na(nest_id)
+        & nzchar(nest_id)
+        & !is.na(todo_pdf_as_numeric(days_to_hatch))
+    ]
+    if (nrow(prediction)) {
+      prediction <- prediction[
+        , .(prediction_hatch = todo_pdf_as_numeric(days_to_hatch)[1L]),
+        by = nest_id
+      ]
+      setnames(prediction, "nest_id", "Nest")
+      summary <- merge(summary, prediction, by = "Nest", all.x = TRUE, sort = FALSE)
+      summary[
+        !is.na(prediction_hatch),
+        `Est. Hatch` := format(
+          prediction_hatch,
+          trim = TRUE,
+          scientific = FALSE
+        )
+      ]
+      summary[, prediction_hatch := NULL]
+    }
+  }
 
   # Task rows already carry the authoritative reference-date hatch interval.
   # Reuse it for matching summary rows so the PDF does not show conflicting
@@ -542,7 +582,8 @@ todo_pdf_prepare <- function(
   available_combos = NULL,
   nests_latest = NULL,
   chick_captures = NULL,
-  unseen_tagged_birds = NULL
+  unseen_tagged_birds = NULL,
+  hatch_prediction = NULL
 ) {
   todo_dt <- data.table(todo)
   refdate <- as.Date(todo_dt$reference_date[1])
@@ -578,6 +619,15 @@ todo_pdf_prepare <- function(
   }
 
   parent_todos <- c("Parent capture", "Parent resighting")
+  nest_check_hatch_text <- trimws(sub(
+    ";.*$",
+    "",
+    sub(
+      "^.*Last visit:[[:space:]]*",
+      "",
+      as.character(todo_dt$notes)
+    )
+  ))
   todo_dt[, let(
     pdf_geo_sort_group = fcase(
       todo == "Parent capture", 0,
@@ -594,6 +644,30 @@ todo_pdf_prepare <- function(
     pdf_geo_priority = fifelse(
       todo == "Parent capture",
       geo_priority_rank,
+      NA_real_
+    ),
+    pdf_nest_check_unhatched = fifelse(
+      todo == "nest check"
+        & grepl(
+          "unhatched egg(s)",
+          as.character(notes),
+          fixed = TRUE
+        ),
+      0,
+      NA_real_
+    ),
+    pdf_nest_check_hatch_state = fifelse(
+      todo == "nest check",
+      fifelse(
+        grepl("[CS]", toupper(nest_check_hatch_text)),
+        0,
+        1
+      ),
+      NA_real_
+    ),
+    pdf_nest_check_hatch = fifelse(
+      todo == "nest check",
+      min_days_to_hatch,
       NA_real_
     ),
     pdf_sort_primary = fifelse(
@@ -613,6 +687,9 @@ todo_pdf_prepare <- function(
       todo,
       pdf_geo_sort_group,
       pdf_hatching_sort_group,
+      pdf_nest_check_unhatched,
+      pdf_nest_check_hatch_state,
+      pdf_nest_check_hatch,
       pdf_sort_primary,
       pdf_sort_secondary,
       pdf_geo_priority,
@@ -833,7 +910,8 @@ todo_pdf_prepare <- function(
       refdate,
       todo_dt,
       chick_captures,
-      unseen_tagged_birds
+      unseen_tagged_birds,
+      hatch_prediction
     )
   )
 }
@@ -1497,7 +1575,8 @@ todo_pdf_save <- function(
   nests_latest = NULL,
   chick_captures = NULL,
   unseen_tagged_birds = NULL,
-  broods_latest = NULL
+  broods_latest = NULL,
+  hatch_prediction = NULL
 ) {
   if (is.null(broods_latest)) {
     if (is.null(nests_latest)) {
@@ -1540,12 +1619,18 @@ todo_pdf_save <- function(
       ORDER BY days_since_cap DESC, mark, nest_id
     ")
   }
+  if (is.null(hatch_prediction)) {
+    hatch_prediction <- DBq(
+      "SELECT * FROM EGGS_HATCH_PREDICTION"
+    )
+  }
   pdf <- todo_pdf_prepare(
     todo,
     available_combos,
     broods_latest,
     chick_captures,
-    unseen_tagged_birds
+    unseen_tagged_birds,
+    hatch_prediction
   )
 
   todo_pdf_map_save(
