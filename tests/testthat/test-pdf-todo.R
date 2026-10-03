@@ -468,6 +468,51 @@ test_that("notA task rows remain available to the PDF summary and map", {
 })
 
 
+test_that("tagged capture tasks receive a white map outline and legend entry", {
+  app <- load_main_app()
+  prepare_map <- app$env$.todo_pdf_map_prepare_nests
+
+  todo <- data.frame(
+    nest_id = c("B2203", "B0207", "B0208"),
+    todo = c("Parent capture", "Parent capture", "Parent resighting"),
+    notes = c(
+      "F: CORRECT DUPLICATE",
+      "tag M (pair completion)",
+      "resight M (status ?)"
+    ),
+    lat = c(-43.1, -43.2, -43.3),
+    lon = c(170.1, 170.2, 170.3),
+    stringsAsFactors = FALSE
+  )
+  nests <- data.frame(
+    nest_id = c("B2203", "B0207", "B0208"),
+    nest_state = rep("I", 3),
+    lat = c(-43.1, -43.2, -43.3),
+    lon = c(170.1, 170.2, 170.3),
+    has_hatch_evidence = rep(FALSE, 3),
+    is_negative_brood = rep(FALSE, 3),
+    stringsAsFactors = FALSE
+  )
+
+  mapped <- prepare_map(
+    todo = todo,
+    chick_captures = data.frame(),
+    nests_latest = nests
+  )
+
+  expect_true("tag_capture" %in% names(mapped))
+  expect_false(mapped$tag_capture[mapped$nest_id == "B2203"])
+  expect_true(mapped$tag_capture[mapped$nest_id == "B0207"])
+  expect_false(mapped$tag_capture[mapped$nest_id == "B0208"])
+
+  legend <- app$env$.todo_pdf_map_legend()
+  fill_scale <- legend$scales$get_scales("fill")
+  expect_true(
+    "Capture (deploy tag if outlined in white)." %in% fill_scale$get_labels()
+  )
+})
+
+
 test_that("parent summary displays hatch intervals", {
   app <- load_main_app()
   prepare_summary <- app$env$todo_pdf_prepare_nest_summary
@@ -540,6 +585,47 @@ test_that("parent summary reuses task hatch intervals", {
   expect_identical(
     summary[summary$Nest == "C0212", `Est. Hatch`],
     "5"
+  )
+})
+
+
+test_that("parent summary uses no-float hatch predictions", {
+  app <- load_main_app()
+  prepare_summary <- app$env$todo_pdf_prepare_nest_summary
+
+  nests <- data.frame(
+    nest_id = c("B0616", "C0504"),
+    nest_state = c("I", "F"),
+    min_days_to_hatch = c(NA, NA),
+    M_mark = c("MOCK-M1", "MOCK-M2"),
+    F_mark = c("MOCK-F1", "MOCK-F2"),
+    stringsAsFactors = FALSE
+  )
+  hatch_prediction <- data.frame(
+    nest_id = c("B0616", "C0504"),
+    calibration_match_type = c(
+      "complete clutch chronology",
+      "stable one-egg/no increase"
+    ),
+    days_to_hatch = c(23, 23),
+    stringsAsFactors = FALSE
+  )
+
+  summary <- prepare_summary(
+    nests,
+    as.Date("2026-10-04"),
+    todo = data.frame(),
+    chick_captures = data.frame(),
+    hatch_prediction = hatch_prediction
+  )
+
+  expect_identical(
+    summary[summary$Nest == "B0616", `Est. Hatch`],
+    "23"
+  )
+  expect_identical(
+    summary[summary$Nest == "C0504", `Est. Hatch`],
+    "23"
   )
 })
 
@@ -831,4 +917,45 @@ test_that("parent summary keeps a larger adaptive vertical row inset", {
   )
 
   expect_true(grepl("inset: \\(x: 2.2pt, y: 4.05pt\\)", output))
+})
+
+
+test_that("potential hatch checks prioritize unhatched eggs, hatch signs, then estimate", {
+  app <- load_main_app()
+  todo <- data.frame(
+    nest_id = c(
+      "MOCK_N_LATE", "MOCK_UNHATCHED", "MOCK_CS", "MOCK_C", "MOCK_N_EARLY"
+    ),
+    reference_date = as.Date(rep("2026-10-04", 5)),
+    todo = rep("nest check", 5),
+    notes = c(
+      "Last visit: 3N",
+      "Last visit: E; unhatched egg(s)",
+      "Last visit: 1S",
+      "Last visit: 2C",
+      "Last visit: 3N"
+    ),
+    priority = rep(300, 5),
+    days_overdue = rep(0, 5),
+    min_days_to_hatch = c(6, 12, 8, 7, 2),
+    last_visit_days_ago = rep(1, 5),
+    nest_state = rep("I", 5),
+    clutch_size = rep(3, 5),
+    brood_size = rep(0, 5),
+    M_mark = NA,
+    F_mark = NA,
+    stringsAsFactors = FALSE
+  )
+
+  prepared <- app$env$todo_pdf_prepare(
+    todo = todo,
+    available_combos = data.frame(mark = paste0("MOCK-", seq_len(30))),
+    nests_latest = data.frame(),
+    chick_captures = data.frame()
+  )
+
+  expect_identical(
+    prepared$rows$Nest[prepared$rows$Todo == "nest check"],
+    c("MOCK_UNHATCHED", "MOCK_C", "MOCK_CS", "MOCK_N_EARLY", "MOCK_N_LATE")
+  )
 })

@@ -146,6 +146,9 @@
   unseen_tagged_birds = NULL
 ) {
   todo <- data.table(todo)
+  if (!"notes" %in% names(todo)) {
+    todo[, notes := NA_character_]
+  }
   check_todos <- c("Clutch check", "Unprocessed nest", "nest check")
 
   task_status <- todo[,
@@ -170,6 +173,12 @@
         any(todo == "Parent capture"), "Capture",
         any(todo == "Parent resighting"), "Resight",
         default = "No capture/resight"
+      ),
+      tag_capture = any(
+        todo == "Parent capture" &
+          !is.na(notes) &
+          grepl("tag", as.character(notes), ignore.case = TRUE),
+        na.rm = TRUE
       )
     ),
     by = nest_id
@@ -257,7 +266,8 @@
       lon = fcoalesce(lon, task_lon),
       check_type = fcoalesce(check_type, "Other task"),
       parent_work = fcoalesce(parent_work, "No capture/resight"),
-      notA_visit = fcoalesce(notA_visit, FALSE)
+      notA_visit = fcoalesce(notA_visit, FALSE),
+      tag_capture = fcoalesce(tag_capture, FALSE)
     )]
     nest_tasks[, c("task_lat", "task_lon") := NULL]
   } else {
@@ -500,6 +510,11 @@
   )
   task_shapes <- c(`Nest check` = 24, `notA visit` = 25, `Other task` = 21)
   point_xy$parent_fill <- unname(task_cols[as.character(point_xy$parent_work)])
+  tagged_capture_points <- point_xy[
+    !is.na(tag_capture) &
+      tag_capture &
+      as.character(parent_work) == "Capture",
+  ]
 
   panel <- ggplot()
   imagery <- .todo_pdf_map_read_imagery(spec)
@@ -549,6 +564,13 @@
       size = 3.45,
       stroke = 0.75,
       colour = "#17242d"
+    ) +
+    geom_point(
+      data = tagged_capture_points,
+      aes(X, Y, fill = parent_fill, shape = check_type),
+      size = 3.45,
+      stroke = 1.15,
+      colour = "#ffffff"
     ) +
     ggrepel::geom_label_repel(
       data = point_xy,
@@ -652,10 +674,22 @@
     `No capture/resight` = "#7b858b"
   )
   task_shapes <- c(`Nest check` = 24, `notA visit` = 25, `Other task` = 21)
+  parent_work_levels <- c(
+    "Capture",
+    "Capture + tag",
+    "Resight",
+    "No capture/resight"
+  )
+  parent_work_labels <- c(
+    "Capture",
+    "Capture (deploy tag if outlined in white).",
+    "Resight",
+    "No capture/resight"
+  )
 
   ggplot(
     data.frame(
-      parent_work = factor(names(task_cols), levels = names(task_cols)),
+      parent_work = factor(names(task_cols), levels = parent_work_levels),
       check_type = factor(
         c("Nest check", "notA visit", "Other task"),
         levels = names(task_shapes)
@@ -663,9 +697,33 @@
     ),
     aes(0, 0)
   ) +
-    geom_point(aes(fill = parent_work), shape = 21, size = 3.2, alpha = 0) +
+    geom_point(
+      aes(fill = parent_work),
+      shape = 21,
+      size = 3.2,
+      colour = "#17242d",
+      alpha = 0
+    ) +
+    geom_point(
+      data = data.frame(
+        parent_work = factor("Capture + tag", levels = parent_work_levels),
+        x = 0,
+        y = 0
+      ),
+      aes(x, y, fill = parent_work),
+      shape = 21,
+      size = 3.2,
+      stroke = 1.15,
+      colour = "#ffffff"
+    ) +
     geom_point(aes(shape = check_type), fill = "#7b858b", size = 3.2, alpha = 0) +
-    scale_fill_manual(values = task_cols, drop = FALSE, name = "Parent work") +
+    scale_fill_manual(
+      values = c(task_cols, `Capture + tag` = task_cols[["Capture"]]),
+      limits = parent_work_levels,
+      labels = parent_work_labels,
+      drop = FALSE,
+      name = "Parent work"
+    ) +
     scale_shape_manual(
       values = task_shapes,
       labels = c("Nest check", "notA visit", "other task (i.e., Parent/brood work)"),
@@ -676,7 +734,12 @@
       fill = guide_legend(
         order = 1,
         nrow = 1,
-        override.aes = list(alpha = 1, shape = 21, size = 3.2)
+        override.aes = list(
+          alpha = 1,
+          shape = 21,
+          size = 3.2,
+          colour = c("#17242d", "#ffffff", "#17242d", "#17242d")
+        )
       ),
       shape = guide_legend(
         order = 2,

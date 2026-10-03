@@ -1419,6 +1419,29 @@ first_complete_clutch_ranked AS (
     ON history.nest_id = final_clutch_status.nest_id
    AND history.clutch_size = final_clutch_status.final_clutch_size
 ),
+latest_clutch_ranked AS (
+  SELECT
+    nest_clutch_history.*,
+    ROW_NUMBER() OVER (
+      PARTITION BY nest_id
+      ORDER BY date DESC, time_visit DESC, pk DESC
+    ) AS row_num
+  FROM nest_clutch_history
+),
+complete_clutch_status AS (
+  SELECT
+    complete_clutch.nest_id,
+    complete_clutch.first_complete_date AS inferred_clutch_completion_date
+  FROM first_complete_clutch_ranked complete_clutch
+  JOIN final_clutch_status
+    ON complete_clutch.nest_id = final_clutch_status.nest_id
+  LEFT JOIN nest_clutch_history observed_hatch
+    ON complete_clutch.nest_id = observed_hatch.nest_id
+   AND UPPER(TRIM(COALESCE(observed_hatch.nest_state, ''))) = 'H'
+  WHERE complete_clutch.row_num = 1
+    AND final_clutch_status.final_clutch_size >= 3
+    AND observed_hatch.nest_id IS NULL
+),
 last_incomplete_clutch_ranked AS (
   SELECT
     history.nest_id,
@@ -1517,6 +1540,32 @@ incomplete_clutch_status AS (
       AS inferred_hatch_date
   FROM incomplete_clutch_status_base
   WHERE found_as_incomplete = 1
+),
+stable_one_egg_status AS (
+  SELECT
+    latest.nest_id,
+    latest.date AS last_one_egg_date,
+    DATE_ADD(latest.date, INTERVAL 2 DAY)
+      AS inferred_clutch_completion_date,
+    DATE_ADD(
+      DATE_ADD(latest.date, INTERVAL 2 DAY),
+      INTERVAL 26 DAY
+    ) AS inferred_hatch_date
+  FROM latest_clutch_ranked latest
+  JOIN final_clutch_status final_clutch
+    ON latest.nest_id = final_clutch.nest_id
+  CROSS JOIN sr
+  LEFT JOIN nest_clutch_history observed_hatch
+    ON latest.nest_id = observed_hatch.nest_id
+   AND UPPER(TRIM(COALESCE(observed_hatch.nest_state, ''))) = 'H'
+  WHERE latest.row_num = 1
+    AND latest.clutch_size = 1
+    AND final_clutch.final_clutch_size = 1
+    AND DATEDIFF(sr.reference_date, latest.date) >= 2
+    AND UPPER(TRIM(COALESCE(latest.nest_state, ''))) IN (
+      'F', 'I', 'PP', 'PD'
+    )
+    AND observed_hatch.nest_id IS NULL
 ),
 calibration_hatch_day AS (
   SELECT CAST(MAX(days_since_laying) AS DECIMAL(5,1)) AS hatch_day
@@ -1646,6 +1695,45 @@ incomplete_nest_prediction AS (
     FROM egg_prediction
     WHERE egg_prediction.nest_id = incomplete_clutch_status.nest_id
   )
+),
+chronology_nest_prediction AS (
+  SELECT
+    complete_clutch.nest_id,
+    sr.reference_date,
+    complete_clutch.inferred_clutch_completion_date,
+    DATE_ADD(
+      complete_clutch.inferred_clutch_completion_date,
+      INTERVAL 26 DAY
+    ) AS inferred_hatch_date,
+    'complete clutch chronology' AS calibration_match_type
+  FROM complete_clutch_status complete_clutch
+  CROSS JOIN sr
+  WHERE NOT EXISTS (
+    SELECT 1
+    FROM egg_prediction
+    WHERE egg_prediction.nest_id = complete_clutch.nest_id
+  )
+    AND NOT EXISTS (
+      SELECT 1
+      FROM incomplete_clutch_status incomplete_clutch
+      WHERE incomplete_clutch.nest_id = complete_clutch.nest_id
+    )
+
+  UNION ALL
+
+  SELECT
+    stable_one_egg.nest_id,
+    sr.reference_date,
+    stable_one_egg.inferred_clutch_completion_date,
+    stable_one_egg.inferred_hatch_date,
+    'stable one-egg/no increase' AS calibration_match_type
+  FROM stable_one_egg_status stable_one_egg
+  CROSS JOIN sr
+  WHERE NOT EXISTS (
+    SELECT 1
+    FROM egg_prediction
+    WHERE egg_prediction.nest_id = stable_one_egg.nest_id
+  )
 )
 SELECT
   nest_id,
@@ -1700,7 +1788,37 @@ SELECT
   DATEDIFF(inferred_hatch_date, reference_date) AS min_days_to_hatch,
   DATEDIFF(inferred_hatch_date, reference_date) AS max_days_to_hatch,
   0 AS n_calibration
-FROM incomplete_nest_prediction;
+FROM incomplete_nest_prediction
+
+UNION ALL
+
+SELECT
+  nest_id,
+  CAST(NULL AS UNSIGNED) AS egg_id,
+  CAST(NULL AS DATE) AS float_date,
+  reference_date,
+  CAST(NULL AS SIGNED) AS days_since_float,
+  CAST(NULL AS DECIMAL(5,1)) AS float_angle,
+  CAST(NULL AS DECIMAL(5,1)) AS float_surface,
+  CAST(NULL AS CHAR(10)) AS float_location,
+  CAST(NULL AS DECIMAL(5,1)) AS matched_float_angle,
+  CAST(NULL AS DECIMAL(5,1)) AS matched_float_surface,
+  CAST(NULL AS CHAR(10)) AS matched_float_location,
+  calibration_match_type,
+  CAST(NULL AS SIGNED) AS angle_diff,
+  CAST(NULL AS SIGNED) AS surface_diff,
+  CAST(0 AS DECIMAL(5,1)) AS predicted_days_since_laying,
+  CAST(
+    DATEDIFF(reference_date, inferred_clutch_completion_date)
+    AS DECIMAL(5,1)
+  ) AS ref_date_days_since_laid,
+  CAST(NULL AS DECIMAL(5,1)) AS days_to_hatch_at_float,
+  DATEDIFF(inferred_hatch_date, reference_date) AS days_to_hatch,
+  inferred_hatch_date AS predicted_hatch_date,
+  DATEDIFF(inferred_hatch_date, reference_date) AS min_days_to_hatch,
+  DATEDIFF(inferred_hatch_date, reference_date) AS max_days_to_hatch,
+  0 AS n_calibration
+FROM chronology_nest_prediction;
 
 
 -- The operational release ceiling is 60 of 100 GEOs, retaining 40 for the
@@ -2227,7 +2345,11 @@ initial_clutch_status AS (
       AS inferred_clutch_completion_date,
     p.predicted_hatch_date AS inferred_hatch_date
   FROM FIELD_2026_BADOatNZ.EGGS_HATCH_PREDICTION p
-  WHERE p.calibration_match_type = 'found as incomplete'
+  WHERE p.calibration_match_type IN (
+    'found as incomplete',
+    'complete clutch chronology',
+    'stable one-egg/no increase'
+  )
 ),
 latest_nests AS (
   SELECT DISTINCT
@@ -4085,7 +4207,13 @@ geo_parent_plan AS (
           THEN '; status ?'
           ELSE ''
         END,
-        ')'
+        ')',
+        CASE
+          WHEN ranked.nest_id = 'C2208'
+           AND ranked.pair_target = 'M'
+          THEN '; CORRECT DUPLICATE'
+          ELSE ''
+        END
       )
       WHEN ranked.pair_target IS NULL
        AND ranked.band_target IS NOT NULL
@@ -4287,26 +4415,14 @@ geo_parent_plan AS (
                AND base.male_quota_remaining > 0
                AND (
                  COALESCE(base.F_has_geo, 0) = 1
-                 OR (
-                   COALESCE(base.F_captured_has_geo, 0) = 1
-                   AND (
-                     COALESCE(base.F_mm_resight_pending, 0) = 0
-                     OR COALESCE(base.M_confirmed_unbanded, 0) = 1
-                   )
-                 )
+                 OR COALESCE(base.F_captured_has_geo, 0) = 1
                )
               THEN 'M'
               WHEN base.F_tag_eligible = 1
                AND base.female_quota_remaining > 0
                AND (
                  COALESCE(base.M_has_geo, 0) = 1
-                 OR (
-                   COALESCE(base.M_captured_has_geo, 0) = 1
-                   AND (
-                     COALESCE(base.M_mm_resight_pending, 0) = 0
-                     OR COALESCE(base.F_confirmed_unbanded, 0) = 1
-                   )
-                 )
+                 OR COALESCE(base.M_captured_has_geo, 0) = 1
                )
               THEN 'F'
               ELSE NULL
@@ -4503,6 +4619,12 @@ todo_untrapped_parent_candidate AS (
     active_nests.reference_date,
     'Untrapped parent' AS todo,
     CASE
+      WHEN active_nests.nest_id = 'B2203'
+       AND UPPER(TRIM(COALESCE(adult_parent_status.F_parent_mark, ''))) = 'YY-TB.BL'
+      THEN 1
+      ELSE 0
+    END AS duplicate_correction,
+    CASE
       WHEN geo_parent_plan.geo_instruction IS NOT NULL
       THEN geo_parent_plan.geo_instruction
       WHEN adult_parent_status.M_confirmed_unbanded = 1
@@ -4548,6 +4670,9 @@ todo_untrapped_parent_candidate AS (
       THEN 'F recruit (full colours)'
     END AS notes,
     CASE
+      WHEN active_nests.nest_id = 'B2203'
+       AND UPPER(TRIM(COALESCE(adult_parent_status.F_parent_mark, ''))) = 'YY-TB.BL'
+      THEN 'F'
       WHEN geo_parent_plan.geo_tag_target IS NOT NULL
       THEN geo_parent_plan.geo_tag_target
       WHEN geo_parent_plan.geo_target IS NOT NULL
@@ -4620,6 +4745,9 @@ todo_untrapped_parent_candidate AS (
     CASE
       -- Hatched nests no longer need the clutch-completion gate; retain the
       -- 36-hour parent-capture gate below.
+      WHEN active_nests.nest_id = 'B2203'
+       AND UPPER(TRIM(COALESCE(adult_parent_status.F_parent_mark, ''))) = 'YY-TB.BL'
+      THEN 1
       WHEN UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) = 'H'
         OR (
           UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) = 'NOTA'
@@ -4639,6 +4767,9 @@ todo_untrapped_parent_candidate AS (
       ELSE 0
     END AS resight_only_when_capture_blocked,
     CASE
+      WHEN active_nests.nest_id = 'B2203'
+       AND UPPER(TRIM(COALESCE(adult_parent_status.F_parent_mark, ''))) = 'YY-TB.BL'
+      THEN 1
       WHEN COALESCE(
              geo_parent_plan.geo_tag_target,
              geo_parent_plan.geo_band_target
@@ -4886,7 +5017,11 @@ todo_untrapped_parent_candidate AS (
       OR COALESCE(float_summary.n_float_rows, 0) > 0
     )
     AND (
-      geo_parent_plan.geo_instruction IS NOT NULL
+      (
+        active_nests.nest_id = 'B2203'
+        AND UPPER(TRIM(COALESCE(adult_parent_status.F_parent_mark, ''))) = 'YY-TB.BL'
+      )
+      OR geo_parent_plan.geo_instruction IS NOT NULL
       OR adult_parent_status.M_confirmed_unbanded = 1
       OR adult_parent_status.F_confirmed_unbanded = 1
       OR adult_parent_status.M_unknown_status = 1
@@ -4901,6 +5036,8 @@ todo_untrapped_parent AS (
     reference_date,
     todo,
     CASE
+      WHEN duplicate_correction = 1
+      THEN 'F: CORRECT DUPLICATE'
       WHEN geo_instruction IS NOT NULL
        AND geo_tag_target IS NOT NULL
        AND COALESCE(capture_allowed_after_completion, 0) = 1
@@ -5212,6 +5349,8 @@ todo_untrapped_parent AS (
     -- A closed 7d/36hr gate is always a resighting task, including for
     -- pair-completion targets; capture rows must be actionable on that date.
     CASE
+      WHEN duplicate_correction = 1
+      THEN 'Parent capture'
       WHEN geo_tag_target IS NOT NULL
        AND COALESCE(capture_allowed_after_completion, 0) = 1
        AND COALESCE(capture_interval_open, 0) = 1
