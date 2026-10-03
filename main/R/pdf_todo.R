@@ -634,11 +634,17 @@ todo_pdf_prepare <- function(
     pdf_brood_size := "?"
   ]
 
-  # An H event without an entered brood size remains uncertain until valid
-  # age-C capture rings provide an observed brood count.
+  # A hatch-record or terminal notA row without an entered brood size remains
+  # uncertain until valid age-C capture rings provide an observed brood count.
   brood_size_text <- trimws(as.character(todo_dt$pdf_brood_size))
   h_brood_needs_observed_count <- !is_negative_brood &
-    toupper(trimws(as.character(todo_dt$nest_state))) == "H" & (
+    (
+      toupper(trimws(as.character(todo_dt$nest_state))) == "H" |
+        (
+          toupper(trimws(as.character(todo_dt$nest_state))) == "NOTA" &
+            todo_pdf_as_numeric(todo_dt$clutch_size) == 0
+        )
+    ) & (
       is.na(brood_size_text)
         | !nzchar(brood_size_text)
         | toupper(brood_size_text) %chin% c("0", "NA", "NULL", "?")
@@ -694,6 +700,15 @@ todo_pdf_prepare <- function(
       }
     }
   }
+
+  # Re-evaluate the display state after age-C captures have filled an
+  # otherwise missing/zero brood size for a terminal hatched nest.
+  final_zero_clutch_with_brood <- (
+    !is_negative_brood
+      & todo_pdf_as_numeric(todo_dt$pdf_clutch_size) == 0
+      & todo_pdf_as_numeric(todo_dt$pdf_brood_size) > 0
+  )
+  todo_dt[final_zero_clutch_with_brood, pdf_state := "brood"]
 
   # These are PDF-only wording changes; the SQL task notes remain stable for
   # other consumers of TODO_LIST.

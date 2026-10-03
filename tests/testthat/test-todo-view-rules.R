@@ -40,6 +40,11 @@ test_that("TODO_LIST contains the bounded operational rules", {
   )
   expect_match(
     sql,
+    "UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) = 'NOTA'\n          AND EXISTS (\n            SELECT 1\n            FROM hatched_nests hatched",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
     "WHEN UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) = 'H'",
     fixed = TRUE
   )
@@ -90,6 +95,13 @@ test_that("hatched terminal notA nests remain eligible for parent work", {
   expect_true(parent_work_eligible("notA", TRUE))
   expect_false(parent_work_eligible("notA", FALSE))
   expect_true(parent_work_eligible("H", TRUE))
+
+  capture_allowed_for_parent_work <- function(latest_state, had_h_event) {
+    toupper(trimws(latest_state)) == "H" ||
+      (toupper(trimws(latest_state)) == "NOTA" && isTRUE(had_h_event))
+  }
+  expect_true(capture_allowed_for_parent_work("notA", TRUE))
+  expect_false(capture_allowed_for_parent_work("notA", FALSE))
 
   pair_completion_note <- function(latest_state, had_h_event, male_xx, female_geo) {
     if (parent_work_eligible(latest_state, had_h_event) && male_xx && female_geo) {
