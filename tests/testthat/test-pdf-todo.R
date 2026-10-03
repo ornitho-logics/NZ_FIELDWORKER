@@ -226,25 +226,25 @@ test_that("terminal hatched broods use unique age-C captures", {
   prepare <- app$env$todo_pdf_prepare
 
   todo <- data.frame(
-    nest_id = "B0208",
-    reference_date = as.Date("2026-10-04"),
-    todo = "Hiding spot photos needed",
-    notes = "0/3 chicks with rclass 'H' photos",
-    nest_state = "notA",
-    clutch_size = 0,
-    brood_size = 0,
-    min_days_to_hatch = -5,
-    last_visit_days_ago = 2,
-    M_mark = "YY-OY",
-    F_mark = "BY-TG.B",
+    nest_id = c("B0208", "B0209"),
+    reference_date = as.Date(rep("2026-10-04", 2)),
+    todo = rep("Hiding spot photos needed", 2),
+    notes = rep("0/3 chicks with rclass 'H' photos", 2),
+    nest_state = c("notA", "H"),
+    clutch_size = c(0, 0),
+    brood_size = c(0, 1),
+    min_days_to_hatch = c(-5, -5),
+    last_visit_days_ago = c(2, 2),
+    M_mark = c("YY-OY", "MOCK-M"),
+    F_mark = c("BY-TG.B", "MOCK-F"),
     stringsAsFactors = FALSE
   )
   chicks <- data.frame(
-    nest_id = rep("B0208", 3),
-    age = rep("C", 3),
-    ring = c("CP20001", "CP20002", "CP20003"),
-    site = rep("CR", 3),
-    date = as.Date(rep("2026-09-29", 3)),
+    nest_id = rep(c("B0208", "B0209"), each = 3),
+    age = rep("C", 6),
+    ring = paste0("CP2000", seq_len(6)),
+    site = rep("CR", 6),
+    date = as.Date(rep("2026-09-29", 6)),
     stringsAsFactors = FALSE
   )
 
@@ -254,8 +254,8 @@ test_that("terminal hatched broods use unique age-C captures", {
     chick_captures = chicks
   )$rows
 
-  expect_identical(observed$State, "brood")
-  expect_identical(observed$`Clutch–Brood`, "0–3")
+  expect_identical(observed$State, c("brood", "brood"))
+  expect_identical(observed$`Clutch–Brood`, c("0–3", "0–3"))
 })
 
 
@@ -413,15 +413,19 @@ test_that("notA task rows remain available to the PDF summary and map", {
     stringsAsFactors = FALSE
   )
   nests <- data.frame(
+    nest_id = c("B0201", "B0202"),
+    nest_state = c("I", "I"),
+    min_days_to_hatch = c(4, 5),
+    M_mark = c("MOCK-M", "MOCK-M2"),
+    F_mark = c("MOCK-F", "MOCK-F2"),
+    lat = c(-43.3, -43.4),
+    lon = c(170.3, 170.4),
+    has_hatch_evidence = c(FALSE, FALSE),
+    is_negative_brood = c(FALSE, FALSE),
+    stringsAsFactors = FALSE
+  )
+  unseen_tagged_birds <- data.frame(
     nest_id = "B0201",
-    nest_state = "I",
-    min_days_to_hatch = 4,
-    M_mark = "MOCK-M",
-    F_mark = "MOCK-F",
-    lat = -43.3,
-    lon = 170.3,
-    has_hatch_evidence = FALSE,
-    is_negative_brood = FALSE,
     stringsAsFactors = FALSE
   )
 
@@ -429,7 +433,8 @@ test_that("notA task rows remain available to the PDF summary and map", {
     nests,
     as.Date("2026-10-01"),
     todo = todo,
-    chick_captures = data.frame()
+    chick_captures = data.frame(),
+    unseen_tagged_birds = unseen_tagged_birds
   )
   expect_true(all(c("B0220", "B0604") %in% summary$Nest))
   expect_identical(summary$Symbol[summary$Nest == "B0220"], "notA")
@@ -439,6 +444,26 @@ test_that("notA task rows remain available to the PDF summary and map", {
   expect_identical(
     as.character(mapped$check_type[mapped$nest_id == "B0220"]),
     "notA visit"
+  )
+
+  expect_identical(
+    summary$Symbol[summary$Nest == "B0201"],
+    "circle"
+  )
+  expect_identical(
+    summary$SymbolColor[summary$Nest == "B0201"],
+    "#1976d2"
+  )
+
+  mapped <- prepare_map(
+    todo = todo,
+    chick_captures = data.frame(),
+    nests_latest = nests,
+    unseen_tagged_birds = unseen_tagged_birds
+  )
+  expect_identical(
+    as.character(mapped$parent_work[mapped$nest_id == "B0201"]),
+    "Resight"
   )
 })
 
