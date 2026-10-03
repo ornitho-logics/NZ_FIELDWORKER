@@ -4455,7 +4455,15 @@ geo_parent_plan AS (
                  AND COALESCE(parent_status.F_mm_resight_pending, 0) = 0
                 THEN 1 ELSE 0
               END AS F_tag_eligible
-            FROM active_nests
+            FROM (
+              SELECT * FROM active_nests
+              UNION ALL
+              SELECT n.*
+              FROM latest_nests n
+              JOIN hatched_nests
+                ON n.nest_id = hatched_nests.nest_id
+              WHERE UPPER(TRIM(COALESCE(n.nest_state, ''))) = 'NOTA'
+            ) active_nests
             JOIN nest_discovery
               ON active_nests.nest_id = nest_discovery.nest_id
             LEFT JOIN FIELD_2026_BADOatNZ.GEO_ROLLOUT_PHENOLOGY lay
@@ -4468,7 +4476,7 @@ geo_parent_plan AS (
               ON active_nests.nest_id = capture_interval.nest_id
             CROSS JOIN geo_deployment_status deployment_status
             WHERE (
-                UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I', 'H', 'PP', 'PD')
+                UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I', 'H', 'PP', 'PD', 'NOTA')
                 OR (
                   active_nests.hatch_signs_present = 1
                   AND active_nests.latest_float_date IS NULL
@@ -4777,6 +4785,35 @@ todo_untrapped_parent_candidate AS (
       ON active_nests.nest_id = nest_discovery.nest_id
     UNION ALL
     SELECT
+      n.nest_id,
+      n.species,
+      n.last_visit_datetime,
+      n.days_ago,
+      n.last_observer,
+      n.nest_state,
+      n.hatch_state,
+      n.hatch_signs_present,
+      n.bird_inc,
+      n.clutch_size,
+      n.brood_size,
+      n.latest_float_date,
+      n.average_ref_date_days_since_laid,
+      n.min_days_to_hatch,
+      n.nest_photo,
+      n.tent_photo,
+      n.lat,
+      n.lon,
+      n.reference_date,
+      nest_discovery.first_found_date,
+      0 AS is_negative_brood
+    FROM latest_nests n
+    JOIN hatched_nests
+      ON n.nest_id = hatched_nests.nest_id
+    LEFT JOIN nest_discovery
+      ON n.nest_id = nest_discovery.nest_id
+    WHERE UPPER(TRIM(COALESCE(n.nest_state, ''))) = 'NOTA'
+    UNION ALL
+    SELECT
       b.nest_id,
       b.species,
       b.latest_encounter_datetime,
@@ -4818,7 +4855,7 @@ todo_untrapped_parent_candidate AS (
   WHERE (
       active_nests.is_negative_brood = 1
       OR
-      UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I', 'H', 'PP', 'PD')
+      UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I', 'H', 'PP', 'PD', 'NOTA')
       OR (
         active_nests.hatch_signs_present = 1
         AND active_nests.latest_float_date IS NULL
@@ -5291,6 +5328,35 @@ todo_mm_parent_resighting_by_sex AS (
       ON active_nests.nest_id = nest_discovery.nest_id
     UNION ALL
     SELECT
+      n.nest_id,
+      n.species,
+      n.last_visit_datetime,
+      n.days_ago,
+      n.last_observer,
+      n.nest_state,
+      n.hatch_state,
+      n.hatch_signs_present,
+      n.bird_inc,
+      n.clutch_size,
+      n.brood_size,
+      n.latest_float_date,
+      n.average_ref_date_days_since_laid,
+      n.min_days_to_hatch,
+      n.nest_photo,
+      n.tent_photo,
+      n.lat,
+      n.lon,
+      n.reference_date,
+      nest_discovery.first_found_date,
+      0 AS is_negative_brood
+    FROM latest_nests n
+    JOIN hatched_nests
+      ON n.nest_id = hatched_nests.nest_id
+    LEFT JOIN nest_discovery
+      ON n.nest_id = nest_discovery.nest_id
+    WHERE UPPER(TRIM(COALESCE(n.nest_state, ''))) = 'NOTA'
+    UNION ALL
+    SELECT
       b.nest_id,
       b.species,
       b.latest_encounter_datetime,
@@ -5323,7 +5389,7 @@ todo_mm_parent_resighting_by_sex AS (
     ON active_nests.nest_id = adult_parent_status.nest_id
   WHERE (
       active_nests.is_negative_brood = 1
-      OR UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I', 'H', 'PP', 'PD')
+      OR UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I', 'H', 'PP', 'PD', 'NOTA')
       OR (
         active_nests.hatch_signs_present = 1
         AND active_nests.latest_float_date IS NULL
@@ -5627,12 +5693,12 @@ todo_nest_check AS (
       'Last visit: ',
       COALESCE(
         NULLIF(TRIM(active_nests.hatch_state), ''),
-        'not recorded'
+        'no entry'
       ),
       CASE
         WHEN UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) = 'H'
          AND COALESCE(active_nests.clutch_size, 0) > 0
-        THEN '; unhatched eggs remain'
+        THEN '; unhatched egg(s)'
         ELSE ''
       END
     ) AS notes,

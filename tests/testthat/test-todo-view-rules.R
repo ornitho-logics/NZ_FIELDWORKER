@@ -33,7 +33,11 @@ views_source_sql <- function() {
 test_that("TODO_LIST contains the bounded operational rules", {
   sql <- todo_list_view_sql()
 
-  expect_match(sql, "IN ('F', 'I', 'H', 'PP', 'PD')", fixed = TRUE)
+  expect_match(
+    sql,
+    "IN ('F', 'I', 'H', 'PP', 'PD', 'NOTA')",
+    fixed = TRUE
+  )
   expect_match(
     sql,
     "WHEN UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) = 'H'",
@@ -54,6 +58,50 @@ test_that("TODO_LIST contains the bounded operational rules", {
     sql,
     "FROM FIELD_2026_BADOatNZ.RESIGHTINGS_H_BROOD_ASSOCIATIONS h",
     fixed = TRUE
+  )
+})
+
+
+test_that("hatched terminal notA nests remain eligible for parent work", {
+  sql <- todo_list_view_sql()
+
+  expect_match(
+    sql,
+    "WHERE UPPER(TRIM(COALESCE(n.nest_state, ''))) = 'NOTA'",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "JOIN hatched_nests\n                ON n.nest_id = hatched_nests.nest_id",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "IN ('F', 'I', 'H', 'PP', 'PD', 'NOTA')",
+    fixed = TRUE
+  )
+
+  parent_work_eligible <- function(latest_state, had_h_event) {
+    state <- toupper(trimws(latest_state))
+    state %in% c("F", "I", "H", "PP", "PD") ||
+      (state == "NOTA" && isTRUE(had_h_event))
+  }
+
+  expect_true(parent_work_eligible("notA", TRUE))
+  expect_false(parent_work_eligible("notA", FALSE))
+  expect_true(parent_work_eligible("H", TRUE))
+
+  pair_completion_note <- function(latest_state, had_h_event, male_xx, female_geo) {
+    if (parent_work_eligible(latest_state, had_h_event) && male_xx && female_geo) {
+      "tag M (pair completion)"
+    } else {
+      NA_character_
+    }
+  }
+
+  expect_identical(
+    pair_completion_note("notA", TRUE, male_xx = TRUE, female_geo = TRUE),
+    "tag M (pair completion)"
   )
 })
 
@@ -443,7 +491,7 @@ test_that("partial H visits remain in potential-hatch checks", {
     "UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) = 'H'\n        AND COALESCE(active_nests.clutch_size, 0) > 0\n        AND active_nests.days_ago >= 1",
     fixed = TRUE
   )
-  expect_match(sql, "'; unhatched eggs remain'", fixed = TRUE)
+  expect_match(sql, "'; unhatched egg(s)'", fixed = TRUE)
 
   asynchronous_hatch_check <- function(nest_state, clutch_size, days_ago) {
     toupper(trimws(nest_state)) == "H" &&

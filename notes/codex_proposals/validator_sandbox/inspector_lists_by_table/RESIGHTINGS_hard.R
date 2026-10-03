@@ -1009,13 +1009,24 @@ list({
         is_no_nest <- function(v) {
             !is.na(v) & toupper(trimws(as.character(v))) == "NO_NEST"
         }
-        nests_dt <- data.table::as.data.table(db_get("SELECT nest_id, date, time_visit, nest_state FROM NESTS"))
+        nests_dt <- data.table::as.data.table(db_get("SELECT nest_id, date, time_visit, nest_state, clutch_size, brood_size FROM NESTS"))
         if (nrow(nests_dt) > 0) {
             nests_dt[, `:=`(event_date_nest, suppressWarnings(as.Date(date)))]
             nests_dt[, `:=`(time_visit_key, trimws(as.character(time_visit)))]
             nests_dt[is.na(time_visit_key) | !nzchar(time_visit_key), `:=`(time_visit_key, "99:99")]
+            nests_dt[, `:=`(
+                clutch_num = suppressWarnings(as.numeric(as.character(clutch_size))),
+                brood_num = suppressWarnings(as.numeric(as.character(brood_size)))
+            )]
         } else {
-            nests_dt <- data.table::data.table(nest_id = character(), nest_state = character(), event_date_nest = as.Date(character()), time_visit_key = character())
+            nests_dt <- data.table::data.table(
+                nest_id = character(),
+                nest_state = character(),
+                event_date_nest = as.Date(character()),
+                time_visit_key = character(),
+                clutch_num = numeric(),
+                brood_num = numeric()
+            )
         }
         z[, `:=`(event_date, suppressWarnings(as.Date(date)))]
         z[, `:=`(behav_tokens, lapply(behav, parse_behav))]
@@ -1031,8 +1042,15 @@ list({
                 return(empty)
             }
             data.table::setorder(tmp, event_date_nest, time_visit_key)
-            latest_state <- as.character(tmp$nest_state[nrow(tmp)])
-            if (latest_state %in% c("H", "pP", "P", "D", "notA")) {
+            latest <- tmp[nrow(tmp)]
+            latest_state <- as.character(latest$nest_state[[1]])
+            # H remains an active nest state during asynchronous hatching.
+            # Only an H visit with no remaining eggs and at least one chick is
+            # the terminal H state used for subsequent nest-link checks.
+            terminal_h <- identical(latest_state, "H") &&
+                isTRUE(!is.na(latest$clutch_num[[1]]) && latest$clutch_num[[1]] == 0) &&
+                isTRUE(!is.na(latest$brood_num[[1]]) && latest$brood_num[[1]] > 0)
+            if (latest_state %in% c("pP", "P", "D", "notA") || terminal_h) {
                 data.table::data.table(rowid = row$rowid, variable = "nest_id", reason = "This nest_id had already hatched or otherwise ended by this date. If this is a new breeding attempt, enter the new nest_id.")
             } else {
                 empty

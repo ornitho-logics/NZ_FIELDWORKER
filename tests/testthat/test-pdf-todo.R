@@ -93,6 +93,27 @@ test_that("tagged-bird and team-mark tables use the shared PDF table style", {
 })
 
 
+test_that("PDF map uses only plots B and C", {
+  app <- load_main_app()
+  prepare_plots <- app$env$.todo_pdf_map_prepare_plots
+  spatial_objects <- data.frame(
+    variable = "study_area",
+    value = paste0(
+      "list(",
+      "B = 'POLYGON ((172 -44, 172.01 -44, 172.01 -43.99, ",
+      "172 -43.99, 172 -44))', ",
+      "C = 'POLYGON ((172.02 -44, 172.03 -44, 172.03 -43.99, ",
+      "172.02 -43.99, 172.02 -44))'",
+      ")"
+    )
+  )
+
+  plots <- prepare_plots(spatial_objects)
+
+  expect_identical(plots$plot_name, c("B", "C"))
+})
+
+
 test_that("parent summary subtitle explains hatch intervals", {
   app <- load_main_app()
   body <- app$env$todo_pdf_body(
@@ -151,9 +172,9 @@ test_that("PDF display marks broods, unknown negative clutch, and capture status
     )
   )$rows
 
-  expect_identical(observed$State[observed$Nest == "-C0224"], "Brood")
+  expect_identical(observed$State[observed$Nest == "-C0224"], "brood")
   expect_identical(observed$`Clutch–Brood`[observed$Nest == "-C0224"], "?–3")
-  expect_identical(observed$State[observed$Nest == "C0615"], "Brood")
+  expect_identical(observed$State[observed$Nest == "C0615"], "brood")
   expect_identical(
     observed$Notes[observed$Nest == "C0625"],
     "band X-X F; resight/band M (status ?)"
@@ -165,6 +186,37 @@ test_that("PDF display marks broods, unknown negative clutch, and capture status
   expect_identical(
     observed$Notes[observed$Nest == "B0220"],
     "remove flag + enter 'notA'"
+  )
+})
+
+
+test_that("PDF normalizes zero-clutch brood states", {
+  app <- load_main_app()
+  prepare <- app$env$todo_pdf_prepare
+
+  todo <- data.frame(
+    nest_id = c("C_H_BROOD", "C_NOTA_BROOD"),
+    reference_date = as.Date(rep("2026-10-01", 2)),
+    todo = rep("Parent capture", 2),
+    notes = rep("mock task", 2),
+    nest_state = c("H", "notA"),
+    clutch_size = c(0, 0),
+    brood_size = c(2, 1),
+    min_days_to_hatch = rep(NA, 2),
+    last_visit_days_ago = rep(1, 2),
+    M_mark = NA,
+    F_mark = NA,
+    stringsAsFactors = FALSE
+  )
+
+  observed <- prepare(
+    todo = todo,
+    available_combos = data.frame(mark = paste0("MOCK-", seq_len(30)))
+  )$rows
+
+  expect_identical(
+    observed$State[order(observed$Nest)],
+    c("brood", "brood")
   )
 })
 
@@ -475,6 +527,41 @@ test_that("parent summary uses the resolved parent-task identities", {
 })
 
 
+test_that("parent summary prefers a resolved identity over MM uncertainty", {
+  app <- load_main_app()
+  prepare_summary <- app$env$todo_pdf_prepare_nest_summary
+
+  nests <- data.frame(
+    nest_id = "C0214",
+    nest_state = "notA",
+    min_days_to_hatch = NA,
+    M_mark = "YO-TW.WL",
+    F_mark = "YO-TW.LO",
+    has_hatch_evidence = TRUE,
+    is_negative_brood = FALSE,
+    brood_size = 1,
+    stringsAsFactors = FALSE
+  )
+  todo <- data.frame(
+    nest_id = c("C0214", "C0214"),
+    todo = c("Parent resighting", "Parent capture"),
+    M_mark = c("YO-TW.WL & X-X", "X-X"),
+    F_mark = c("YO-TW.LO", "YO-TW.LO"),
+    stringsAsFactors = FALSE
+  )
+
+  summary <- prepare_summary(
+    nests,
+    as.Date("2026-10-04"),
+    todo = todo,
+    chick_captures = data.frame()
+  )
+
+  expect_identical(summary$Male[summary$Nest == "C0214"], "X-X")
+  expect_identical(summary$Female[summary$Nest == "C0214"], "YO-TW.LO")
+})
+
+
 test_that("PDF rows normalize negative broods and count unique captured rings", {
   app <- load_main_app()
   prepare <- app$env$todo_pdf_prepare
@@ -519,7 +606,7 @@ test_that("PDF rows normalize negative broods and count unique captured rings", 
     nrow(observed[observed$Todo == "Hiding spot photos needed", ]),
     1L
   )
-  expect_identical(unique(observed$State), "Brood")
+  expect_identical(unique(observed$State), "brood")
   expect_identical(unique(observed$`Clutch–Brood`), "?–2")
   expect_identical(unique(observed$Female), "")
 })
