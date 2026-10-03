@@ -194,8 +194,9 @@ todo_pdf_parent_task_marks <- function(todo) {
   }
 
   # Parent task rows already contain the resolved adult_parent_status result.
-  # Prefer a composite mark because it preserves an informative identity plus
-  # a later/alternative X-X association used by the operational task tables.
+  # Prefer a resolved single identity over a composite mark that still records
+  # an unresolved MM alternative. Keep the composite when no single identity
+  # is available so the summary retains the operational uncertainty.
   parent_marks <- melt(
     parent_marks,
     id.vars = "Nest",
@@ -205,8 +206,8 @@ todo_pdf_parent_task_marks <- function(todo) {
   )
   parent_marks[, mark_rank := fifelse(
     grepl("&", mark, fixed = TRUE),
-    2L,
-    1L
+    1L,
+    2L
   )]
   parent_marks[, mark_length := nchar(mark)]
   setorder(parent_marks, Nest, sex_mark, -mark_rank, -mark_length, mark)
@@ -595,13 +596,22 @@ todo_pdf_prepare <- function(
   )]
 
   # H with no clutch is operationally a mobile brood, while negative IDs are
-  # broods by definition. Keep the raw state available below.
+  # broods by definition. A positive terminal record with no clutch and a
+  # recorded brood is also displayed as a brood rather than as notA.
   is_h_zero_clutch <- (
     !is_negative_brood
       & toupper(trimws(as.character(todo_dt$nest_state))) == "H"
       & todo_pdf_as_numeric(todo_dt$clutch_size) == 0
   )
-  todo_dt[is_negative_brood | is_h_zero_clutch, pdf_state := "Brood"]
+  is_zero_clutch_with_brood <- (
+    !is_negative_brood
+      & todo_pdf_as_numeric(todo_dt$clutch_size) == 0
+      & todo_pdf_as_numeric(todo_dt$brood_size) > 0
+  )
+  todo_dt[
+    is_negative_brood | is_h_zero_clutch | is_zero_clutch_with_brood,
+    pdf_state := "brood"
+  ]
 
   # Avoid displaying database sentinel values for unknown negative-brood
   # clutch/brood values.
