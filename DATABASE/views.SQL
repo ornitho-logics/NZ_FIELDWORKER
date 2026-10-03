@@ -4392,6 +4392,14 @@ geo_parent_plan AS (
                 -- retain the 36-hour parent-capture gate below.
                 WHEN UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) = 'H'
                   OR active_nests.hatch_signs_present = 1
+                  OR (
+                    UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) = 'NOTA'
+                    AND EXISTS (
+                      SELECT 1
+                      FROM hatched_nests hatched
+                      WHERE hatched.nest_id = active_nests.nest_id
+                    )
+                  )
                 THEN 1
                 ELSE COALESCE(capture_age.capture_allowed_after_completion, 0)
               END AS capture_allowed_after_completion,
@@ -4613,6 +4621,14 @@ todo_untrapped_parent_candidate AS (
       -- Hatched nests no longer need the clutch-completion gate; retain the
       -- 36-hour parent-capture gate below.
       WHEN UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) = 'H'
+        OR (
+          UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) = 'NOTA'
+          AND EXISTS (
+            SELECT 1
+            FROM hatched_nests hatched
+            WHERE hatched.nest_id = active_nests.nest_id
+          )
+        )
       THEN 1
       ELSE COALESCE(adult_capture_age_status.capture_allowed_after_completion, 0)
     END AS capture_allowed_after_completion,

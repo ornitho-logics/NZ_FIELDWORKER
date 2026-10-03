@@ -221,6 +221,44 @@ test_that("PDF normalizes zero-clutch brood states", {
 })
 
 
+test_that("terminal hatched broods use unique age-C captures", {
+  app <- load_main_app()
+  prepare <- app$env$todo_pdf_prepare
+
+  todo <- data.frame(
+    nest_id = "B0208",
+    reference_date = as.Date("2026-10-04"),
+    todo = "Hiding spot photos needed",
+    notes = "0/3 chicks with rclass 'H' photos",
+    nest_state = "notA",
+    clutch_size = 0,
+    brood_size = 0,
+    min_days_to_hatch = -5,
+    last_visit_days_ago = 2,
+    M_mark = "YY-OY",
+    F_mark = "BY-TG.B",
+    stringsAsFactors = FALSE
+  )
+  chicks <- data.frame(
+    nest_id = rep("B0208", 3),
+    age = rep("C", 3),
+    ring = c("CP20001", "CP20002", "CP20003"),
+    site = rep("CR", 3),
+    date = as.Date(rep("2026-09-29", 3)),
+    stringsAsFactors = FALSE
+  )
+
+  observed <- prepare(
+    todo = todo,
+    available_combos = data.frame(mark = paste0("MOCK-", seq_len(30))),
+    chick_captures = chicks
+  )$rows
+
+  expect_identical(observed$State, "brood")
+  expect_identical(observed$`Clutch–Brood`, "0–3")
+})
+
+
 test_that("PDF includes the main-version footer", {
   app <- load_main_app()
   version <- list(id = "abcdef1")
