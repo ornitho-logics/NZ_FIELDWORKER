@@ -604,7 +604,7 @@ test_that("parent summary uses no-float hatch predictions", {
   hatch_prediction <- data.frame(
     nest_id = c("B0616", "C0504"),
     calibration_match_type = c(
-      "complete clutch chronology",
+      "found as incomplete",
       "stable one-egg/no increase"
     ),
     days_to_hatch = c(23, 23),
