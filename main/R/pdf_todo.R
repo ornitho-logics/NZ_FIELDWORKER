@@ -400,6 +400,7 @@ todo_pdf_prepare_nest_summary <- function(
     prediction[, nest_id := trimws(as.character(nest_id))]
     prediction <- prediction[
       calibration_match_type %chin% c(
+        "found as incomplete",
         "complete clutch chronology",
         "stable one-egg/no increase"
       )
