@@ -120,11 +120,30 @@
   captures[, .(nest_id, chick_band, label_fill, label_text)]
 }
 
+.todo_pdf_map_prepare_tagged_resight_nests <- function(unseen_tagged_birds) {
+  empty <- data.table(nest_id = character())
+  if (is.null(unseen_tagged_birds)) {
+    return(empty)
+  }
+
+  tagged <- data.table(unseen_tagged_birds)
+  if (!nrow(tagged) || !"nest_id" %in% names(tagged)) {
+    return(empty)
+  }
+
+  tagged[, nest_id := trimws(as.character(nest_id))]
+  tagged <- tagged[
+    !is.na(nest_id) & nzchar(nest_id)
+  ]
+  unique(tagged[, .(nest_id)])
+}
+
 
 .todo_pdf_map_prepare_nests <- function(
   todo,
   chick_captures = NULL,
-  nests_latest = NULL
+  nests_latest = NULL,
+  unseen_tagged_birds = NULL
 ) {
   todo <- data.table(todo)
   check_todos <- c("Clutch check", "Unprocessed nest", "nest check")
@@ -155,6 +174,27 @@
     ),
     by = nest_id
   ]
+
+  tagged_resight_nests <- .todo_pdf_map_prepare_tagged_resight_nests(
+    unseen_tagged_birds
+  )
+  if (nrow(tagged_resight_nests)) {
+    tagged_resight_status <- copy(tagged_resight_nests)
+    tagged_resight_status[, tagged_resight := TRUE]
+    task_status <- merge(
+      task_status,
+      tagged_resight_status,
+      by = "nest_id",
+      all = TRUE,
+      sort = FALSE
+    )
+    task_status[is.na(tagged_resight), tagged_resight := FALSE]
+    task_status[
+      tagged_resight == TRUE,
+      parent_work := "Resight"
+    ]
+    task_status[, tagged_resight := NULL]
+  }
 
   reference_date <- if ("reference_date" %in% names(todo)) {
     as.Date(todo$reference_date[1])
@@ -664,13 +704,15 @@ todo_pdf_map_save <- function(
   todo = DBq("SELECT * FROM TODO_LIST"),
   spatial_objects = DBq("SELECT * FROM spatial_objects WHERE variable = 'study_area'"),
   chick_captures = NULL,
-  nests_latest = NULL
+  nests_latest = NULL,
+  unseen_tagged_birds = NULL
 ) {
   plots <- .todo_pdf_map_prepare_plots(spatial_objects)
   nests <- .todo_pdf_map_prepare_nests(
     todo,
     chick_captures,
-    nests_latest
+    nests_latest,
+    unseen_tagged_birds
   )
 
   gate <- st_as_sf(
@@ -749,7 +791,7 @@ todo_pdf_map_save <- function(
     filename = file,
     plot = map,
     width = 190,
-    height = 150,
+    height = 155,
     units = "mm",
     dpi = 240,
     bg = "white"

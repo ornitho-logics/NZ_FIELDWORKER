@@ -234,7 +234,8 @@ todo_pdf_prepare_nest_summary <- function(
   nests_latest,
   reference_date,
   todo = NULL,
-  chick_captures = NULL
+  chick_captures = NULL,
+  unseen_tagged_birds = NULL
 ) {
   nests <- data.table(nests_latest)
   todo_dt <- data.table(todo)
@@ -416,35 +417,83 @@ todo_pdf_prepare_nest_summary <- function(
   }), .SDcols = c("Male", "Female")]
 
   check_todos <- c("Clutch check", "Unprocessed nest", "nest check")
-  if (nrow(todo_dt) && all(c("nest_id", "todo") %in% names(todo_dt))) {
-    parent_marks <- todo_pdf_parent_task_marks(todo_dt)
-    if (nrow(parent_marks)) {
-      summary <- merge(summary, parent_marks, by = "Nest", all.x = TRUE, sort = FALSE)
-      if ("M_todo_mark" %in% names(summary)) {
-        summary[!is.na(M_todo_mark), Male := M_todo_mark]
-        summary[, M_todo_mark := NULL]
+  tagged_resight_nests <- .todo_pdf_map_prepare_tagged_resight_nests(
+    unseen_tagged_birds
+  )
+  if (
+    (nrow(todo_dt) && all(c("nest_id", "todo") %in% names(todo_dt)))
+      || nrow(tagged_resight_nests)
+  ) {
+    if (nrow(todo_dt) && all(c("nest_id", "todo") %in% names(todo_dt))) {
+      parent_marks <- todo_pdf_parent_task_marks(todo_dt)
+      if (nrow(parent_marks)) {
+        summary <- merge(summary, parent_marks, by = "Nest", all.x = TRUE, sort = FALSE)
+        if ("M_todo_mark" %in% names(summary)) {
+          summary[!is.na(M_todo_mark), Male := M_todo_mark]
+          summary[, M_todo_mark := NULL]
+        }
+        if ("F_todo_mark" %in% names(summary)) {
+          summary[!is.na(F_todo_mark), Female := F_todo_mark]
+          summary[, F_todo_mark := NULL]
+        }
       }
-      if ("F_todo_mark" %in% names(summary)) {
-        summary[!is.na(F_todo_mark), Female := F_todo_mark]
-        summary[, F_todo_mark := NULL]
-      }
-    }
 
-    task_symbols <- todo_dt[,
-      .(
-        Symbol = if (any(todo == "notA nest-check")) {
+      task_symbols <- todo_dt[,
+        .(
+          Symbol = if (any(todo == "notA nest-check")) {
+            "notA"
+          } else if (any(todo %chin% check_todos)) {
+            "triangle"
+          } else {
+            "circle"
+          },
+          SymbolColor = fcase(
+            any(todo == "notA nest-check"), "#7b858b",
+            any(todo == "Parent capture"), "#d32f2f",
+            any(todo == "Parent resighting"), "#1976d2",
+            default = "#7b858b"
+          ),
+          tagged_resight = FALSE
+        ),
+        by = nest_id
+      ]
+    } else {
+      task_symbols <- data.table(
+        nest_id = character(),
+        Symbol = character(),
+        SymbolColor = character(),
+        tagged_resight = logical()
+      )
+    }
+    if (nrow(tagged_resight_nests)) {
+      tagged_symbols <- copy(tagged_resight_nests)
+      tagged_symbols[, `:=`(
+        Symbol = "circle",
+        SymbolColor = "#1976d2",
+        tagged_resight = TRUE
+      )]
+      task_symbols <- rbind(task_symbols, tagged_symbols, fill = TRUE)
+    }
+    task_symbols <- task_symbols[
+      , .(
+        Symbol = if (any(Symbol == "notA")) {
           "notA"
-        } else if (any(todo %chin% check_todos)) {
+        } else if (any(Symbol == "triangle")) {
           "triangle"
         } else {
           "circle"
         },
-        SymbolColor = fcase(
-          any(todo == "notA nest-check"), "#7b858b",
-          any(todo == "Parent capture"), "#d32f2f",
-          any(todo == "Parent resighting"), "#1976d2",
-          default = "#7b858b"
-        )
+        SymbolColor = if (any(tagged_resight)) {
+          "#1976d2"
+        } else if (any(Symbol == "notA")) {
+          "#7b858b"
+        } else if (any(SymbolColor == "#d32f2f")) {
+          "#d32f2f"
+        } else if (any(SymbolColor == "#1976d2")) {
+          "#1976d2"
+        } else {
+          "#7b858b"
+        }
       ),
       by = nest_id
     ]
@@ -691,10 +740,22 @@ todo_pdf_prepare <- function(
         # the historical nest_id/age columns.
         chick_counts <- chick_dt[, .(N = .N), by = nest_id]
       }
+      chick_count_brood_candidate <- is_negative_brood |
+        h_brood_needs_observed_count |
+        (
+          !is_negative_brood
+            & toupper(trimws(as.character(todo_dt$nest_state))) %chin% c("H", "NOTA")
+            & todo_pdf_as_numeric(todo_dt$clutch_size) == 0
+        )
       for (i in seq_len(nrow(chick_counts))) {
         todo_dt[
           nest_id == chick_counts$nest_id[i]
-            & (is_negative_brood | h_brood_needs_observed_count),
+            & chick_count_brood_candidate
+            & (
+              is_negative_brood
+                | is.na(todo_pdf_as_numeric(pdf_brood_size))
+                | todo_pdf_as_numeric(pdf_brood_size) < chick_counts$N[i]
+            ),
           pdf_brood_size := as.character(chick_counts$N[i])
         ]
       }
@@ -771,7 +832,8 @@ todo_pdf_prepare <- function(
       nests_latest,
       refdate,
       todo_dt,
-      chick_captures
+      chick_captures,
+      unseen_tagged_birds
     )
   )
 }
@@ -1491,7 +1553,8 @@ todo_pdf_save <- function(
     todo = todo,
     spatial_objects = spatial_objects,
     chick_captures = chick_captures,
-    nests_latest = broods_latest
+    nests_latest = broods_latest,
+    unseen_tagged_birds = unseen_tagged_birds
   )
 
   writeLines(todo_pdf_qmd(pdf, basename(map_file)), qmd)
