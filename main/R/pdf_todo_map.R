@@ -673,7 +673,6 @@
     Resight = "#1976d2",
     `No capture/resight` = "#7b858b"
   )
-  task_shapes <- c(`Nest check` = 24, `notA visit` = 25, `Other task` = 21)
   parent_work_levels <- c(
     "Capture",
     "Capture + tag",
@@ -684,16 +683,15 @@
     "Capture",
     "Capture (deploy tag if outlined in white).",
     "Resight",
-    "No capture/resight"
+    "No to-do task today"
   )
+  legend_shapes <- c(`Nest check` = 24, `notA visit` = 25)
 
   ggplot(
     data.frame(
       parent_work = factor(names(task_cols), levels = parent_work_levels),
-      check_type = factor(
-        c("Nest check", "notA visit", "Other task"),
-        levels = names(task_shapes)
-      )
+      check_type = factor(c("Nest check", "notA visit", "Nest check"),
+                          levels = names(legend_shapes))
     ),
     aes(0, 0)
   ) +
@@ -714,9 +712,15 @@
       shape = 21,
       size = 3.2,
       stroke = 1.15,
-      colour = "#ffffff"
+      colour = "#ffffff",
+      alpha = 0
     ) +
-    geom_point(aes(shape = check_type), fill = "#7b858b", size = 3.2, alpha = 0) +
+    geom_point(
+      aes(shape = check_type),
+      fill = "#7b858b",
+      size = 3.2,
+      alpha = 0
+    ) +
     scale_fill_manual(
       values = c(task_cols, `Capture + tag` = task_cols[["Capture"]]),
       limits = parent_work_levels,
@@ -725,8 +729,9 @@
       name = "Parent work"
     ) +
     scale_shape_manual(
-      values = task_shapes,
-      labels = c("Nest check", "notA visit", "other task (i.e., Parent/brood work)"),
+      values = legend_shapes,
+      limits = names(legend_shapes),
+      labels = c("Nest check", "notA visit"),
       drop = FALSE,
       name = "Nest work"
     ) +

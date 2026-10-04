@@ -3525,6 +3525,11 @@ adult_mm_followup_status AS (
       CASE
         WHEN mm.sex = 'M'
          AND followup.has_xx_nest_behav = 1
+         -- A qualifying X-X nest-behaviour resighting after the MM capture
+         -- rules out the MM bird as the associated parent. Later resightings
+         -- of that ruled-out MM mark must not reinstate it. A later adult
+         -- capture with a new non-X-X mark still cancels this flag and is
+         -- resolved through that new capture's own MM follow-up.
          AND NOT EXISTS (
            SELECT 1
            FROM adult_capture_events later_capture
@@ -3535,11 +3540,6 @@ adult_mm_followup_status AS (
              AND LOWER(TRIM(later_capture.mark)) <> 'dead'
              AND later_capture.capture_date >= followup.xx_nest_behav_date
            )
-         AND (
-           followup.matching_post_mm_resight_date IS NULL
-           OR followup.matching_post_mm_resight_date
-              <= followup.xx_nest_behav_date
-          )
         THEN 1
         ELSE 0
       END
@@ -3548,6 +3548,7 @@ adult_mm_followup_status AS (
       CASE
         WHEN mm.sex = 'F'
          AND followup.has_xx_nest_behav = 1
+         -- Apply the same alternate-parent rule to females.
          AND NOT EXISTS (
            SELECT 1
            FROM adult_capture_events later_capture
@@ -3558,11 +3559,6 @@ adult_mm_followup_status AS (
              AND LOWER(TRIM(later_capture.mark)) <> 'dead'
              AND later_capture.capture_date >= followup.xx_nest_behav_date
            )
-         AND (
-           followup.matching_post_mm_resight_date IS NULL
-           OR followup.matching_post_mm_resight_date
-              <= followup.xx_nest_behav_date
-          )
         THEN 1
         ELSE 0
       END
@@ -3861,8 +3857,10 @@ adult_parent_status AS (
       AS M_is_dead,
     COALESCE(adult_parent_identity_status.F_identity_is_dead, 0)
       AS F_is_dead,
-    -- A later live X-X resighting with qualifying nest behaviour can replace
-    -- the dead identity from an earlier uncertain MM capture for GEO work.
+    -- A qualifying X-X resighting with nest behaviour after an MM capture
+    -- establishes X-X as the associated parent. Later resightings of the
+    -- ruled-out MM mark do not reinstate that bird. A later non-X-X capture
+    -- starts a new identity-resolution sequence for the newly banded bird.
     COALESCE(adult_mm_followup_status.M_mm_xx_parent_confirmed, 0)
       AS M_mm_xx_parent_confirmed,
     COALESCE(adult_mm_followup_status.F_mm_xx_parent_confirmed, 0)
