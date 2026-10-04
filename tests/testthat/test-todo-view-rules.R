@@ -191,11 +191,17 @@ test_that("hatch prediction includes complete-clutch and stable one-egg fallback
   sql <- views_source_sql()
 
   expect_match(sql, "latest_clutch_ranked AS", fixed = TRUE)
+  expect_match(sql, "first_one_egg_ranked AS", fixed = TRUE)
   expect_match(sql, "complete_clutch_status AS", fixed = TRUE)
   expect_match(sql, "stable_one_egg_status AS", fixed = TRUE)
   expect_match(
     sql,
-    "DATEDIFF(sr.reference_date, latest.date) >= 2",
+    "DATEDIFF(sr.reference_date, first_one_egg.date) >= 4",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "DATE_ADD(first_one_egg.date, INTERVAL 2 DAY)",
     fixed = TRUE
   )
   expect_match(sql, "'complete clutch chronology'", fixed = TRUE)
@@ -204,6 +210,60 @@ test_that("hatch prediction includes complete-clutch and stable one-egg fallback
     sql,
     "'complete clutch chronology',\n    'stable one-egg/no increase'",
     fixed = TRUE
+  )
+})
+
+
+test_that("stable one-egg clutches close additional-egg checks conservatively", {
+  sql <- todo_list_view_sql()
+
+  expect_match(
+    sql,
+    "stable_one_egg.calibration_match_type = 'stable one-egg/no increase'",
+    fixed = TRUE
+  )
+
+  additional_egg_check <- function(
+    reference_date,
+    latest_event_date,
+    latest_clutch_size,
+    current_clutch_start_date,
+    first_one_egg_date,
+    final_clutch_size
+  ) {
+    stable_one_egg <- latest_clutch_size == 1 &&
+      final_clutch_size == 1 &&
+      as.numeric(as.Date(reference_date) - as.Date(first_one_egg_date)) >= 4
+    latest_clutch_size %in% c(1, 2) &&
+      as.numeric(as.Date(reference_date) - as.Date(latest_event_date)) >= 2 &&
+      as.numeric(as.Date(latest_event_date) - as.Date(current_clutch_start_date)) < 7 &&
+      !stable_one_egg
+  }
+
+  # C0504-like chronology: one egg on Sep 29, repeated on Oct 2, reference
+  # date Oct 5. The four-day conservative threshold has been exceeded.
+  expect_false(
+    additional_egg_check(
+      "2026-10-05",
+      "2026-10-02",
+      latest_clutch_size = 1,
+      current_clutch_start_date = "2026-09-29",
+      first_one_egg_date = "2026-09-29",
+      final_clutch_size = 1
+    )
+  )
+
+  # A later second egg resets the process and makes the next-egg check
+  # eligible again while the new clutch sequence is still young.
+  expect_true(
+    additional_egg_check(
+      "2026-10-07",
+      "2026-10-05",
+      latest_clutch_size = 2,
+      current_clutch_start_date = "2026-10-05",
+      first_one_egg_date = "2026-09-29",
+      final_clutch_size = 2
+    )
   )
 })
 

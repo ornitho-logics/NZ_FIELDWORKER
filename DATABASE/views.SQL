@@ -1428,6 +1428,16 @@ latest_clutch_ranked AS (
     ) AS row_num
   FROM nest_clutch_history
 ),
+first_one_egg_ranked AS (
+  SELECT
+    nest_clutch_history.*,
+    ROW_NUMBER() OVER (
+      PARTITION BY nest_id
+      ORDER BY date, time_visit, pk
+    ) AS row_num
+  FROM nest_clutch_history
+  WHERE clutch_size = 1
+),
 complete_clutch_status AS (
   SELECT
     complete_clutch.nest_id,
@@ -1544,14 +1554,18 @@ incomplete_clutch_status AS (
 stable_one_egg_status AS (
   SELECT
     latest.nest_id,
+    first_one_egg.date AS first_one_egg_date,
     latest.date AS last_one_egg_date,
-    DATE_ADD(latest.date, INTERVAL 2 DAY)
+    DATE_ADD(first_one_egg.date, INTERVAL 2 DAY)
       AS inferred_clutch_completion_date,
     DATE_ADD(
-      DATE_ADD(latest.date, INTERVAL 2 DAY),
+      DATE_ADD(first_one_egg.date, INTERVAL 2 DAY),
       INTERVAL 26 DAY
     ) AS inferred_hatch_date
   FROM latest_clutch_ranked latest
+  JOIN first_one_egg_ranked first_one_egg
+    ON latest.nest_id = first_one_egg.nest_id
+   AND first_one_egg.row_num = 1
   JOIN final_clutch_status final_clutch
     ON latest.nest_id = final_clutch.nest_id
   CROSS JOIN sr
@@ -1561,7 +1575,10 @@ stable_one_egg_status AS (
   WHERE latest.row_num = 1
     AND latest.clutch_size = 1
     AND final_clutch.final_clutch_size = 1
-    AND DATEDIFF(sr.reference_date, latest.date) >= 2
+    -- Require two full two-day laying intervals before treating a one-egg
+    -- clutch as stable. Use the first one-egg record so repeated checks do
+    -- not continually move the inferred hatch date forward.
+    AND DATEDIFF(sr.reference_date, first_one_egg.date) >= 4
     AND UPPER(TRIM(COALESCE(latest.nest_state, ''))) IN (
       'F', 'I', 'PP', 'PD'
     )
@@ -5831,6 +5848,16 @@ todo_clutch_check AS (
           active_nests.reference_date,
           latest_nest_event.event_date
         ) >= 2
+    -- Once a one-egg clutch has remained unchanged for two full laying
+    -- intervals, treat it as complete rather than requesting indefinite
+    -- additional-egg checks. A later clutch increase removes this prediction
+    -- and reopens the check for the next egg.
+    AND NOT EXISTS (
+      SELECT 1
+      FROM FIELD_2026_BADOatNZ.EGGS_HATCH_PREDICTION stable_one_egg
+      WHERE stable_one_egg.nest_id = active_nests.nest_id
+        AND stable_one_egg.calibration_match_type = 'stable one-egg/no increase'
+    )
 ),
 nest_check_rules AS (
   SELECT
