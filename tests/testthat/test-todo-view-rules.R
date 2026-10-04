@@ -576,7 +576,7 @@ test_that("pending MM parents stay in resighting rather than capture work", {
   )
   expect_match(
     sql,
-    "followup.matching_post_mm_resight_date\n              <= followup.xx_nest_behav_date",
+    "A qualifying X-X nest-behaviour resighting after the MM capture\n         -- rules out the MM bird as the associated parent.",
     fixed = TRUE
   )
   expect_match(sql, "M_mm_xx_parent_confirmed", fixed = TRUE)
@@ -616,26 +616,21 @@ test_that("pending MM parents stay in resighting rather than capture work", {
 
   xx_parent_remains_confirmed <- function(
     xx_behaviour_date,
-    later_banded_capture_date = NA,
-    later_matching_resight_date = NA
+    later_banded_capture_date = NA
   ) {
     capture_is_before_xx <- is.na(later_banded_capture_date) ||
       as.Date(later_banded_capture_date) < as.Date(xx_behaviour_date)
-    matching_resight_is_not_later <- is.na(later_matching_resight_date) ||
-      as.Date(later_matching_resight_date) <= as.Date(xx_behaviour_date)
-    capture_is_before_xx && matching_resight_is_not_later
+    capture_is_before_xx
   }
 
   displayed_mm_parent_mark <- function(
     capture_mark,
     xx_behaviour_date,
-    later_banded_capture_date = NA,
-    later_matching_resight_date = NA
+    later_banded_capture_date = NA
   ) {
     if (xx_parent_remains_confirmed(
       xx_behaviour_date,
-      later_banded_capture_date,
-      later_matching_resight_date
+      later_banded_capture_date
     )) {
       return("X-X")
     }
@@ -656,19 +651,37 @@ test_that("pending MM parents stay in resighting rather than capture work", {
   expect_false(
     xx_parent_remains_confirmed("2026-09-01", "2026-09-02")
   )
-  expect_false(
-    xx_parent_remains_confirmed(
-      "2026-09-25",
-      later_matching_resight_date = "2026-09-26"
-    )
-  )
+
+  # C0615-like chronology: the later BY-TY.YW resighting is the previously
+  # ruled-out MM identity and must not cancel the X-X parent confirmation.
+  expect_true(xx_parent_remains_confirmed("2026-09-25"))
   expect_identical(
     displayed_mm_parent_mark(
       "BY-TY.YW",
-      "2026-09-25",
-      later_matching_resight_date = "2026-09-26"
+      "2026-09-25"
     ),
-    "BY-TY.YW"
+    "X-X"
+  )
+
+  # If that X-X bird is later banded as a new MM identity, the later capture
+  # cancels the X-X override; the new mark can then resolve via its own
+  # matching nest-behaviour resighting.
+  expect_false(
+    xx_parent_remains_confirmed(
+      "2026-09-25",
+      later_banded_capture_date = "2026-09-26"
+    )
+  )
+
+  new_mm_followup_resolves <- function(capture_mark, resighting_mark, behav) {
+    identical(capture_mark, resighting_mark) &&
+      grepl("(^|[^A-Z])(IN|NM|BW|BC|FC)([^A-Z]|$)", behav)
+  }
+  expect_true(
+    new_mm_followup_resolves("BY-TY.YR", "BY-TY.YR", "AT, IN")
+  )
+  expect_false(
+    new_mm_followup_resolves("BY-TY.YR", "BY-TY.YW", "AT, IN")
   )
 })
 

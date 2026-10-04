@@ -510,6 +510,13 @@ test_that("tagged capture tasks receive a white map outline and legend entry", {
   expect_true(
     "Capture (deploy tag if outlined in white)." %in% fill_scale$get_labels()
   )
+  shape_scale <- legend$scales$get_scales("shape")
+  expect_identical(
+    shape_scale$get_limits(),
+    c("Nest check", "notA visit")
+  )
+  expect_false("Other task" %in% shape_scale$get_limits())
+  expect_true("No to-do task today" %in% fill_scale$get_labels())
 })
 
 

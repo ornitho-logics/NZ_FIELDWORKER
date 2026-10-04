@@ -1509,7 +1509,7 @@ todo_pdf_body <- function(
       "```{=typst}",
       "#set page(margin: (x: 1.5cm, y: 1cm))",
       "#pagebreak()",
-      "#align(left)[#emph[#text(size: 8.5pt)[Only nests and broods with to-dos are shown. Nests are labelled in black, broods are labelled according to the band colour assigned to chicks. Nest points are stationary, brood points show the latest recorded location]]]",
+      "#align(left)[#emph[#text(size: 8.5pt)[All active nests and broods are shown. Nests are labelled in black, broods are labelled according to the band colour assigned to chicks. Nest points are stationary, brood points show the latest recorded location. Symbols highlighted in white require tag deployment (see notes in the 'Parents to capture' table above).]]]",
       "#v(0.1em)",
       glue('#align(center)[#image("{map_file}", width: 100%)]'),
       "#v(-0.4em)",
