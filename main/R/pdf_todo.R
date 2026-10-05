@@ -938,7 +938,7 @@ todo_pdf_heading <- function(todo_name) {
     ),
     "Parent resighting" = list(
       title = "Parents to resight for nest association",
-      subtitle = "Association of MM-cap parent resolved after either 1) three subsequent resightings, or 2) one ‘behav’ “IN”, “NM”, “BW”, “BC”, “FC” resighting"
+      subtitle = "Association of a banded parent resolves after either 1) three nest-linked resightings of the same identity, including the initial resighting, or 2) one ‘behav’ “IN”, “NM”, “BW”, “BC”, “FC” resighting"
     ),
     "Untrapped brood" = list(
       title = "Broods to band",

@@ -652,7 +652,8 @@ test_that("pending MM parents stay in resighting rather than capture work", {
   )
   expect_no_match(sql, "AND followup.nest_id IS NULL", fixed = TRUE)
   expect_no_match(sql, "'resight/band M (MM cap)'", fixed = TRUE)
-  expect_match(sql, "' had MM cap'", fixed = TRUE)
+  expect_match(sql, "'MM cap '", fixed = TRUE)
+  expect_match(sql, "M_mm_resight_count", fixed = TRUE)
   expect_match(sql, "has_xx_nest_behav", fixed = TRUE)
   expect_match(sql, "matched.has_nest_behav = 1", fixed = TRUE)
   expect_no_match(
@@ -1113,7 +1114,17 @@ test_that("live X-X after a dead MM capture remains GEO eligible", {
 
   expect_match(
     sql,
-    "COALESCE(parent_status.M_is_dead, 0) = 0\n                   OR (\n                     COALESCE(parent_status.M_mm_xx_parent_confirmed, 0) = 1\n                     AND COALESCE(parent_status.M_confirmed_unbanded, 0) = 1\n                     AND COALESCE(parent_status.M_mm_resight_pending, 0) = 0\n                   )",
+    "COALESCE(parent_status.M_is_dead, 0) = 0",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "COALESCE(parent_status.M_mm_xx_parent_confirmed, 0) = 1",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "COALESCE(parent_status.M_resight_association_pending, 0) = 0",
     fixed = TRUE
   )
   expect_match(
@@ -1148,6 +1159,89 @@ test_that("live X-X after a dead MM capture remains GEO eligible", {
 })
 
 
+test_that("generic banded-parent association follows the resighting threshold", {
+  sql <- todo_list_view_sql()
+
+  expect_match(
+    sql,
+    "adult_resighting_association_status AS",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "M_resight_association_count",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "M with ",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "resightings",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "COUNT(*) AS n_matching_resightings",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "COUNT(*) >= 3",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "identity_resolved",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "BW|NM|IN|BC|FC",
+    fixed = TRUE
+  )
+  expect_equal(
+    length(gregexpr("BW|NM|IN|BC|FC", sql, fixed = TRUE)[[1L]]),
+    1L
+  )
+  expect_no_match(sql, "has_association_behaviour", fixed = TRUE)
+  expect_no_match(sql, "n_distinct_identities", fixed = TRUE)
+  expect_match(
+    sql,
+    "captured.capture_method, ''))) = 'TN'",
+    fixed = TRUE
+  )
+
+  association_pending <- function(identity_behaviours) {
+    resolved <- vapply(identity_behaviours, function(behav) {
+      any(grepl("(^|[^A-Z])(IN|NM|BW|BC|FC)([^A-Z]|$)", behav)) ||
+        length(behav) >= 3
+    }, logical(1))
+    sum(resolved) != 1
+  }
+
+  # One initial AT resighting is unresolved and remains on Parent resighting.
+  expect_true(association_pending(list("AT")))
+  # The initial event counts toward the three matching-resighting threshold.
+  expect_true(association_pending(list(c("AT", "AT"))))
+  expect_false(association_pending(list(c("AT", "AT", "AT"))))
+  # Any one of the approved association behaviours resolves the identity.
+  for (behav in c("IN", "NM", "BW", "BC", "FC")) {
+    expect_false(association_pending(list(behav)))
+  }
+  # A future confirming event is excluded before it reaches this calculation;
+  # the earlier reference date therefore still sees an open task.
+  expect_true(association_pending(list("AT")))
+  # Distinct same-sex identities remain ambiguous rather than silently
+  # assigning the nest to both birds when neither has resolving evidence.
+  expect_true(association_pending(list("AT", "AT")))
+  # One confirmed identity displaces a provisional alternate identity.
+  expect_false(association_pending(list("AT", "IN")))
+})
+
+
 test_that("resolved MM follow-up uses the canonical captured parent mark", {
   sql <- todo_list_view_sql()
 
@@ -1159,6 +1253,21 @@ test_that("resolved MM follow-up uses the canonical captured parent mark", {
   expect_match(
     sql,
     "adult_parent_identity_status.F_identity_mark",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "M_mm_resight_count",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "'MM cap ',",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "' with '",
     fixed = TRUE
   )
 
@@ -1185,6 +1294,62 @@ test_that("resolved MM follow-up uses the canonical captured parent mark", {
     displayed_female_mark(FALSE, "BY-YY", "BY-YY", TRUE),
     "BY-YY"
   )
+})
+
+
+test_that("MM follow-up handles a distinct short-form alternative parent", {
+  sql <- todo_list_view_sql()
+
+  expect_match(
+    sql,
+    "adult_mm_alternate_parent_status AS",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "ranked.requires_spacer_identity = 0",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "ranked.has_full_mark_observation = 1",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "ordered.n_alternate_resightings >= 3",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "adult_parent_status.M_alternate_parent_marks",
+    fixed = TRUE
+  )
+
+  short_mark <- function(LL, LR, UL = NULL, UR = NULL) {
+    paste(LL, LR, sep = "-")
+  }
+  alternate_resolved <- function(
+    n_distinct_marks,
+    has_association_behaviour,
+    n_resightings
+  ) {
+    n_distinct_marks == 1 &&
+      (has_association_behaviour || n_resightings >= 3)
+  }
+
+  # Full UL/UR entry does not change the ordinary LL-LR identity.
+  expect_identical(
+    short_mark("BY", "LW", UL = "YO", UR = "TG"),
+    "BY-LW"
+  )
+  # AT alone leaves the single alternative unresolved.
+  expect_false(alternate_resolved(1, FALSE, 1))
+  # One qualifying behaviour or three subsequent events resolves it.
+  expect_true(alternate_resolved(1, TRUE, 1))
+  expect_true(alternate_resolved(1, FALSE, 3))
+  # Competing alternative marks remain ambiguous.
+  expect_false(alternate_resolved(2, TRUE, 3))
 })
 
 
