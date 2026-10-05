@@ -157,6 +157,39 @@ test_that("BROODS_LATEST treats age-C captures as positive brood evidence", {
 })
 
 
+test_that("brood photo follow-up uses the unified brood evidence source", {
+  sql <- todo_list_view_sql()
+
+  expect_match(
+    sql,
+    "JOIN FIELD_2026_BADOatNZ.BROODS_LATEST b\n    ON n.nest_id = b.nest_id",
+    fixed = TRUE
+  )
+  expect_match(sql, "b.has_hatch_evidence = 1", fixed = TRUE)
+  expect_match(sql, "b.hatch_evidence_date AS hatch_date", fixed = TRUE)
+  expect_false(
+    grepl("WHERE n.nest_state IN ('H', 'notA')", sql, fixed = TRUE)
+  )
+})
+
+
+test_that("initial processing uses all qualifying processing history", {
+  sql <- todo_list_view_sql()
+
+  expect_match(
+    sql,
+    "COALESCE(processing_summary.n_float_rows, 0) = 0",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "COALESCE(processing_summary.n_photo_rows, 0) = 0",
+    fixed = TRUE
+  )
+  expect_false(grepl("complete_clutch_processing_status", sql, fixed = TRUE))
+})
+
+
 test_that("hiding-photo TODO counts distinct captured and photographed rings", {
   sql <- todo_list_view_sql()
 

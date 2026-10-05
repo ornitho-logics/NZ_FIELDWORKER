@@ -1570,7 +1570,7 @@ todo_pdf_qmd <- function(
 
 todo_pdf_save <- function(
   file,
-  todo = DBq("SELECT * FROM TODO_LIST"),
+  todo = NULL,
   available_combos = NULL,
   spatial_objects = NULL,
   nests_latest = NULL,
@@ -1579,6 +1579,35 @@ todo_pdf_save <- function(
   broods_latest = NULL,
   hatch_prediction = NULL
 ) {
+  if (is.null(todo)) {
+    # TODO_LIST contains several diagnostic GEO columns.  The PDF only needs
+    # the fields below, and the complex view is safer when MariaDB materializes
+    # its derived CTEs instead of repeatedly merging them into the outer query.
+    todo <- DBq(
+      "
+      SELECT
+        nest_id,
+        reference_date,
+        todo,
+        notes,
+        days_overdue,
+        priority,
+        min_days_to_hatch,
+        last_visit_days_ago,
+        nest_state,
+        clutch_size,
+        brood_size,
+        M_mark,
+        F_mark,
+        lat,
+        lon,
+        geo_priority_rank
+      FROM TODO_LIST
+      ",
+      derived_merge_off = TRUE
+    )
+  }
+
   if (is.null(broods_latest)) {
     if (is.null(nests_latest)) {
       broods_latest <- DBq("SELECT * FROM BROODS_LATEST")
