@@ -22,6 +22,44 @@ test_that("tagged-bird PDF follow-up uses the strict unseen threshold", {
 })
 
 
+test_that("team marks are distributed evenly across three teams", {
+  app <- load_main_app()
+  prepare <- app$env$todo_pdf_prepare_team_marks
+
+  for (n_marks in c(1L, 2L, 3L, 4L, 28L, 29L, 30L, 31L)) {
+    marks <- sprintf("MOCK-%02d", seq_len(n_marks))
+    observed <- prepare(data.frame(mark = marks))
+    displayed_n <- min(n_marks, 30L)
+    expected_sizes <- rep(displayed_n %/% 3L, 3L)
+    remainder <- displayed_n %% 3L
+    if (remainder) {
+      expected_sizes[seq_len(remainder)] <-
+        expected_sizes[seq_len(remainder)] + 1L
+    }
+
+    combo_cells <- as.matrix(observed[, -"Team"])
+    expect_identical(
+      as.integer(rowSums(combo_cells != "")),
+      expected_sizes
+    )
+    expect_identical(
+      as.character(observed$Team),
+      c("Team 1", "Team 2", "Team 3")
+    )
+    expect_identical(
+      as.character(t(combo_cells))[as.character(t(combo_cells)) != ""],
+      head(marks, 30L)
+    )
+  }
+
+  expect_error(
+    prepare(data.frame(mark = character())),
+    "No available combinations were returned",
+    fixed = TRUE
+  )
+})
+
+
 test_that("to-do headings use the current operational subtitles", {
   app <- load_main_app()
   heading <- app$env$todo_pdf_heading
@@ -36,7 +74,7 @@ test_that("to-do headings use the current operational subtitles", {
   )
   expect_identical(
     heading("Parent resighting")$subtitle,
-    "Association of MM-cap parent resolved after either 1) three subsequent resightings, or 2) one ‘behav’ “IN”, “NM”, “BW”, “BC”, “FC” resighting"
+    "Association of a banded parent resolves after either 1) three nest-linked resightings of the same identity, including the initial resighting, or 2) one ‘behav’ “IN”, “NM”, “BW”, “BC”, “FC” resighting"
   )
   expect_identical(
     heading("nest check")$subtitle,
