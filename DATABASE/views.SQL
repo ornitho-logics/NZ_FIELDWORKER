@@ -5751,12 +5751,12 @@ todo_unprocessed_nest AS (
       WHEN COALESCE(initial_clutch_status.found_as_incomplete, 0) = 0
        AND COALESCE(processing_summary.n_float_rows, 0) = 0
        AND COALESCE(processing_summary.n_photo_rows, 0) = 0
-      THEN 'float + photos'
+      THEN 'float + nest/tent photos'
       WHEN COALESCE(initial_clutch_status.found_as_incomplete, 0) = 0
        AND COALESCE(processing_summary.n_float_rows, 0) = 0
       THEN 'float only'
       WHEN COALESCE(processing_summary.n_photo_rows, 0) = 0
-      THEN 'photos only'
+      THEN 'nest/tent photos only'
     END AS notes,
     DATEDIFF(
       active_nests.reference_date,
