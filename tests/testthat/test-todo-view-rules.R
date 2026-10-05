@@ -30,6 +30,37 @@ views_source_sql <- function() {
 }
 
 
+available_combos_view_sql <- function() {
+  sql <- views_source_sql()
+  start_marker <- paste(
+    "CREATE OR REPLACE VIEW",
+    "FIELD_2026_BADOatNZ.AVAILABLE_COMBOS AS"
+  )
+  end_marker <- paste(
+    "CREATE OR REPLACE VIEW",
+    "FIELD_2026_BADOatNZ.NESTS_LATEST AS"
+  )
+  start <- regexpr(start_marker, sql, fixed = TRUE)[[1]]
+  expect_gt(start, 0L)
+
+  remainder <- substring(sql, start)
+  finish <- regexpr(end_marker, remainder, fixed = TRUE)[[1]]
+  expect_gt(finish, 0L)
+
+  substring(remainder, 1L, finish - 1L)
+}
+
+
+test_that("AVAILABLE_COMBOS fails closed without a reference date", {
+  sql <- available_combos_view_sql()
+
+  expect_match(sql, "WITH sr AS (", fixed = TRUE)
+  expect_match(sql, "WHERE variable = 'reference_date'", fixed = TRUE)
+  expect_match(sql, "AND value IS NOT NULL", fixed = TRUE)
+  expect_match(sql, "CROSS JOIN sr", fixed = TRUE)
+})
+
+
 test_that("TODO_LIST contains the bounded operational rules", {
   sql <- todo_list_view_sql()
 

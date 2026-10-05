@@ -218,14 +218,21 @@ FROM used_marks_normalized;
   candidate combinations are generated first, then occupied combinations are
   removed, and only then are marks ranked for fieldworker/team use.
 
-  CTE roles: colours = allowed single colours; lr_pairs = lower-right pairs;
-  site_rules = permitted site/left-leg combinations; candidate_combos = valid
-  candidates; used_combos = occupied candidates; available_combos_ranked =
-  deterministic ordering and rank used by the PDF Team marks table.
+  CTE roles: sr = fail-closed reference-date guard; colours = allowed single
+  colours; lr_pairs = lower-right pairs; site_rules = permitted site/left-leg
+  combinations; candidate_combos = valid candidates; used_combos = occupied
+  candidates; available_combos_ranked = deterministic ordering and rank used
+  by the PDF Team marks table.
 */
 CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.AVAILABLE_COMBOS AS
 
-WITH colours AS (
+WITH sr AS (
+  SELECT value AS reference_date
+  FROM FIELD_2026_BADOatNZ.settings
+  WHERE variable = 'reference_date'
+    AND value IS NOT NULL
+),
+colours AS (
   SELECT 'B' AS colour
   UNION ALL SELECT 'G'
   UNION ALL SELECT 'R'
@@ -266,6 +273,7 @@ candidate_combos AS (
   JOIN lr_pairs p
     ON r.lr_first_rule IS NULL
     OR p.lr_first = r.lr_first_rule
+  CROSS JOIN sr
 ),
 used_combos AS (
   SELECT DISTINCT

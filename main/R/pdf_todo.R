@@ -37,24 +37,44 @@ todo_pdf_prepare_team_marks <- function(available_combos = NULL) {
 
   marks <- trimws(marks)
   marks <- marks[!is.na(marks) & nzchar(marks)]
-  if (length(marks) < 30) {
+  if (!length(marks)) {
     stop(
-      sprintf(
-        "Team marks requires 30 available combinations; only %d were returned.",
-        length(marks)
-      ),
+      "No available combinations were returned for the Team marks table.",
       call. = FALSE
     )
   }
   marks <- head(marks, 30)
 
-  team_marks <- as.data.table(
-    matrix(marks, nrow = 3, byrow = TRUE)
-  )
+  n_teams <- 3L
+  team_sizes <- rep(length(marks) %/% n_teams, n_teams)
+  remainder <- length(marks) %% n_teams
+  if (remainder) {
+    team_sizes[seq_len(remainder)] <-
+      team_sizes[seq_len(remainder)] + 1L
+  }
+
+  n_columns <- max(team_sizes)
+  team_rows <- vector("list", n_teams)
+  next_mark <- 1L
+  for (team_index in seq_len(n_teams)) {
+    team_size <- team_sizes[[team_index]]
+    team_row <- if (team_size) {
+      marks[seq.int(next_mark, length.out = team_size)]
+    } else {
+      character()
+    }
+    team_rows[[team_index]] <- c(
+      team_row,
+      rep("", n_columns - team_size)
+    )
+    next_mark <- next_mark + team_size
+  }
+
+  team_marks <- as.data.table(do.call(rbind, team_rows))
 
   setnames(team_marks, as.character(seq_len(ncol(team_marks))))
   team_marks[, Team := c("Team 1", "Team 2", "Team 3")]
-  setcolorder(team_marks, c("Team", as.character(seq_len(10))))
+  setcolorder(team_marks, c("Team", as.character(seq_len(n_columns))))
 
   team_marks
 }
