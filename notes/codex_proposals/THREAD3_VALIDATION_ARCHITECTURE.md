@@ -16,7 +16,8 @@ proposal.
   alongside the current Thread 4 SQL/PDF work.
 - No live database was connected to.
 - No live `inspectors` row was queried or changed.
-- `AGENTS.md` was read but intentionally not edited.
+- `AGENTS.md` is intentionally updated in this PR under the user's explicit
+  request and now points to this tracked handoff and the inspector lists.
 
 The current authoritative protocol is version **1.3.3**, generated 2026-09-30.
 The official YAML and local mirror are byte-identical with SHA-256:
@@ -129,7 +130,7 @@ The source-of-truth SQL is in `DATABASE/`, not older `Admin/db_structure.SQL` pa
 
 ## Rule inventory by functional area
 
-The parsed v1.3.1 protocol contains these rule families. The exact rule IDs and
+The parsed v1.3.3 protocol contains these rule families. The exact rule IDs and
 descriptions remain in the YAML; this section explains their implementation role.
 
 ### Shared rules
@@ -387,7 +388,7 @@ and must not be compiled into save-time inspectors.
 
 ## Deployment status and manual rollout
 
-Local protocol and inspector work is complete for the current v1.3.1 semantics. Live
+Local protocol and inspector work is complete for the current v1.3.3 semantics. Live
 deployment is **not established**. No live `inspectors` rows were inspected or changed.
 
 Manual deployment, if separately approved, should be:
@@ -429,6 +430,7 @@ The audit covered:
 ## Reconciliation result
 
 The official YAML, mirror, local hard/warning exports, focused fixture test, and
-documentation are aligned for approved protocol v1.3.2 H-ring behavior. The
+documentation are aligned for approved protocol v1.3.3 behavior, including the
+v1.3.2 H-ring rules. The
 unresolved derived H-association/view discrepancy is still explicitly retained for
 the responsible schema/TODO workstream.

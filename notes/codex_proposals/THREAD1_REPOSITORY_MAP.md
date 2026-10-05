@@ -43,10 +43,11 @@ coordinates were inspected or reproduced.
 - PR branch: `codex/parent-association-thread-docs-2026-10-06`.
 - Base revision: `1617e84`, identical to `origin/main` when this branch was
   created.
-- The PR candidate changes `DATABASE/views.SQL`, `main/R/pdf_todo.R`, and two
-  focused tests for parent association, plus `.gitignore` and the six curated
-  Thread 1-6 handoff documents.
-- `AGENTS.md` is intentionally untouched and excluded from the PR.
+- The PR candidate changes `DATABASE/views.SQL`, `main/R/pdf_todo.R`, focused
+  tests, `.gitignore`, `AGENTS.md`, and the six curated Thread 1-6 handoffs.
+- `AGENTS.md` is intentionally tracked and included under the user's explicit
+  request; it now documents project-wide workflow rather than `cass_prep`-only
+  metadata.
 - The six curated handoffs under `notes/codex_proposals/` are now explicitly
   unignored so future reasoning/logic updates remain reviewable in Git.
 - Raw prompt logs, generated previews, dumps, workbooks, mock data, and other
@@ -270,7 +271,7 @@ Entry files remain:
 
 - `main/global.R`: packages, database/table/view lists, source-watch mappings,
   map colours, theme dependencies, and Git-version resolution.
-- `main/ui.R`: the `bs4Dash` page, sidebar/controlbar, five Overview panels,
+- `main/ui.R`: the `bs4Dash` page, sidebar/controlbar, seven Overview panels,
   launchers, downloads, data browsers, and nest map.
 - `main/server.R`: reference-date state, Overview renders, launcher outputs,
   table/view renders, nest-map polling, and download handlers.
@@ -438,14 +439,13 @@ are supporting artifacts, not tracked app code or live validator state.
 - The current CR/CX split is explicitly a temporary compatibility gate for the
   deployed PDF query, not a general site classification.
 - `main/R/pdf_todo.R::todo_pdf_prepare_team_marks()` selects up to 30 CR marks
-  and lays them out as three teams of ten.
+  and distributes however many are available as evenly as possible across
+  three teams. An empty result is an error rather than a blank assignment.
 - `AVAILABLE_COMBOS` is exposed in `Show Views`; `USED_COMBOS_DETAIL` is not.
 
-The user has reassigned active Thread 6 to combo-list work. This conflicts with
-`AGENTS.md`, which still defines Thread 6 as QA/reproducibility reviewer. During
-this cartography pass, Thread 6 created
-`notes/codex_proposals/THREAD6_COMBO_LIST_PROTOCOL.md` and updated
-`notes/codex_logs/THREAD6_PROMPT_LOG.md` to record the active role.
+The user has reassigned active Thread 6 to combo-list work. `AGENTS.md` and the
+tracked `notes/codex_proposals/THREAD6_COMBO_LIST_PROTOCOL.md` now agree on that
+role. Raw Thread 6 prompt logs remain ignored and outside the PR.
 
 ## To-do, parent-status, PDF, and map workflow
 
@@ -473,12 +473,13 @@ flotation, clutch-check, nest-check, or notA-closure tasks, and it has no hatch
 estimate. Parent notes include `band X-X F; band X-X M`, `band X-X F`, and
 `band/resight F; band X-X M` where applicable.
 
-An H-class hiding-photo event resolves `Hiding spot photos needed` only when it
-is linked to the brood, falls within the reference-date/age-C/site conditions,
-and has a normalized nonblank, non-`NA` `RESIGHTINGS.ring`. The ring identifies
-the photographed chick and is supplemental to the UL/LL/UR/LR fields. A
-CAPTURES tent-photo row, including `chick_tent_photo = 1`, does not substitute
-for the separate RESIGHTINGS H event.
+Each H-class hiding-photo event contributes one distinct photographed-chick
+ring only when it is linked to the brood, falls within the reference-date/
+age-C/site conditions, and has a normalized nonblank, non-`NA`
+`RESIGHTINGS.ring`. The task closes when distinct qualifying H rings reach the
+distinct captured-chick-ring count for that brood. A CAPTURES tent-photo row,
+including `chick_tent_photo = 1`, does not substitute for the separate
+RESIGHTINGS H event.
 
 Current parent logic combines captures and resightings by nest and sex, including:
 
@@ -524,14 +525,16 @@ The separate live map still uses `NESTS_LATEST` through
 
 ## Overview architecture
 
-The Overview tab now has five full-width collapsible panels:
+The Overview tab now has seven full-width collapsible panels:
 
 1. Seasonal progression in nest discovery.
 2. Seasonal progression in geolocator deployments.
-3. Seasonal progression in unique band combinations encountered by capture or
+3. Resighting histories of geolocator-tagged birds.
+4. Seasonal progression in unique band combinations encountered by capture or
    resighting.
-4. Seasonal progression in estimated lay date.
-5. Current manipulation quotas.
+5. Seasonal progression in estimated lay date.
+6. Hatching forecast.
+7. Current manipulation quotas.
 
 Repo-visible flow:
 
@@ -548,8 +551,11 @@ Current plotting behavior:
 - Geolocator and unique-combination plots split known sex into Female and Male;
   the combo plot prefers a single historic genetic sex when available, otherwise
   a single consistent observed sex.
+- Tagged-bird histories use separate female/male facets and a tall mobile layout
+  with a wrapped limp-status legend and caption.
 - Lay date remains a histogram derived from `EGGS_HATCH_PREDICTION` and CR nest
   membership.
+- Hatching forecast is a future-date histogram using predicted hatch dates.
 - Quotas remain four polar plots for floated eggs, geolocators, non-geolocator
   adult sampling captures, and processed chicks.
 - `overview_date_limits()` finds the earliest relevant CR nest/capture/resighting/
@@ -561,7 +567,7 @@ Current plotting behavior:
   There is no dedicated Overview CSS breakpoint.
 
 The SQL `OVERVIEW` view remains a separate tabular metric view under `Show Views`;
-the five app-side panels do not consume it directly.
+the seven app-side panels do not consume it directly.
 
 ## GPS and map architecture
 
@@ -592,13 +598,12 @@ Current test files:
 - `tests/testthat/test-leaflet-plots.R`
 - `tests/testthat/test-main-server.R`
 - `tests/testthat/test-system-utils.R`
-- `tests/testthat/test-hiding-spot-ring.R` (new local focused regression test;
-  currently untracked)
+- `tests/testthat/test-hiding-spot-ring.R`
 
 Static coverage includes:
 
 - all eight DataEntry wrapper shapes and mocked save flows;
-- main UI, Git-ID environment override/parser, five Overview outputs, and SQL
+- main UI, Git-ID environment override/parser, seven Overview outputs, and SQL
   `OVERVIEW` presence;
 - Overview reference-date alignment, cumulative-ribbon geometry, annotations,
   and legend placement;
@@ -681,31 +686,27 @@ runtime package behavior or current database contents.
 
 ## Current discrepancies and risks
 
-1. `AGENTS.md` says it belongs only on `cass_prep`, but the current committed
-   base also contains it; branch governance still needs collaborator agreement.
-2. `AGENTS.md` assigns Thread 6 to QA/reproducibility; the user says active Thread
-   6 is now the combo-list agent.
-3. Repository merge state does not establish live database deployment; derived
+1. Repository merge state does not establish live database deployment; derived
    views still need object-specific deployment verification.
-4. `NESTS_LATEST` depends on `RESIGHTINGS`, but its source-watch mapping omits it.
-5. `CAPTURES_ARCHIVE` depends on historic `BADOatNZ.SEX`, but its mapping names
+2. `NESTS_LATEST` depends on `RESIGHTINGS`, but its source-watch mapping omits it.
+3. `CAPTURES_ARCHIVE` depends on historic `BADOatNZ.SEX`, but its mapping names
    only historic CAPTURES.
-6. `AVAILABLE_COMBOS` is browser-visible but has no source-watch mapping. Unmapped
+4. `AVAILABLE_COMBOS` is browser-visible but has no source-watch mapping. Unmapped
    views receive a stable polling token and do not refresh from source checks.
-7. `VIEW_1` and `VIEW_2` are browser-visible names without tracked DDL.
-8. `GPS_TRACKS` exists but is absent from the current raw-table browser list.
-9. CAPTURES DDL includes `eggs_handled`, but its DataEntry wrapper has no binary
+5. `VIEW_1` is tracked; `VIEW_2` remains browser-visible without tracked DDL.
+6. `GPS_TRACKS` exists but is absent from the current raw-table browser list.
+7. CAPTURES DDL includes `eggs_handled`, but its DataEntry wrapper has no binary
    dropdown for it.
-10. Both `FM` and `MF` are accepted for `bird_inc`; downstream code may treat them
+8. Both `FM` and `MF` are accepted for `bird_inc`; downstream code may treat them
     as separate values unless explicitly normalized.
-11. The to-do map evaluates DB-stored R text for polygons, contains a hard-coded
+9. The to-do map evaluates DB-stored R text for polygons, contains a hard-coded
     landmark, and makes an external imagery request. Those are runtime/security/
     availability boundaries that tests do not currently cover.
-12. `main/www/help/intro.html` describes one Overview summary plot and links to an
+10. `main/www/help/intro.html` describes one Overview summary plot and links to an
     older repository organization, so help text lags current app behavior.
-13. The sidebar test badge reads a static CSV at UI source time and may lag the
+11. The sidebar test badge reads a static CSV at UI source time and may lag the
     latest test run.
-14. `TODO_LIST` remains a large MariaDB view. Static CTE-limit and rule tests
+12. `TODO_LIST` remains a large MariaDB view. Static CTE-limit and rule tests
     reduce regression risk but do not replace an isolated execution-plan and
     deployment benchmark against the target server.
 
@@ -782,8 +783,7 @@ tracked app code.
 
 ### Thread 6: combo-list agent
 
-Treat the user’s current assignment and Thread 6 memo as authoritative over stale
-AGENTS role text. Start with:
+Treat the Thread 6 memo and aligned `AGENTS.md` role as authoritative. Start with:
 
 - `notes/codex_proposals/THREAD6_COMBO_LIST_PROTOCOL.md`
 - `notes/codex_logs/THREAD6_PROMPT_LOG.md`
@@ -799,13 +799,11 @@ AGENTS role text. Start with:
 
 1. Preserve the approved implementation while preparing a focused commit that
    includes only the intended SQL, R, tests, and authorized documentation.
-2. Before committing, review `git status --short`,
-   `git diff --check`, and `git diff --name-status origin/main...HEAD` (or the
-   corresponding branch comparison) so `AGENTS.md` and unrelated files are not
-   carried into the collaborator-facing PR unintentionally.
-3. Build the clean PR branch from `origin/main`, cherry-pick only the intended
-   implementation commit(s), and remove `AGENTS.md` from that PR branch if it is
-   present, following the workflow in `AGENTS.md`.
+2. Before committing, review `git status --short`, `git diff --check`, and
+   `git diff --name-status origin/main...HEAD` so only intended source and
+   explicitly authorized tracked documentation enter the PR.
+3. Keep `AGENTS.md` in the PR when its update is intentional, as it is here;
+   continue excluding raw logs, confidential data, and generated artifacts.
 4. After review/merge, deploy the object-specific SQL in dependency order,
    including `BROODS_LATEST` and `TODO_LIST`, then verify the live view
    definitions and inspector rows through an approved read-only/deployment
@@ -813,9 +811,8 @@ AGENTS role text. Start with:
 5. Run the focused no-database tests and render a safe mock PDF/map before and
    after deployment; then perform a narrow field-season smoke check without
    exposing confidential records or coordinates.
-6. Thread 5 should reconcile its Overview handoff with the current source, and
-   Thread 6 should maintain the combo allocation contract and its separate role
-   documentation.
+6. Thread 5 should maintain its reconciled Overview handoff, and Thread 6 should
+   maintain the combo allocation contract and aligned role documentation.
 7. Reconcile view-source mappings, placeholder views, gpxui test expectations,
    DataEntry dropdowns, help text, and the static test badge in their owning
    threads before treating them as current guarantees.

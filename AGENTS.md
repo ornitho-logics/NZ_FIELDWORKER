@@ -1,24 +1,19 @@
 # AGENTS.md — NZ_FIELDWORKER / Banded Dotterel Fieldworker Database
 
-## Branch-specific status of this file
+## Tracking and authority of this file
 
-This `AGENTS.md` file documents Luke’s Codex agentic workflow for this project.
+This `AGENTS.md` file documents Luke's Codex workflow and the shared operating
+rules for this project. It is intentionally tracked in Git and is intended to
+reach `main` through normal human-reviewed pull requests.
 
-It is intentionally tracked on Luke’s Codex-integrated working branch:
+`AGENTS.md` must not be listed in `.gitignore`, silently removed from a PR, or
+treated as private branch metadata. Changes to it still require an explicit
+user request, must be reviewed like source changes, and must not weaken the
+confidentiality, database-safety, or human-control rules below.
 
-```text
-cass_prep
-```
-
-The purpose of tracking it on `cass_prep` is transparency: the branch itself should make clear how Codex is being used, what the thread roles are, what safety rules apply, and what local workflow conventions Luke is using.
-
-`AGENTS.md` is not intended for the upstream collaborator-controlled `main` branch.
-
-Git cannot automatically ignore a tracked file during a merge or pull request. Therefore, `AGENTS.md` must be kept out of any branch intended for merge or PR into `main` by workflow discipline, not by `.gitignore`.
-
-Codex must not add, stage, modify, delete, or mention committing `AGENTS.md` unless the user explicitly asks to edit this file.
-
-The upstream `main` branch should remain under the collaborator’s control.
+The collaborator-controlled `main` branch remains authoritative. Codex may
+prepare and push a reviewed PR branch when explicitly requested, but the user
+retains control of PR creation, merge, deployment, and live database changes.
 
 ## Project identity
 
@@ -53,7 +48,9 @@ The project currently includes:
 * `gpxui/`: GPS waypoint/track upload interface using the external `gpxui` package;
 * `DATABASE/`: current SQL source-of-truth folder for base tables, support tables, views, functions, reset logic, hatching prediction support, and the latest safe local mock-data dump used for local tests;
 * `tests/testthat/`: repo-visible tests for app wiring and server/data-entry behavior;
-* `notes/codex_proposals/`: ignored local Codex planning and proposal files;
+* `notes/codex_proposals/`: six tracked Thread 1-6 handoffs and tracked reviewed
+  inspector lists, alongside ignored local proposals, previews, mock artifacts,
+  and generated outputs;
 * `notes/codex_logs/`: ignored local logs if used;
 * `tmp/codex/`: ignored local scratch area if used.
 
@@ -62,7 +59,7 @@ The immediate development goals are:
 1. prepare and refine `FIELD_2026_BADOatNZ` for the 2026 field season;
 2. optimize fieldworker-facing data-entry validation through the central DB-stored `inspectors` system;
 3. maintain SQL-backed FIELDWORKER to-do/list/map/PDF outputs inside the existing app interface;
-4. expand the existing Overview panel into a more dynamic dashboard for users;
+4. maintain and refine the current seven-panel Overview dashboard;
 5. preserve full human control over all code and database changes;
 6. avoid leakage of confidential raw data, credentials, GPS locations, or field records.
 
@@ -81,7 +78,8 @@ By default, Codex may:
 * propose SQL snippets;
 * write implementation plans;
 * write review notes;
-* create scratch/proposal files only inside ignored locations.
+* create scratch/proposal files only inside ignored locations, except when the
+  user explicitly requests a reviewed documentation artifact to be tracked.
 
 By default, Codex must not:
 
@@ -96,9 +94,11 @@ By default, Codex must not:
 * write to the database;
 * run Shiny apps if doing so could write to the database;
 * write real data into tests, logs, examples, markdown files, or prompt records;
-* create non-ignored files.
+* create non-ignored files without explicit approval.
 
-The user will manually apply accepted changes in RStudio, DBeaver, the FIELDWORKER app, or the relevant database/app interface.
+The user retains final approval. Codex may apply, commit, and push accepted
+changes only when explicitly requested; PR merge, production deployment, and
+live database changes remain human-controlled unless separately authorized.
 
 ## Scratch-file rule
 
@@ -110,7 +110,20 @@ notes/codex_logs/
 tmp/codex/
 ```
 
-Before creating any scratch/proposal file, Codex must confirm that the target directory is ignored.
+The following reviewed documents are tracked and are not scratch locations:
+
+```text
+notes/codex_proposals/THREAD1_REPOSITORY_MAP.md
+notes/codex_proposals/THREAD2_SCHEMA_REVIEW.md
+notes/codex_proposals/THREAD3_VALIDATION_ARCHITECTURE.md
+notes/codex_proposals/THREAD4_TODO_MAP_LIST_DEBUG_PLAN.md
+notes/codex_proposals/THREAD5_OVERVIEW_DASHBOARD_PLAN.md
+notes/codex_proposals/THREAD6_COMBO_LIST_PROTOCOL.md
+notes/codex_proposals/validator_sandbox/inspector_lists_by_table/
+```
+
+Before creating any other scratch/proposal file, Codex must confirm that the
+target path is ignored.
 
 If the directory is not ignored, Codex must not create the file and should tell the user which ignore rule is missing.
 
@@ -198,8 +211,6 @@ The user wants accepted code changes to be tracked through Git branches, commits
 
 The collaborator should retain full control over `main`.
 
-`cass_prep` is Luke’s Codex-integrated working branch. It may intentionally contain `AGENTS.md` and other Luke/Codex workflow context that should remain visible there for transparency.
-
 Codex must not commit, push, merge, rebase, or open pull requests unless explicitly instructed.
 
 Prompt and response logging is useful, but risky. By default:
@@ -212,51 +223,48 @@ Preferred pattern:
 
 ```text
 notes/codex_logs/        # ignored full logs
-notes/codex_proposals/   # ignored proposals and thread summaries
-docs/codex_decisions/    # optional tracked summaries, only after manual review
+notes/codex_proposals/   # tracked handoffs plus ignored working artifacts
+tmp/codex/               # ignored scratch files
 ```
 
-Before any commit, Codex should remind the user to check:
+Before any commit or push, Codex must check:
 
 ```bash
 git status --short
 git diff --name-status origin/main...HEAD
 ```
 
-## `cass_prep` -> `main` workflow
+## Pull-request workflow
 
-Do not open pull requests from `cass_prep` directly.
+Do not develop directly on `main`. Start collaborator-facing work from the
+latest `origin/main`, preserve only the intended edits, and use a `codex/`
+topic branch unless the user requests a different name.
 
-Because `AGENTS.md` is intentionally tracked on `cass_prep`, any PR branch created directly from `cass_prep` may accidentally carry `AGENTS.md` toward `main`.
-
-Instead, always use a clean PR branch created from `origin/main`, then cherry-pick only the intended commits from `cass_prep`.
-
-Always use this workflow:
+Preferred workflow:
 
 ```bash
 git fetch origin
-git switch -c pr/<topic> origin/main
-git log --oneline origin/main..cass_prep
-git cherry-pick <wanted-commit-1>
-git cherry-pick <wanted-commit-2>
+git switch -c codex/<topic> origin/main
+# apply or cherry-pick only the intended changes
+git diff --check
 git diff --name-status origin/main...HEAD
 ```
 
-If `AGENTS.md` appears in that diff, remove it from the PR branch before pushing:
+Before pushing, fetch again and confirm that `origin/main` is an ancestor of
+the branch or otherwise reconcile new upstream commits without discarding local
+work. Inspect the exact file list, confirm that raw logs/data/generated files
+are absent, run approved safe checks, and then push:
 
 ```bash
-git restore --source=origin/main -- AGENTS.md
-git add AGENTS.md
-git commit -m "Remove AGENTS.md from PR branch"
+git fetch origin
+git merge-base --is-ancestor origin/main HEAD
+git diff --name-status origin/main...HEAD
+git push -u origin codex/<topic>
 ```
 
-Then push the clean PR branch, not `cass_prep`:
-
-```bash
-git push -u origin pr/<topic>
-```
-
-`cass_prep` should be treated as Luke’s private integration branch with Codex. Branches intended for upstream review should be treated as curated, collaborator-facing branches built from `origin/main`.
+`AGENTS.md` and the six reviewed Thread handoffs are allowed in a PR when their
+update is intentional. Full prompt logs, confidential data, credentials,
+database dumps, generated previews, and unrelated local artifacts are not.
 
 ## Expected response format for code, schema, validator, or app work
 
@@ -387,15 +395,24 @@ separate CAPTURES rows for handling/banding and separate H-class RESIGHTINGS
 rows for hiding-spot photographs. CAPTURES `chick_tent_photo = 1` and its
 photo range refer to the tent photograph, not the hiding-spot photograph.
 
-The hiding-photo task is resolved only by a reference-date-qualified, linked
-age-C H-class RESIGHTINGS event with a nonblank normalized `ring`. SQL NULL,
-blank, whitespace-only, and textual `NA` ring values do not resolve it. This
-ring requirement does not apply to non-H RESIGHTINGS rows. `RESIGHTINGS_PUBLIC`
-is unaffected and does not receive this field.
+Each reference-date-qualified, linked age-C H-class RESIGHTINGS event with a
+nonblank normalized `ring` contributes one photographed-chick identity. SQL
+NULL, blank, whitespace-only, and textual `NA` ring values do not count. The
+task closes only when the number of distinct qualifying H-photo rings reaches
+the number of distinct age-C CAPTURES rings for that positive nest or negative
+brood; duplicate rows for one ring count once, and a brood with no captured
+chick-ring evidence remains open during the task window. This ring requirement
+does not apply to non-H RESIGHTINGS rows. `RESIGHTINGS_PUBLIC` is unaffected
+and does not receive this field.
 
-This local schema, validator, and task behavior are complete and approved in the
-current working tree, but they are not evidence that the target database, live
-inspectors, or deployed Shiny process has been updated.
+`RESIGHTINGS_H_BROOD_ASSOCIATIONS` preserves direct links and may derive a
+brood/nest association from deterministic prior chick-ring evidence or an
+unambiguous same-occasion adult/family association. Ambiguous rows remain
+unresolved, and the raw `RESIGHTINGS.nest_id` is not rewritten.
+
+This schema, validator, and task behavior is merged in tracked repository source.
+That is not evidence that the target database, live inspectors, or deployed
+Shiny process has been updated.
 
 ## Database backend
 
@@ -476,10 +493,16 @@ spatial_objects
 predict_hatching
 CAPTURES_active
 CAPTURES_ARCHIVE
+USED_COMBOS_DETAIL
+AVAILABLE_COMBOS
 NESTS_LATEST
+RESIGHTINGS_H_BROOD_ASSOCIATIONS
 BROODS_LATEST
 EGGS_HATCH_PREDICTION
+GEO_ROLLOUT_PHENOLOGY
 TODO_LIST
+VIEW_1
+OVERVIEW
 ```
 
 SQL functions, such as `format_mark`, may be required by views and should be reviewed before changing dependent schema or view logic.
@@ -528,6 +551,7 @@ Examples of current helper files may include:
 ```text
 main/R/ggplot_overview.R
 main/R/pdf_todo.R
+main/R/pdf_todo_map.R
 main/R/leaflet_nest_latest.R
 main/R/kmz_nest_latest.R
 main/R/html_tables.R
@@ -536,6 +560,19 @@ main/R/system_utils_app.R
 ```
 
 Do not assume older helper names or pre-merge path conventions still exist unless confirmed in the current branch.
+
+### Database-copy downloads
+
+The RDS download intentionally exports every base table plus the required
+`CAPTURES_ARCHIVE` compatibility view. It excludes other derived views to keep
+the web request bounded and fails clearly if `CAPTURES_ARCHIVE` cannot be read.
+
+The SQL download uses `mariadb-dump` when available and falls back to
+`mysqldump`. It uses `--force` so an invalid derived view does not discard an
+otherwise complete base-table backup, but accepts the file only when the dump
+completion marker is present. Warnings about derived views must still be
+reported and investigated; they are not proof that the resulting view DDL is
+usable.
 
 ### `DataEntry/`
 
@@ -949,16 +986,19 @@ Current protocol identity:
 
 ```text
 protocol_id: bdot_2026_2027_dataentry_validator_protocol
-protocol_version: 1.2.1
-generated_on: 2026-09-27
+protocol_version: 1.3.3
+generated_on: 2026-09-30
 ```
 
-Use the latest downloaded local database snapshot in `DATABASE/` as a read-only alignment reference for
-mock-data generation and protocol review when relevant. At the time of writing, the latest example is:
+Version 1.3.3 requires a real nest or brood link for age-C first captures and
+permits an optional complete GPS pair for positive-nest chicks captured away
+from the nest. Version 1.3.2 added save-blocking H-ring format and current-
+CAPTURES existence checks. The H-ring rule remains restricted to normalized
+`rclass = "H"`; ordinary RESIGHTINGS classes may leave `ring` blank.
 
-```text
-/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/DATABASE/FIELD_2026_BADOatNZ_7311213.sql
-```
+Use the latest approved local database snapshot in `DATABASE/` only as a
+read-only alignment reference for mock-data generation and protocol review.
+Do not hard-code a snapshot filename as permanently current.
 
 The protocol distinguishes four rule classes:
 
@@ -981,7 +1021,7 @@ Important rules:
 
 ## Mock validator workflow
 
-Thread 3 should use connected fake/mock datasets rather than tiny isolated examples whenever cross-table
+Thread 3.1 should use connected fake/mock datasets rather than tiny isolated examples whenever cross-table
 rules are being developed or debugged.
 
 Preferred workflow:
@@ -1047,6 +1087,7 @@ Important app/PDF files include:
 main/global.R
 main/server.R
 main/R/pdf_todo.R
+main/R/pdf_todo_map.R
 main/templates/todo_pdf.qmd
 ```
 
@@ -1057,48 +1098,90 @@ Current implemented to-do classes include:
 ```text
 Parent capture
 Parent resighting
-Untrapped parent (legacy/intermediate wording where still surfaced)
 Unprocessed nest
 take scrape photos
 Re-process nest
-nest check / Clutch check
+Clutch check
+nest check
 Untrapped brood
 Hiding spot photos needed
 notA nest-check
 ```
 
-For hiding-spot work, only a reference-date-qualified, linked age-C
-`RESIGHTINGS` row with `rclass = "H"` and a normalized nonblank, non-`NA`
-`ring` resolves `Hiding spot photos needed`. A blank or missing ring does not
-resolve the task, and each photographed chick requires its own H-class row.
-This task evidence remains separate from a CAPTURES tent-photo event.
+`Untrapped parent` remains an internal compatibility/intermediate label in the
+CTE chain, but it is not part of the current final task union.
+
+For hiding-spot work, `TODO_LIST` compares distinct age-C CAPTURES rings with
+distinct qualifying H-photo rings per positive nest or negative brood. A blank
+or missing ring does not count, duplicate rows for one chick count once, and
+each photographed chick requires its own H-class row. The task remains open
+while the H-photo count is lower and reports the ratio; it closes when the
+counts match or expires after the current day-6 window. This evidence remains
+separate from a CAPTURES tent-photo event.
+
+Parent association is sex-aware, chronology-aware, and bounded by
+`settings.reference_date`. Ordinary banded identities use LL/LR; a
+spacer-dependent single-lower-colour identity uses the required full mark.
+Association-confirming behaviour tokens are `IN`, `NM`, `BW`, `BC`, and `FC`.
+A matching parent association resolves after one such behaviour observation or
+after three matching nest-linked resightings, counting the initial resighting.
+Unresolved or ambiguous association evidence remains in `Parent resighting`
+rather than silently becoming capture/GEO work.
 
 Current `nest check` tasks may carry note-level distinctions such as pre-hatch nest checks versus hatch-sign follow-up. Use current SQL and app code as source of truth for exact task names, note text, and cadence.
 
 When testing to-do/list/PDF behavior, prefer local `.rds` snapshots or fake/mock data over live database queries.
 
+The PDF query path deliberately projects only the `TODO_LIST` columns it uses
+and disables derived-table merging to reduce MariaDB planning pressure. Static
+tests do not prove production performance; benchmark view creation, row counts,
+and PDF rendering against an approved local MariaDB fixture before deployment.
+
 Do not print real coordinates or broad real-record dumps in diagnostics.
 
 ## Overview dashboard workflow
 
-The Overview panel is becoming a dynamic dashboard for FIELDWORKER users.
+The Overview tab is a current seven-panel dashboard for FIELDWORKER users.
 
-Important files are likely to include:
+Its active code path is:
 
 ```text
 main/ui.R
 main/server.R
 main/global.R
 main/R/ggplot_overview.R
-main/R/data_overview.R
 main/R/system_utils.R
 main/R/system_utils_app.R
 main/www/style.css
 ```
 
-Additional dashboard panels may require new helper functions under `main/R/`.
+There is no active `main/R/data_overview.R` helper. The standalone SQL
+`OVERVIEW` view is visible in the database browser but does not supply the
+seven plotted panels.
 
-Potential dashboard panels include maps, plots, summary cards, collapsible boxes, and dynamic controls.
+The current panel order is:
+
+1. seasonal progression in nest discovery;
+2. seasonal progression in geolocator deployments;
+3. resighting histories of geolocator-tagged birds;
+4. seasonal progression in unique band combinations encountered;
+5. seasonal progression in lay date;
+6. hatching forecast; and
+7. current manipulation quotas.
+
+All panels use the app-level reference date. The first five date-based panels
+share the seasonal range where applicable, hatching uses a future range, and
+quotas have no date axis. The tagged-resighting panel intentionally uses a
+taller `105vh` output with a multi-row legend and caption; preserve that mobile
+layout when changing its facets, labels, or limp-status display.
+
+The active helpers use parameterized queries and panel-specific fallback plots.
+Experimental pair-tally helpers remain isolated and are not user-visible.
+Additional dashboard panels may require new helpers under `main/R/`, but must
+be staged and tested without disrupting the current seven outputs.
+
+GPS-track heatmaps, new maps, summary cards, and panel-local filters remain
+future work rather than current app behavior.
 
 For GPS/track dashboards:
 
@@ -1119,9 +1202,8 @@ Threads working on to-do logic, hatching displays, or Overview panels should fla
 
 ## Testing policy
 
-The user is not yet familiar with formal testing.
-
-When suggesting tests, explain them as small fake examples or local checks that verify whether code behaves correctly.
+Explain tests and their results in plain language, using small fake examples or
+local checks where practical.
 
 For validation rules, prefer mock examples:
 
@@ -1133,7 +1215,11 @@ For to-do/list/PDF logic, prefer local `.rds` smoke tests or mock data unless li
 
 Never use real sensitive data in tests.
 
-The repository now includes a meaningful `tests/testthat/` layer. Threads may inspect tests by default as repo-visible evidence of current app wiring, but should not run tests unless the user explicitly approves.
+The repository includes a meaningful `tests/testthat/` layer. Key suites include
+`test-app-wiring.R`, `test-main-server.R`, `test-pdf-todo.R`, and
+`test-todo-view-rules.R`. Threads may inspect tests by default as repo-visible
+evidence of current behavior, but should not run tests unless the user
+explicitly approves.
 
 If the repository already uses a testing framework, follow it. Do not introduce a new testing framework without explaining the benefit and asking first.
 
@@ -1161,7 +1247,8 @@ Codex should organize work into the following threads or subagents when possible
 
 ### Thread 1 — Repository cartographer
 
-Purpose: maintain an accurate map of the current local repository after merges, refactors, and collaborator updates, without changing tracked source files.
+Purpose: maintain an accurate map of the current local repository after merges,
+refactors, and collaborator updates.
 
 Responsibilities:
 
@@ -1171,11 +1258,12 @@ Responsibilities:
 * distinguish repo-visible behavior from package-side behavior in the external `DataEntry`, `dbo`, and `gpxui` packages;
 * inspect `DATABASE/*.SQL`, `main/*.R`, `main/R/*.R`, `main/templates/`, `main/www/help/*.html`, `main/www/*.js`, and `tests/testthat/*.R`;
 * identify deleted, renamed, stale, or obsolete paths from earlier repo maps;
-* update the ignored repository map in `notes/codex_proposals/`.
+* update the tracked repository handoff at
+  `notes/codex_proposals/THREAD1_REPOSITORY_MAP.md` when explicitly requested.
 
 Restrictions:
 
-* no edits to tracked files;
+* no edits to tracked application or database source unless explicitly requested;
 * no database connections;
 * no app runs unless explicitly approved and confirmed read-only;
 * no inspection of credentials, local `.cnf` files, or real confidential data unless explicitly approved;
@@ -1189,6 +1277,8 @@ Expected output:
 * package-side versus repo-visible boundary notes;
 * key handoff files for Threads 2, 3, 4, 5, and 6;
 * unresolved questions and stale assumptions.
+
+The tracked handoff is the detailed current map; this section defines the role.
 
 ### Thread 2 — Database architect
 
@@ -1282,11 +1372,15 @@ Purpose: maintain and refine the SQL-backed FIELDWORKER task-generation workflow
 
 Responsibilities:
 
-* inspect and patch proposals for `DATABASE/views.SQL`, especially `NESTS_LATEST`, `EGGS_HATCH_PREDICTION`, and `TODO_LIST`;
+* inspect and patch proposals for `DATABASE/views.SQL`, especially
+  `NESTS_LATEST`, `RESIGHTINGS_H_BROOD_ASSOCIATIONS`, `BROODS_LATEST`,
+  `EGGS_HATCH_PREDICTION`, and `TODO_LIST`;
 * trace how `NESTS`, `EGGS`, `CAPTURES`, `RESIGHTINGS`, and `GPS_POINTS` flow into FIELDWORKER to-do outputs;
 * treat `TODO_LIST` as the authoritative task engine for FIELDWORKER task outputs and keep downstream app/PDF behavior aligned with it;
-* keep SQL outputs consistent with `main/server.R`, `main/global.R`, `main/R/pdf_todo.R`, and related app outputs;
+* keep SQL outputs consistent with `main/server.R`, `main/global.R`,
+  `main/R/pdf_todo.R`, `main/R/pdf_todo_map.R`, and related app outputs;
 * diagnose missing marks, stale labels, join failures, filtering issues, coordinate-linkage problems, and PDF-rendering mismatches;
+* preserve the current parent-association and per-chick hiding-photo contracts;
 * use local `.rds` snapshots and mock data for read-only smoke tests;
 * propose minimal SQL or R patches with rollback and manual verification instructions.
 
@@ -1305,15 +1399,21 @@ Expected output:
 * manual FIELDWORKER/PDF verification steps;
 * rollback notes and side-effect warnings.
 
+The detailed current contract is tracked in
+`notes/codex_proposals/THREAD4_TODO_MAP_LIST_DEBUG_PLAN.md`.
+
 ### Thread 5 — Overview dashboard specialist
 
-Purpose: expand and maintain the FIELDWORKER app’s Overview tab as a dynamic dashboard for field users.
+Purpose: maintain and carefully extend the FIELDWORKER app's current
+seven-panel Overview dashboard.
 
 Responsibilities:
 
 * inspect and understand the Overview code path in `main/ui.R`, `main/server.R`, `main/global.R`, and Overview-related helpers under `main/R/`;
-* propose additional Overview panels, plots, maps, cards, and dynamic controls;
-* preserve existing Overview outputs while adding staged new panels;
+* preserve the seven current outputs, shared reference-date behavior, failure
+  fallbacks, and mobile layout;
+* propose additional Overview panels, plots, maps, cards, and dynamic controls
+  only as staged work;
 * design dynamic dashboard logic using mock data first;
 * assess spatial, performance, and UI implications before proposing tracked-file edits;
 * coordinate with Thread 2 when new database views or support tables might be needed;
@@ -1328,6 +1428,9 @@ Potential work includes:
 * observer/user filters;
 * date-window filters;
 * expandable/collapsible dashboard boxes.
+
+The detailed current panel contracts and known risks are tracked in
+`notes/codex_proposals/THREAD5_OVERVIEW_DASHBOARD_PLAN.md`.
 
 Restrictions:
 
@@ -1346,35 +1449,49 @@ Expected output:
 * dependency and performance notes;
 * rollback and manual app-check instructions.
 
-### Thread 6 — QA/reproducibility reviewer
+### Thread 6 — Combo-list specialist
 
-Purpose: keep the project safe, reproducible, reviewable, and clear about post-submission QA ownership.
+Purpose: maintain the conservative used/available colour-band-combination
+system and its FIELDWORKER PDF integration.
 
 Responsibilities:
 
-* review proposed changes for data leakage risk;
-* review `.gitignore` and `.git/info/exclude` needs;
-* review test/mock-data strategy;
-* review branch/commit/PR hygiene;
-* check whether proposals are minimally invasive;
-* check whether rollback notes are adequate;
-* review local artifact hygiene around `AGENTS.md`, `notes/`, `tmp/`, local `.rds` snapshots, and test-status artifacts;
-* review post-submission QA and data-cleaning proposals that are outside Thread 3 save-time validation and Thread 4 FIELDWORKER task-generation logic.
+* maintain the tracked Thread 6 combo-list protocol;
+* inspect `format_mark()`, `CAPTURES_ARCHIVE`, `USED_COMBOS_DETAIL`,
+  `AVAILABLE_COMBOS`, and `todo_pdf_prepare_team_marks()` as one dependency
+  chain;
+* preserve global subtraction across historical archive, current release, and
+  current `_in` band fields;
+* keep classic and tag/spacer representations aligned to the canonical LL/LR
+  rules;
+* maintain candidate-site rules, fixed exclusions, ranking, CR/CX compatibility,
+  and fail-closed reference-date behavior;
+* audit non-normalizable used marks and ensure no confidently used combination
+  leaks into `AVAILABLE_COMBOS`;
+* preserve the PDF's hard cap of 30 marks, even distribution across three
+  teams, and fail-loud behavior when no combinations are available;
+* treat the recyclable-combo workbook as informational unless an explicit,
+  reviewable reuse policy is approved;
+* coordinate SQL architecture with Thread 2, validator/mock alignment with
+  Thread 3.1, and PDF ordering/allocation with Thread 4.
 
 Restrictions:
 
-* no code edits unless explicitly requested;
-* no real data access;
-* no database writes;
-* no credential inspection.
+* do not weaken used-combo subtraction or recycle a mark without explicit
+  policy approval;
+* do not connect to or modify a live database unless explicitly instructed;
+* do not expose real bird records, rings, credentials, or raw database rows;
+* do not assume a local dump or preview overrides current tracked SQL.
 
 Expected output:
 
-* risk checklist;
-* reproducibility checklist;
-* PR-readiness review;
-* ignored-file hygiene review;
-* rollback adequacy review.
+* combo-protocol maintenance notes;
+* aggregate/read-only audit queries and focused tests;
+* exclusion, ranking, normalization, and ambiguity review;
+* cross-thread handoffs and rollback guidance.
+
+The detailed current contract is tracked in
+`notes/codex_proposals/THREAD6_COMBO_LIST_PROTOCOL.md`.
 
 ### Thread 7 — Tutor
 
@@ -1408,11 +1525,14 @@ Expected output:
 * Thread 3.1 owns save-time validation, the validator protocol, and the
   `RESIGHTINGS.ring` requirement for H-class hiding-photo events.
 * Thread 4 owns FIELDWORKER to-do/list/map/PDF logic, especially `TODO_LIST`,
-  including resolution of hiding-photo tasks from qualifying H-class rows.
-* Thread 6 owns post-submission QA/data-cleaning review when it is not part of Thread 3 validator design or Thread 4 task-generation logic.
-* Thread 5 owns the Overview dashboard and dynamic user-facing panels.
-* Thread 6 reviews safety, reproducibility, ignored artifacts, and PR readiness.
+  including per-chick resolution of hiding-photo tasks and parent association.
+* Thread 5 owns the seven-panel Overview dashboard and staged extensions.
+* Thread 6 owns combo-list normalization, used-mark subtraction, candidate
+  availability, and PDF team-mark handoff.
 * Thread 7 translates technical findings into plain-language decisions.
+
+Safety, reproducibility, confidentiality, rollback, test review, and PR hygiene
+are shared requirements for every thread rather than a separate Thread 6 scope.
 
 When a task crosses boundaries, the active thread should explicitly name the handoff and avoid silently taking over another thread’s scope.
 

@@ -673,10 +673,10 @@ from an agent task.
 
 ## Rollback
 
-This file is ignored local documentation. To roll back this refresh, restore the
-previous local copy of
-`notes/codex_proposals/THREAD5_OVERVIEW_DASHBOARD_PLAN.md`. No tracked app or SQL
-rollback is required.
+This file is tracked documentation. To roll back this refresh, revert only the
+documentation commit or restore the previous Git version of this path. No app,
+SQL, database, or deployment rollback is required for a documentation-only
+revert.
 
 ## How to check this protocol
 

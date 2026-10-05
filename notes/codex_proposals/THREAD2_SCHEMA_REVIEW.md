@@ -554,7 +554,7 @@ constraints.
 
 The SQL `OVERVIEW` view is a tabular metric source with `section`, `metric`, and
 `n` rows, filtered to `reference_date`. It summarizes captures, nests, eggs, and
-resightings. It is separate from the app-side four-panel Overview dashboard.
+resightings. It is separate from the app-side seven-panel Overview dashboard.
 
 ## Downstream consumers
 
@@ -572,7 +572,7 @@ resightings. It is separate from the app-side four-panel Overview dashboard.
   wrapper for older local preview callers.
 - `main/R/ggplot_overview.R`: queries source tables,
   `EGGS_HATCH_PREDICTION`, and `CAPTURES_ARCHIVE` directly. It does not use the
-  SQL `OVERVIEW` view as the source for its four dashboard plots.
+  SQL `OVERVIEW` view as the source for its seven dashboard plots.
 - `tests/testthat/`: checks view wiring, Overview output IDs, SQL-view presence,
   reference-date reactivity, and selected archive usage. It does not replace a
   database-level view execution test.

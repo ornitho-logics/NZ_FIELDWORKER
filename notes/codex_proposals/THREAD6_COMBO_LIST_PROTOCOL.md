@@ -9,9 +9,10 @@
   latest local SQL dump and the approved recyclable-combo workbook.
 - No live database, credentials, raw coordinates, or broad historical rows were
   accessed.
-- This tracked memo documents current behavior. The present PR does not change
-  `USED_COMBOS_DETAIL`, `AVAILABLE_COMBOS`, or banding policy; it only carries
-  the refreshed handoff alongside Thread 4 parent-association work.
+- This tracked memo documents current behavior. The present PR makes
+  `AVAILABLE_COMBOS` fail closed when the non-null `reference_date` setting is
+  unavailable and adds a focused static regression test. It does not change
+  `USED_COMBOS_DETAIL`, candidate rules, exclusions, ranking, or banding policy.
 - It does not authorize a database deployment or a change to banding policy.
 
 ## Purpose and ownership
@@ -24,9 +25,8 @@ assigned in future capture events. It has two operational outputs:
 2. `AVAILABLE_COMBOS`, a candidate generator that globally subtracts every confidently
    normalized used pair and supplies the CR list consumed by the FIELDWORKER PDF.
 
-For this active task, Thread 6 owns the combo-list protocol, maintenance triage, and
-cross-thread handoffs. The tracked `AGENTS.md` still assigns Thread 6 to generic
-QA/reproducibility. That text is stale for this one-off active role and was not edited.
+For this active task, Thread 6 owns the combo-list protocol, maintenance triage,
+and cross-thread handoffs. `AGENTS.md` now reflects this current role.
 
 Cross-thread ownership remains important:
 
@@ -203,10 +203,11 @@ Therefore:
 - changing the FIELDWORKER reference date dynamically changes the used set and the
   available list.
 
-Important failure mode: if the `reference_date` row is absent or its value is null,
-the `sr` CTE is empty. All three used-source CTEs then become empty, while candidate
-generation still succeeds. That can make the system present an unsafe near-full
-candidate pool. A non-null reference date is an operational prerequisite.
+`AVAILABLE_COMBOS` now also cross-joins its candidate generation to the same
+non-null `sr` CTE. If the `reference_date` row is absent or null, both used-source
+and candidate paths are empty, so the view fails closed instead of exposing an
+unsafe near-full candidate pool. A non-null reference date remains an operational
+prerequisite for a usable list.
 
 ## Canonical normalization
 
@@ -411,17 +412,23 @@ After querying, the R code:
 
 - keeps nonblank marks;
 - takes the first 30;
-- pads with blanks when fewer than 30 remain;
-- constructs a three-row by ten-column matrix with `byrow = TRUE`; and
+- errors if no mark is available;
+- distributes the available marks as evenly as possible across three teams,
+  assigning any remainder to the earliest teams;
+- pads only the shorter displayed team rows so the table remains rectangular;
+  and
 - labels the rows `Team 1`, `Team 2`, and `Team 3`.
 
-Thus Team 1 receives ordered marks 1-10, Team 2 receives 11-20, and Team 3 receives
-21-30. The PDF displays a note that non-lime 1.5x bands are used for the tibia
-geolocator spacer and 2x bands are used on the tarsi.
+With 30 marks, Team 1 receives ordered marks 1-10, Team 2 receives 11-20,
+and Team 3 receives 21-30. With fewer marks, team sizes differ by at most one
+while preserving source order. The PDF displays a note that non-lime 1.5x
+bands are used for the tibia geolocator spacer and 2x bands are used on the
+tarsi.
 
-If the database query errors, `tryCatch()` substitutes an empty mark table. The PDF
-then renders three teams of blank cells rather than surfacing the query error. This
-is a fail-soft presentation behavior, not evidence that no combos are available.
+If the database query errors, the helper raises a clear
+`Could not load AVAILABLE_COMBOS` error. If the query succeeds but returns no
+nonblank marks, it raises `No available combinations were returned`. A PDF is
+not silently rendered with blank team assignments.
 
 When preview scripts inject `available_combos`, the helper does not re-run the SQL
 sort and trusts the injected order. The RDS preview scripts pre-sort with the view's
@@ -438,8 +445,11 @@ marks containing both. Preview and live ordering are therefore not fully identic
   `settings`, `CAPTURES`, or historical capture data correctly.
 - The PDF download does not use that watch list; it directly queries
   `AVAILABLE_COMBOS` during PDF preparation.
-- Current `tests/testthat/` files contain no dedicated assertions for combo
-  normalization, exclusion, ranking, the CR/CX gate, or team allocation.
+- `tests/testthat/test-pdf-todo.R` covers even team allocation for 1-31 injected
+  mock marks and the zero-mark error. SQL normalization, exclusion, ranking,
+  and the CR/CX gate still lack database-execution regression coverage.
+- `tests/testthat/test-todo-view-rules.R` statically checks that
+  `AVAILABLE_COMBOS` fails closed without a non-null reference date.
 - The local full-app preview partially reconstructs candidate generation and PDF
   ordering but omits the CR/CX gate and does not recreate the latest normalization
   from tracked SQL.
@@ -488,19 +498,17 @@ way to implement recycling.
    `L` and `R`.
 4. Decide whether the view should itself expose exactly 30 CR rows or whether the PDF
    should remain the only hard limiter.
-5. Decide whether an absent/null reference date should fail closed rather than
-   expose a near-full candidate pool.
-6. Decide whether non-normalizable used rows require a stronger quarantine rule or
+5. Decide whether non-normalizable used rows require a stronger quarantine rule or
    a mandatory review threshold before combo assignment.
-7. Confirm whether `XX` should also be treated as blank on the left side and in the
+6. Confirm whether `XX` should also be treated as blank on the left side and in the
    branch where `LR` is blank and `UR` contains the pair.
-8. Decide whether an AU candidate scheme should be implemented. It is not currently
+7. Decide whether an AU candidate scheme should be implemented. It is not currently
    present.
-9. Decide whether and how the recyclable-combo workbook should become a governed
+8. Decide whether and how the recyclable-combo workbook should become a governed
    data source. It is currently informational only.
-10. Align the local SQL dump and preview harness with tracked combo logic before
+9. Align the local SQL dump and preview harness with tracked combo logic before
     treating either as a regression fixture.
-11. Add the missing `AVAILABLE_COMBOS` dependency watch-list entry if reactive view
+10. Add the missing `AVAILABLE_COMBOS` dependency watch-list entry if reactive view
     browsing is expected to refresh from `settings`, `CAPTURES`, and historical data.
 
 ## Safe read-only verification queries
@@ -659,43 +667,7 @@ dependency order. Dropping `USED_COMBOS_DETAIL` or `AVAILABLE_COMBOS` without an
 immediate replacement can make the PDF team table blank because the R layer catches
 query errors.
 
-For this documentation refresh, rollback is simply deletion/restoration of this
-ignored memo and removal of the dated prompt-log entry. No tracked source or database
-rollback is required.
-
-## Suggested `AGENTS.md` replacement wording (not applied)
-
-```text
-### Thread 6 - Combo-list specialist
-
-Purpose: maintain the conservative colour-combination availability protocol used by
-FIELDWORKER, from historical/current capture normalization through PDF team marks.
-
-Responsibilities:
-
-* maintain the Thread 6 combo-list protocol memo;
-* review format_mark(), CAPTURES_ARCHIVE, USED_COMBOS_DETAIL, AVAILABLE_COMBOS, and
-  PDF team allocation as one workflow;
-* preserve conservative global duplicate prevention and audit non-normalizable marks;
-* keep recyclable combos separate from automatic availability unless an explicit
-  governed override policy is approved;
-* coordinate SQL changes with Thread 2, validator/mock-data changes with Thread 3,
-  and PDF/app changes with Thread 4;
-* provide aggregate read-only checks, rollback guidance, and deployment handoffs.
-
-Restrictions:
-
-* no live database access or writes unless explicitly approved;
-* no credentials, raw historical-row output, or sensitive location output;
-* no automatic freeing of dead, replaced, or workbook-listed combos without an
-  approved policy;
-* no tracked-file changes outside the exact user-approved scope.
-
-Expected output:
-
-* current combo protocol and source map;
-* normalization and candidate-rule review;
-* ambiguity/recycling audit recommendations;
-* SQL/PDF compatibility findings;
-* safe verification and rollback steps.
-```
+For this tracked handoff, rollback is a normal Git revert of the documentation
+change. The fail-closed `AVAILABLE_COMBOS` source change should be reverted
+separately if needed; no database is changed merely by merging repository files.
+`AGENTS.md` now contains the aligned Thread 6 role text.

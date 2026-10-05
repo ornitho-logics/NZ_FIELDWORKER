@@ -757,7 +757,7 @@ gap:
 The safe deployment sequence is:
 
 1. Confirm the intended Git branch and curate only approved commits from
-   `origin/main`; never deploy the private `cass_prep`/agent context.
+   current `origin/main`; never deploy unrelated local or agent-only artifacts.
 2. Apply schema changes first, including the nullable `RESIGHTINGS.ring` field
    and its validator/inspector update where required.
 3. Apply required SQL functions and support tables.
@@ -777,8 +777,8 @@ The safe deployment sequence is:
    negative-brood handling, PDF page count/map placement, parent summary,
    offline tables, and KMZ behavior.
 9. Record the deployed commit, SQL version, database rebuild time, and Shiny
-   restart time outside this ignored memo if an auditable deployment record is
-   required.
+   restart time in a separately approved deployment record if an auditable
+   history is required; do not put raw operational data in this handoff.
 
 ## Current risks and ambiguous assumptions
 
@@ -830,7 +830,8 @@ must be rolled back separately from their known-good definitions.
 ## Cross-thread handoff
 
 - **Thread 1:** repository map, branch hygiene, AGENTS ownership, and the
-  clean-PR workflow. Keep AGENTS out of collaborator-facing PR branches.
+  clean-PR workflow. Keep `AGENTS.md` tracked and include it only when an update
+  is explicitly requested and reviewed.
 - **Thread 2:** schema and derived-view ownership, especially
   `RESIGHTINGS.ring`, `BROODS_LATEST`, view dependencies, and source-watch
   mappings.
