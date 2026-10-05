@@ -1,3 +1,11 @@
+/*
+  CAPTURES_ARCHIVE is a compatibility layer for historic BADOatNZ records.
+  It is deliberately kept separate from the current-season CAPTURES logic:
+  the available-combo audit uses it as released-mark history, while current
+  task generation uses FIELD_2026_BADOatNZ.CAPTURES directly. The historic
+  schema dependency must therefore be checked during deployment rather than
+  folded into TODO_LIST.
+*/
 CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.CAPTURES_ARCHIVE AS
 
 SELECT
@@ -36,6 +44,18 @@ LEFT JOIN (
   ON TRIM(c.ring) = sex_lookup.ring;
 
 
+/*
+  USED_COMBOS_DETAIL is the audit layer for colour-combination availability.
+  It combines historic released marks, current CAPTURES input, and current
+  RESIGHTINGS input before normalising them. Source/stage provenance is kept
+  so AVAILABLE_COMBOS can exclude a mark occupied in any part of the history.
+
+  CTE roles: sr = reference-date gate; historical_used_marks = historic
+  release evidence; current_used_marks_release = current release evidence;
+  current_used_marks_input = current input evidence; used_marks_raw = union;
+  used_marks_prepped = trim/uppercase cleanup; used_marks_normalized = the
+  final normalised occupancy classification.
+*/
 CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.USED_COMBOS_DETAIL AS
 
 WITH sr AS (
@@ -193,6 +213,16 @@ SELECT
 FROM used_marks_normalized;
 
 
+/*
+  AVAILABLE_COMBOS turns site rules into a deterministic supply list. The
+  candidate combinations are generated first, then occupied combinations are
+  removed, and only then are marks ranked for fieldworker/team use.
+
+  CTE roles: colours = allowed single colours; lr_pairs = lower-right pairs;
+  site_rules = permitted site/left-leg combinations; candidate_combos = valid
+  candidates; used_combos = occupied candidates; available_combos_ranked =
+  deterministic ordering and rank used by the PDF Team marks table.
+*/
 CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.AVAILABLE_COMBOS AS
 
 WITH colours AS (
@@ -294,6 +324,20 @@ ORDER BY
   available_combos_ranked.combo_rank;
 
 
+/*
+  NESTS_LATEST is the positive-nest operational snapshot. It selects the
+  latest dated CR event as the current state while retaining historical
+  evidence needed for parent identity, hatch timing, and a valid coordinate.
+
+  CTE roles: sr = reference date; latest_visit = current event; nest_state_summary
+  = historical F/I/PP/PD evidence; latest_clutch/latest_brood = latest non-null
+  clutch/brood values; nest_coordinates = deterministic GPS fallback;
+  capture_adult_marks/resighting_adult_marks = parent identity observations;
+  nest_parent_marks/parent_mark_candidates/parent_mark_ranked/parent_marks =
+  one display mark per sex; calibration_hatch_day/calibration_prediction =
+  hatch calibration; egg_calibration_candidates/egg_hatch_prediction = float
+  conversion; latest_float_prediction/nest_hatch_prediction = latest estimate.
+*/
 CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.NESTS_LATEST AS
 
 WITH sr AS (
@@ -667,6 +711,16 @@ WHERE n.row_num = 1
   H-class RESIGHTINGS may omit nest_id when the chick is photographed away
   from a known nest. Resolve those rows once so BROODS_LATEST and TODO_LIST
   use the same operational association without altering the raw row.
+
+  The association is conservative: a direct nest_id wins; an unlinked H row
+  may use one same-GPS adult nest or one unambiguous preceding chick capture
+  by ring. Multiple candidate nests remain unresolved so a photo task cannot
+  be silently cleared for the wrong family.
+
+  CTE roles: sr = reference-date gate; h_events = valid H rows and ring keys;
+  same_occasion_adult_candidates/summary = same-date same-GPS adult evidence;
+  ring_capture_candidates = prior age-C capture history; and
+  latest_ring_capture_datetime/summary = latest capture and ambiguity status.
 */
 CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.RESIGHTINGS_H_BROOD_ASSOCIATIONS AS
 
@@ -818,6 +872,19 @@ LEFT JOIN latest_ring_capture_summary captures
   summary. Positive IDs retain their stationary NESTS history. Negative IDs
   represent mobile broods with no NESTS or EGGS rows and are discovered from
   nest-linked CAPTURES/RESIGHTINGS only.
+
+  Location and label colour are separate concepts: the latest valid age-C GPS
+  event controls a brood's displayed location, while the earliest qualifying
+  chick capture controls its assigned band-colour label. This preserves the
+  fieldwork interpretation when chicks later move or mix.
+
+  CTE roles: sr = reference date; positive_history/status = positive history
+  and hatch evidence; positive_chick_status = age-C evidence; positive_locations
+  = positive GPS fallback; negative_encounters/ranked/discovery = mobile brood
+  discovery; chick_events/ranked/direct_chick_locations = age-C union and
+  latest GPS choice; chick_colour_events/ranked = stable assigned colour;
+  negative_parent_events/ranked/marks = mobile parent identity; and
+  positive_units/negative_units = the two final operational unit types.
 */
 CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.BROODS_LATEST AS
 
@@ -1361,6 +1428,23 @@ LEFT JOIN chick_colour_ranked cb
  AND cb.row_num = 1;
 
 
+/*
+  EGGS_HATCH_PREDICTION is the hatch-date source of truth for incomplete or
+  floated nests. It combines direct chronology, float calibration, explicit
+  found-incomplete inference, complete-clutch chronology, discovery fallback,
+  and the conservative stable-one-egg/no-increase extension. The last source
+  is separate so a one-egg clutch is not declared complete until two full
+  two-day laying intervals have elapsed.
+
+  CTE roles: nest_clutch_history = chronology; found_clutch_ranked and
+  final_clutch_status = found/final status; first_complete_clutch_ranked,
+  latest_clutch_ranked, first_one_egg_ranked, complete_clutch_status = complete
+  sequence candidates; last_incomplete_clutch_ranked and
+  incomplete_clutch_status_base/status = inferred completion; stable_one_egg_status
+  = conservative extension; calibration_hatch_day through egg_prediction =
+  float calibration; incomplete_nest_prediction and chronology_nest_prediction
+  = no-float and observed-chronology estimates.
+*/
 CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.EGGS_HATCH_PREDICTION AS
 
 WITH sr AS (
@@ -1838,13 +1922,29 @@ SELECT
 FROM chronology_nest_prediction;
 
 
--- The operational release ceiling is 60 of 100 GEOs, retaining 40 for the
--- anticipated later nest wave. Nests first known by 2026-09-24 receive the
--- historic-nest pair-completion priority implemented in TODO_LIST below.
--- The final sex quotas are 50 males and 50 females. Pair completion is allowed
--- only while the target sex remains below its quota; non-pair deployments
--- prefer the sex with the larger remaining quota and are then ranked by that
--- sex's phenology-stratum deficit.
+/*
+  GEO_ROLLOUT_PHENOLOGY computes the planning inputs for GEO deployment notes.
+  It is intentionally separate from TODO_LIST because its lay-date strata and
+  quota diagnostics are useful for auditing as well as task ranking.
+
+  CTE roles: sr/parameters = date and rollout constants; nest_history/discovery
+  = bounded chronology; first_one_egg_ranked = conservative one-egg anchor;
+  direct_lay_bounds/direct_lay = chronology estimates; float_lay_ranked/float_lay
+  = float estimates; final_clutch/incomplete_lay/clutch_lay/discovery_lay =
+  biological fallback sources; lay_candidates/lay_ranked/nest_lay = one
+  deterministic lay estimate per nest; stratum_nest_counts = nests by stratum;
+  stratum_deployment_counts = deployed GEOs by stratum/sex; deployment_status =
+  global counts and quotas; stratum_targets/stratum_status = deficits and
+  priority fields consumed by TODO_LIST.
+
+  The operational release ceiling is 60 of 100 GEOs, retaining 40 for the
+  anticipated later nest wave. Nests first known by 2026-09-24 receive the
+  historic-nest pair-completion priority implemented in TODO_LIST below.
+  The final sex quotas are 50 males and 50 females. Pair completion is allowed
+  only while the target sex remains below its quota; non-pair deployments
+  prefer the sex with the larger remaining quota and are then ranked by that
+  sex's phenology-stratum deficit.
+*/
 CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.GEO_ROLLOUT_PHENOLOGY AS
 
 WITH sr AS (
@@ -2235,6 +2335,32 @@ LEFT JOIN stratum_status strata
   ON lay.stratum_start = strata.stratum_start;
 
 
+/*
+  TODO_LIST is the authoritative fieldworker task engine. Its output rows are
+  task-oriented; PDF, map, and table consumers should use this view rather
+  than reproducing eligibility logic.
+
+  CTE families and fieldwork intent: sr/cr_current_nest_ids establish the
+  reference date and current CR universe; latest_float_* and
+  initial_clutch_status provide hatch timing; geo_deployment_status exposes
+  GEO counts and quotas; latest_nests/active_nests define operational state
+  (pP/pD remain active like I); nest_history through processing_summary decide
+  photo/flotation completion; nest_discovery through
+  latest_clutch_processing_status establish clutch and processing dates;
+  BROODS_LATEST/brood follow-up retain post-hatch work after later state
+  changes, while nota follow-up handles closure work;
+  chick_captures/hiding_spot_photos compare unique captured chick rings with
+  valid H-photo rings; adult_* CTEs resolve parent identity, X-X/death/GEO/MM
+  evidence, behaviour association, and 36-hour gates; scrape_parent_identity
+  preserves scrape evidence; todo_parent_source/status combines parent inputs;
+  geo_parent_plan ranks tag/band targets and exposes diagnostics; todo_* CTEs
+  emit the individual operational task classes before the final UNION.
+
+  The CTEs remain separated for biological auditability. MariaDB can otherwise
+  merge nested derived relations repeatedly; the PDF caller sets
+  derived_merge=off and projects only the columns it consumes. That is a
+  caller-side planning safeguard, not a change to task eligibility.
+*/
 CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.TODO_LIST AS
 
 WITH sr AS (
@@ -2538,6 +2664,10 @@ processed_visit_summary AS (
   LEFT JOIN float_summary
     ON first_processable_visit.nest_id = float_summary.nest_id
 ),
+-- The initial processing task is resolved by any qualifying photo and
+-- flotation record from the first processable visit onward. This deliberately
+-- spans dates and is independent of later transient zero-clutch/state rows;
+-- clutch-increase reprocessing is handled separately below.
 processing_summary AS (
   SELECT
     first_processable_visit.nest_id,
@@ -2646,13 +2776,18 @@ hatched_nests AS (
   GROUP BY nest_id
 ),
 brood_followup_nests AS (
+  -- BROODS_LATEST supplies hatch evidence from either an H nest visit or the
+  -- first age-C capture. Using it here keeps the day-1-to-day-6 photo window
+  -- open when a later nest-state visit is not literally H/notA.
   SELECT
     n.*,
-    hatched_nests.hatch_date
+    b.hatch_evidence_date AS hatch_date
   FROM latest_nests n
-  JOIN hatched_nests
-    ON n.nest_id = hatched_nests.nest_id
-  WHERE n.nest_state IN ('H', 'notA')
+  JOIN FIELD_2026_BADOatNZ.BROODS_LATEST b
+    ON n.nest_id = b.nest_id
+   AND b.reference_date = n.reference_date
+  WHERE b.is_negative_brood = 0
+    AND b.has_hatch_evidence = 1
 ),
 nota_followup_nests AS (
   SELECT
@@ -4138,38 +4273,6 @@ adult_capture_age_status AS (
   WHERE b.is_negative_brood = 1
     AND b.reference_date = sr.reference_date
 ),
-complete_clutch_processing_status AS (
-  SELECT
-    clutch_start.nest_id,
-    MAX(
-      CASE
-        WHEN n.nest_photo = '1' OR n.tent_photo = '1' THEN 1
-        ELSE 0
-      END
-    ) AS complete_clutch_has_photo,
-    MAX(
-      CASE
-        WHEN latest_nests.hatch_signs_present = 1 THEN 1
-        WHEN float_visit_summary.nest_id IS NOT NULL THEN 1
-        ELSE 0
-      END
-    ) AS complete_clutch_has_float
-  FROM adult_capture_current_clutch_start clutch_start
-  LEFT JOIN latest_nests
-    ON clutch_start.nest_id = latest_nests.nest_id
-  LEFT JOIN nest_history n
-    ON clutch_start.nest_id = n.nest_id
-   AND n.clutch_size = clutch_start.current_clutch_size
-   AND CAST(
-         CONCAT(n.date, ' ', COALESCE(n.time_visit, '00:00:00'))
-         AS DATETIME
-       ) >= clutch_start.current_clutch_start_datetime
-  LEFT JOIN float_visit_summary
-    ON clutch_start.nest_id = float_visit_summary.nest_id
-   AND float_visit_summary.float_datetime
-       >= clutch_start.current_clutch_start_datetime
-  GROUP BY clutch_start.nest_id
-),
 geo_parent_plan AS (
   SELECT
     ranked.nest_id,
@@ -5646,25 +5749,13 @@ todo_unprocessed_nest AS (
     'Unprocessed nest' AS todo,
     CASE
       WHEN COALESCE(initial_clutch_status.found_as_incomplete, 0) = 0
-       AND COALESCE(
-             complete_clutch_processing_status.complete_clutch_has_float,
-             0
-           ) = 0
-       AND COALESCE(
-             complete_clutch_processing_status.complete_clutch_has_photo,
-             0
-           ) = 0
+       AND COALESCE(processing_summary.n_float_rows, 0) = 0
+       AND COALESCE(processing_summary.n_photo_rows, 0) = 0
       THEN 'float + photos'
       WHEN COALESCE(initial_clutch_status.found_as_incomplete, 0) = 0
-       AND COALESCE(
-             complete_clutch_processing_status.complete_clutch_has_float,
-             0
-           ) = 0
+       AND COALESCE(processing_summary.n_float_rows, 0) = 0
       THEN 'float only'
-      WHEN COALESCE(
-             complete_clutch_processing_status.complete_clutch_has_photo,
-             0
-           ) = 0
+      WHEN COALESCE(processing_summary.n_photo_rows, 0) = 0
       THEN 'photos only'
     END AS notes,
     DATEDIFF(
@@ -5691,8 +5782,6 @@ todo_unprocessed_nest AS (
     ON active_nests.nest_id = adult_parent_status.nest_id
   LEFT JOIN adult_capture_age_status
     ON active_nests.nest_id = adult_capture_age_status.nest_id
-  LEFT JOIN complete_clutch_processing_status
-    ON active_nests.nest_id = complete_clutch_processing_status.nest_id
   LEFT JOIN initial_clutch_status
     ON active_nests.nest_id = initial_clutch_status.nest_id
   WHERE UPPER(TRIM(COALESCE(active_nests.species, ''))) = 'BADO'
@@ -5701,15 +5790,9 @@ todo_unprocessed_nest AS (
     AND (
       (
         COALESCE(initial_clutch_status.found_as_incomplete, 0) = 0
-        AND COALESCE(
-              complete_clutch_processing_status.complete_clutch_has_float,
-              0
-            ) = 0
+        AND COALESCE(processing_summary.n_float_rows, 0) = 0
       )
-      OR COALESCE(
-           complete_clutch_processing_status.complete_clutch_has_photo,
-           0
-         ) = 0
+      OR COALESCE(processing_summary.n_photo_rows, 0) = 0
     )
 ),
 todo_take_scrape_photos AS (
@@ -6197,6 +6280,21 @@ WHERE NOT EXISTS (
 );
 
 
+/*
+  VIEW_1 is the tagged-bird follow-up view used by the PDF resight table.
+  It resolves current tag ownership first, then matches exact and partial
+  aliases from RESIGHTINGS without assigning an ambiguous observation to two
+  birds. A death capture removes a bird from follow-up at the active date.
+
+  CTE roles: reference_setting/latest_nest_state = date and nest context;
+  geo_device_history/owners = tag ownership; capture_mark_* = canonical
+  post-handling capture identities; outgoing_geo_events/deployment_ranked/
+  tagged_birds = current tagged birds; capture_alias_* = exact/partial alias
+  uniqueness; resighting_mark_* = canonical resighting identities;
+  matched_resightings and nest_association_* = sex-aware matching and nest
+  association chronology; resighting_comment_terms through latest_resighting
+  classify walking/behaviour evidence and produce the follow-up summary.
+*/
 CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.VIEW_1 AS
 
 WITH reference_setting AS (
@@ -6767,6 +6865,11 @@ WHERE NOT EXISTS (
   );
 
 
+/*
+  OVERVIEW is a compact dashboard aggregate, not a task source. Its capture,
+  nest, egg, and resighting CTEs summarise each domain independently and then
+  expose section/metric rows for the app's Overview panel.
+*/
 CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.OVERVIEW AS
 
 WITH sr AS (
