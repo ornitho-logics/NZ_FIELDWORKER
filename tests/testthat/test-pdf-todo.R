@@ -74,7 +74,7 @@ test_that("to-do headings use the current operational subtitles", {
   )
   expect_identical(
     heading("Parent resighting")$subtitle,
-    "Association of a banded parent resolves after either 1) three nest-linked resightings of the same identity, including the initial resighting, or 2) one ‘behav’ “IN”, “NM”, “BW”, “BC”, “FC” resighting"
+    "Association of a banded parent resolves after either 1) three nest-linked resightings of the same identity, including the initial resighting, or 2) one ‘behav’ “IN”, “NM”, “BW”, “BC”, “FC” resighting. ‘MM’ refers to a parent caught with the mobile mistnet, and the number in brackets refers to the number of non-resolution ‘behav’ resightings currently made of a given individual at a given nest/brood. When there is no number, it means the parent’s association is established."
   )
   expect_identical(
     heading("nest check")$subtitle,
@@ -83,6 +83,23 @@ test_that("to-do headings use the current operational subtitles", {
   expect_identical(
     heading("notA nest-check")$subtitle,
     "these nests have finished and can be closed; nest_ids with state \"H\" may still be active mobile broods that require monitoring"
+  )
+})
+
+
+test_that("parent-resighting PDF notes retain only rule gates", {
+  app <- load_main_app()
+  extract_rule_note <- app$env$todo_pdf_parent_resighting_rule_note
+
+  expect_identical(
+    extract_rule_note(c(
+      "MM cap M with 2 resightings",
+      "resight M (status ?); 7d rule",
+      "MM cap F with 1 resighting; 36hr rule",
+      "resight any (status ?); 7d+36hr",
+      NA_character_
+    )),
+    c("", "7d rule", "36hr rule", "7d+36hr", "")
   )
 })
 
@@ -128,6 +145,41 @@ test_that("tagged-bird and team-mark tables use the shared PDF table style", {
   expect_true(any(grepl("#strong[Team]", body, fixed = TRUE)))
   expect_true(any(grepl('table.cell(fill: rgb("#dfe5e7"))', body, fixed = TRUE)))
   expect_true(any(grepl("stroke: none", body, fixed = TRUE)))
+})
+
+
+test_that("parent-resighting PDF table uses descriptive identity columns", {
+  app <- load_main_app()
+  body <- app$env$todo_pdf_body(
+    rows = data.table::data.table(
+      Todo = "Parent resighting",
+      Nest = "MOCK_NEST",
+      State = "I",
+      `Clutch–Brood` = "3–0",
+      Hatch = "4",
+      `Last Visit` = "1",
+      Male = "MOCK-TG.GW (MM, 2) & MOCK-GY (1)",
+      Female = "MOCK-BL (1)",
+      Notes = "resight M; 7d rule"
+    ),
+    nest_summary = data.table::data.table()
+  )
+  body_text <- paste(body, collapse = "\n")
+
+  expect_true(grepl("#strong[Male]", body_text, fixed = TRUE))
+  expect_true(grepl("#strong[Female]", body_text, fixed = TRUE))
+  expect_true(grepl("#strong[Notes]", body_text, fixed = TRUE))
+  expect_true(
+    grepl(
+      "columns: (7fr, 5fr, 8fr, 8fr, 8fr, 21fr, 23fr, 20fr)",
+      body_text,
+      fixed = TRUE
+    )
+  )
+  expect_true(
+    grepl("MOCK-TG.GW (MM, 2) & MOCK-GY (1)", body_text, fixed = TRUE)
+  )
+  expect_true(grepl("resight M; 7d rule", body_text, fixed = TRUE))
 })
 
 
