@@ -598,6 +598,29 @@ todo_pdf_prepare_nest_summary <- function(
 }
 
 
+todo_pdf_parent_resighting_rule_note <- function(notes) {
+  notes <- as.character(notes)
+  unname(vapply(
+    notes,
+    function(note) {
+      note <- tolower(ifelse(is.na(note), "", note))
+      has_7d <- grepl("7d", note, fixed = TRUE)
+      has_36hr <- grepl("36hr", note, fixed = TRUE)
+      if (has_7d && has_36hr) {
+        "7d+36hr"
+      } else if (has_7d) {
+        "7d rule"
+      } else if (has_36hr) {
+        "36hr rule"
+      } else {
+        ""
+      }
+    },
+    character(1)
+  ))
+}
+
+
 todo_pdf_prepare <- function(
   todo = DBq("SELECT * FROM TODO_LIST"),
   available_combos = NULL,
@@ -882,6 +905,11 @@ todo_pdf_prepare <- function(
     parent_capture_notes[todo_dt$todo == "Parent capture"],
     perl = TRUE
   )
+  parent_resighting_idx <- todo_dt$todo == "Parent resighting"
+  parent_capture_notes[parent_resighting_idx] <-
+    todo_pdf_parent_resighting_rule_note(
+      parent_capture_notes[parent_resighting_idx]
+    )
   todo_dt[, notes := parent_capture_notes]
 
   todo_dt[, let(clutch_brood = fifelse(
@@ -958,7 +986,7 @@ todo_pdf_heading <- function(todo_name) {
     ),
     "Parent resighting" = list(
       title = "Parents to resight for nest association",
-      subtitle = "Association of a banded parent resolves after either 1) three nest-linked resightings of the same identity, including the initial resighting, or 2) one ‘behav’ “IN”, “NM”, “BW”, “BC”, “FC” resighting"
+      subtitle = "Association of a banded parent resolves after either 1) three nest-linked resightings of the same identity, including the initial resighting, or 2) one ‘behav’ “IN”, “NM”, “BW”, “BC”, “FC” resighting. ‘MM’ refers to a parent caught with the mobile mistnet, and the number in brackets refers to the number of non-resolution ‘behav’ resightings currently made of a given individual at a given nest/brood. When there is no number, it means the parent’s association is established."
     ),
     "Untrapped brood" = list(
       title = "Broods to band",
@@ -1250,7 +1278,12 @@ todo_pdf_nest_summary_table <- function(nest_summary, n_blocks = 3L) {
 }
 
 
-todo_pdf_task_table <- function(todo_rows, nest_summary = NULL) {
+todo_pdf_task_table <- function(
+  todo_rows,
+  nest_summary = NULL,
+  column_widths = NULL,
+  align = NULL
+) {
   todo_rows <- as.data.frame(todo_rows, stringsAsFactors = FALSE)
   if (!nrow(todo_rows) || !ncol(todo_rows)) {
     return(character())
@@ -1355,12 +1388,24 @@ todo_pdf_task_table <- function(todo_rows, nest_summary = NULL) {
     cells <- c(cells, row_cells)
   }
 
+  if (is.null(column_widths)) {
+    column_widths <- c(8, 6, 10, 9, 10, 14, 14, 29)
+  }
+  if (is.null(align)) {
+    align <- c(
+      "center", "center", "center", "center",
+      "center", "center", "center", "left"
+    )
+  }
+  columns <- paste0(column_widths, "fr", collapse = ", ")
+  align_text <- paste(align, collapse = ", ")
+
   c(
     "```{=typst}",
     "#set text(size: 8.5pt)",
     "#table(",
-    "  columns: (8fr, 6fr, 10fr, 9fr, 10fr, 14fr, 14fr, 29fr),",
-    "  align: (center, center, center, center, center, center, center, left),",
+    glue("  columns: ({columns}),"),
+    glue("  align: ({align_text}),"),
     "  inset: (x: 2.2pt, y: 3pt),",
     "  stroke: none,",
     paste0("  ", paste(cells, collapse = ",\n  "), ","),
@@ -1467,6 +1512,8 @@ todo_pdf_body <- function(
         names(todo_rows)[names(todo_rows) == "Nest"] <- "Nest/Brood"
       }
 
+      parent_resighting_table <- todo == "Parent resighting"
+
       if (!(todo %in% c("notA nest-check", "Hiding spot photos needed"))) {
         names(todo_rows)[names(todo_rows) == "Hatch"] <- "Est. Hatch"
       }
@@ -1487,7 +1534,19 @@ todo_pdf_body <- function(
 
       # Use one borderless, striped renderer for every operational task table.
       # This keeps label-aware and ordinary task tables visually consistent.
-      task_table <- todo_pdf_task_table(todo_rows, nest_summary)
+      task_table <- todo_pdf_task_table(
+        todo_rows,
+        nest_summary,
+        column_widths = if (parent_resighting_table) {
+          c(7, 5, 8, 8, 8, 21, 23, 20)
+        },
+        align = if (parent_resighting_table) {
+          c(
+            "center", "center", "center", "center", "center",
+            "left", "left", "left"
+          )
+        }
+      )
 
       out <- c(out, task_table)
     }

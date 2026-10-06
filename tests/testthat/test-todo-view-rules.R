@@ -1288,6 +1288,94 @@ test_that("generic banded-parent association follows the resighting threshold", 
 })
 
 
+test_that("parent-resighting identities are canonicalized and counted per pending bird", {
+  sql <- views_source_sql()
+
+  expect_match(
+    sql,
+    "Only the four approved single-LR birds need spacer-aware aliases",
+    fixed = TRUE
+  )
+  expect_match(sql, "CONCAT(RIGHT(events.UR_norm, 1), events.LR_norm)", fixed = TRUE)
+  expect_match(sql, "association.LL_obs = mm.UL_norm", fixed = TRUE)
+  expect_match(sql, "association.LR_obs = mm.LR_norm", fixed = TRUE)
+  expect_match(sql, "HAVING COUNT(DISTINCT aliases.canonical_mark) = 1", fixed = TRUE)
+  expect_match(sql, "FROM FIELD_2026_BADOatNZ.RESIGHTINGS raw", fixed = TRUE)
+  expect_match(sql, "M_resight_association_details", fixed = TRUE)
+  expect_match(sql, "M_alternate_parent_details", fixed = TRUE)
+  expect_match(sql, "GROUP_CONCAT(\n      DISTINCT NULLIF(TRIM(M_mark), '')", fixed = TRUE)
+
+  canonical_alias <- function(
+    sex,
+    capture_ll,
+    capture_lr,
+    capture_ul,
+    capture_ur,
+    resight_ll,
+    resight_lr,
+    special = FALSE
+  ) {
+    exact <- paste(capture_ll, capture_lr, sep = "|")
+    spacer_short <- if (isTRUE(special)) {
+      paste(capture_ll, paste0(substr(capture_ur, 2, 2), capture_lr), sep = "|")
+    } else {
+      NA_character_
+    }
+    observed <- paste(resight_ll, resight_lr, sep = "|")
+    if (identical(observed, exact) || identical(observed, spacer_short)) {
+      return(paste(sex, "MOCK-CANONICAL", sep = ":"))
+    }
+    NA_character_
+  }
+
+  # Full and LL/LR-only observations resolve to one ordinary bird.
+  expect_identical(
+    canonical_alias("M", "BY", "LW", "YO", "TG", "BY", "LW"),
+    "M:MOCK-CANONICAL"
+  )
+  # A single-LR bird uses the final spacer colour plus LR in its short form.
+  expect_identical(
+    canonical_alias("F", "BY", "L", "M", "TB", "BY", "BL", special = TRUE),
+    "F:MOCK-CANONICAL"
+  )
+  # Different sexes remain separate even when the lower pair is identical;
+  # the SQL alias map is grouped by sex as well as the observed pair.
+  expect_identical(
+    c(
+      male = canonical_alias("M", "BY", "LW", "YO", "TG", "BY", "LW"),
+      female = canonical_alias("F", "BY", "LW", "YO", "TG", "BY", "LW")
+    ),
+    c(male = "M:MOCK-CANONICAL", female = "F:MOCK-CANONICAL")
+  )
+  # A competing canonical captured mark is deliberately not safe to infer.
+  expect_true(is.na(canonical_alias("M", "BY", "LW", "YO", "TG", "BY", "ZZ")))
+
+  format_pending_identity <- function(mark, n_resightings, mm = FALSE) {
+    prefix <- if (isTRUE(mm)) "MM, " else ""
+    paste0(mark, " (", prefix, n_resightings, ")")
+  }
+
+  expect_identical(
+    format_pending_identity("MOCK-TG.GW", 2, mm = TRUE),
+    "MOCK-TG.GW (MM, 2)"
+  )
+  expect_identical(
+    paste(
+      format_pending_identity("MOCK-TG.GW", 2, mm = TRUE),
+      format_pending_identity("MOCK-GY", 1),
+      sep = " & "
+    ),
+    "MOCK-TG.GW (MM, 2) & MOCK-GY (1)"
+  )
+
+  pending <- c("MOCK-TG.GW (MM, 2)", NA_character_)
+  expect_identical(
+    paste(na.omit(pending), collapse = " & "),
+    "MOCK-TG.GW (MM, 2)"
+  )
+})
+
+
 test_that("resolved MM follow-up uses the canonical captured parent mark", {
   sql <- todo_list_view_sql()
 
@@ -1339,6 +1427,27 @@ test_that("resolved MM follow-up uses the canonical captured parent mark", {
   expect_identical(
     displayed_female_mark(FALSE, "BY-YY", "BY-YY", TRUE),
     "BY-YY"
+  )
+})
+
+
+test_that("MM resighting rows do not repeat generic unresolved identities", {
+  sql <- views_source_sql()
+
+  expect_match(
+    sql,
+    "adult_parent_status.M_mm_resight_count",
+    fixed = TRUE
+  )
+  expect_no_match(
+    sql,
+    "adult_parent_status.M_alternate_parent_details",
+    fixed = TRUE
+  )
+  expect_no_match(
+    sql,
+    "adult_parent_status.F_alternate_parent_details",
+    fixed = TRUE
   )
 })
 
