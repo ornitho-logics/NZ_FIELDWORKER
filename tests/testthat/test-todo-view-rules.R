@@ -685,6 +685,21 @@ test_that("pending MM parents stay in resighting rather than capture work", {
   expect_no_match(sql, "'resight/band M (MM cap)'", fixed = TRUE)
   expect_match(sql, "'MM cap '", fixed = TRUE)
   expect_match(sql, "M_mm_resight_count", fixed = TRUE)
+  expect_match(
+    sql,
+    "adult_mm_followup_status.M_mm_resight_count, 0) AS M_mm_resight_count",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "adult_mm_followup_status.F_mm_resight_count, 0) AS F_mm_resight_count",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "matched.has_nest_behav,\n    matched.mm_capture_mark",
+    fixed = TRUE
+  )
   expect_match(sql, "has_xx_nest_behav", fixed = TRUE)
   expect_match(sql, "matched.has_nest_behav = 1", fixed = TRUE)
   expect_no_match(

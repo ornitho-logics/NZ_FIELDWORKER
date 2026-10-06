@@ -3591,6 +3591,7 @@ adult_mm_post_resighting_ranked AS (
     matched.LR_obs,
     matched.association_date,
     matched.pk,
+    matched.has_nest_behav,
     matched.mm_capture_mark,
     matched.mm_capture_LL_norm,
     matched.mm_capture_LR_norm,
@@ -4655,6 +4656,8 @@ adult_parent_status AS (
       AS F_alternate_parent_marks,
     COALESCE(adult_mm_followup_status.M_mm_resight_pending, 0) AS M_mm_resight_pending,
     COALESCE(adult_mm_followup_status.F_mm_resight_pending, 0) AS F_mm_resight_pending,
+    COALESCE(adult_mm_followup_status.M_mm_resight_count, 0) AS M_mm_resight_count,
+    COALESCE(adult_mm_followup_status.F_mm_resight_count, 0) AS F_mm_resight_count,
     COALESCE(
       adult_resighting_association_status.M_resight_association_pending,
       0
