@@ -91,6 +91,44 @@ todo_pdf_as_numeric <- function(x) {
 }
 
 
+todo_pdf_query_tasks <- function() {
+  # Keep every PDF entry point on the same bounded query plan. TODO_LIST is a
+  # complex operational view, so avoid SELECT * and discourage MariaDB from
+  # merging its CTE graph into this outer projection.
+  DBq(
+    "
+    SELECT
+      nest_id,
+      reference_date,
+      todo,
+      notes,
+      days_overdue,
+      priority,
+      min_days_to_hatch,
+      last_visit_days_ago,
+      nest_state,
+      clutch_size,
+      brood_size,
+      M_mark,
+      F_mark,
+      authoritative_M_mark,
+      authoritative_F_mark,
+      M_resighting_identity_count,
+      F_resighting_identity_count,
+      M_resight_association_pending,
+      F_resight_association_pending,
+      M_mm_resight_pending,
+      F_mm_resight_pending,
+      lat,
+      lon,
+      geo_priority_rank
+    FROM TODO_LIST
+    ",
+    derived_merge_off = TRUE
+  )
+}
+
+
 todo_pdf_version_footer <- function(version = NULL) {
   if (is.null(version)) {
     version <- get0("git_version", ifnotfound = NULL, inherits = TRUE)
@@ -751,13 +789,17 @@ todo_pdf_parent_resighting_rule_note <- function(
 
 
 todo_pdf_prepare <- function(
-  todo = DBq("SELECT * FROM TODO_LIST"),
+  todo = NULL,
   available_combos = NULL,
   nests_latest = NULL,
   chick_captures = NULL,
   unseen_tagged_birds = NULL,
   hatch_prediction = NULL
 ) {
+  if (is.null(todo)) {
+    todo <- todo_pdf_query_tasks()
+  }
+
   todo_dt <- data.table(todo)
   refdate <- as.Date(todo_dt$reference_date[1])
 
@@ -1814,40 +1856,7 @@ todo_pdf_save <- function(
   hatch_prediction = NULL
 ) {
   if (is.null(todo)) {
-    # TODO_LIST contains several diagnostic GEO columns.  The PDF only needs
-    # the fields below, and the complex view is safer when MariaDB materializes
-    # its derived CTEs instead of repeatedly merging them into the outer query.
-    todo <- DBq(
-      "
-      SELECT
-        nest_id,
-        reference_date,
-        todo,
-        notes,
-        days_overdue,
-        priority,
-        min_days_to_hatch,
-        last_visit_days_ago,
-        nest_state,
-        clutch_size,
-        brood_size,
-        M_mark,
-        F_mark,
-        authoritative_M_mark,
-        authoritative_F_mark,
-        M_resighting_identity_count,
-        F_resighting_identity_count,
-        M_resight_association_pending,
-        F_resight_association_pending,
-        M_mm_resight_pending,
-        F_mm_resight_pending,
-        lat,
-        lon,
-        geo_priority_rank
-      FROM TODO_LIST
-      ",
-      derived_merge_off = TRUE
-    )
+    todo <- todo_pdf_query_tasks()
   }
 
   if (is.null(broods_latest)) {

@@ -774,12 +774,16 @@
 
 todo_pdf_map_save <- function(
   file,
-  todo = DBq("SELECT * FROM TODO_LIST"),
+  todo = NULL,
   spatial_objects = DBq("SELECT * FROM spatial_objects WHERE variable = 'study_area'"),
   chick_captures = NULL,
   nests_latest = NULL,
   unseen_tagged_birds = NULL
 ) {
+  if (is.null(todo)) {
+    todo <- todo_pdf_query_tasks()
+  }
+
   plots <- .todo_pdf_map_prepare_plots(spatial_objects)
   nests <- .todo_pdf_map_prepare_nests(
     todo,

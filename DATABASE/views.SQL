@@ -4372,15 +4372,15 @@ adult_resighting_association_status AS (
     ) AS F_resight_association_count,
     MAX(
       CASE
-        WHEN identity_totals.sex = 'M'
-        THEN identity_totals.n_resighting_identities
+        WHEN classified.sex = 'M'
+        THEN classified.n_resighting_identities
         ELSE 0
       END
     ) AS M_resighting_identity_count,
     MAX(
       CASE
-        WHEN identity_totals.sex = 'F'
-        THEN identity_totals.n_resighting_identities
+        WHEN classified.sex = 'F'
+        THEN classified.n_resighting_identities
         ELSE 0
       END
     ) AS F_resighting_identity_count,
@@ -4505,6 +4505,8 @@ adult_resighting_association_status AS (
         /* One resolved identity displaces other same-sex provisional
            identities. Two independently resolved identities remain
            ambiguous and stay on the resighting task. */
+        WHEN identity_counts.association_eligible = 0
+        THEN 0
         WHEN identity_counts.identity_is_mm = 1
         THEN 0
         WHEN identity_counts.n_resolved_identities = 1
@@ -4512,14 +4514,16 @@ adult_resighting_association_status AS (
         ELSE 1
       END AS association_pending,
       CASE
-        WHEN identity_counts.identity_is_mm = 0
+        WHEN identity_counts.association_eligible = 1
+         AND identity_counts.identity_is_mm = 0
          AND identity_counts.n_resolved_identities = 1
          AND identity_counts.identity_resolved = 1
         THEN 1
         ELSE 0
       END AS association_selected,
       CASE
-        WHEN identity_counts.identity_is_mm = 0
+        WHEN identity_counts.association_eligible = 1
+         AND identity_counts.identity_is_mm = 0
          AND identity_counts.n_resolved_identities = 1
          AND identity_counts.identity_resolved = 1
         THEN identity_counts.identity_has_geo
@@ -4529,7 +4533,8 @@ adult_resighting_association_status AS (
       SELECT
         identity_summary.*,
         CASE
-          WHEN EXISTS (
+          WHEN identity_summary.association_eligible = 1
+           AND EXISTS (
             SELECT 1
             FROM adult_mm_capture_latest mm_identity
             WHERE mm_identity.nest_id = identity_summary.nest_id
@@ -4570,9 +4575,15 @@ adult_resighting_association_status AS (
         SUM(identity_summary.identity_resolved) OVER (
           PARTITION BY identity_summary.nest_id, identity_summary.sex
         ) AS n_resolved_identities,
+        SUM(identity_summary.association_eligible) OVER (
+          PARTITION BY identity_summary.nest_id, identity_summary.sex
+        ) AS n_association_identities,
+        /* Count observed identities independently of task eligibility. X-X,
+           dead, and directly TN-associated birds remain visible to the PDF
+           status layer but cannot open an association task. */
         COUNT(*) OVER (
           PARTITION BY identity_summary.nest_id, identity_summary.sex
-        ) AS n_association_identities
+        ) AS n_resighting_identities
       FROM (
         SELECT
         candidate.nest_id,
@@ -4607,70 +4618,96 @@ adult_resighting_association_status AS (
           )
           ELSE candidate.mark
         END AS association_mark,
-        COUNT(*) AS n_matching_resightings,
+        MAX(candidate.association_eligible) AS association_eligible,
+        SUM(candidate.association_eligible) AS n_matching_resightings,
         CASE
-          WHEN MAX(candidate.has_nest_behav) = 1
-            OR COUNT(*) >= 3
+          WHEN MAX(candidate.association_eligible) = 1
+           AND (
+             MAX(
+               CASE
+                 WHEN candidate.association_eligible = 1
+                 THEN candidate.has_nest_behav
+                 ELSE 0
+               END
+             ) = 1
+             OR SUM(candidate.association_eligible) >= 3
+           )
           THEN 1
           ELSE 0
         END AS identity_resolved,
-        MAX(candidate.has_geo) AS identity_has_geo,
         MAX(
           CASE
-            WHEN (
-              candidate.LL_obs IS NOT NULL
-              AND candidate.LL_obs NOT REGEXP '^(X+|M)$'
-            )
-             OR (
-              candidate.LR_obs IS NOT NULL
-              AND candidate.LR_obs NOT REGEXP '^(X+|M)$'
+            WHEN candidate.association_eligible = 1
+            THEN candidate.has_geo
+            ELSE 0
+          END
+        ) AS identity_has_geo,
+        MAX(
+          CASE
+            WHEN candidate.association_eligible = 1
+             AND (
+              (
+                candidate.LL_obs IS NOT NULL
+                AND candidate.LL_obs NOT REGEXP '^(X+|M)$'
+              )
+              OR (
+                candidate.LR_obs IS NOT NULL
+                AND candidate.LR_obs NOT REGEXP '^(X+|M)$'
+              )
             )
             THEN 1
             ELSE 0
           END
         ) AS has_unique_lower_band
-      FROM adult_association_resighting_candidates candidate
+      FROM (
+        SELECT
+          candidate.*,
+          CASE
+            WHEN UPPER(TRIM(candidate.mark)) NOT IN ('X-X', 'XX-XX', 'DEAD')
+             AND (
+               candidate.requires_spacer_identity = 0
+               OR candidate.has_full_mark_observation = 1
+               OR candidate.is_special_spacer_alias = 1
+             )
+             AND NOT EXISTS (
+               /*
+                 A same-sex TN capture at the same nest is direct association
+                 evidence for that identity. It still counts as an observed
+                 identity for PDF notes, but it must not create a second
+                 resighting-only uncertainty task. MM captures deliberately
+                 remain eligible for the separate MM follow-up rule.
+               */
+               SELECT 1
+               FROM adult_capture_events captured
+               WHERE captured.nest_id = candidate.nest_id
+                 AND captured.sex = candidate.sex
+                 AND UPPER(TRIM(COALESCE(captured.capture_method, ''))) = 'TN'
+                 AND captured.capture_date <= candidate.association_date
+                 AND captured.mark IS NOT NULL
+                 AND (
+                   (
+                     candidate.canonical_mark IS NOT NULL
+                     AND UPPER(TRIM(captured.mark))
+                         = UPPER(TRIM(candidate.canonical_mark))
+                   )
+                   OR (
+                     candidate.requires_spacer_identity = 1
+                     AND UPPER(TRIM(captured.mark))
+                         = UPPER(TRIM(candidate.mark))
+                   )
+                   OR (
+                     candidate.requires_spacer_identity = 0
+                     AND captured.LL_norm = candidate.LL_obs
+                     AND captured.LR_norm = candidate.LR_obs
+                   )
+                 )
+             )
+            THEN 1
+            ELSE 0
+          END AS association_eligible
+        FROM adult_association_resighting_candidates candidate
         WHERE candidate.mark IS NOT NULL
-        AND UPPER(TRIM(candidate.mark)) NOT IN ('X-X', 'XX-XX', 'DEAD')
-        AND (
-          candidate.requires_spacer_identity = 0
-          OR candidate.has_full_mark_observation = 1
-          OR candidate.is_special_spacer_alias = 1
-        )
-        AND NOT EXISTS (
-          /*
-            A same-sex TN capture at the same nest is direct association
-            evidence for that identity.  It must not create a second
-            resighting-only uncertainty task.  MM captures are deliberately
-            not excluded here because they occur away from the nest and use
-            the separate MM follow-up rule.
-          */
-          SELECT 1
-          FROM adult_capture_events captured
-          WHERE captured.nest_id = candidate.nest_id
-            AND captured.sex = candidate.sex
-            AND UPPER(TRIM(COALESCE(captured.capture_method, ''))) = 'TN'
-            AND captured.capture_date <= candidate.association_date
-            AND captured.mark IS NOT NULL
-            AND (
-              (
-                candidate.canonical_mark IS NOT NULL
-                AND UPPER(TRIM(captured.mark))
-                    = UPPER(TRIM(candidate.canonical_mark))
-              )
-              OR (
-              (
-                candidate.requires_spacer_identity = 1
-                AND UPPER(TRIM(captured.mark)) = UPPER(TRIM(candidate.mark))
-              )
-              OR (
-                candidate.requires_spacer_identity = 0
-                AND captured.LL_norm = candidate.LL_obs
-                AND captured.LR_norm = candidate.LR_obs
-              )
-              )
-            )
-        )
+      ) candidate
       GROUP BY
         candidate.nest_id,
         candidate.sex,
@@ -4707,42 +4744,7 @@ adult_resighting_association_status AS (
         ) identity_summary
     ) identity_counts
   ) classified
-  RIGHT JOIN (
-    /*
-      Count distinct observed identities once per nest/sex for the PDF note.
-      This inline aggregate intentionally includes X-X rows, while the
-      classified association pipeline above continues to exclude X-X from
-      association resolution. Keeping it inline avoids adding a 64th CTE,
-      which MariaDB rejects, and keeps the count independent of eligibility.
-    */
-    SELECT
-      candidates.nest_id,
-      candidates.sex,
-      COUNT(DISTINCT CASE
-        WHEN candidates.canonical_mark IS NOT NULL
-        THEN CONCAT(
-          'canonical:',
-          UPPER(TRIM(candidates.canonical_mark))
-        )
-        WHEN candidates.requires_spacer_identity = 0
-        THEN CONCAT(
-          'lower:',
-          COALESCE(candidates.LL_obs, ''),
-          '|',
-          COALESCE(candidates.LR_obs, '')
-        )
-        ELSE CONCAT(
-          'full:',
-          UPPER(TRIM(candidates.mark))
-        )
-      END) AS n_resighting_identities
-    FROM adult_association_resighting_candidates candidates
-    WHERE candidates.mark IS NOT NULL
-    GROUP BY candidates.nest_id, candidates.sex
-  ) identity_totals
-    ON identity_totals.nest_id = classified.nest_id
-   AND identity_totals.sex = classified.sex
-  GROUP BY identity_totals.nest_id
+  GROUP BY classified.nest_id
 ),
 todo_parent_source AS (
   SELECT

@@ -87,6 +87,54 @@ test_that("to-do headings use the current operational subtitles", {
 })
 
 
+test_that("all PDF task entry points use the bounded TODO_LIST query", {
+  app <- load_main_app()
+  query_tasks <- app$env$todo_pdf_query_tasks
+  query_env <- environment(query_tasks)
+  original_dbq <- get("DBq", envir = query_env)
+  on.exit(assign("DBq", original_dbq, envir = query_env), add = TRUE)
+
+  calls <- list()
+  assign(
+    "DBq",
+    function(x, params = NULL, derived_merge_off = FALSE) {
+      calls[[length(calls) + 1L]] <<- list(
+        sql = x,
+        derived_merge_off = derived_merge_off
+      )
+      data.frame()
+    },
+    envir = query_env
+  )
+
+  query_tasks()
+
+  expect_length(calls, 1L)
+  expect_true(calls[[1L]]$derived_merge_off)
+  expect_match(calls[[1L]]$sql, "FROM TODO_LIST", fixed = TRUE)
+  expect_false(grepl("SELECT *", calls[[1L]]$sql, fixed = TRUE))
+  expect_match(calls[[1L]]$sql, "authoritative_M_mark", fixed = TRUE)
+
+  pdf_source <- paste(readLines(app_file("main", "R", "pdf_todo.R")), collapse = "\n")
+  map_source <- paste(
+    readLines(app_file("main", "R", "pdf_todo_map.R")),
+    collapse = "\n"
+  )
+  expect_false(grepl("SELECT * FROM TODO_LIST", pdf_source, fixed = TRUE))
+  expect_false(grepl("SELECT * FROM TODO_LIST", map_source, fixed = TRUE))
+  expect_match(
+    pdf_source,
+    "todo_pdf_prepare <- function(\n  todo = NULL,",
+    fixed = TRUE
+  )
+  expect_match(
+    map_source,
+    "todo_pdf_map_save <- function(\n  file,\n  todo = NULL,",
+    fixed = TRUE
+  )
+})
+
+
 test_that("parent-resighting PDF notes retain rules and identity counts", {
   app <- load_main_app()
   extract_rule_note <- app$env$todo_pdf_parent_resighting_rule_note

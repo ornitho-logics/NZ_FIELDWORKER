@@ -1315,12 +1315,12 @@ test_that("generic banded-parent association follows the resighting threshold", 
   )
   expect_match(
     sql,
-    "COUNT(*) AS n_matching_resightings",
+    "SUM(candidate.association_eligible) AS n_matching_resightings",
     fixed = TRUE
   )
   expect_match(
     sql,
-    "COUNT(*) >= 3",
+    "SUM(candidate.association_eligible) >= 3",
     fixed = TRUE
   )
   expect_match(
@@ -1430,8 +1430,18 @@ test_that("parent-resighting identities are canonicalized and counted per pendin
   expect_match(sql, "F_resight_association_pending", fixed = TRUE)
   expect_match(sql, "M_mm_resight_pending", fixed = TRUE)
   expect_match(sql, "F_mm_resight_pending", fixed = TRUE)
-  expect_match(sql, "n_resighting_identities", fixed = TRUE)
-  expect_match(sql, "RIGHT JOIN (", fixed = TRUE)
+  expect_match(
+    sql,
+    "COUNT(*) OVER (\n          PARTITION BY identity_summary.nest_id, identity_summary.sex\n        ) AS n_resighting_identities",
+    fixed = TRUE
+  )
+  expect_match(sql, "association_eligible", fixed = TRUE)
+  expect_match(
+    sql,
+    "WHEN identity_counts.association_eligible = 0\n        THEN 0",
+    fixed = TRUE
+  )
+  expect_false(grepl("RIGHT JOIN (", sql, fixed = TRUE))
   expect_match(sql, "WHEN classified.identity_resolved = 1 THEN ''", fixed = TRUE)
   expect_match(sql, "GROUP_CONCAT(\n      DISTINCT NULLIF(TRIM(M_mark), '')", fixed = TRUE)
 
