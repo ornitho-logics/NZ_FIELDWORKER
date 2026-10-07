@@ -87,7 +87,55 @@ test_that("to-do headings use the current operational subtitles", {
 })
 
 
-test_that("parent-resighting PDF notes retain only rule gates", {
+test_that("all PDF task entry points use the bounded TODO_LIST query", {
+  app <- load_main_app()
+  query_tasks <- app$env$todo_pdf_query_tasks
+  query_env <- environment(query_tasks)
+  original_dbq <- get("DBq", envir = query_env)
+  on.exit(assign("DBq", original_dbq, envir = query_env), add = TRUE)
+
+  calls <- list()
+  assign(
+    "DBq",
+    function(x, params = NULL, derived_merge_off = FALSE) {
+      calls[[length(calls) + 1L]] <<- list(
+        sql = x,
+        derived_merge_off = derived_merge_off
+      )
+      data.frame()
+    },
+    envir = query_env
+  )
+
+  query_tasks()
+
+  expect_length(calls, 1L)
+  expect_true(calls[[1L]]$derived_merge_off)
+  expect_match(calls[[1L]]$sql, "FROM TODO_LIST", fixed = TRUE)
+  expect_false(grepl("SELECT *", calls[[1L]]$sql, fixed = TRUE))
+  expect_match(calls[[1L]]$sql, "authoritative_M_mark", fixed = TRUE)
+
+  pdf_source <- paste(readLines(app_file("main", "R", "pdf_todo.R")), collapse = "\n")
+  map_source <- paste(
+    readLines(app_file("main", "R", "pdf_todo_map.R")),
+    collapse = "\n"
+  )
+  expect_false(grepl("SELECT * FROM TODO_LIST", pdf_source, fixed = TRUE))
+  expect_false(grepl("SELECT * FROM TODO_LIST", map_source, fixed = TRUE))
+  expect_match(
+    pdf_source,
+    "todo_pdf_prepare <- function(\n  todo = NULL,",
+    fixed = TRUE
+  )
+  expect_match(
+    map_source,
+    "todo_pdf_map_save <- function(\n  file,\n  todo = NULL,",
+    fixed = TRUE
+  )
+})
+
+
+test_that("parent-resighting PDF notes retain rules and identity counts", {
   app <- load_main_app()
   extract_rule_note <- app$env$todo_pdf_parent_resighting_rule_note
 
@@ -100,6 +148,28 @@ test_that("parent-resighting PDF notes retain only rule gates", {
       NA_character_
     )),
     c("", "7d rule", "36hr rule", "7d+36hr", "")
+  )
+
+  expect_identical(
+    extract_rule_note(
+      c("resight M (status ?); 7d rule", "MM cap F with 3 resightings"),
+      male_identity_counts = c(2, 0),
+      female_identity_counts = c(0, 1)
+    ),
+    c("2 males seen; 7d rule", "1 female seen")
+  )
+
+  expect_identical(
+    extract_rule_note(
+      c("MM cap M with 1 resighting", "MM cap M with 1 resighting"),
+      male_identity_counts = c(1, 1),
+      female_identity_counts = c(2, 2),
+      male_association_pending = c(1, 1),
+      female_association_pending = c(0, 1),
+      male_mm_pending = c(1, 0),
+      female_mm_pending = c(0, 0)
+    ),
+    c("1 male seen; F resolved", "1 male seen; 2 females seen")
   )
 })
 
@@ -610,6 +680,46 @@ test_that("tagged capture tasks receive a white map outline and legend entry", {
 })
 
 
+test_that("capture work trumps simultaneous resight work on the map", {
+  app <- load_main_app()
+  prepare_map <- app$env$.todo_pdf_map_prepare_nests
+
+  todo <- data.frame(
+    nest_id = c("B_BOTH", "B_BOTH", "B_BOTH"),
+    todo = c("nest check", "Parent capture", "Parent resighting"),
+    notes = c(NA, "tag M (pair completion)", NA),
+    lat = c(-43.1, -43.1, -43.1),
+    lon = c(170.1, 170.1, 170.1),
+    stringsAsFactors = FALSE
+  )
+  nests <- data.frame(
+    nest_id = "B_BOTH",
+    nest_state = "I",
+    lat = -43.1,
+    lon = 170.1,
+    has_hatch_evidence = FALSE,
+    is_negative_brood = FALSE,
+    stringsAsFactors = FALSE
+  )
+
+  mapped <- prepare_map(
+    todo = todo,
+    chick_captures = data.frame(),
+    nests_latest = nests
+  )
+
+  expect_identical(
+    as.character(mapped$parent_work[mapped$nest_id == "B_BOTH"]),
+    "Capture"
+  )
+  expect_identical(
+    as.character(mapped$check_type[mapped$nest_id == "B_BOTH"]),
+    "Nest check"
+  )
+  expect_true(mapped$tag_capture[mapped$nest_id == "B_BOTH"])
+})
+
+
 test_that("parent summary displays hatch intervals", {
   app <- load_main_app()
   prepare_summary <- app$env$todo_pdf_prepare_nest_summary
@@ -646,6 +756,42 @@ test_that("parent summary displays hatch intervals", {
     summary[summary$Nest == "-B_MOCK", `Est. Hatch`],
     "-6"
   )
+})
+
+
+test_that("parent summary uses canonical status marks across task types", {
+  app <- load_main_app()
+  prepare_summary <- app$env$todo_pdf_prepare_nest_summary
+
+  nests <- data.frame(
+    nest_id = "MOCK_NEST",
+    nest_state = "I",
+    min_days_to_hatch = 2,
+    M_mark = "STALE-M",
+    F_mark = "STALE-F",
+    is_negative_brood = FALSE,
+    has_hatch_evidence = FALSE,
+    stringsAsFactors = FALSE
+  )
+  todo <- data.frame(
+    nest_id = "MOCK_NEST",
+    todo = "notA nest-check",
+    min_days_to_hatch = 2,
+    M_mark = "TASK-M",
+    F_mark = "TASK-F",
+    authoritative_M_mark = "CANONICAL-M",
+    authoritative_F_mark = "CANONICAL-F",
+    stringsAsFactors = FALSE
+  )
+
+  observed <- prepare_summary(
+    nests_latest = nests,
+    reference_date = as.Date("2026-10-08"),
+    todo = todo
+  )
+
+  expect_identical(observed$Male, "CANONICAL-M")
+  expect_identical(observed$Female, "CANONICAL-F")
 })
 
 
