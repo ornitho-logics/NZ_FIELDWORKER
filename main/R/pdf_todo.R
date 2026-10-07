@@ -191,6 +191,47 @@ todo_pdf_parent_task_marks <- function(todo) {
     return(empty_output())
   }
 
+  # New TODO_LIST rows expose the canonical adult_parent_status result. Use it
+  # for the summary rather than selecting a mark from whichever task branch
+  # happens to be present. Keep the older task-row fallback for local callers
+  # and archived snapshots that predate these columns.
+  authoritative_columns <- c(
+    "authoritative_M_mark",
+    "authoritative_F_mark"
+  )
+  if (all(authoritative_columns %in% names(todo_dt))) {
+    authoritative <- todo_dt[
+      !is.na(nest_id)
+        & nzchar(trimws(as.character(nest_id))),
+      .(
+        M_todo_mark = {
+          values <- trimws(as.character(authoritative_M_mark))
+          values[
+            is.na(values)
+              | !nzchar(values)
+              | toupper(values) %chin% c("NULL", "NA")
+          ] <- NA_character_
+          values <- values[!is.na(values)]
+          if (length(values)) values[1L] else NA_character_
+        },
+        F_todo_mark = {
+          values <- trimws(as.character(authoritative_F_mark))
+          values[
+            is.na(values)
+              | !nzchar(values)
+              | toupper(values) %chin% c("NULL", "NA")
+          ] <- NA_character_
+          values <- values[!is.na(values)]
+          if (length(values)) values[1L] else NA_character_
+        }
+      ),
+      by = .(Nest = trimws(as.character(nest_id)))
+    ]
+    if (nrow(authoritative)) {
+      return(authoritative[])
+    }
+  }
+
   parent_marks <- todo_dt[
     todo %chin% parent_todos
       & !is.na(nest_id)
@@ -598,15 +639,65 @@ todo_pdf_prepare_nest_summary <- function(
 }
 
 
-todo_pdf_parent_resighting_rule_note <- function(notes) {
+todo_pdf_parent_resighting_rule_note <- function(
+  notes,
+  male_identity_counts = NULL,
+  female_identity_counts = NULL,
+  male_association_pending = NULL,
+  female_association_pending = NULL,
+  male_mm_pending = NULL,
+  female_mm_pending = NULL
+) {
   notes <- as.character(notes)
+  male_identity_counts <- suppressWarnings(as.numeric(male_identity_counts))
+  female_identity_counts <- suppressWarnings(as.numeric(female_identity_counts))
+  male_association_pending <- suppressWarnings(
+    as.numeric(male_association_pending)
+  )
+  female_association_pending <- suppressWarnings(
+    as.numeric(female_association_pending)
+  )
+  male_mm_pending <- suppressWarnings(as.numeric(male_mm_pending))
+  female_mm_pending <- suppressWarnings(as.numeric(female_mm_pending))
+  if (!length(male_identity_counts)) {
+    male_identity_counts <- rep(NA_real_, length(notes))
+  }
+  if (!length(female_identity_counts)) {
+    female_identity_counts <- rep(NA_real_, length(notes))
+  }
+  if (!length(male_association_pending)) {
+    male_association_pending <- rep(NA_real_, length(notes))
+  }
+  if (!length(female_association_pending)) {
+    female_association_pending <- rep(NA_real_, length(notes))
+  }
+  if (!length(male_mm_pending)) {
+    male_mm_pending <- rep(NA_real_, length(notes))
+  }
+  if (!length(female_mm_pending)) {
+    female_mm_pending <- rep(NA_real_, length(notes))
+  }
+  male_identity_counts <- rep(male_identity_counts, length.out = length(notes))
+  female_identity_counts <- rep(female_identity_counts, length.out = length(notes))
+  male_association_pending <- rep(
+    male_association_pending,
+    length.out = length(notes)
+  )
+  female_association_pending <- rep(
+    female_association_pending,
+    length.out = length(notes)
+  )
+  male_mm_pending <- rep(male_mm_pending, length.out = length(notes))
+  female_mm_pending <- rep(female_mm_pending, length.out = length(notes))
+
   unname(vapply(
-    notes,
-    function(note) {
+    seq_along(notes),
+    function(i) {
+      note <- notes[[i]]
       note <- tolower(ifelse(is.na(note), "", note))
       has_7d <- grepl("7d", note, fixed = TRUE)
       has_36hr <- grepl("36hr", note, fixed = TRUE)
-      if (has_7d && has_36hr) {
+      rule_note <- if (has_7d && has_36hr) {
         "7d+36hr"
       } else if (has_7d) {
         "7d rule"
@@ -615,6 +706,44 @@ todo_pdf_parent_resighting_rule_note <- function(notes) {
       } else {
         ""
       }
+
+      seen_note <- character()
+      male_count <- male_identity_counts[[i]]
+      female_count <- female_identity_counts[[i]]
+      if (!is.na(male_count) && male_count > 0) {
+        seen_note <- c(
+          seen_note,
+          if (!is.na(male_association_pending[[i]])
+              && male_association_pending[[i]] == 0
+              && !is.na(male_mm_pending[[i]])
+              && male_mm_pending[[i]] == 0) {
+            "M resolved"
+          } else {
+            paste(
+              as.integer(male_count),
+              if (male_count == 1) "male seen" else "males seen"
+            )
+          }
+        )
+      }
+      if (!is.na(female_count) && female_count > 0) {
+        seen_note <- c(
+          seen_note,
+          if (!is.na(female_association_pending[[i]])
+              && female_association_pending[[i]] == 0
+              && !is.na(female_mm_pending[[i]])
+              && female_mm_pending[[i]] == 0) {
+            "F resolved"
+          } else {
+            paste(
+              as.integer(female_count),
+              if (female_count == 1) "female seen" else "females seen"
+            )
+          }
+        )
+      }
+
+      paste(c(seen_note, rule_note[nzchar(rule_note)]), collapse = "; ")
     },
     character(1)
   ))
@@ -660,6 +789,26 @@ todo_pdf_prepare <- function(
     todo_dt[, let(geo_priority_rank = todo_pdf_as_numeric(geo_priority_rank))]
   } else {
     todo_dt[, let(geo_priority_rank = NA_real_)]
+  }
+
+  # All ordinary PDF task rows use the canonical parent-status identity. The
+  # parent-resighting row may retain its richer pending-association display
+  # (for example, an identity followed by a resighting count), but that detail
+  # is generated from the same SQL status pipeline and is not used to override
+  # the summary identity.
+  for (column in c("authoritative_M_mark", "authoritative_F_mark")) {
+    if (!column %in% names(todo_dt)) {
+      todo_dt[, (column) := NA_character_]
+    }
+  }
+  if (all(c("M_mark", "F_mark") %in% names(todo_dt))) {
+    ordinary_task <- todo_dt$todo != "Parent resighting"
+    has_authoritative_M <- !is.na(todo_dt$authoritative_M_mark) &
+      nzchar(trimws(as.character(todo_dt$authoritative_M_mark)))
+    has_authoritative_F <- !is.na(todo_dt$authoritative_F_mark) &
+      nzchar(trimws(as.character(todo_dt$authoritative_F_mark)))
+    todo_dt[ordinary_task & has_authoritative_M, M_mark := authoritative_M_mark]
+    todo_dt[ordinary_task & has_authoritative_F, F_mark := authoritative_F_mark]
   }
 
   parent_todos <- c("Parent capture", "Parent resighting")
@@ -908,7 +1057,13 @@ todo_pdf_prepare <- function(
   parent_resighting_idx <- todo_dt$todo == "Parent resighting"
   parent_capture_notes[parent_resighting_idx] <-
     todo_pdf_parent_resighting_rule_note(
-      parent_capture_notes[parent_resighting_idx]
+      parent_capture_notes[parent_resighting_idx],
+      todo_dt$M_resighting_identity_count[parent_resighting_idx],
+      todo_dt$F_resighting_identity_count[parent_resighting_idx],
+      todo_dt$M_resight_association_pending[parent_resighting_idx],
+      todo_dt$F_resight_association_pending[parent_resighting_idx],
+      todo_dt$M_mm_resight_pending[parent_resighting_idx],
+      todo_dt$F_mm_resight_pending[parent_resighting_idx]
     )
   todo_dt[, notes := parent_capture_notes]
 
@@ -1543,7 +1698,7 @@ todo_pdf_body <- function(
         align = if (parent_resighting_table) {
           c(
             "center", "center", "center", "center", "center",
-            "left", "left", "left"
+            "center", "center", "left"
           )
         }
       )
@@ -1678,6 +1833,14 @@ todo_pdf_save <- function(
         brood_size,
         M_mark,
         F_mark,
+        authoritative_M_mark,
+        authoritative_F_mark,
+        M_resighting_identity_count,
+        F_resighting_identity_count,
+        M_resight_association_pending,
+        F_resight_association_pending,
+        M_mm_resight_pending,
+        F_mm_resight_pending,
         lat,
         lon,
         geo_priority_rank

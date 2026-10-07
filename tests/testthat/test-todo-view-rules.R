@@ -1205,6 +1205,91 @@ test_that("live X-X after a dead MM capture remains GEO eligible", {
 })
 
 
+test_that("pair completion may target one pending known-banded association", {
+  sql <- todo_list_view_sql()
+
+  expect_match(sql, "M_pair_tag_eligible", fixed = TRUE)
+  expect_match(sql, "F_pair_tag_eligible", fixed = TRUE)
+  expect_match(
+    sql,
+    "COALESCE(parent_status.M_resight_association_ambiguous, 0) = 0",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "COALESCE(parent_status.F_resight_association_ambiguous, 0) = 0",
+    fixed = TRUE
+  )
+  expect_match(sql, "base.M_pair_tag_eligible = 1", fixed = TRUE)
+  expect_match(sql, "base.F_pair_tag_eligible = 1", fixed = TRUE)
+  expect_match(sql, "M_resight_association_ambiguous", fixed = TRUE)
+  expect_match(sql, "n_association_identities", fixed = TRUE)
+
+  pair_tag_allowed <- function(
+    has_geo,
+    is_dead = FALSE,
+    mm_pending = FALSE,
+    association_ambiguous = FALSE,
+    plot = "B"
+  ) {
+    identical(plot, "A") == FALSE &&
+      !isTRUE(has_geo) &&
+      !isTRUE(is_dead) &&
+      !isTRUE(mm_pending) &&
+      !isTRUE(association_ambiguous)
+  }
+
+  # A single pending known-banded identity can still be the pair-completion
+  # target when the opposite parent carries a GEO tag.
+  expect_true(pair_tag_allowed(FALSE))
+  # Competing same-sex identities, dead status, or MM uncertainty remain gates.
+  expect_false(pair_tag_allowed(FALSE, association_ambiguous = TRUE))
+  expect_false(pair_tag_allowed(FALSE, is_dead = TRUE))
+  expect_false(pair_tag_allowed(FALSE, mm_pending = TRUE))
+  expect_false(pair_tag_allowed(FALSE, plot = "A"))
+  expect_false(pair_tag_allowed(TRUE))
+})
+
+
+test_that("captured sex overrides a uniquely matching resighting sex", {
+  sql <- views_source_sql()
+  todo_sql <- todo_list_view_sql()
+
+  expect_match(sql, "resighting_adult_resolved_sex", fixed = TRUE)
+  expect_match(sql, "COUNT(DISTINCT captured.sex) = 1", fixed = TRUE)
+  expect_match(sql, "captured.capture_date <= raw.observation_date", fixed = TRUE)
+  expect_match(sql, "captured.LL_norm = raw.LL_norm", fixed = TRUE)
+  expect_match(sql, "captured.LR_norm = raw.LR_norm", fixed = TRUE)
+  expect_match(todo_sql, "adult_resighting_observations", fixed = TRUE)
+  expect_match(todo_sql, "adult_resighting_observations AS (", fixed = TRUE)
+  expect_match(
+    todo_sql,
+    "adult_parent_status.M_parent_mark AS authoritative_M_mark",
+    fixed = TRUE
+  )
+  expect_match(
+    todo_sql,
+    "adult_parent_status.F_parent_mark AS authoritative_F_mark",
+    fixed = TRUE
+  )
+
+  resolved_sex <- function(observed_sex, matching_capture_sexes) {
+    if (length(unique(matching_capture_sexes)) == 1L) {
+      unique(matching_capture_sexes)
+    } else {
+      observed_sex
+    }
+  }
+
+  # A female capture wins over a mistaken male resighting of the same LL/LR.
+  expect_identical(resolved_sex("M", "F"), "F")
+  # A lower-mark collision across sexes remains unresolved.
+  expect_identical(resolved_sex("M", c("M", "F")), "M")
+  # No matching capture leaves the observer-entered sex unchanged.
+  expect_identical(resolved_sex("F", character()), "F")
+})
+
+
 test_that("generic banded-parent association follows the resighting threshold", {
   sql <- todo_list_view_sql()
 
@@ -1288,6 +1373,40 @@ test_that("generic banded-parent association follows the resighting threshold", 
 })
 
 
+test_that("pending known-banded associations bypass GEO candidate selection", {
+  sql <- views_source_sql()
+
+  # The direct pending-association branch must remain separate from the GEO
+  # capture candidate path. Otherwise a known-banded bird with only AT
+  # resightings can disappear before the Parent resighting union is built.
+  expect_match(
+    sql,
+    "todo_parent_resighting_existing AS",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "JOIN adult_resighting_association_status association",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "WHERE association.M_resight_association_pending = 1",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "OR association.F_resight_association_pending = 1",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "SELECT * FROM todo_parent_resighting_existing",
+    fixed = TRUE
+  )
+})
+
+
 test_that("parent-resighting identities are canonicalized and counted per pending bird", {
   sql <- views_source_sql()
 
@@ -1300,9 +1419,20 @@ test_that("parent-resighting identities are canonicalized and counted per pendin
   expect_match(sql, "association.LL_obs = mm.UL_norm", fixed = TRUE)
   expect_match(sql, "association.LR_obs = mm.LR_norm", fixed = TRUE)
   expect_match(sql, "HAVING COUNT(DISTINCT aliases.canonical_mark) = 1", fixed = TRUE)
-  expect_match(sql, "FROM FIELD_2026_BADOatNZ.RESIGHTINGS raw", fixed = TRUE)
+  expect_match(sql, "FROM FIELD_2026_BADOatNZ.RESIGHTINGS r", fixed = TRUE)
   expect_match(sql, "M_resight_association_details", fixed = TRUE)
   expect_match(sql, "M_alternate_parent_details", fixed = TRUE)
+  expect_match(sql, "M_resighting_identity_count", fixed = TRUE)
+  expect_match(sql, "F_resighting_identity_count", fixed = TRUE)
+  expect_match(sql, "F resolved", fixed = TRUE)
+  expect_match(sql, "M resolved", fixed = TRUE)
+  expect_match(sql, "M_resight_association_pending", fixed = TRUE)
+  expect_match(sql, "F_resight_association_pending", fixed = TRUE)
+  expect_match(sql, "M_mm_resight_pending", fixed = TRUE)
+  expect_match(sql, "F_mm_resight_pending", fixed = TRUE)
+  expect_match(sql, "n_resighting_identities", fixed = TRUE)
+  expect_match(sql, "RIGHT JOIN (", fixed = TRUE)
+  expect_match(sql, "WHEN classified.identity_resolved = 1 THEN ''", fixed = TRUE)
   expect_match(sql, "GROUP_CONCAT(\n      DISTINCT NULLIF(TRIM(M_mark), '')", fixed = TRUE)
 
   canonical_alias <- function(

@@ -200,7 +200,11 @@
     task_status[is.na(tagged_resight), tagged_resight := FALSE]
     task_status[
       tagged_resight == TRUE,
-      parent_work := "Resight"
+      parent_work := fcase(
+        as.character(parent_work) == "Capture",
+        "Capture",
+        default = "Resight"
+      )
     ]
     task_status[, tagged_resight := NULL]
   }
@@ -567,10 +571,11 @@
     ) +
     geom_point(
       data = tagged_capture_points,
-      aes(X, Y, fill = parent_fill, shape = check_type),
+      aes(X, Y, shape = check_type),
       size = 3.45,
       stroke = 1.15,
-      colour = "#ffffff"
+      colour = "#ffffff",
+      fill = NA
     ) +
     ggrepel::geom_label_repel(
       data = point_xy,
