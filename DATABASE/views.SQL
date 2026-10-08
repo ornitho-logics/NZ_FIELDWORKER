@@ -3463,7 +3463,6 @@ adult_parent_identity_latest AS (
   SELECT
     ranked.nest_id,
     ranked.sex,
-    ranked.event_date AS identity_event_date,
     ranked.mark,
     ranked.is_confirmed_xx,
     ranked.has_geo,
@@ -3579,10 +3578,6 @@ adult_parent_identity_latest AS (
 adult_parent_identity_status AS (
   SELECT
     nest_id,
-    MAX(CASE WHEN sex = 'M' THEN identity_event_date END)
-      AS M_identity_event_date,
-    MAX(CASE WHEN sex = 'F' THEN identity_event_date END)
-      AS F_identity_event_date,
     MAX(CASE WHEN sex = 'M' THEN mark END) AS M_identity_mark,
     MAX(CASE WHEN sex = 'F' THEN mark END) AS F_identity_mark,
     MAX(CASE WHEN sex = 'M' THEN is_confirmed_xx END) AS M_identity_confirmed_xx,
@@ -3696,7 +3691,7 @@ adult_association_resighting_candidates AS (
     END AS is_special_spacer_alias,
     CASE
       WHEN UPPER(TRIM(COALESCE(r.behav, ''))) REGEXP
-        '(^|[^A-Z])(IN|NM|SC|BW|BC|FC)([^A-Z]|$)'
+        '(^|[^A-Z])(BW|NM|IN|BC|FC)([^A-Z]|$)'
       THEN 1
       ELSE 0
     END AS has_nest_behav
@@ -4319,11 +4314,10 @@ adult_resighting_association_status AS (
     automatically evidence that it was the social parent.  This status layer
     generalizes the MM follow-up rule to already-banded birds: one identity
     remains unresolved until it has one qualifying nest behaviour or three
-    matching resightings, counting the initial resighting. A single identity
-    with qualifying behaviour takes precedence over every same-sex identity
-    supported only by non-qualifying behaviour, even if that alternate has
-    reached the three-resighting threshold. Multiple qualifying identities
-    remain ambiguous.
+    matching resightings, counting the initial resighting. If exactly one of
+    several same-sex identities reaches that threshold, it displaces the
+    other provisional identities; two independently resolved identities stay
+    ambiguous.
 
     The old scrape-parent flags are retained here because they use the same
     bounded adult-resighting source and are still needed by scrape-photo work.
@@ -4458,11 +4452,6 @@ adult_resighting_association_status AS (
       DISTINCT CASE
         WHEN classified.sex = 'M'
          AND classified.association_selected = 1
-         AND (
-           identity_status.M_identity_event_date IS NULL
-           OR classified.latest_association_date
-              >= identity_status.M_identity_event_date
-         )
         THEN classified.association_mark
       END
       ORDER BY classified.association_mark
@@ -4472,11 +4461,6 @@ adult_resighting_association_status AS (
       DISTINCT CASE
         WHEN classified.sex = 'F'
          AND classified.association_selected = 1
-         AND (
-           identity_status.F_identity_event_date IS NULL
-           OR classified.latest_association_date
-              >= identity_status.F_identity_event_date
-         )
         THEN classified.association_mark
       END
       ORDER BY classified.association_mark
@@ -4486,11 +4470,6 @@ adult_resighting_association_status AS (
       CASE
         WHEN classified.sex = 'M'
          AND classified.association_selected = 1
-         AND (
-           identity_status.M_identity_event_date IS NULL
-           OR classified.latest_association_date
-              >= identity_status.M_identity_event_date
-         )
         THEN classified.association_selected_has_geo
         ELSE 0
       END
@@ -4499,11 +4478,6 @@ adult_resighting_association_status AS (
       CASE
         WHEN classified.sex = 'F'
          AND classified.association_selected = 1
-         AND (
-           identity_status.F_identity_event_date IS NULL
-           OR classified.latest_association_date
-              >= identity_status.F_identity_event_date
-         )
         THEN classified.association_selected_has_geo
         ELSE 0
       END
@@ -4528,54 +4502,30 @@ adult_resighting_association_status AS (
     SELECT
       identity_counts.*,
       CASE
-        /* One qualifying identity displaces every same-sex alternative. If
-           there is no qualifying identity, exactly one identity with three
-           matching resightings resolves the nest; multiple such identities
-           remain ambiguous. */
+        /* One resolved identity displaces other same-sex provisional
+           identities. Two independently resolved identities remain
+           ambiguous and stay on the resighting task. */
         WHEN identity_counts.association_eligible = 0
         THEN 0
         WHEN identity_counts.identity_is_mm = 1
         THEN 0
-        /* One qualifying behaviour outranks any number of provisional
-           non-qualifying observations of another same-sex bird. */
-        WHEN identity_counts.n_qualifying_identities = 1
-        THEN 0
-        WHEN identity_counts.n_qualifying_identities = 0
-         AND identity_counts.n_resolved_identities = 1
+        WHEN identity_counts.n_resolved_identities = 1
         THEN 0
         ELSE 1
       END AS association_pending,
       CASE
         WHEN identity_counts.association_eligible = 1
          AND identity_counts.identity_is_mm = 0
-         AND (
-           (
-             identity_counts.n_qualifying_identities = 1
-             AND identity_counts.identity_has_nest_behav = 1
-           )
-           OR (
-             identity_counts.n_qualifying_identities = 0
-             AND identity_counts.n_resolved_identities = 1
-             AND identity_counts.identity_resolved = 1
-           )
-         )
+         AND identity_counts.n_resolved_identities = 1
+         AND identity_counts.identity_resolved = 1
         THEN 1
         ELSE 0
       END AS association_selected,
       CASE
         WHEN identity_counts.association_eligible = 1
          AND identity_counts.identity_is_mm = 0
-         AND (
-           (
-             identity_counts.n_qualifying_identities = 1
-             AND identity_counts.identity_has_nest_behav = 1
-           )
-           OR (
-             identity_counts.n_qualifying_identities = 0
-             AND identity_counts.n_resolved_identities = 1
-             AND identity_counts.identity_resolved = 1
-           )
-         )
+         AND identity_counts.n_resolved_identities = 1
+         AND identity_counts.identity_resolved = 1
         THEN identity_counts.identity_has_geo
         ELSE 0
       END AS association_selected_has_geo
@@ -4628,14 +4578,9 @@ adult_resighting_association_status AS (
         SUM(identity_summary.association_eligible) OVER (
           PARTITION BY identity_summary.nest_id, identity_summary.sex
         ) AS n_association_identities,
-        SUM(identity_summary.identity_has_nest_behav) OVER (
-          PARTITION BY identity_summary.nest_id, identity_summary.sex
-        ) AS n_qualifying_identities,
-        /* Count observed identities independently of task eligibility. Dead
-           and directly TN-associated birds remain visible to the PDF status
-           layer but cannot open an association task. X-X is retained as a
-           real candidate so qualifying X-X evidence can establish an
-           unbanded parent. */
+        /* Count observed identities independently of task eligibility. X-X,
+           dead, and directly TN-associated birds remain visible to the PDF
+           status layer but cannot open an association task. */
         COUNT(*) OVER (
           PARTITION BY identity_summary.nest_id, identity_summary.sex
         ) AS n_resighting_identities
@@ -4675,20 +4620,6 @@ adult_resighting_association_status AS (
         END AS association_mark,
         MAX(candidate.association_eligible) AS association_eligible,
         SUM(candidate.association_eligible) AS n_matching_resightings,
-        MAX(
-          CASE
-            WHEN candidate.association_eligible = 1
-            THEN candidate.association_date
-            ELSE NULL
-          END
-        ) AS latest_association_date,
-        MAX(
-          CASE
-            WHEN candidate.association_eligible = 1
-            THEN candidate.has_nest_behav
-            ELSE 0
-          END
-        ) AS identity_has_nest_behav,
         CASE
           WHEN MAX(candidate.association_eligible) = 1
            AND (
@@ -4732,7 +4663,7 @@ adult_resighting_association_status AS (
         SELECT
           candidate.*,
           CASE
-            WHEN UPPER(TRIM(candidate.mark)) NOT IN ('XX-XX', 'DEAD')
+            WHEN UPPER(TRIM(candidate.mark)) NOT IN ('X-X', 'XX-XX', 'DEAD')
              AND (
                candidate.requires_spacer_identity = 0
                OR candidate.has_full_mark_observation = 1
@@ -4813,8 +4744,6 @@ adult_resighting_association_status AS (
         ) identity_summary
     ) identity_counts
   ) classified
-  LEFT JOIN adult_parent_identity_status identity_status
-    ON classified.nest_id = identity_status.nest_id
   GROUP BY classified.nest_id
 ),
 todo_parent_source AS (
@@ -5123,15 +5052,6 @@ adult_parent_status AS (
       WHEN COALESCE(
              adult_resighting_association_status.M_resight_association_pending,
              0
-           ) = 0
-       AND UPPER(TRIM(COALESCE(
-             adult_resighting_association_status.M_resight_association_selected_mark,
-             ''
-           ))) = 'X-X'
-      THEN 1
-      WHEN COALESCE(
-             adult_resighting_association_status.M_resight_association_pending,
-             0
            ) = 1
       THEN 0
       ELSE COALESCE(adult_parent_identity_status.M_identity_confirmed_xx, 0)
@@ -5149,15 +5069,6 @@ adult_parent_status AS (
       WHEN COALESCE(
              adult_resighting_association_status.F_resight_association_pending,
              0
-           ) = 0
-       AND UPPER(TRIM(COALESCE(
-             adult_resighting_association_status.F_resight_association_selected_mark,
-             ''
-           ))) = 'X-X'
-      THEN 1
-      WHEN COALESCE(
-             adult_resighting_association_status.F_resight_association_pending,
-             0
            ) = 1
       THEN 0
       ELSE COALESCE(adult_parent_identity_status.F_identity_confirmed_xx, 0)
@@ -5168,13 +5079,6 @@ adult_parent_status AS (
       WHEN COALESCE(adult_mm_followup_status.M_alternate_parent_confirmed, 0) = 1
       THEN 0
       WHEN COALESCE(adult_mm_followup_status.M_mm_resight_pending, 0) = 1
-      THEN 0
-      WHEN COALESCE(
-             adult_resighting_association_status.M_resight_association_pending,
-             0
-           ) = 0
-       AND adult_resighting_association_status.M_resight_association_selected_mark
-           IS NOT NULL
       THEN 0
       WHEN COALESCE(
              adult_parent_identity_status.M_identity_mark,
@@ -5190,13 +5094,6 @@ adult_parent_status AS (
       WHEN COALESCE(adult_mm_followup_status.F_mm_resight_pending, 0) = 1
       THEN 0
       WHEN COALESCE(
-             adult_resighting_association_status.F_resight_association_pending,
-             0
-           ) = 0
-       AND adult_resighting_association_status.F_resight_association_selected_mark
-           IS NOT NULL
-      THEN 0
-      WHEN COALESCE(
              adult_parent_identity_status.F_identity_mark,
              todo_parent_source.F_mark
            ) IS NULL
@@ -5210,28 +5107,11 @@ adult_parent_status AS (
     CASE
       WHEN COALESCE(adult_mm_followup_status.M_alternate_parent_confirmed, 0) = 1
       THEN 0
-      /* A qualifying live resighting is stronger than an older dead capture
-         once the association pipeline has selected that identity. */
-      WHEN COALESCE(
-             adult_resighting_association_status.M_resight_association_pending,
-             0
-           ) = 0
-       AND adult_resighting_association_status.M_resight_association_selected_mark
-           IS NOT NULL
-      THEN 0
       ELSE COALESCE(adult_parent_identity_status.M_identity_is_dead, 0)
     END
       AS M_is_dead,
     CASE
       WHEN COALESCE(adult_mm_followup_status.F_alternate_parent_confirmed, 0) = 1
-      THEN 0
-      /* Apply the same live-resighting override to females. */
-      WHEN COALESCE(
-             adult_resighting_association_status.F_resight_association_pending,
-             0
-           ) = 0
-       AND adult_resighting_association_status.F_resight_association_selected_mark
-           IS NOT NULL
       THEN 0
       ELSE COALESCE(adult_parent_identity_status.F_identity_is_dead, 0)
     END
@@ -6555,7 +6435,7 @@ todo_untrapped_parent AS (
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
            AND COALESCE(capture_interval_open, 0) = 1
-          THEN 'band X-X M'
+          THEN 'resight/band X-X M'
           ELSE 'resight M'
         END,
         CASE
