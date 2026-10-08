@@ -343,13 +343,18 @@ The operational split is:
 - A nest/brood may appear in both tables when one sex needs capture and the
   other needs resighting.
 
-The association-confirming behaviour tokens are `IN`, `NM`, `BW`, `BC`, and
-`FC`. They are matched as behaviour tokens. A matching identity is also
+The association-confirming behaviour tokens are `IN`, `NM`, `SC`, `BW`, `BC`,
+and `FC`. They are matched as behaviour tokens. A matching identity is also
 resolved after three nest-linked resightings, counting the initial resighting;
-behaviour is not required for that repeated-resight path. Later contradictory
-evidence, later capture, or a later live X-X parent record is resolved by
-chronology rather than by letting an earlier X-X or dead record permanently
-win.
+behaviour is not required for that repeated-resight path. A single identity
+with one of the qualifying behaviours takes precedence over all same-sex
+identities supported only by non-qualifying behaviour, even when an alternate
+has reached three non-qualifying resightings. Multiple qualifying identities
+remain ambiguous. Later contradictory evidence, later capture, or a later
+live X-X parent record is resolved by chronology rather than by letting an
+earlier X-X or dead record permanently win. A selected resighting identity is
+allowed to replace the current capture/resighting identity only when its latest
+eligible association date is not older than that identity evidence.
 
 For a post-MM X-X record, X-X can become the current parent only when the
 qualifying nest association is chronologically valid. A later capture and
@@ -447,7 +452,7 @@ The later nest-linked resighting must match the captured identity. Ordinary
 birds match by normalized LL/LR; spacer-dependent one-band birds require the
 canonical full identity. MM association resolves after either:
 
-1. one matching resighting with `IN`, `NM`, `BW`, `BC`, or `FC`; or
+1. one matching resighting with `IN`, `NM`, `SC`, `BW`, `BC`, or `FC`; or
 2. three matching resightings, counting the first matching resighting.
 
 A same-sex X-X resighting with an association behaviour can instead establish
@@ -494,9 +499,12 @@ resolves an identity. Notes expose the unresolved count:
 - `M with 2 resightings`;
 - `M with 1 resighting; F with 2 resightings`.
 
-Exactly one resolved same-sex identity is selected and displaces provisional
-alternatives. If none resolves, or more than one distinct identity resolves,
-the task remains open rather than silently selecting one bird.
+Exactly one qualifying same-sex identity is selected and displaces all
+provisional alternatives, including an alternate that has reached three
+non-qualifying resightings. If there is no qualifying identity, exactly one
+identity resolved by three matching resightings is selected. If more than one
+qualifying identity, or more than one non-qualifying identity, resolves, the
+task remains open rather than silently selecting one bird.
 
 **Temporarily resight-only capture work.** Some rows originate as capture
 candidates but are classified as `Parent resighting` on the current date. This

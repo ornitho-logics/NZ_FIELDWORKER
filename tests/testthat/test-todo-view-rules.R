@@ -352,7 +352,7 @@ test_that("MM parent follow-up accepts qualifying behaviour or three matching re
   )
   expect_match(
     sql,
-    "'(^|[^A-Z])(BW|NM|IN|BC|FC)([^A-Z]|$)'",
+    "'(^|[^A-Z])(IN|NM|SC|BW|BC|FC)([^A-Z]|$)'",
     fixed = TRUE
   )
   expect_match(sql, "post_mm_xx_seen", fixed = TRUE)
@@ -368,7 +368,7 @@ test_that("MM parent follow-up accepts qualifying behaviour or three matching re
     ]
     matching <- toupper(trimws(post_mm$mark)) == "BY-YY"
     has_nest_behaviour <- grepl(
-      "(^|[^A-Z])(BW|NM|IN|BC|FC)([^A-Z]|$)",
+      "(^|[^A-Z])(IN|NM|SC|BW|BC|FC)([^A-Z]|$)",
       toupper(trimws(post_mm$behav)),
       perl = TRUE
     )
@@ -399,7 +399,7 @@ test_that("MM parent follow-up accepts qualifying behaviour or three matching re
     matching_followup_resolved(same_day_behaviour, "2026-09-01")
   )
 
-  for (behaviour in c("BC", "FC")) {
+  for (behaviour in c("SC", "BC", "FC")) {
     qualifying_behaviour <- data.frame(
       date = as.Date("2026-09-02"),
       mark = "BY-YY",
@@ -815,7 +815,7 @@ test_that("pending MM parents stay in resighting rather than capture work", {
 
   new_mm_followup_resolves <- function(capture_mark, resighting_mark, behav) {
     identical(capture_mark, resighting_mark) &&
-      grepl("(^|[^A-Z])(IN|NM|BW|BC|FC)([^A-Z]|$)", behav)
+      grepl("(^|[^A-Z])(IN|NM|SC|BW|BC|FC)([^A-Z]|$)", behav)
   }
   expect_true(
     new_mm_followup_resolves("BY-TY.YR", "BY-TY.YR", "AT, IN")
@@ -1175,6 +1175,27 @@ test_that("live X-X after a dead MM capture remains GEO eligible", {
   )
   expect_match(
     sql,
+    "A qualifying live resighting is stronger than an older dead capture",
+    fixed = TRUE
+  )
+  expect_match(sql, "M_identity_event_date", fixed = TRUE)
+  expect_match(sql, "latest_association_date", fixed = TRUE)
+  expect_match(
+    sql,
+    "classified.latest_association_date\n              >= identity_status.M_identity_event_date",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "classified.latest_association_date\n              >= identity_status.F_identity_event_date",
+    fixed = TRUE
+  )
+  expect_equal(
+    length(gregexpr(">= identity_status.", sql, fixed = TRUE)[[1L]]),
+    4L
+  )
+  expect_match(
+    sql,
     "AS M_mm_xx_parent_confirmed",
     fixed = TRUE
   )
@@ -1202,6 +1223,16 @@ test_that("live X-X after a dead MM capture remains GEO eligible", {
   expect_false(tag_eligible(TRUE, FALSE, FALSE))
   # Pending MM uncertainty still blocks tag deployment.
   expect_false(tag_eligible(TRUE, TRUE, TRUE, mm_resight_pending = TRUE))
+
+  association_is_current <- function(association_date, identity_date = NA) {
+    is.na(identity_date) || as.Date(association_date) >= as.Date(identity_date)
+  }
+  # Later live evidence may replace an older dead capture.
+  expect_true(association_is_current("2026-09-03", "2026-09-02"))
+  # Same-date evidence is retained because resightings do not carry time.
+  expect_true(association_is_current("2026-09-02", "2026-09-02"))
+  # An older association cannot displace a later capture identity.
+  expect_false(association_is_current("2026-09-01", "2026-09-02"))
 })
 
 
@@ -1330,11 +1361,31 @@ test_that("generic banded-parent association follows the resighting threshold", 
   )
   expect_match(
     sql,
-    "BW|NM|IN|BC|FC",
+    "identity_has_nest_behav",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "n_qualifying_identities",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "WHEN UPPER(TRIM(candidate.mark)) NOT IN ('XX-XX', 'DEAD')",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "M_resight_association_selected_mark,\n             ''\n           ))) = 'X-X'",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "IN|NM|SC|BW|BC|FC",
     fixed = TRUE
   )
   expect_equal(
-    length(gregexpr("BW|NM|IN|BC|FC", sql, fixed = TRUE)[[1L]]),
+    length(gregexpr("IN|NM|SC|BW|BC|FC", sql, fixed = TRUE)[[1L]]),
     1L
   )
   expect_no_match(sql, "has_association_behaviour", fixed = TRUE)
@@ -1346,11 +1397,26 @@ test_that("generic banded-parent association follows the resighting threshold", 
   )
 
   association_pending <- function(identity_behaviours) {
-    resolved <- vapply(identity_behaviours, function(behav) {
-      any(grepl("(^|[^A-Z])(IN|NM|BW|BC|FC)([^A-Z]|$)", behav)) ||
-        length(behav) >= 3
+    has_qualifying_behaviour <- vapply(identity_behaviours, function(behav) {
+      any(grepl(
+        "(^|[^A-Z])(IN|NM|SC|BW|BC|FC)([^A-Z]|$)",
+        behav
+      ))
     }, logical(1))
-    sum(resolved) != 1
+    resolved <- vapply(identity_behaviours, function(behav) {
+      any(grepl(
+        "(^|[^A-Z])(IN|NM|SC|BW|BC|FC)([^A-Z]|$)",
+        behav
+      )) || length(behav) >= 3
+    }, logical(1))
+    n_qualifying <- sum(has_qualifying_behaviour)
+    if (n_qualifying == 1) {
+      FALSE
+    } else if (n_qualifying == 0) {
+      sum(resolved) != 1
+    } else {
+      TRUE
+    }
   }
 
   # One initial AT resighting is unresolved and remains on Parent resighting.
@@ -1359,7 +1425,7 @@ test_that("generic banded-parent association follows the resighting threshold", 
   expect_true(association_pending(list(c("AT", "AT"))))
   expect_false(association_pending(list(c("AT", "AT", "AT"))))
   # Any one of the approved association behaviours resolves the identity.
-  for (behav in c("IN", "NM", "BW", "BC", "FC")) {
+  for (behav in c("IN", "NM", "SC", "BW", "BC", "FC")) {
     expect_false(association_pending(list(behav)))
   }
   # A future confirming event is excluded before it reaches this calculation;
@@ -1370,6 +1436,17 @@ test_that("generic banded-parent association follows the resighting threshold", 
   expect_true(association_pending(list("AT", "AT")))
   # One confirmed identity displaces a provisional alternate identity.
   expect_false(association_pending(list("AT", "IN")))
+  # A qualifying identity also displaces an alternate that independently
+  # reached the three-resighting threshold.
+  expect_false(association_pending(list(c("AT", "AT", "AT"), "IN")))
+  # More than one qualifying identity remains ambiguous.
+  expect_true(association_pending(list("IN", "NM")))
+  # More than one identity resolved only by repeated resightings also remains
+  # ambiguous.
+  expect_true(association_pending(list(
+    c("AT", "AT", "AT"),
+    c("FL", "FL", "FL")
+  )))
 })
 
 
