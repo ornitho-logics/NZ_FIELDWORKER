@@ -22,6 +22,7 @@ list({
         )
         negative_brood_flag <- has_negative_brood_id(z$nest_id)
         rclass_key <- toupper(trimws(as.character(z$rclass)))
+        age_key <- toupper(trimws(as.character(z$age)))
         h_flag <- !is.na(rclass_key) & rclass_key == "H"
         h_required_out <- data.table::rbindlist(lapply(c("species", "observer", "date", "rclass", "sex", "age"), function(col) {
             raw <- trimws(as.character(z[[col]]))
@@ -67,7 +68,10 @@ list({
             )
         ]
         behav_missing <- z[
-            !is.na(rclass_key) & rclass_key != "H" & blankish(behav),
+            !is.na(rclass_key) &
+                rclass_key != "H" &
+                !(rclass_key == "R" & age_key == "C") &
+                blankish(behav),
             .(
                 rowid,
                 variable = "behav",
@@ -919,7 +923,13 @@ list({
             } else {
                 "Chick resightings must record nest_id."
             }
-            missing_parent_nest_reason <- "This adult IN/NM/BW/BC/FC resighting is the first active-nest record for this breeding attempt, so please enter nest_id."
+            missing_parent_nest_reason <- if (any(row$behav_tokens[[1]] %in% c("BC", "FC"))) {
+                "Adult BC/FC resightings that associate a parent with chicks must include nest_id. If the brood is mobile after notA, also enter both gps_id and gps_point."
+            } else if (any(row$behav_tokens[[1]] %in% "BW")) {
+                "Adult BW (broken-wing display) resightings must include nest_id so the parent observation is linked to the nest or brood."
+            } else {
+                "This adult IN/NM resighting is the first active-nest record for this breeding attempt, so please enter nest_id."
+            }
             if (!isTRUE(row$needs_nest_id)) {
                 return(empty)
             }
@@ -1009,15 +1019,17 @@ list({
         is_no_nest <- function(v) {
             !is.na(v) & toupper(trimws(as.character(v))) == "NO_NEST"
         }
-        nests_dt <- data.table::as.data.table(db_get("SELECT nest_id, date, time_visit, nest_state, clutch_size, brood_size FROM NESTS"))
+        nests_dt <- data.table::as.data.table(db_get("SELECT nest_id, date, time_visit, nest_state, clutch_size, brood_size, pk FROM NESTS"))
         if (nrow(nests_dt) > 0) {
             nests_dt[, `:=`(event_date_nest, suppressWarnings(as.Date(date)))]
             nests_dt[, `:=`(time_visit_key, trimws(as.character(time_visit)))]
             nests_dt[is.na(time_visit_key) | !nzchar(time_visit_key), `:=`(time_visit_key, "99:99")]
             nests_dt[, `:=`(
                 clutch_num = suppressWarnings(as.numeric(as.character(clutch_size))),
-                brood_num = suppressWarnings(as.numeric(as.character(brood_size)))
+                brood_num = suppressWarnings(as.numeric(as.character(brood_size))),
+                pk_key = suppressWarnings(as.numeric(as.character(pk)))
             )]
+            nests_dt[is.na(pk_key), `:=`(pk_key, -Inf)]
         } else {
             nests_dt <- data.table::data.table(
                 nest_id = character(),
@@ -1025,7 +1037,8 @@ list({
                 event_date_nest = as.Date(character()),
                 time_visit_key = character(),
                 clutch_num = numeric(),
-                brood_num = numeric()
+                brood_num = numeric(),
+                pk_key = numeric()
             )
         }
         z[, `:=`(event_date, suppressWarnings(as.Date(date)))]
@@ -1033,31 +1046,226 @@ list({
         out <- data.table::rbindlist(lapply(seq_len(nrow(z)), function(i) {
             row <- z[i]
             nest_key <- trimws(as.character(row$nest_id))
-            parent_behaviour_codes <- c("IN", "NM", "BW", "BC", "FC")
-            if (row$age != "A" || is.na(nest_key) || !nzchar(nest_key) || is_no_nest(nest_key) || grepl("^-", nest_key) || is.na(row$event_date) || !any(row$behav_tokens[[1]] %in% parent_behaviour_codes)) {
+            if (!identical(as.character(row$age[[1]]), "A") || is.na(nest_key) || !nzchar(nest_key) || is_no_nest(nest_key) || grepl("^-", nest_key) || is.na(row$event_date) || !any(row$behav_tokens[[1]] %in% c("IN", "NM"))) {
                 return(empty)
             }
             tmp <- nests_dt[nest_id == nest_key & !is.na(event_date_nest) & event_date_nest <= row$event_date]
             if (nrow(tmp) == 0) {
                 return(empty)
             }
-            data.table::setorder(tmp, event_date_nest, time_visit_key)
+            data.table::setorder(tmp, event_date_nest, time_visit_key, pk_key)
             latest <- tmp[nrow(tmp)]
             latest_state <- as.character(latest$nest_state[[1]])
-            # H remains an active nest state during asynchronous hatching.
-            # Only an H visit with no remaining eggs and at least one chick is
-            # the terminal H state used for subsequent nest-link checks.
-            terminal_h <- identical(latest_state, "H") &&
-                isTRUE(!is.na(latest$clutch_num[[1]]) && latest$clutch_num[[1]] == 0) &&
-                isTRUE(!is.na(latest$brood_num[[1]]) && latest$brood_num[[1]] > 0)
-            if (latest_state %in% c("pP", "P", "D", "notA") || terminal_h) {
-                data.table::data.table(rowid = row$rowid, variable = "nest_id", reason = "This nest_id had already hatched or otherwise ended by this date. If this is a new breeding attempt, enter the new nest_id.")
+            if (!latest_state %in% c("F", "I", "H")) {
+                data.table::data.table(rowid = row$rowid, variable = "nest_id", reason = "Adult IN/NM resightings require a nest_id whose latest nest_state is F, I, or H. If this nest has reached another state, check the nest linkage or enter the new nest_id for a new breeding attempt.")
             } else {
                 empty
             }
         }), use.names = TRUE, fill = TRUE)
         if (nrow(out) == 0) empty else unique(out)
     }, nam = "RES_005D ended nest")
+    out <- data.table::as.data.table(out)
+    if ("reason" %in% names(out)) {
+        out[, `:=`(reason, {
+            cleaned <- sub("^(ERROR|WARNING):\\s*", "", as.character(reason))
+            cleaned[is.na(reason)] <- NA_character_
+            ok_idx <- !is.na(cleaned) & nzchar(cleaned)
+            cleaned[ok_idx] <- paste0(
+                cleaned[ok_idx],
+                " Please double-check this entry. If it is correct, add a validator bypass comment to the event."
+            )
+            cleaned
+        })]
+    }
+    if ("type" %in% names(out)) {
+        out[, `:=`(type, NULL)]
+    }
+    out
+}, {
+    out <- try_validator({
+        z <- data.table::copy(x)
+        if (!"rowid" %in% names(z)) {
+            z[, `:=`(rowid, .I)]
+        }
+        empty <- data.table::data.table(rowid = integer(), variable = character(), reason = character())
+        normalize_chr <- function(v) {
+            out <- toupper(trimws(as.character(v)))
+            out[is.na(v) | !nzchar(out) | out == "NA"] <- NA_character_
+            out
+        }
+        parse_behav <- function(v) {
+            one <- normalize_chr(v)
+            if (is.na(one)) character() else trimws(unlist(strsplit(one, ",", fixed = TRUE)))
+        }
+        is_linked_nest <- function(v) {
+            !is.na(v) & nzchar(v) & v != "NO_NEST"
+        }
+        has_gps_pair <- function(id, point) {
+            !is.na(id) & !is.na(point) & nzchar(id) & nzchar(point)
+        }
+        same_link <- function(row, other) {
+            same_date <- !is.na(row$date_key[[1]]) &&
+                !is.na(other$date_key) &&
+                as.character(row$date_key[[1]]) == as.character(other$date_key)
+            same_nest <- is_linked_nest(row$nest_key[[1]]) &&
+                is_linked_nest(other$nest_key) &&
+                row$nest_key[[1]] == other$nest_key
+            same_gps <- has_gps_pair(row$gps_id_key[[1]], row$gps_point_key[[1]]) &&
+                has_gps_pair(other$gps_id_key, other$gps_point_key) &&
+                row$gps_id_key[[1]] == other$gps_id_key &&
+                row$gps_point_key[[1]] == other$gps_point_key
+            same_date && (same_nest || same_gps)
+        }
+        z[, `:=`(
+            date_key = suppressWarnings(as.Date(as.character(date))),
+            age_key = normalize_chr(age),
+            nest_key = normalize_chr(nest_id),
+            gps_id_key = normalize_chr(gps_id),
+            gps_point_key = normalize_chr(gps_point),
+            behav_tokens = lapply(behav, parse_behav)
+        )]
+        z[, `:=`(
+            parent_with_chicks = !is.na(age_key) & age_key == "A" & vapply(behav_tokens, function(tokens) any(tokens %in% c("BC", "FC")), logical(1)),
+            chick_event = !is.na(age_key) & age_key == "C"
+        )]
+        parents <- z[parent_with_chicks & !is.na(date_key)]
+        chicks <- z[chick_event & !is.na(date_key)]
+        out_parts <- list()
+        if (nrow(chicks) > 0L) {
+            missing_parent <- vapply(seq_len(nrow(chicks)), function(i) {
+                !any(vapply(seq_len(nrow(parents)), function(j) same_link(chicks[i], parents[j]), logical(1)))
+            }, logical(1))
+            if (any(missing_parent)) {
+                out_parts[[length(out_parts) + 1L]] <- data.table::data.table(
+                    rowid = chicks$rowid[missing_parent],
+                    variable = "age",
+                    reason = "Each age-C RESIGHTINGS event must be accompanied in this portal session by an age-A parent event with behav BC or FC, linked by the same nest_id or gps_id/gps_point. Enter the parent event and keep the linkage consistent."
+                )
+            }
+        }
+        if (nrow(parents) > 0L) {
+            missing_chick <- vapply(seq_len(nrow(parents)), function(i) {
+                !any(vapply(seq_len(nrow(chicks)), function(j) same_link(parents[i], chicks[j]), logical(1)))
+            }, logical(1))
+            if (any(missing_chick)) {
+                out_parts[[length(out_parts) + 1L]] <- data.table::data.table(
+                    rowid = parents$rowid[missing_chick],
+                    variable = "behav",
+                    reason = "This adult BC/FC RESIGHTINGS event says you saw chicks. Enter an age-C RESIGHTINGS event for each chick in this portal session, using rclass H, R, P, or V as appropriate and the same nest_id or gps_id/gps_point."
+                )
+            }
+        }
+        if (!length(out_parts)) empty else unique(data.table::rbindlist(out_parts, use.names = TRUE, fill = TRUE))
+    }, nam = "RES_005J same-session family link")
+    out <- data.table::as.data.table(out)
+    if ("reason" %in% names(out)) {
+        out[, `:=`(reason, {
+            cleaned <- sub("^(ERROR|WARNING):\\s*", "", as.character(reason))
+            cleaned[is.na(reason)] <- NA_character_
+            ok_idx <- !is.na(cleaned) & nzchar(cleaned)
+            cleaned[ok_idx] <- paste0(
+                cleaned[ok_idx],
+                " Please double-check this entry. If it is correct, add a validator bypass comment to the event."
+            )
+            cleaned
+        })]
+    }
+    if ("type" %in% names(out)) {
+        out[, `:=`(type, NULL)]
+    }
+    out
+}, {
+    out <- try_validator({
+        z <- data.table::copy(x)
+        if (!"rowid" %in% names(z)) {
+            z[, `:=`(rowid, .I)]
+        }
+        empty <- data.table::data.table(rowid = integer(), variable = character(), reason = character())
+        normalize_chr <- function(v) {
+            out <- toupper(trimws(as.character(v)))
+            out[is.na(v) | !nzchar(out) | out == "NA"] <- NA_character_
+            out
+        }
+        parse_behav <- function(v) {
+            one <- normalize_chr(v)
+            if (is.na(one)) character() else trimws(unlist(strsplit(one, ",", fixed = TRUE)))
+        }
+        is_positive_nest <- function(v) {
+            !is.na(v) & nzchar(v) & v != "NO_NEST" & !grepl("^-", v)
+        }
+        has_gps_pair <- function(id, point) {
+            !is.na(id) & !is.na(point) & nzchar(id) & nzchar(point)
+        }
+        nests_dt <- data.table::as.data.table(db_get("SELECT nest_id, date, time_visit, nest_state, brood_size, pk FROM NESTS"))
+        if (!nrow(nests_dt)) {
+            empty
+        } else {
+            nests_dt[, `:=`(
+                nest_key = normalize_chr(nest_id),
+                event_date_nest = suppressWarnings(as.Date(as.character(date))),
+                time_visit_key = trimws(as.character(time_visit)),
+                pk_key = suppressWarnings(as.numeric(as.character(pk))),
+                state_key = normalize_chr(nest_state),
+                brood_num = suppressWarnings(as.numeric(as.character(brood_size)))
+            )]
+            nests_dt[is.na(time_visit_key) | !nzchar(time_visit_key) | time_visit_key == "NA", `:=`(time_visit_key, "99:99:99")]
+            nests_dt[is.na(pk_key), `:=`(pk_key, -Inf)]
+            z[, `:=`(
+                date_key = suppressWarnings(as.Date(as.character(date))),
+                age_key = normalize_chr(age),
+                nest_key = normalize_chr(nest_id),
+                gps_id_key = normalize_chr(gps_id),
+                gps_point_key = normalize_chr(gps_point),
+                behav_tokens = lapply(behav, parse_behav)
+            )]
+            latest_for <- function(nest_key, event_date) {
+                if (!is_positive_nest(nest_key) || is.na(event_date)) return(NULL)
+                key_val <- nest_key
+                tmp <- nests_dt[nest_key == key_val & !is.na(event_date_nest) & event_date_nest <= event_date]
+                if (!nrow(tmp)) return(NULL)
+                data.table::setorder(tmp, event_date_nest, time_visit_key, pk_key)
+                tmp[nrow(tmp)]
+            }
+            out_parts <- list()
+            for (i in seq_len(nrow(z))) {
+                row <- z[i]
+                if (is.na(row$date_key[[1]]) || !is_positive_nest(row$nest_key[[1]])) next
+                latest <- latest_for(row$nest_key[[1]], row$date_key[[1]])
+                if (is.null(latest)) next
+                state_key <- latest$state_key[[1]]
+                tokens <- row$behav_tokens[[1]]
+                if (isTRUE(row$age_key[[1]] == "A") && any(tokens %in% c("BC", "FC")) && !state_key %in% c("H", "NOTA")) {
+                    out_parts[[length(out_parts) + 1L]] <- data.table::data.table(
+                        rowid = row$rowid,
+                        variable = "nest_id",
+                        reason = "Parent-with-chicks behavior BC/FC requires a linked nest_id whose latest nest_state is H or notA. Check the nest state or nest linkage."
+                    )
+                }
+                mobile_brood <- state_key == "NOTA" && !is.na(latest$brood_num[[1]]) && latest$brood_num[[1]] > 0
+                needs_mobile_gps <- mobile_brood && (
+                    isTRUE(row$age_key[[1]] == "C") ||
+                    (isTRUE(row$age_key[[1]] == "A") && any(tokens %in% c("BW", "BC", "FC")))
+                )
+                if (needs_mobile_gps && !has_gps_pair(row$gps_id_key[[1]], row$gps_point_key[[1]])) {
+                    if (is.na(row$gps_id_key[[1]]) || !nzchar(row$gps_id_key[[1]])) {
+                        out_parts[[length(out_parts) + 1L]] <- data.table::data.table(
+                            rowid = row$rowid,
+                            variable = "gps_id",
+                            reason = "This nest_id has reached notA while chicks remain mobile; enter both gps_id and gps_point for the parent/chick association."
+                        )
+                    }
+                    if (is.na(row$gps_point_key[[1]]) || !nzchar(row$gps_point_key[[1]])) {
+                        out_parts[[length(out_parts) + 1L]] <- data.table::data.table(
+                            rowid = row$rowid,
+                            variable = "gps_point",
+                            reason = "This nest_id has reached notA while chicks remain mobile; enter both gps_id and gps_point for the parent/chick association."
+                        )
+                    }
+                }
+            }
+            if (!length(out_parts)) empty else unique(data.table::rbindlist(out_parts, use.names = TRUE, fill = TRUE))
+        }
+    }, nam = "RES_005K brood-stage state")
     out <- data.table::as.data.table(out)
     if ("reason" %in% names(out)) {
         out[, `:=`(reason, {
