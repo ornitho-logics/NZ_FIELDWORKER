@@ -80,6 +80,10 @@ list({
             raw <- norm_chr(v)
             !is.na(raw) & grepl("[0-9]+(?:S|CC|C)", toupper(raw), perl = TRUE)
         }
+        has_hatch_state <- function(v) {
+            raw <- norm_chr(v)
+            !is.na(raw) & grepl("^(?:[1-4](?:S|CC|C|N))+$", toupper(raw), perl = TRUE)
+        }
         z <- data.table::copy(x)
         z[, `:=`(rowid, .I)]
         if (!"pk" %in% names(z)) {
@@ -204,7 +208,7 @@ list({
                     clutch_num > 0 &
                     brood_num > 0 &
                     previous_hatch_sign == TRUE &
-                    !has_hatch_sign(hatch_state_key),
+                    !has_hatch_state(hatch_state_key),
                 .(
                     rowid,
                     variable = "hatch_state",
@@ -373,43 +377,59 @@ list({
             out
         }
         norm_num <- function(v) suppressWarnings(as.numeric(as.character(v)))
+        has_hatch_sign <- function(v) {
+            raw <- toupper(norm_chr(v))
+            !is.na(raw) & grepl("[1-4](?:S|CC|C)", raw, perl = TRUE)
+        }
         z <- data.table::copy(x)
         z[, `:=`(rowid, .I)]
         z[, `:=`(source, "current")]
         ids <- unique(trimws(as.character(z$nest_id)))
         ids <- ids[nzchar(ids) & !is.na(ids)]
-        hist <- data.table::data.table(nest_id = character(), date = character(), time_visit = character(), nest_state = character(), clutch_size = numeric(), rowid = integer(), source = character())
+        hist <- data.table::data.table(nest_id = character(), date = character(), time_visit = character(), nest_state = character(), hatch_state = character(), hatch_sign = logical(), clutch_size = numeric(), rowid = integer(), source = character())
         if (length(ids) > 0) {
             quoted <- paste(sprintf("'%s'", gsub("'", "''", ids)), collapse = ", ")
-            hist0 <- tryCatch(db_get(sprintf(paste("SELECT nest_id, date, time_visit, nest_state, clutch_size", "FROM NESTS WHERE nest_id IN (%s)"), quoted)), error = function(e) NULL)
+            hist0 <- tryCatch(db_get(sprintf(paste("SELECT nest_id, date, time_visit, nest_state, hatch_state, clutch_size", "FROM NESTS WHERE nest_id IN (%s)"), quoted)), error = function(e) NULL)
             if (!is.null(hist0) && nrow(hist0) > 0) {
                 hist <- data.table::as.data.table(hist0)
                 hist[, `:=`(nest_id, norm_chr(nest_id))]
                 hist[, `:=`(date, norm_chr(date))]
                 hist[, `:=`(time_visit, norm_time_chr(time_visit))]
                 hist[, `:=`(nest_state, norm_chr(nest_state))]
+                hist[, `:=`(hatch_state, norm_chr(hatch_state))]
+                hist[, `:=`(hatch_sign, has_hatch_sign(hatch_state))]
                 hist[, `:=`(clutch_size, norm_num(clutch_size))]
                 hist[, `:=`(rowid, NA_integer_)]
                 hist[, `:=`(source, "db")]
             }
         }
-        current_hist <- z[, .(nest_id = norm_chr(nest_id), date = norm_chr(date), time_visit = norm_time_chr(time_visit), nest_state = norm_chr(nest_state), clutch_size = norm_num(clutch_size), rowid, source)]
+        current_hist <- z[, .(nest_id = norm_chr(nest_id), date = norm_chr(date), time_visit = norm_time_chr(time_visit), nest_state = norm_chr(nest_state), hatch_state = norm_chr(hatch_state), hatch_sign = has_hatch_sign(hatch_state), clutch_size = norm_num(clutch_size), rowid, source)]
         all_nests <- data.table::rbindlist(list(hist, current_hist), use.names = TRUE, fill = TRUE)
         all_nests <- all_nests[!is.na(nest_id) & nzchar(nest_id)]
         all_nests[, `:=`(date_ord, suppressWarnings(as.Date(date)))]
         all_nests[, `:=`(time_ord, suppressWarnings(strptime(time_visit, format = "%H:%M")))]
         all_nests[, `:=`(source_ord, ifelse(source == "current", 0L, 1L))]
         data.table::setorder(all_nests, nest_id, date_ord, time_ord, source_ord, rowid)
-        all_nests <- all_nests[, .SD[1], by = .(nest_id, date, time_visit, nest_state, clutch_size)]
+        all_nests <- all_nests[, .SD[1], by = .(nest_id, date, time_visit, nest_state, hatch_state, hatch_sign, clutch_size)]
         data.table::setorder(all_nests, nest_id, date_ord, time_ord, source_ord, rowid)
         out_parts <- lapply(split(all_nests, by = "nest_id", keep.by = TRUE), function(dt) {
             probs <- list()
             states <- as.character(dt$nest_state)
-            first_h <- if (any(states == "H", na.rm = TRUE)) which(states == "H")[1] else Inf
+            hatch_evidence <- states == "H" | as.logical(dt$hatch_sign)
+            first_h <- if (any(hatch_evidence, na.rm = TRUE)) which(hatch_evidence)[1] else Inf
             if (nrow(dt) >= 2) {
                 for (i in 2:nrow(dt)) {
                   if (i < first_h && !states[i] %in% c("pD", "D", "pP", "P", "notA") && !is.na(dt$clutch_size[i]) && !is.na(dt$clutch_size[i - 1]) && dt$clutch_size[i] < dt$clutch_size[i - 1]) {
                     probs[[length(probs) + 1L]] <- data.table::data.table(rowid = dt$rowid[i], variable = "clutch_size", reason = "Clutch size has decreased before hatch. Please check the egg count and dates; if the decrease is real, add a note explaining what happened.")
+                  }
+                  if (i > first_h && !states[i] %in% c("pD", "D", "pP", "P", "notA") && !is.na(dt$clutch_size[i])) {
+                    prior_idx <- which(!is.na(dt$clutch_size[seq_len(i - 1)]) & !states[seq_len(i - 1)] %in% c("pD", "D", "pP", "P", "notA"))
+                    if (length(prior_idx) > 0L) {
+                        prior_idx <- prior_idx[length(prior_idx)]
+                        if (dt$clutch_size[i] > dt$clutch_size[prior_idx]) {
+                            probs[[length(probs) + 1L]] <- data.table::data.table(rowid = dt$rowid[i], variable = "clutch_size", reason = "Clutch size increased after hatch signs were observed for this nest. Please check the egg counts and dates; if an earlier count was incomplete or corrected, explain the change in comments.")
+                        }
+                    }
                   }
                 }
             }
@@ -694,7 +714,11 @@ list({
             states <- sub("^[1-4]", "", toks)
             states_norm <- ifelse(states == "CC", "C", states)
             counts <- as.integer(sub("(\\d).*", "\\1", toks))
-            list(C = sum(counts[states_norm == "C"]), S = sum(counts[states_norm == "S"]))
+            list(
+                C = sum(counts[states_norm == "C"]),
+                S = sum(counts[states_norm == "S"]),
+                N = sum(counts[states_norm == "N"])
+            )
         }
         h_idx <- which(as.character(z$nest_state) == "H")
         out_parts <- lapply(h_idx, function(i) {
@@ -705,7 +729,7 @@ list({
             if (!is.na(brood_num) && brood_num <= 0) {
                 bad <- TRUE
             }
-            if (!is.null(p) && (p$C + p$S) == 0) {
+            if (!is.null(p) && (p$C + p$S + p$N) == 0) {
                 bad <- TRUE
             }
             if (bad) {

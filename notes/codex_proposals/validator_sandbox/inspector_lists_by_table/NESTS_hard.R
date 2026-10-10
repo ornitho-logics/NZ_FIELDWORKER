@@ -503,6 +503,44 @@ list({
     }
     out
 }, {
+    out <- try_validator({
+        z <- data.table::copy(x)
+        z[, `:=`(rowid, .I)]
+        blankish <- function(v) {
+            raw <- trimws(as.character(v))
+            is.na(v) | !nzchar(raw) | toupper(raw) == "NA"
+        }
+        brood_entered <- !blankish(z$brood_size)
+        clutch_missing <- blankish(z$clutch_size)
+        bad_idx <- which(brood_entered & clutch_missing)
+        if (length(bad_idx) == 0) {
+            data.table::data.table(rowid = integer(), variable = character(), reason = character())
+        } else {
+            data.table::data.table(
+                rowid = z$rowid[bad_idx],
+                variable = "clutch_size",
+                reason = "clutch_size must be entered whenever brood_size is entered. Enter the observed clutch size, using 0 when no eggs remain."
+            )
+        }
+    }, nam = "brood requires clutch")
+    out <- data.table::as.data.table(out)
+    if ("reason" %in% names(out)) {
+        out[, `:=`(reason, {
+            cleaned <- sub("^(ERROR|WARNING):\\s*", "", as.character(reason))
+            cleaned[is.na(reason)] <- NA_character_
+            ok_idx <- !is.na(cleaned) & nzchar(cleaned)
+            cleaned[ok_idx] <- paste0(
+                cleaned[ok_idx],
+                " Please double-check this entry. If it is correct, add a validator bypass comment to the event."
+            )
+            cleaned
+        })]
+    }
+    if ("type" %in% names(out)) {
+        out[, `:=`(type, NULL)]
+    }
+    out
+}, {
     out <- try_validator(is.regexp_validator(x[, .(cam_id)], regexp = "^[A-Za-z0-9]{2,3}$", reason = "Camera ID must use the current two- or three-character format."), nam = "camera id")
     out <- data.table::as.data.table(out)
     if ("reason" %in% names(out)) {
@@ -1211,7 +1249,7 @@ list({
             states <- sub("^[1-4]", "", toks)
             states_norm <- ifelse(states == "CC", "C", states)
             counts <- as.integer(sub("(\\d).*", "\\1", toks))
-            list(C = sum(counts[states_norm == "C"]), S = sum(counts[states_norm == "S"]), N = sum(counts[states_norm == "N"]), max_stage = if (any(states_norm == "C")) {
+            list(C = sum(counts[states_norm == "C"]), S = sum(counts[states_norm == "S"]), N = sum(counts[states_norm == "N"]), total = sum(counts), max_stage = if (any(states_norm == "C")) {
                 3L
             } else if (any(states_norm == "S")) {
                 2L
@@ -1219,43 +1257,79 @@ list({
                 1L
             })
         }
+        is_backward_transition <- function(previous, current) {
+            if (is.null(previous) || is.null(current)) {
+                return(FALSE)
+            }
+
+            # hatch_state records the eggs still present. Components for eggs
+            # that have hatched may therefore disappear when those chicks move
+            # into brood_size. Match every current component to a distinct
+            # earlier component, allowing N -> S -> C, but never S -> N or
+            # C -> S/N. This allows 2S1N -> 1N while retaining real regressions.
+            new_slots <- 0
+            if (!is.na(previous$clutch_num) && !is.na(current$clutch_num)) {
+                new_slots <- max(0, current$clutch_num - previous$clutch_num)
+            }
+
+            remaining_n <- previous$N
+            unmatched_n <- max(0, current$N - remaining_n)
+            remaining_n <- max(0, remaining_n - current$N)
+
+            unmatched_s <- max(0, current$S - previous$S)
+            remaining_s <- max(0, previous$S - current$S)
+            from_n <- min(remaining_n, unmatched_s)
+            unmatched_s <- unmatched_s - from_n
+            remaining_n <- remaining_n - from_n
+
+            unmatched_c <- max(0, current$C - previous$C)
+            from_s <- min(remaining_s, unmatched_c)
+            unmatched_c <- unmatched_c - from_s
+            remaining_s <- remaining_s - from_s
+            from_n <- min(remaining_n, unmatched_c)
+            unmatched_c <- unmatched_c - from_n
+
+            unmatched_n + unmatched_s + unmatched_c > new_slots
+        }
         z <- data.table::copy(x)
         z[, `:=`(rowid, .I)]
         z[, `:=`(source, "current")]
         ids <- unique(trimws(as.character(z$nest_id)))
         ids <- ids[nzchar(ids) & !is.na(ids)]
-        hist <- data.table::data.table(nest_id = character(), date = character(), time_visit = character(), hatch_state = character(), rowid = integer(), source = character())
+        hist <- data.table::data.table(nest_id = character(), date = character(), time_visit = character(), hatch_state = character(), clutch_num = numeric(), rowid = integer(), source = character())
         if (length(ids) > 0) {
             quoted <- paste(sprintf("'%s'", gsub("'", "''", ids)), collapse = ", ")
-            hist0 <- tryCatch(db_get(sprintf(paste("SELECT nest_id, date, time_visit, hatch_state", "FROM NESTS WHERE nest_id IN (%s)"), quoted)), error = function(e) NULL)
+            hist0 <- tryCatch(db_get(sprintf(paste("SELECT nest_id, date, time_visit, hatch_state, clutch_size", "FROM NESTS WHERE nest_id IN (%s)"), quoted)), error = function(e) NULL)
             if (!is.null(hist0) && nrow(hist0) > 0) {
                 hist <- data.table::as.data.table(hist0)
                 hist[, `:=`(nest_id, norm_chr(nest_id))]
                 hist[, `:=`(date, norm_chr(date))]
                 hist[, `:=`(time_visit, norm_time_chr(time_visit))]
                 hist[, `:=`(hatch_state, norm_chr(hatch_state))]
+                hist[, `:=`(clutch_num, suppressWarnings(as.numeric(as.character(clutch_size))))]
                 hist[, `:=`(rowid, NA_integer_)]
                 hist[, `:=`(source, "db")]
             }
         }
-        current_hist <- z[, .(nest_id = norm_chr(nest_id), date = norm_chr(date), time_visit = norm_time_chr(time_visit), hatch_state = norm_chr(hatch_state), rowid, source)]
+        current_hist <- z[, .(nest_id = norm_chr(nest_id), date = norm_chr(date), time_visit = norm_time_chr(time_visit), hatch_state = norm_chr(hatch_state), clutch_num = suppressWarnings(as.numeric(as.character(clutch_size))), rowid, source)]
         all_nests <- data.table::rbindlist(list(hist, current_hist), use.names = TRUE, fill = TRUE)
         all_nests[, `:=`(date_ord, suppressWarnings(as.Date(date)))]
         all_nests[, `:=`(time_ord, suppressWarnings(as.POSIXct(strptime(time_visit, format = "%H:%M"))))]
         all_nests[, `:=`(source_ord, ifelse(source == "db", 0L, 1L))]
         data.table::setorder(all_nests, nest_id, date_ord, time_ord, source_ord, rowid)
         out_parts <- lapply(split(all_nests, by = "nest_id", keep.by = TRUE), function(dt) {
-            prev_stage <- NA_integer_
+            previous_hatch <- NULL
             probs <- list()
             for (i in seq_len(nrow(dt))) {
                 p <- parse_hatch(dt$hatch_state[i])
                 if (is.null(p)) {
                   next
                 }
-                if (!is.na(prev_stage) && p$max_stage < prev_stage) {
+                p$clutch_num <- dt$clutch_num[i]
+                if (is_backward_transition(previous_hatch, p)) {
                   probs[[length(probs) + 1L]] <- data.table::data.table(rowid = dt$rowid[i], variable = "hatch_state", reason = "Hatch-state progression cannot move backward.")
                 }
-                prev_stage <- p$max_stage
+                previous_hatch <- p
             }
             probs <- Filter(function(x) !is.null(x) && nrow(x) > 0, probs)
             if (length(probs) == 0) {
