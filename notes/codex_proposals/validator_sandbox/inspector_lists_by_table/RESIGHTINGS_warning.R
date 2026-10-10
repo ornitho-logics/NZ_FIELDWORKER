@@ -274,56 +274,282 @@ list({
             z[, `:=`(rowid, .I)]
         }
         empty <- data.table::data.table(rowid = integer(), variable = character(), reason = character())
-        norm_chr <- function(v) {
+
+        normalize_chr <- function(v) {
             out <- toupper(trimws(as.character(v)))
             out[is.na(v) | !nzchar(out) | out == "NA"] <- NA_character_
             out
         }
-        has_chick_behaviour <- function(v) {
-            one <- norm_chr(v)
-            if (is.na(one)) {
-                return(FALSE)
-            }
-            tokens <- trimws(unlist(strsplit(one, ",", fixed = TRUE)))
-            any(tokens %in% c("BW", "BC", "FC"))
+        sex_group <- function(v) {
+            out <- substr(normalize_chr(v), 1, 1)
+            out[!out %in% c("M", "F")] <- NA_character_
+            out
         }
-        z[, `:=`(
-            date_key = suppressWarnings(as.Date(as.character(date))),
-            gps_id_key = norm_chr(gps_id),
-            gps_point_key = norm_chr(gps_point),
-            age_key = norm_chr(age),
-            has_chick_behaviour = vapply(behav, has_chick_behaviour, logical(1))
-        )]
-        adult_keys <- unique(z[
-            age_key == "A" &
-            has_chick_behaviour &
-            !is.na(date_key) &
-            !is.na(gps_id_key) &
-            !is.na(gps_point_key),
-            .(rowid, date_key, gps_id_key, gps_point_key)
-        ])
-        chick_keys <- unique(z[
-            age_key == "C" &
-            !is.na(date_key) &
-            !is.na(gps_id_key) &
-            !is.na(gps_point_key),
-            .(date_key, gps_id_key, gps_point_key)
-        ])
-        if (nrow(adult_keys) == 0L) {
-            empty
-        } else {
-            missing_chicks <- adult_keys[!chick_keys, on = .(date_key, gps_id_key, gps_point_key)]
-            if (nrow(missing_chicks) == 0L) {
-                empty
-            } else {
-                missing_chicks[, .(
-                    rowid,
-                    variable = "behav",
-                    reason = "Awesome that you saw a banded parent with chicks! Please add one rclass 'R' RESIGHTINGS event for each chick, recording the colour band you saw and using the same gps_id and gps_point as the tending parent. You can leave ring blank."
+        normalize_tag_ur <- function(v) {
+            out <- normalize_chr(v)
+            tag_like <- !is.na(out) & grepl("^T[A-Z0-9]*[RBGWOLY]$", out)
+            out[tag_like] <- paste0("T", sub("^.*([RBGWOLY])$", "\\1", out[tag_like]))
+            out
+        }
+        canonical_left_pair <- function(ul, ll) {
+            ul1 <- normalize_chr(ul)
+            ll1 <- normalize_chr(ll)
+            ifelse(
+                !is.na(ul1) & grepl("^[RBGWOLY]$", ul1) & !is.na(ll1) & grepl("^[RBGWOLY]$", ll1),
+                paste0(ul1, ll1),
+                ifelse(
+                    (is.na(ul1) | ul1 %in% c("X", "M")) & !is.na(ll1) & grepl("^[RBGWOLY]{2}$", ll1),
+                    ll1,
+                    ifelse(
+                        (is.na(ll1) | ll1 %in% c("X", "M")) & !is.na(ul1) & grepl("^[RBGWOLY]{2}$", ul1),
+                        ul1,
+                        NA_character_
+                    )
+                )
+            )
+        }
+        canonical_right_pair <- function(ur, lr) {
+            ur1 <- normalize_tag_ur(ur)
+            lr1 <- normalize_chr(lr)
+            ifelse(
+                !is.na(ur1) & grepl("^T[RBGWOLY]$", ur1) & !is.na(lr1) & grepl("^[RBGWOLY]{2}$", lr1),
+                lr1,
+                ifelse(
+                    !is.na(ur1) & grepl("^T[RBGWOLY]$", ur1) & !is.na(lr1) & grepl("^[RBGWOLY]$", lr1),
+                    paste0(sub("^T", "", ur1), lr1),
+                    ifelse(
+                        !is.na(ur1) & grepl("^[RBGWOLY]$", ur1) & !is.na(lr1) & grepl("^[RBGWOLY]$", lr1),
+                        paste0(ur1, lr1),
+                        ifelse(
+                            (is.na(ur1) | ur1 %in% c("X", "M")) & !is.na(lr1) & grepl("^[RBGWOLY]{2}$", lr1),
+                            lr1,
+                            ifelse(
+                                (is.na(lr1) | lr1 %in% c("X", "M")) & !is.na(ur1) & grepl("^[RBGWOLY]{2}$", ur1),
+                                ur1,
+                                NA_character_
+                            )
+                        )
+                    )
+                )
+            )
+        }
+        make_signature_dt <- function(dt, ul_col = "UL", ll_col = "LL", ur_col = "UR", lr_col = "LR") {
+            tmp <- data.table::copy(dt)
+            ul_vals <- tmp[[ul_col]]
+            ll_vals <- tmp[[ll_col]]
+            ur_vals <- tmp[[ur_col]]
+            lr_vals <- tmp[[lr_col]]
+            flag_ul <- normalize_chr(ul_vals)
+            flag_ul[is.na(flag_ul) | !grepl("^F[A-Z0-9]+$", flag_ul)] <- NA_character_
+            flag_ur <- normalize_chr(ur_vals)
+            flag_ur[is.na(flag_ur) | !grepl("^F[A-Z0-9]+$", flag_ur)] <- NA_character_
+            tmp[, `:=`(
+                left_pair = canonical_left_pair(ul_vals, ll_vals),
+                right_pair = canonical_right_pair(ur_vals, lr_vals),
+                flag_ul = flag_ul,
+                flag_ur = flag_ur
+            )]
+            tmp[, has_signature := !is.na(left_pair) | !is.na(right_pair) | !is.na(flag_ul) | !is.na(flag_ur)]
+            tmp
+        }
+        display_mark_values <- function(ul, ll, ur, lr) {
+            ul1 <- normalize_chr(ul)
+            ll1 <- normalize_chr(ll)
+            ur1 <- normalize_tag_ur(ur)
+            lr1 <- normalize_chr(lr)
+            left <- canonical_left_pair(ul1, ll1)
+            right <- canonical_right_pair(ur1, lr1)
+            if (is.na(left)) left <- "X"
+            right_display <- right
+            if (!is.na(ur1) && grepl("^T[RBGWOLY]$", ur1) && !is.na(lr1) && nzchar(lr1)) {
+                right_display <- paste0(ur1, ".", lr1)
+            }
+            if (is.na(right_display)) right_display <- "X"
+            paste0(left, "-", right_display)
+        }
+        add_display_mark <- function(dt, ul_col = "UL", ll_col = "LL", ur_col = "UR", lr_col = "LR") {
+            if (nrow(dt)) {
+                dt[, display_mark := mapply(
+                    display_mark_values,
+                    dt[[ul_col]], dt[[ll_col]], dt[[ur_col]], dt[[lr_col]],
+                    USE.NAMES = FALSE
                 )]
             }
+            dt
         }
-    }, nam = "RES_007 adult with chicks")
+        is_xx <- function(dt) {
+            ll_key <- normalize_chr(dt$LL)
+            lr_key <- normalize_chr(dt$LR)
+            !is.na(ll_key) & ll_key %in% c("X", "XX") &
+                !is.na(lr_key) & lr_key %in% c("X", "XX")
+        }
+        safe_db_get <- function(sql, columns) {
+            result <- tryCatch(db_get(sql), error = function(e) NULL)
+            if (is.null(result) || !is.data.frame(result)) {
+                return(list(
+                    ok = FALSE,
+                    data = data.table::as.data.table(stats::setNames(
+                        rep(list(character()), length(columns)), columns
+                    ))
+                ))
+            }
+            result <- data.table::as.data.table(result)
+            for (column in setdiff(columns, names(result))) {
+                result[, (column) := NA_character_]
+            }
+            list(ok = TRUE, data = result[, ..columns])
+        }
+        if (!"ring" %in% names(z)) z[, ring := NA_character_]
+        z[, `:=`(
+            nest_key = normalize_chr(nest_id),
+            age_key = normalize_chr(age),
+            sex_key = sex_group(sex),
+            ring_key = normalize_chr(ring),
+            event_date = suppressWarnings(as.Date(as.character(date)))
+        )]
+        z <- make_signature_dt(z)
+        z[, is_xx := is_xx(z)]
+        z <- add_display_mark(z)
+        candidates <- z[
+            age_key == "A" &
+                !is.na(nest_key) & nest_key != "NO_NEST" &
+                !is.na(sex_key) & !is.na(event_date) &
+                is_xx & is.na(ring_key)
+        ]
+        if (!nrow(candidates)) {
+            empty
+        } else {
+            capture_lookup <- safe_db_get(
+                "SELECT pk, date, caught, nest_id, age, field_sex, capture_status, UL_in, LL_in, UR_in, LR_in, UL, LL, UR, LR FROM CAPTURES",
+                c("pk", "date", "caught", "nest_id", "age", "field_sex", "capture_status", "UL_in", "LL_in", "UR_in", "LR_in", "UL", "LL", "UR", "LR")
+            )
+            resighting_lookup <- safe_db_get(
+                "SELECT pk, date, nest_id, age, sex, ring, UL, LL, UR, LR FROM RESIGHTINGS",
+                c("pk", "date", "nest_id", "age", "sex", "ring", "UL", "LL", "UR", "LR")
+            )
+            if (!isTRUE(capture_lookup$ok) || !isTRUE(resighting_lookup$ok)) {
+                candidates[, .(
+                    rowid,
+                    variable = "sex",
+                    reason = "I could not check this X-X parent association because CAPTURES or RESIGHTINGS history is temporarily unavailable. Please retry when the database connection is restored."
+                )]
+            } else {
+                captures <- capture_lookup$data
+                if (nrow(captures)) {
+                    captures[, capture_status_key := normalize_chr(capture_status)]
+                    captures[, `:=`(
+                        nest_key = normalize_chr(nest_id),
+                        age_key = normalize_chr(age),
+                        sex_key = sex_group(field_sex),
+                        capture_date = suppressWarnings(as.Date(as.character(date))),
+                        capture_time = normalize_chr(caught),
+                        capture_pk = suppressWarnings(as.numeric(pk)),
+                        sig_UL = ifelse(capture_status_key == "D", normalize_chr(UL_in), normalize_chr(UL)),
+                        sig_LL = ifelse(capture_status_key == "D", normalize_chr(LL_in), normalize_chr(LL)),
+                        sig_UR = ifelse(capture_status_key == "D", normalize_chr(UR_in), normalize_chr(UR)),
+                        sig_LR = ifelse(capture_status_key == "D", normalize_chr(LR_in), normalize_chr(LR))
+                    )]
+                    captures <- make_signature_dt(captures, "sig_UL", "sig_LL", "sig_UR", "sig_LR")
+                    captures <- add_display_mark(captures, "sig_UL", "sig_LL", "sig_UR", "sig_LR")
+                } else {
+                    captures <- data.table::data.table(
+                        nest_key = character(), age_key = character(), sex_key = character(),
+                        capture_status_key = character(), capture_date = as.Date(character()),
+                        has_signature = logical(), display_mark = character()
+                    )
+                }
+
+                prior_resightings <- resighting_lookup$data
+                if (nrow(prior_resightings)) {
+                    prior_resightings[, `:=`(
+                        nest_key = normalize_chr(nest_id),
+                        age_key = normalize_chr(age),
+                        sex_key = sex_group(sex),
+                        ring_key = normalize_chr(ring),
+                        capture_date = suppressWarnings(as.Date(as.character(date))),
+                        capture_pk = suppressWarnings(as.numeric(pk))
+                    )]
+                    prior_resightings <- make_signature_dt(prior_resightings)
+                    prior_resightings[, is_xx_row := is_xx(prior_resightings)]
+                    prior_resightings <- add_display_mark(prior_resightings)
+                } else {
+                    prior_resightings <- data.table::data.table(
+                        nest_key = character(), age_key = character(), sex_key = character(),
+                        capture_date = as.Date(character()), has_signature = logical(),
+                        is_xx_row = logical(), display_mark = character()
+                    )
+                }
+
+                out <- data.table::rbindlist(lapply(seq_len(nrow(candidates)), function(i) {
+                    row <- candidates[i]
+                    nest_key_val <- row$nest_key[[1]]
+                    sex_key_val <- row$sex_key[[1]]
+                    event_date_val <- row$event_date[[1]]
+
+                    same_day_first_capture <- nrow(captures[
+                        nest_key == nest_key_val &
+                            age_key == "A" &
+                            sex_key == sex_key_val &
+                            capture_date == event_date_val &
+                            capture_status_key == "F"
+                    ]) > 0
+                    if (same_day_first_capture) {
+                        return(empty)
+                    }
+
+                    known_captures <- captures[
+                        nest_key == nest_key_val &
+                            age_key == "A" &
+                            sex_key == sex_key_val &
+                            !is.na(capture_date) & capture_date <= event_date_val &
+                            has_signature
+                    ]
+                    known_resightings <- prior_resightings[
+                        nest_key == nest_key_val &
+                            age_key == "A" &
+                            sex_key == sex_key_val &
+                            !is.na(capture_date) & capture_date <= event_date_val &
+                            has_signature & !is_xx_row
+                    ]
+                    session_known <- z[
+                        rowid != row$rowid[[1]] &
+                            nest_key == nest_key_val &
+                            age_key == "A" &
+                            sex_key == sex_key_val &
+                            !is.na(event_date) &
+                            (
+                                event_date < event_date_val |
+                                    (event_date == event_date_val & rowid < row$rowid[[1]])
+                            ) &
+                            has_signature & !is_xx
+                    ]
+                    known <- data.table::rbindlist(
+                        list(known_captures, known_resightings, session_known),
+                        use.names = TRUE,
+                        fill = TRUE
+                    )
+                    known <- known[!is.na(display_mark) & nzchar(display_mark)]
+                    if (!nrow(known)) {
+                        return(empty)
+                    }
+                    established_mark <- unique(known$display_mark)[[1]]
+                    sex_word <- if (sex_key_val == "M") "male" else "female"
+                    entered_sex <- normalize_chr(row$sex[[1]])
+                    data.table::data.table(
+                        rowid = row$rowid[[1]],
+                        variable = "sex",
+                        reason = paste0(
+                            "X-X resighting entered as ", entered_sex,
+                            ", but an established ", sex_word, " ", established_mark,
+                            " is already associated with this nest. Review field sex and parent identity;",
+                            " the bird may be female or an additional same-sex individual."
+                        )
+                    )
+                }), use.names = TRUE, fill = TRUE)
+                if (is.null(out) || !nrow(out)) empty else unique(out)
+            }
+        }
+    }, nam = "RES_005I X-X parent slot")
     out <- data.table::as.data.table(out)
     if ("reason" %in% names(out)) {
         out[, `:=`(reason, {
@@ -476,8 +702,13 @@ list({
             "SELECT pk, ring, date, caught, capture_status, field_sex, UL_in, LL_in, UR_in, LR_in, UL, LL, UR, LR FROM CAPTURES",
             c("pk", "ring", "date", "caught", "capture_status", "field_sex", "UL_in", "LL_in", "UR_in", "LR_in", "UL", "LL", "UR", "LR")
         )
+        resightings_lookup <- safe_db_get(
+            "SELECT pk, ring, date, nest_id, sex, UL, LL, UR, LR FROM RESIGHTINGS",
+            c("pk", "ring", "date", "nest_id", "sex", "UL", "LL", "UR", "LR")
+        )
         archive <- archive_lookup$data
         current <- current_lookup$data
+        resightings <- resightings_lookup$data
         if (!"ring" %in% names(z)) z[, ring := NA_character_]
         z[, `:=`(
             ring_key = normalize_chr(ring),
@@ -488,11 +719,11 @@ list({
         z <- z[!is.na(res_sex_group) & (!is.na(ring_key) | has_signature)]
         if (!nrow(z)) {
             empty
-        } else if (!isTRUE(archive_lookup$ok) || !isTRUE(current_lookup$ok)) {
+        } else if (!isTRUE(archive_lookup$ok) || !isTRUE(current_lookup$ok) || !isTRUE(resightings_lookup$ok)) {
             data.table::data.table(
                 rowid = z$rowid,
                 variable = "sex",
-                reason = "I could not check this sex entry because CAPTURES or CAPTURES_ARCHIVE history is temporarily unavailable. Please retry when the database connection is restored; no conclusion has been made about the sex."
+                reason = "I could not check this sex entry because CAPTURES, CAPTURES_ARCHIVE, or RESIGHTINGS history is temporarily unavailable. Please retry when the database connection is restored; no conclusion has been made about the sex."
             )
         } else {
             archive[, `:=`(
@@ -519,13 +750,71 @@ list({
             )]
             current[capture_status == "D", `:=`(sig_UL = UL_in, sig_LL = LL_in, sig_UR = UR_in, sig_LR = LR_in)]
             current <- make_signature_dt(current, ul_col = "sig_UL", ll_col = "sig_LL", ur_col = "sig_UR", lr_col = "sig_LR")
+            if (nrow(resightings) > 0) {
+                resightings[, `:=`(
+                    ring_key = normalize_chr(ring),
+                    baseline_group = sex_group(sex),
+                    baseline_label = normalize_chr(sex),
+                    capture_date = suppressWarnings(as.Date(as.character(date))),
+                    capture_time = NA_character_,
+                    capture_pk = suppressWarnings(as.numeric(pk))
+                )]
+                resightings <- make_signature_dt(resightings)
+            } else {
+                resightings <- data.table::data.table(
+                    date = as.Date(character()),
+                    baseline_group = character(),
+                    baseline_label = character(),
+                    capture_date = as.Date(character()),
+                    capture_time = character(),
+                    capture_pk = numeric(),
+                    ring_key = character(),
+                    left_pair = character(),
+                    right_pair = character(),
+                    flag_ul = character(),
+                    flag_ur = character(),
+                    has_signature = logical()
+                )
+            }
             out <- data.table::rbindlist(lapply(seq_len(nrow(z)), function(i) {
                 row <- z[i]
-                archive_matches <- archive[identity_matches(row, archive)]
+                row_date <- row$event_date[[1]]
+                archive_matches <- archive[
+                    !is.na(capture_date) & !is.na(row_date) & capture_date <= row_date &
+                        identity_matches(row, archive)
+                ]
                 archive_matches <- archive_matches[baseline_group %in% c("M", "F")]
-                current_matches <- current[identity_matches(row, current)]
+                current_matches <- current[
+                    !is.na(capture_date) & !is.na(row_date) & capture_date <= row_date &
+                        identity_matches(row, current)
+                ]
                 current_matches <- current_matches[baseline_group %in% c("M", "F")]
-                history <- if (nrow(archive_matches)) archive_matches else current_matches
+                prior_resightings <- resightings[
+                    !is.na(capture_date) & !is.na(row_date) & capture_date <= row_date &
+                        identity_matches(row, resightings)
+                ]
+                prior_resightings <- prior_resightings[baseline_group %in% c("M", "F")]
+                session_resightings <- z[
+                    rowid != row$rowid[[1]] &
+                        !is.na(event_date) & !is.na(row_date) &
+                        (
+                            event_date < row_date |
+                                (event_date == row_date & rowid < row$rowid[[1]])
+                        ) &
+                        identity_matches(row, z)
+                ]
+                if (nrow(session_resightings)) {
+                    session_resightings[, baseline_group := res_sex_group]
+                    session_resightings <- session_resightings[baseline_group %in% c("M", "F")]
+                }
+                history <- data.table::rbindlist(
+                    list(archive_matches, current_matches, prior_resightings, session_resightings),
+                    use.names = TRUE,
+                    fill = TRUE
+                )
+                if ("baseline_group" %in% names(history)) {
+                    history <- history[baseline_group %in% c("M", "F")]
+                }
                 if (!nrow(history)) {
                     return(empty)
                 }
@@ -543,7 +832,9 @@ list({
                     rowid = row$rowid,
                     variable = "sex",
                     reason = paste0(
-                        "This bird’s recorded sex does not match its original capture history (",
+                        "This RESIGHTINGS sex entry (",
+                        normalize_chr(row$sex[[1]]),
+                        ") conflicts with the established capture/resighting history for this individual (",
                         expected_label, "). Please check the RESIGHTINGS entry; M/MU and F/FU are treated as the same sex group."
                     )
                 )
@@ -805,89 +1096,6 @@ list({
             }
         }
     }, nam = "RES_005G social parent mark")
-    out <- data.table::as.data.table(out)
-    if ("reason" %in% names(out)) {
-        out[, `:=`(reason, {
-            cleaned <- sub("^(ERROR|WARNING):\\s*", "", as.character(reason))
-            cleaned[is.na(reason)] <- NA_character_
-            ok_idx <- !is.na(cleaned) & nzchar(cleaned)
-            cleaned[ok_idx] <- paste0(
-                cleaned[ok_idx],
-                " Please double-check this entry. If it is correct, add a validator bypass comment to the event."
-            )
-            cleaned
-        })]
-    }
-    if ("type" %in% names(out)) {
-        out[, `:=`(type, NULL)]
-    }
-    out
-}, {
-    out <- try_validator({
-        z <- data.table::copy(x)
-        if (!"rowid" %in% names(z)) {
-            z[, `:=`(rowid, .I)]
-        }
-        empty <- data.table::data.table(rowid = integer(), variable = character(), reason = character())
-        norm_chr <- function(v) {
-            out <- trimws(as.character(v))
-            out[is.na(v) | out == "NA" | !nzchar(out)] <- NA_character_
-            out
-        }
-        is_no_nest <- function(v) {
-            !is.na(v) & toupper(trimws(as.character(v))) == "NO_NEST"
-        }
-        z[, `:=`(
-            date_key = suppressWarnings(as.Date(date)),
-            site_key = norm_chr(site),
-            nest_key = norm_chr(nest_id),
-            gps_id_key = norm_chr(gps_id),
-            gps_point_key = norm_chr(gps_point),
-            age_key = norm_chr(age)
-        )]
-        adult_nest <- unique(z[
-            age_key == "A" &
-            !is.na(date_key) &
-            !is.na(site_key) &
-            !is.na(nest_key) &
-            !is_no_nest(nest_key),
-            .(date_key, site_key, nest_key)
-        ])
-        adult_gps <- unique(z[
-            age_key == "A" &
-            !is.na(date_key) &
-            !is.na(gps_id_key) &
-            !is.na(gps_point_key),
-            .(date_key, gps_id_key, gps_point_key)
-        ])
-        chick_nest <- z[
-            age_key == "C" &
-            !is.na(date_key) &
-            !is.na(site_key) &
-            !is.na(nest_key) &
-            !is_no_nest(nest_key),
-            .(rowid, date_key, site_key, nest_key)
-        ]
-        chick_gps <- z[
-            age_key == "C" &
-            (is.na(nest_key) | !nzchar(nest_key) | is_no_nest(nest_key)) &
-            !is.na(date_key) &
-            !is.na(gps_id_key) &
-            !is.na(gps_point_key),
-            .(rowid, date_key, gps_id_key, gps_point_key)
-        ]
-        out_parts <- list(
-            chick_nest[!adult_nest, on = .(date_key, site_key, nest_key)][, .(rowid, variable = "age", reason = "This chick resighting does not yet have a matching adult resighting. If you saw the tending parent, please add that adult row too; it may have been entered in another portal session.")],
-            chick_gps[!adult_gps, on = .(date_key, gps_id_key, gps_point_key)][, .(rowid, variable = "age", reason = "This chick resighting does not yet have a matching adult resighting. If you saw the tending parent, please add that adult row too; it may have been entered in another portal session.")]
-        )
-        out_parts <- Filter(function(dt) !is.null(dt) && nrow(dt) > 0, out_parts)
-        out <- if (length(out_parts) == 0) {
-            empty
-        } else {
-            data.table::rbindlist(out_parts, use.names = TRUE, fill = TRUE)
-        }
-        if (nrow(out) == 0) empty else unique(out)
-    }, nam = "RES_006 chick with adult")
     out <- data.table::as.data.table(out)
     if ("reason" %in% names(out)) {
         out[, `:=`(reason, {
