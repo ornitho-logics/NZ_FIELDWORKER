@@ -1666,6 +1666,11 @@ todo_pdf_simple_table <- function(table_data, column_widths = NULL) {
 
   if (is.null(column_widths)) {
     column_widths <- rep(1, ncol(table_data))
+  } else if (length(column_widths) != ncol(table_data)) {
+    stop(
+      "column_widths must contain one value per table column.",
+      call. = FALSE
+    )
   }
   columns <- paste0(column_widths, "fr", collapse = ", ")
 
@@ -1773,7 +1778,7 @@ todo_pdf_body <- function(
       "",
       todo_pdf_simple_table(
         team_marks,
-        column_widths = c(12, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8)
+        column_widths = c(12, rep(8, ncol(team_marks) - 1L))
       ),
       ""
     )
