@@ -203,6 +203,63 @@ list({
             z[, `:=`(rowid, .I)]
         }
         empty <- data.table::data.table(rowid = integer(), variable = character(), reason = character())
+        missing_like <- function(v) {
+            raw <- trimws(as.character(v))
+            is.na(v) | !nzchar(raw) | toupper(raw) == "NA"
+        }
+        age_key <- toupper(trimws(as.character(z$age)))
+        method_key <- toupper(trimws(as.character(z$capture_method)))
+        time_key <- substr(trimws(as.character(z$caught)), 1L, 5L)
+        valid_time <- !is.na(z$caught) & grepl("^([01][0-9]|2[0-3]):[0-5][0-9]$", time_key)
+        outside_day_window <- valid_time & (time_key < "07:00" | time_key > "19:00")
+        ha_adult <- !is.na(age_key) & age_key == "A" & !is.na(method_key) & method_key == "HA"
+        positive_nest <- !missing_like(z$nest_id) &
+            toupper(trimws(as.character(z$nest_id))) != "NO_NEST" &
+            !grepl("^-", trimws(as.character(z$nest_id)))
+        nest_bad <- ha_adult & !positive_nest
+        time_bad <- ha_adult & !outside_day_window
+        out <- data.table::rbindlist(
+            list(
+                z[nest_bad, .(
+                    rowid,
+                    variable = "nest_id",
+                    reason = "Age-A captures using capture_method HA require a positive nest_id."
+                )],
+                z[time_bad, .(
+                    rowid,
+                    variable = "caught",
+                    reason = "Age-A captures using capture_method HA require a capture time before 07:00 or after 19:00."
+                )]
+            ),
+            use.names = TRUE,
+            fill = TRUE
+        )
+        if (nrow(out) == 0) empty else unique(out)
+    }, nam = "CAP_006C HA adult capture")
+    out <- data.table::as.data.table(out)
+    if ("reason" %in% names(out)) {
+        out[, `:=`(reason, {
+            cleaned <- sub("^(ERROR|WARNING):\\s*", "", as.character(reason))
+            cleaned[is.na(reason)] <- NA_character_
+            ok_idx <- !is.na(cleaned) & nzchar(cleaned)
+            cleaned[ok_idx] <- paste0(
+                cleaned[ok_idx],
+                " Please double-check this entry. If it is correct, add a validator bypass comment to the event."
+            )
+            cleaned
+        })]
+    }
+    if ("type" %in% names(out)) {
+        out[, `:=`(type, NULL)]
+    }
+    out
+}, {
+    out <- try_validator({
+        z <- data.table::copy(x)
+        if (!"rowid" %in% names(z)) {
+            z[, `:=`(rowid, .I)]
+        }
+        empty <- data.table::data.table(rowid = integer(), variable = character(), reason = character())
         d <- suppressWarnings(as.Date(z$date))
         bad_idx <- which(!is.na(z$date) & (is.na(d) | d < as.Date("2026-07-01") | d > as.Date("2027-07-31")))
         if (length(bad_idx) == 0) {
@@ -1656,9 +1713,8 @@ list({
                 if (!(one_chr(row$chick_tent_photo) %in% c("0", "1"))) {
                   problems[[length(problems) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = "chick_tent_photo", reason = "All chick captures must record chick_tent_photo as 0 or 1.")
                 }
-                chick_hide_val <- one_chr(row$chick_hide_photo)
-                if (!is.na(chick_hide_val) && chick_hide_val != "0") {
-                  problems[[length(problems) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = "chick_hide_photo", reason = "Hiding-spot photos belong in a separate age-C, rclass-H RESIGHTINGS row; leave chick_hide_photo blank or use 0.")
+                if (!(one_chr(row$chick_hide_photo) %in% c("0", "1"))) {
+                  problems[[length(problems) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = "chick_hide_photo", reason = "All chick captures must record chick_hide_photo as 0 or 1.")
                 }
                 for (nm in c("mugshot_photo", "wing_photo")) {
                     if (!is.na(one_chr(row[[nm]]))) {
