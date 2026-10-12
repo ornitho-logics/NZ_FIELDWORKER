@@ -311,7 +311,7 @@ SELECT
   CASE
     -- Temporary compatibility gate for the deployed PDF's site_code = 'CR' query.
     WHEN available_combos_ranked.site_code = 'CR'
-     AND available_combos_ranked.LL IN ('BY', 'WY', 'YY', 'YO') THEN 'CR'
+     AND available_combos_ranked.LL IN ('BY', 'WY', 'YY', 'YO', 'OY') THEN 'CR'
     WHEN available_combos_ranked.site_code = 'CR'
      AND CONCAT(available_combos_ranked.LL, available_combos_ranked.LR) REGEXP 'L' THEN 'CX'
     WHEN available_combos_ranked.site_code = 'CR'
