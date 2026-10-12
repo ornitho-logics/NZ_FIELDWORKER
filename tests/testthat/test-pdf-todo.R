@@ -60,6 +60,38 @@ test_that("team marks are distributed evenly across three teams", {
 })
 
 
+test_that("team marks render with the actual number of table columns", {
+  app <- load_main_app()
+  prepare <- app$env$todo_pdf_prepare_team_marks
+  body <- app$env$todo_pdf_body
+
+  team_marks <- prepare(data.frame(mark = sprintf("MOCK-%02d", 1:26)))
+  observed <- body(data.table(), team_marks = team_marks)
+  columns <- grep("^  columns:", observed, value = TRUE)
+
+  expect_identical(ncol(team_marks), 10L)
+  expect_identical(
+    columns,
+    "  columns: (12fr, 8fr, 8fr, 8fr, 8fr, 8fr, 8fr, 8fr, 8fr, 8fr),"
+  )
+})
+
+
+test_that("simple PDF tables reject mismatched column widths", {
+  app <- load_main_app()
+  render_table <- app$env$todo_pdf_simple_table
+
+  expect_error(
+    render_table(
+      data.frame(First = "A", Second = "B"),
+      column_widths = 1
+    ),
+    "column_widths must contain one value per table column.",
+    fixed = TRUE
+  )
+})
+
+
 test_that("to-do headings use the current operational subtitles", {
   app <- load_main_app()
   heading <- app$env$todo_pdf_heading
