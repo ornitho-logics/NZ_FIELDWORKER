@@ -346,6 +346,10 @@ The output then applies a temporary compatibility gate to original CR candidates
 3. Other CR candidates with `combo_rank > 30` are relabelled `CX`.
 4. Remaining candidates keep their original site code.
 
+This relabelling happens only after the global historical/current used-pair
+subtraction. Protecting an `LL` group as `CR` cannot restore a candidate whose
+`LL` and `LR` pair already matched `USED_COMBOS_DETAIL`.
+
 `CX` is a compatibility bucket, not a biological candidate site in `site_rules`.
 The rule means all `LY` candidates become `CX`, `YR` is already excluded, and all
 otherwise-eligible `OY` candidates remain `CR`.

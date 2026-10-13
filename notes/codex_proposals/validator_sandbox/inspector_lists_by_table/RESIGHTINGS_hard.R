@@ -950,7 +950,7 @@ list({
             missing_parent_nest_reason <- if (any(row$behav_tokens[[1]] %in% c("BC", "FC"))) {
                 "Adult BC/FC resightings that associate a parent with chicks must include nest_id. If the brood is mobile after notA, also enter both gps_id and gps_point."
             } else if (any(row$behav_tokens[[1]] %in% "BW")) {
-                "Adult BW (broken-wing display) resightings must include nest_id, unless chicks were also observed: then enter a complete gps_id/gps_point pair matching an age-C resighting in this portal session."
+                "Adult BW (broken-wing display) resightings must include nest_id so the parent observation is linked to the nest or brood."
             } else {
                 "This adult IN/NM resighting is the first active-nest record for this breeding attempt, so please enter nest_id."
             }
