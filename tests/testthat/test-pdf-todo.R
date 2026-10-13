@@ -106,7 +106,7 @@ test_that("to-do headings use the current operational subtitles", {
   )
   expect_identical(
     heading("Parent resighting")$subtitle,
-    "Association of a banded parent resolves after either 1) three nest-linked resightings of the same identity, including the initial resighting, or 2) one ‘behav’ “IN”, “NM”, “BW”, “BC”, “FC” resighting. ‘MM’ refers to a parent caught with the mobile mistnet, and the number in brackets refers to the number of non-resolution ‘behav’ resightings currently made of a given individual at a given nest/brood. When there is no number, it means the parent’s association is established."
+    "Association resolves after 3 nest-linked resightings or 1 confirming behav (“IN”, “NM”, “BW”, “BC”, “FC”). “MM, n” shows an MM capture and n non-confirming resightings."
   )
   expect_identical(
     heading("nest check")$subtitle,
@@ -283,13 +283,15 @@ test_that("parent-resighting PDF table uses descriptive identity columns", {
 })
 
 
-test_that("PDF map uses only plots B and C", {
+test_that("PDF map uses plots A, B, and C", {
   app <- load_main_app()
   prepare_plots <- app$env$.todo_pdf_map_prepare_plots
   spatial_objects <- data.frame(
     variable = "study_area",
     value = paste0(
       "list(",
+      "A = 'POLYGON ((172 -44.02, 172.01 -44.02, 172.01 -44.01, ",
+      "172 -44.01, 172 -44.02))', ",
       "B = 'POLYGON ((172 -44, 172.01 -44, 172.01 -43.99, ",
       "172 -43.99, 172 -44))', ",
       "C = 'POLYGON ((172.02 -44, 172.03 -44, 172.03 -43.99, ",
@@ -300,7 +302,46 @@ test_that("PDF map uses only plots B and C", {
 
   plots <- prepare_plots(spatial_objects)
 
-  expect_identical(plots$plot_name, c("B", "C"))
+  expect_identical(plots$plot_name, c("A", "B", "C"))
+})
+
+
+test_that("parent-resighting marks drop bare duplicates when a counted mark exists", {
+  app <- load_main_app()
+  collapse <- app$env$todo_pdf_collapse_annotated_marks
+
+  expect_identical(
+    collapse(c("BY-LO & BY-LO (MM, 0)", "BY-GW (1) & BY-GW (1)")),
+    c("BY-LO (MM, 0)", "BY-GW (1)")
+  )
+})
+
+
+test_that("processing rows without flotation leave Est. Hatch blank", {
+  app <- load_main_app()
+  prepare <- app$env$todo_pdf_prepare
+
+  observed <- prepare(
+    todo = data.frame(
+      nest_id = c("MOCK_FLOAT", "MOCK_PHOTOS"),
+      reference_date = as.Date(c("2026-10-14", "2026-10-14")),
+      todo = c("Unprocessed nest", "Unprocessed nest"),
+      notes = c("float + nest/tent photos", "nest/tent photos only"),
+      nest_state = c("F", "F"),
+      clutch_size = c(3, 3),
+      brood_size = c(0, 0),
+      min_days_to_hatch = c(10, 10),
+      last_visit_days_ago = c(1, 1),
+      M_mark = NA_character_,
+      F_mark = NA_character_
+    ),
+    available_combos = data.frame(mark = paste0("MOCK-", seq_len(3)))
+  )$rows
+
+  expect_identical(
+    observed$Hatch[match(c("MOCK_FLOAT", "MOCK_PHOTOS"), observed$Nest)],
+    c("", "10")
+  )
 })
 
 
@@ -1189,7 +1230,7 @@ test_that("parent summary keeps a larger adaptive vertical row inset", {
     collapse = "\n"
   )
 
-  expect_true(grepl("inset: \\(x: 2.2pt, y: 4.05pt\\)", output))
+  expect_true(grepl("inset: \\(x: 2.2pt, y: 3.63pt\\)", output))
 })
 
 

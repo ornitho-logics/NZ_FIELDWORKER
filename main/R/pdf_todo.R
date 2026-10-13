@@ -817,6 +817,42 @@ todo_pdf_parent_resighting_rule_note <- function(
   ))
 }
 
+todo_pdf_collapse_annotated_marks <- function(values) {
+  values <- as.character(values)
+  unname(vapply(
+    values,
+    function(value) {
+      if (is.na(value) || !nzchar(trimws(value))) {
+        return("")
+      }
+      marks <- trimws(unlist(strsplit(value, "&", fixed = TRUE)))
+      marks <- unique(marks[nzchar(marks)])
+      if (!length(marks)) {
+        return("")
+      }
+
+      has_count <- grepl(
+        "\\s+\\((?:MM\\s*,\\s*)?[0-9]+\\)$",
+        marks,
+        perl = TRUE
+      )
+      base_mark <- sub(
+        "\\s+\\((?:MM\\s*,\\s*)?[0-9]+\\)$",
+        "",
+        marks,
+        perl = TRUE
+      )
+      keep <- !(!has_count & vapply(
+        seq_along(marks),
+        function(i) any(has_count & base_mark == base_mark[[i]]),
+        logical(1)
+      ))
+      paste(marks[keep], collapse = " & ")
+    },
+    character(1)
+  ))
+}
+
 
 todo_pdf_prepare <- function(
   todo = NULL,
@@ -1138,6 +1174,15 @@ todo_pdf_prepare <- function(
     )
   todo_dt[, notes := parent_capture_notes]
 
+  # A processing task that still requires flotation should not display a
+  # hatch interval. The hatch prediction remains available upstream for
+  # other consumers; this is only the fieldworker-facing PDF value.
+  processing_without_float <- todo_dt$todo == "Unprocessed nest" &
+    !is.na(todo_dt$notes) &
+    grepl("float", tolower(as.character(todo_dt$notes)), fixed = TRUE)
+  hatch_display <- todo_dt$min_days_to_hatch
+  hatch_display[processing_without_float] <- NA_real_
+
   todo_dt[, let(clutch_brood = fifelse(
     is.na(pdf_clutch_size) & is.na(pdf_brood_size),
     "",
@@ -1154,7 +1199,7 @@ todo_pdf_prepare <- function(
       Nest = nest_id,
       State = pdf_state,
       `Clutch–Brood` = clutch_brood,
-      Hatch = min_days_to_hatch,
+      Hatch = hatch_display,
       `Last Visit` = last_visit_days_ago,
       Male = M_mark,
       Female = F_mark,
@@ -1172,6 +1217,11 @@ todo_pdf_prepare <- function(
     x[toupper(trimws(x)) == "NULL"] <- ""
     x
   }), .SDcols = c("Male", "Female")]
+  for (column in c("Male", "Female")) {
+    rows[Todo == "Parent resighting", (column) := todo_pdf_collapse_annotated_marks(
+      get(column)
+    )]
+  }
 
   list(
     title = glue("Cass To-Dos for {refdate}"),
@@ -1213,7 +1263,7 @@ todo_pdf_heading <- function(todo_name) {
     ),
     "Parent resighting" = list(
       title = "Parents to resight for nest association",
-      subtitle = "Association of a banded parent resolves after either 1) three nest-linked resightings of the same identity, including the initial resighting, or 2) one ‘behav’ “IN”, “NM”, “BW”, “BC”, “FC” resighting. ‘MM’ refers to a parent caught with the mobile mistnet, and the number in brackets refers to the number of non-resolution ‘behav’ resightings currently made of a given individual at a given nest/brood. When there is no number, it means the parent’s association is established."
+      subtitle = "Association resolves after 3 nest-linked resightings or 1 confirming behav (“IN”, “NM”, “BW”, “BC”, “FC”). “MM, n” shows an MM capture and n non-confirming resightings."
     ),
     "Untrapped brood" = list(
       title = "Broods to band",
@@ -1366,9 +1416,9 @@ todo_pdf_nest_summary_table <- function(nest_summary, n_blocks = 3L) {
   rows_per_block <- max(block_sizes)
 
   max_font_size <- 8.5
-  label_inset_y <- 3
-  max_inset_y <- 4.2
-  target_table_height <- 320
+  label_inset_y <- 2
+  max_inset_y <- 3.2
+  target_table_height <- 280
   if (rows_per_block <= 12L) {
     font_size <- max_font_size
     inset_y <- max_inset_y

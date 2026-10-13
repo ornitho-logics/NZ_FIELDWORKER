@@ -5453,10 +5453,12 @@ todo_parent_source AS (
     AND b.reference_date = sr.reference_date
 ),
 adult_parent_status AS (
-  /* Keep the legacy alias inside TODO_LIST, but cross the task-facing
-     materialization boundary in TODO_PARENT_STATUS first. */
+  /* The calculator runs only during the explicit snapshot refresh. Read the
+     authoritative four-gate result directly here so the final snapshot
+     section can safely replace the public TODO_PARENT_STATUS view without
+     invalidating this calculator on a clean rebuild. */
   SELECT *
-  FROM FIELD_2026_BADOatNZ.TODO_PARENT_STATUS
+  FROM FIELD_2026_BADOatNZ.ADULT_PARENT_STATUS
 ),
 adult_parent_geo_target_status AS (
   SELECT
