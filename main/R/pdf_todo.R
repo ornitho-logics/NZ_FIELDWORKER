@@ -91,6 +91,50 @@ todo_pdf_as_numeric <- function(x) {
 }
 
 
+todo_pdf_hatch_prediction_status <- function(hatch_prediction) {
+  empty_output <- data.table(
+    nest_id = character(),
+    has_float_data = logical(),
+    no_float_complete = logical()
+  )
+  if (
+    is.null(hatch_prediction)
+      || !nrow(hatch_prediction)
+      || !all(c("nest_id", "calibration_match_type") %in% names(hatch_prediction))
+  ) {
+    return(empty_output)
+  }
+
+  prediction <- data.table(hatch_prediction)
+  prediction[, nest_id := trimws(as.character(nest_id))]
+  prediction[, calibration_match_type := trimws(as.character(
+    calibration_match_type
+  ))]
+  prediction <- prediction[
+    !is.na(nest_id) & nzchar(nest_id)
+  ]
+  if (!nrow(prediction)) {
+    return(empty_output)
+  }
+
+  if ("float_date" %in% names(prediction)) {
+    float_raw <- trimws(as.character(prediction$float_date))
+    prediction[, has_float_data := !is.na(float_date) &
+      nzchar(float_raw) &
+      !(toupper(float_raw) %chin% c("NA", "NULL"))]
+  } else {
+    prediction[, has_float_data := FALSE]
+  }
+  prediction[, no_float_complete := calibration_match_type ==
+    "complete clutch chronology" & !has_float_data]
+
+  prediction[, .(
+    has_float_data = any(has_float_data),
+    no_float_complete = any(no_float_complete) & !any(has_float_data)
+  ), by = nest_id]
+}
+
+
 todo_pdf_query_tasks <- function() {
   # Keep every PDF entry point on the same bounded query plan. TODO_LIST is a
   # complex operational view, so avoid SELECT * and discourage MariaDB from
@@ -476,6 +520,27 @@ todo_pdf_prepare_nest_summary <- function(
     )]
   }
 
+  # A complete clutch with no qualifying EGGS float record still has a
+  # chronology-based prediction upstream, but that prediction is not a
+  # fieldworker-facing hatch estimate until flotation has been recorded.
+  # Keep explicit flotation-exempt predictions (found-incomplete and stable
+  # one-egg/no-increase) available for the PDF.
+  prediction_status <- todo_pdf_hatch_prediction_status(hatch_prediction)
+  no_float_complete_nests <- prediction_status[
+    no_float_complete == TRUE,
+    nest_id
+  ]
+  no_float_complete_summary_nests <- character()
+  if (length(no_float_complete_nests)) {
+    no_hatch_evidence <- is.na(has_hatch_evidence) | !has_hatch_evidence
+    nest_ids <- trimws(as.character(nests$nest_id))
+    no_float_complete_summary_nests <- unique(nest_ids[
+      !is_negative_brood &
+        no_hatch_evidence &
+        nest_ids %chin% no_float_complete_nests
+    ])
+  }
+
   summary <- nests[
     !is.na(nest_id) & nzchar(trimws(as.character(nest_id))),
     .(
@@ -552,6 +617,16 @@ todo_pdf_prepare_nest_summary <- function(
       ]
       summary[, task_hatch := NULL]
     }
+  }
+
+  # Task rows can reintroduce the chronology-only value after the prediction
+  # merge above. Apply the flotation gate after all hatch-value sources so
+  # every PDF table uses the same fieldworker-facing rule.
+  if (length(no_float_complete_summary_nests)) {
+    summary[
+      Nest %chin% no_float_complete_summary_nests,
+      `Est. Hatch` := ""
+    ]
   }
 
   # BROODS_LATEST supplies the operational nest/brood rows, but its parent
@@ -1182,6 +1257,26 @@ todo_pdf_prepare <- function(
     grepl("float", tolower(as.character(todo_dt$notes)), fixed = TRUE)
   hatch_display <- todo_dt$min_days_to_hatch
   hatch_display[processing_without_float] <- NA_real_
+
+  # Keep chronology predictions out of every task-table hatch column when the
+  # nest still needs its first flotation record. Broods and explicit
+  # flotation-exempt prediction types retain their existing values.
+  prediction_status <- todo_pdf_hatch_prediction_status(hatch_prediction)
+  no_float_complete_nests <- prediction_status[
+    no_float_complete == TRUE,
+    nest_id
+  ]
+  if (length(no_float_complete_nests)) {
+    task_nest_ids <- trimws(as.character(todo_dt$nest_id))
+    task_has_hatch_evidence <- toupper(trimws(as.character(
+      todo_dt$nest_state
+    ))) == "H" | todo_pdf_as_numeric(todo_dt$brood_size) > 0
+    hatch_display[
+      !is_negative_brood &
+        !task_has_hatch_evidence &
+        task_nest_ids %chin% no_float_complete_nests
+    ] <- NA_real_
+  }
 
   todo_dt[, let(clutch_brood = fifelse(
     is.na(pdf_clutch_size) & is.na(pdf_brood_size),

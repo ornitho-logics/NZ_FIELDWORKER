@@ -345,6 +345,37 @@ test_that("processing rows without flotation leave Est. Hatch blank", {
 })
 
 
+test_that("complete-clutch predictions without flotation stay blank in task rows", {
+  app <- load_main_app()
+  prepare <- app$env$todo_pdf_prepare
+
+  observed <- prepare(
+    todo = data.frame(
+      nest_id = "MOCK_COMPLETE",
+      reference_date = as.Date("2026-10-14"),
+      todo = "Parent capture",
+      notes = "tag M (pair completion)",
+      nest_state = "I",
+      clutch_size = 3,
+      brood_size = 0,
+      min_days_to_hatch = 25,
+      last_visit_days_ago = 1,
+      M_mark = "X-X",
+      F_mark = "MOCK-F"
+    ),
+    available_combos = data.frame(mark = paste0("MOCK-", seq_len(3))),
+    hatch_prediction = data.frame(
+      nest_id = "MOCK_COMPLETE",
+      calibration_match_type = "complete clutch chronology",
+      float_date = as.Date(NA),
+      days_to_hatch = 25
+    )
+  )$rows
+
+  expect_identical(observed$Hatch, "")
+})
+
+
 test_that("parent summary subtitle explains hatch intervals", {
   app <- load_main_app()
   body <- app$env$todo_pdf_body(
@@ -908,20 +939,22 @@ test_that("parent summary uses no-float hatch predictions", {
   prepare_summary <- app$env$todo_pdf_prepare_nest_summary
 
   nests <- data.frame(
-    nest_id = c("B0616", "C0504"),
-    nest_state = c("I", "F"),
-    min_days_to_hatch = c(NA, NA),
-    M_mark = c("MOCK-M1", "MOCK-M2"),
-    F_mark = c("MOCK-F1", "MOCK-F2"),
+    nest_id = c("B0616", "C0504", "A0511"),
+    nest_state = c("I", "F", "I"),
+    min_days_to_hatch = c(NA, NA, 25),
+    M_mark = c("MOCK-M1", "MOCK-M2", "MOCK-M3"),
+    F_mark = c("MOCK-F1", "MOCK-F2", "MOCK-F3"),
     stringsAsFactors = FALSE
   )
   hatch_prediction <- data.frame(
-    nest_id = c("B0616", "C0504"),
+    nest_id = c("B0616", "C0504", "A0511"),
     calibration_match_type = c(
       "found as incomplete",
-      "stable one-egg/no increase"
+      "stable one-egg/no increase",
+      "complete clutch chronology"
     ),
-    days_to_hatch = c(23, 23),
+    float_date = as.Date(c(NA, NA, NA)),
+    days_to_hatch = c(23, 23, 25),
     stringsAsFactors = FALSE
   )
 
@@ -940,6 +973,10 @@ test_that("parent summary uses no-float hatch predictions", {
   expect_identical(
     summary[summary$Nest == "C0504", `Est. Hatch`],
     "23"
+  )
+  expect_identical(
+    summary[summary$Nest == "A0511", `Est. Hatch`],
+    ""
   )
 })
 
