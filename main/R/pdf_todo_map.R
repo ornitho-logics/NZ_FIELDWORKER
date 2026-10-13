@@ -219,6 +219,11 @@
     reference_date
   )
   latest <- data.table(nests_latest)
+  if ("species" %in% names(latest)) {
+    latest <- latest[
+      toupper(trimws(as.character(species))) != "WRYB"
+    ]
+  }
   latest_columns <- c("nest_id", "lat", "lon")
   if (all(latest_columns %in% names(latest))) {
     latest[, nest_id := trimws(as.character(nest_id))]

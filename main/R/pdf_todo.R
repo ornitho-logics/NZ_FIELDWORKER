@@ -333,9 +333,15 @@ todo_pdf_prepare_nest_summary <- function(
   todo = NULL,
   chick_captures = NULL,
   unseen_tagged_birds = NULL,
-  hatch_prediction = NULL
+  hatch_prediction = NULL,
+  parent_status = NULL
 ) {
   nests <- data.table(nests_latest)
+  if ("species" %in% names(nests)) {
+    nests <- nests[
+      toupper(trimws(as.character(species))) != "WRYB"
+    ]
+  }
   todo_dt <- data.table(todo)
   required_columns <- c(
     "nest_id",
@@ -545,6 +551,48 @@ todo_pdf_prepare_nest_summary <- function(
         `Est. Hatch` := format(task_hatch, trim = TRUE, scientific = FALSE)
       ]
       summary[, task_hatch := NULL]
+    }
+  }
+
+  # BROODS_LATEST supplies the operational nest/brood rows, but its parent
+  # marks can be stale or derived by a different identity path. Replace them
+  # with the same authoritative four-gate status used by task rows, including
+  # nests that have no task today and therefore never appear in TODO_LIST.
+  if (
+    !is.null(parent_status)
+      && nrow(parent_status)
+      && all(c(
+        "nest_id", "M_parent_mark", "F_parent_mark"
+      ) %in% names(parent_status))
+  ) {
+    status <- data.table(parent_status)
+    status[, Nest := trimws(as.character(nest_id))]
+    status <- status[
+      !is.na(Nest) & nzchar(Nest),
+      .(
+        Nest,
+        M_status_mark = as.character(M_parent_mark),
+        F_status_mark = as.character(F_parent_mark)
+      )
+    ]
+    status <- status[!duplicated(Nest)]
+    if (nrow(status)) {
+      summary <- merge(summary, status, by = "Nest", all.x = TRUE, sort = FALSE)
+      has_status <- !is.na(summary$M_status_mark) |
+        !is.na(summary$F_status_mark)
+      summary[has_status, `:=`(
+        Male = fifelse(
+          is.na(M_status_mark) | !nzchar(trimws(M_status_mark)),
+          "",
+          M_status_mark
+        ),
+        Female = fifelse(
+          is.na(F_status_mark) | !nzchar(trimws(F_status_mark)),
+          "",
+          F_status_mark
+        )
+      )]
+      summary[, c("M_status_mark", "F_status_mark") := NULL]
     }
   }
 
@@ -776,7 +824,8 @@ todo_pdf_prepare <- function(
   nests_latest = NULL,
   chick_captures = NULL,
   unseen_tagged_birds = NULL,
-  hatch_prediction = NULL
+  hatch_prediction = NULL,
+  parent_status = NULL
 ) {
   if (is.null(todo)) {
     todo <- todo_pdf_query_tasks()
@@ -1137,7 +1186,8 @@ todo_pdf_prepare <- function(
       todo_dt,
       chick_captures,
       unseen_tagged_birds,
-      hatch_prediction
+      hatch_prediction,
+      parent_status
     )
   )
 }
@@ -1890,13 +1940,23 @@ todo_pdf_save <- function(
       "SELECT * FROM EGGS_HATCH_PREDICTION"
     )
   }
+  parent_status <- DBq(
+    "
+    SELECT nest_id, M_parent_mark, F_parent_mark
+    FROM TODO_PARENT_STATUS
+    "
+  )
+  if ("error" %in% names(parent_status)) {
+    parent_status <- NULL
+  }
   pdf <- todo_pdf_prepare(
     todo,
     available_combos,
     broods_latest,
     chick_captures,
     unseen_tagged_birds,
-    hatch_prediction
+    hatch_prediction,
+    parent_status
   )
 
   todo_pdf_map_save(

@@ -2461,7 +2461,7 @@ WITH sr AS (
     AND value IS NOT NULL
 ), normalized AS (
   SELECT
-    c.pk AS capture_pk,
+    CAST(c.pk AS CHAR(64)) AS capture_pk,
     c.nest_id,
     LEFT(c.field_sex, 1) AS capture_sex,
     c.date AS capture_date,
@@ -2470,7 +2470,7 @@ WITH sr AS (
     UPPER(TRIM(COALESCE(c.capture_method, ''))) AS capture_method,
     UPPER(TRIM(COALESCE(c.capture_status, ''))) AS capture_status,
     UPPER(TRIM(COALESCE(c.caught_with, ''))) AS caught_with,
-    NULLIF(UPPER(TRIM(c.ring)), '') AS metal_ring,
+    NULLIF(REPLACE(UPPER(TRIM(c.ring)), '-', ''), '') AS metal_ring,
     UPPER(TRIM(COALESCE(NULLIF(TRIM(c.UL), ''), NULLIF(TRIM(c.UL_in), '')))) AS UL_raw,
     UPPER(TRIM(COALESCE(NULLIF(TRIM(c.LL), ''), NULLIF(TRIM(c.LL_in), '')))) AS LL_raw,
     UPPER(TRIM(COALESCE(NULLIF(TRIM(c.UR), ''), NULLIF(TRIM(c.UR_in), '')))) AS UR_raw,
@@ -2487,23 +2487,58 @@ WITH sr AS (
     AND c.age = 'A'
     AND LEFT(c.field_sex, 1) IN ('M', 'F')
     AND c.date <= sr.reference_date
+), historical_normalized AS (
+  /*
+    A current-season resighting can identify a bird captured in a previous
+    season even when there is no current-season CAPTURES row before the
+    resighting. CAPTURES_ARCHIVE is an identity source only: its rows do not
+    become nest-specific parent events, but they can establish a ring/mark/sex
+    and GEO match for ADULT_IDENTITY_MATCHES.
+  */
+  SELECT
+    CONCAT('archive:', COALESCE(c.ring, ''), ':', c.date) AS capture_pk,
+    CAST(NULL AS CHAR(6)) AS nest_id,
+    COALESCE(NULLIF(LEFT(c.gen_sex, 1), ''), LEFT(c.field_sex, 1)) AS capture_sex,
+    c.date AS capture_date,
+    CAST(CONCAT(c.date, ' 00:00:00') AS DATETIME) AS capture_datetime,
+    CAST(NULL AS CHAR(8)) AS capture_method,
+    UPPER(TRIM(COALESCE(c.capture_status, ''))) AS capture_status,
+    CAST(NULL AS CHAR(20)) AS caught_with,
+    NULLIF(REPLACE(UPPER(TRIM(c.ring)), '-', ''), '') AS metal_ring,
+    UPPER(TRIM(COALESCE(c.UL, ''))) AS UL_raw,
+    UPPER(TRIM(COALESCE(c.LL, ''))) AS LL_raw,
+    UPPER(TRIM(COALESCE(c.UR, ''))) AS UR_raw,
+    UPPER(TRIM(COALESCE(c.LR, ''))) AS LR_raw,
+    UPPER(TRIM(COALESCE(c.tag_type, ''))) AS tag_type,
+    CAST(NULL AS CHAR(8)) AS tag_action,
+    NULLIF(UPPER(TRIM(c.tag_id)), '') AS tag_id
+  FROM FIELD_2026_BADOatNZ.CAPTURES_ARCHIVE c
+  CROSS JOIN sr
+  WHERE UPPER(TRIM(COALESCE(c.site_code, ''))) = 'CR'
+    AND UPPER(TRIM(COALESCE(c.age, ''))) = 'A'
+    AND COALESCE(NULLIF(LEFT(c.gen_sex, 1), ''), LEFT(c.field_sex, 1)) IN ('M', 'F')
+    AND c.date <= sr.reference_date
+), normalized_all AS (
+  SELECT * FROM normalized
+  UNION ALL
+  SELECT * FROM historical_normalized
 ), derived AS (
   SELECT
-    normalized.*,
-    CASE WHEN normalized.UL_raw IN ('X', 'XX', 'M') OR normalized.UL_raw IS NULL
-      THEN 'X' ELSE normalized.UL_raw END AS UL_norm,
-    CASE WHEN normalized.LL_raw IN ('X', 'XX', 'M') OR normalized.LL_raw IS NULL
-      THEN 'X' ELSE normalized.LL_raw END AS LL_norm,
-    CASE WHEN normalized.UR_raw IN ('X', 'XX', 'M') OR normalized.UR_raw IS NULL
-      THEN 'X' ELSE normalized.UR_raw END AS UR_norm,
-    CASE WHEN normalized.LR_raw IN ('X', 'XX', 'M') OR normalized.LR_raw IS NULL
-      THEN 'X' ELSE normalized.LR_raw END AS LR_norm,
+    normalized_all.*,
+    CASE WHEN normalized_all.UL_raw IN ('X', 'XX', 'M') OR normalized_all.UL_raw IS NULL
+      THEN 'X' ELSE normalized_all.UL_raw END AS UL_norm,
+    CASE WHEN normalized_all.LL_raw IN ('X', 'XX', 'M') OR normalized_all.LL_raw IS NULL
+      THEN 'X' ELSE normalized_all.LL_raw END AS LL_norm,
+    CASE WHEN normalized_all.UR_raw IN ('X', 'XX', 'M') OR normalized_all.UR_raw IS NULL
+      THEN 'X' ELSE normalized_all.UR_raw END AS UR_norm,
+    CASE WHEN normalized_all.LR_raw IN ('X', 'XX', 'M') OR normalized_all.LR_raw IS NULL
+      THEN 'X' ELSE normalized_all.LR_raw END AS LR_norm,
     CASE
-      WHEN normalized.UL_raw REGEXP '^F[A-Z0-9]+$' THEN normalized.UL_raw
-      WHEN normalized.UR_raw REGEXP '^F[A-Z0-9]+$' THEN normalized.UR_raw
+      WHEN normalized_all.UL_raw REGEXP '^F[A-Z0-9]+$' THEN normalized_all.UL_raw
+      WHEN normalized_all.UR_raw REGEXP '^F[A-Z0-9]+$' THEN normalized_all.UR_raw
       ELSE NULL
     END AS flag_code
-  FROM normalized
+  FROM normalized_all
 ), keyed AS (
   SELECT
     derived.*,
@@ -2598,7 +2633,7 @@ WITH sr AS (
     CASE
       WHEN UPPER(TRIM(COALESCE(r.ring, ''))) IN ('', 'X', 'XX', 'NA', 'N/A')
       THEN NULL
-      ELSE UPPER(TRIM(r.ring))
+      ELSE REPLACE(UPPER(TRIM(r.ring)), '-', '')
     END AS metal_ring,
     UPPER(TRIM(r.UL)) AS UL_raw,
     UPPER(TRIM(r.LL)) AS LL_raw,
@@ -3331,8 +3366,23 @@ WITH sr AS (
 )
 SELECT
   pivoted.*,
-  CASE WHEN pivoted.M_selected_mark IS NULL THEN 1 ELSE 0 END AS M_unknown_status,
-  CASE WHEN pivoted.F_selected_mark IS NULL THEN 1 ELSE 0 END AS F_unknown_status,
+  /*
+    A pending association is not the same thing as an unknown band status.
+    Pending marked identities such as WY-WG (MM, 1) are already known birds;
+    only a sex with no selected or pending identity is status-unknown. This
+    keeps known-banded parents on the resighting pathway rather than creating
+    an unnecessary band/capture target.
+  */
+  CASE
+    WHEN NULLIF(TRIM(COALESCE(pivoted.M_selected_mark, '')), '') IS NULL
+     AND NULLIF(TRIM(COALESCE(pivoted.M_association_marks, '')), '') IS NULL
+    THEN 1 ELSE 0
+  END AS M_unknown_status,
+  CASE
+    WHEN NULLIF(TRIM(COALESCE(pivoted.F_selected_mark, '')), '') IS NULL
+     AND NULLIF(TRIM(COALESCE(pivoted.F_association_marks, '')), '') IS NULL
+    THEN 1 ELSE 0
+  END AS F_unknown_status,
   CASE WHEN pivoted.M_association_pending = 0
          AND UPPER(TRIM(COALESCE(pivoted.M_selected_mark, ''))) = 'X-X'
        THEN 1 ELSE 0 END AS M_confirmed_unbanded,
@@ -6862,6 +6912,17 @@ todo_clutch_check AS (
           active_nests.reference_date,
           latest_nest_event.event_date
         ) >= 2
+    -- A lower later clutch count is egg loss/predation evidence, not evidence
+    -- that another egg is still expected. Do not reopen the additional-egg
+    -- task after a previously recorded larger clutch.
+    AND NOT EXISTS (
+      SELECT 1
+      FROM FIELD_2026_BADOatNZ.TODO_NEST_HISTORY prior_nest_event
+      WHERE prior_nest_event.nest_id = active_nests.nest_id
+        AND prior_nest_event.date <= latest_nest_event.event_date
+        AND prior_nest_event.clutch_size IS NOT NULL
+        AND prior_nest_event.clutch_size > latest_nest_event.clutch_size
+    )
     -- Once a one-egg clutch has remained unchanged for two full laying
     -- intervals, treat it as complete rather than requesting indefinite
     -- additional-egg checks. A later clutch increase removes this prediction
@@ -6949,6 +7010,16 @@ todo_nest_check AS (
             <= 6
         AND active_nests.days_ago >= 2
       )
+    )
+    -- Once age-C evidence has established a brood, the nest-check task is
+    -- redundant even if the nest visit still carries a partial hatch sign.
+    AND NOT EXISTS (
+      SELECT 1
+      FROM FIELD_2026_BADOatNZ.BROODS_LATEST brood_evidence
+      WHERE brood_evidence.nest_id = active_nests.nest_id
+        AND brood_evidence.reference_date = active_nests.reference_date
+        AND brood_evidence.is_negative_brood = 0
+        AND brood_evidence.has_hatch_evidence = 1
     )
 ),
 todo_untrapped_brood AS (
@@ -7238,7 +7309,31 @@ WHERE NOT EXISTS (
 DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.TODO_LIST;
 DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.TODO_PARENT_TASKS;
 DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.TODO_NONPARENT_TASKS;
+DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.TODO_PARENT_STATUS;
+DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT;
 DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT;
+
+/*
+  Parent status is also consumed by the PDF summary for nests that have no
+  task row today. Materialize it beside the task snapshot so that this
+  diagnostic/display lookup cannot re-expand the full adult evidence graph.
+*/
+CREATE TABLE FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT AS
+SELECT *
+FROM FIELD_2026_BADOatNZ.ADULT_PARENT_STATUS
+WHERE 1 = 0;
+
+ALTER TABLE FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT
+  ADD INDEX idx_todo_parent_status_nest (nest_id),
+  ADD INDEX idx_todo_parent_status_reference (reference_date);
+
+INSERT INTO FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT
+SELECT *
+FROM FIELD_2026_BADOatNZ.ADULT_PARENT_STATUS;
+
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_PARENT_STATUS AS
+SELECT *
+FROM FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT;
 
 CREATE TABLE FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT AS
 SELECT *
