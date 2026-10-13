@@ -340,19 +340,18 @@ reference date or used set changes.
 
 The output then applies a temporary compatibility gate to original CR candidates:
 
-1. `LL` in `BY`, `WY`, `YY`, or `YO` remains labelled `CR` regardless of lime or
-   rank.
+1. `LL` in `BY`, `WY`, `YY`, `YO`, or `OY` remains labelled `CR` regardless of
+   lime or rank.
 2. Other CR candidates containing `L` anywhere are relabelled `CX`.
 3. Other CR candidates with `combo_rank > 30` are relabelled `CX`.
 4. Remaining candidates keep their original site code.
 
 `CX` is a compatibility bucket, not a biological candidate site in `site_rules`.
-The rule means all `LY` candidates become `CX`, `YR` is already excluded, and an
-`OY` candidate remains `CR` only if it has no `L` and is within the first 30 ranked
-CR candidates.
+The rule means all `LY` candidates become `CX`, `YR` is already excluded, and all
+otherwise-eligible `OY` candidates remain `CR`.
 
 The gate does not guarantee that the view returns at most 30 rows labelled `CR`:
-the four preferred `LL` groups are retained as CR even when their ranks exceed 30.
+the five preferred `LL` groups are retained as CR even when their ranks exceed 30.
 The PDF applies the actual hard limit of 30.
 
 The view's final `ORDER BY` uses original site and `combo_rank`. Consumers should

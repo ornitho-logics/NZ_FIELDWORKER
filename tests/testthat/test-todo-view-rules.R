@@ -3,15 +3,13 @@ todo_list_view_sql <- function() {
     readLines(app_file("DATABASE", "views.SQL"), warn = FALSE),
     collapse = "\n"
   )
-  start_marker <- paste(
-    "CREATE OR REPLACE VIEW",
-    "FIELD_2026_BADOatNZ.TODO_LIST AS"
-  )
+  start_marker <-
+    "CREATE OR REPLACE( ALGORITHM = [A-Z]+)? VIEW FIELD_2026_BADOatNZ.TODO_LIST AS"
   end_marker <- paste(
     "CREATE OR REPLACE VIEW",
     "FIELD_2026_BADOatNZ.VIEW_1 AS"
   )
-  start <- regexpr(start_marker, sql, fixed = TRUE)[[1]]
+  start <- regexpr(start_marker, sql, perl = TRUE)[[1]]
   expect_gt(start, 0L)
 
   remainder <- substring(sql, start)
@@ -61,9 +59,53 @@ test_that("AVAILABLE_COMBOS fails closed without a reference date", {
 })
 
 
+test_that("AVAILABLE_COMBOS keeps all eligible OY marks in CR", {
+  sql <- available_combos_view_sql()
+
+  expect_match(
+    sql,
+    "LL IN ('BY', 'WY', 'YY', 'YO', 'OY') THEN 'CR'",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "ON candidate.LL = used.LL\n   AND candidate.LR = used.LR",
+    fixed = TRUE
+  )
+  expect_match(sql, "WHERE used.LL IS NULL", fixed = TRUE)
+  expect_lt(
+    regexpr("WHERE used.LL IS NULL", sql, fixed = TRUE)[[1]],
+    regexpr(
+      "LL IN ('BY', 'WY', 'YY', 'YO', 'OY') THEN 'CR'",
+      sql,
+      fixed = TRUE
+    )[[1]]
+  )
+
+  classify_cr_candidate <- function(LL, LR, combo_rank) {
+    if (LL %in% c("BY", "WY", "YY", "YO", "OY")) {
+      return("CR")
+    }
+    if (grepl("L", paste0(LL, LR)) || combo_rank > 30L) {
+      return("CX")
+    }
+    "CR"
+  }
+
+  expect_identical(classify_cr_candidate("OY", "BL", 40L), "CR")
+  expect_identical(classify_cr_candidate("OY", "BR", 80L), "CR")
+  expect_identical(classify_cr_candidate("LY", "BB", 20L), "CX")
+})
+
+
 test_that("TODO_LIST contains the bounded operational rules", {
   sql <- todo_list_view_sql()
 
+  expect_match(
+    sql,
+    "CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_LIST AS",
+    fixed = TRUE
+  )
   expect_match(
     sql,
     "IN ('F', 'I', 'H', 'PP', 'PD', 'NOTA')",
@@ -108,7 +150,7 @@ test_that("hatched terminal notA nests remain eligible for parent work", {
   )
   expect_match(
     sql,
-    "JOIN hatched_nests\n                ON n.nest_id = hatched_nests.nest_id",
+    "JOIN hatched_nests",
     fixed = TRUE
   )
   expect_match(
@@ -218,6 +260,67 @@ test_that("initial processing uses all qualifying processing history", {
     fixed = TRUE
   )
   expect_false(grepl("complete_clutch_processing_status", sql, fixed = TRUE))
+})
+
+
+test_that("parent-status view projections remain deployable", {
+  sql <- views_source_sql()
+
+  nests_start <- regexpr(
+    "CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.NESTS_LATEST AS",
+    sql,
+    fixed = TRUE
+  )[[1]]
+  expect_gt(nests_start, 0L)
+  nests_sql <- substring(sql, nests_start)
+  nests_end <- regexpr(
+    "CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.RESIGHTINGS_H_BROOD_ASSOCIATIONS AS",
+    nests_sql,
+    fixed = TRUE
+  )[[1]]
+  expect_gt(nests_end, 0L)
+  nests_sql <- substring(nests_sql, 1L, nests_end - 1L)
+  expect_match(nests_sql, "  n.reference_date,", fixed = TRUE)
+  expect_match(nests_sql, "  n.site,", fixed = TRUE)
+
+  parent_start <- regexpr(
+    "CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.ADULT_PARENT_STATUS AS",
+    sql,
+    fixed = TRUE
+  )[[1]]
+  expect_gt(parent_start, 0L)
+  parent_sql <- substring(sql, parent_start)
+  parent_end <- regexpr(
+    "CREATE OR REPLACE( ALGORITHM = [A-Z]+)? VIEW FIELD_2026_BADOatNZ.TODO_LIST AS",
+    parent_sql,
+    perl = TRUE
+  )[[1]]
+  expect_gt(parent_end, 0L)
+  parent_sql <- substring(parent_sql, 1L, parent_end - 1L)
+  expect_equal(
+    sum(grepl(
+      "AS M_pending_resighting_count",
+      strsplit(parent_sql, "\\n", fixed = TRUE)[[1]],
+      fixed = TRUE
+    )),
+    1L
+  )
+  expect_equal(
+    sum(grepl(
+      "AS F_pending_resighting_count",
+      strsplit(parent_sql, "\\n", fixed = TRUE)[[1]],
+      fixed = TRUE
+    )),
+    1L
+  )
+
+  todo_sql <- todo_list_view_sql()
+  expect_match(todo_sql, "END AS both_parents_need_geo_derived", fixed = TRUE)
+  expect_match(
+    todo_sql,
+    "adult_parent_status.both_parents_need_geo_derived AS both_parents_need_geo",
+    fixed = TRUE
+  )
 })
 
 
@@ -332,104 +435,36 @@ test_that("stable one-egg clutches close additional-egg checks conservatively", 
 })
 
 
-test_that("MM parent follow-up accepts qualifying behaviour or three matching resightings", {
+test_that("legacy MM follow-up is not part of parent task assembly", {
   sql <- todo_list_view_sql()
 
-  expect_match(
+  expect_no_match(
     sql,
     "n_matching_post_mm_resightings",
     fixed = TRUE
   )
-  expect_match(
+  expect_no_match(
     sql,
     "COALESCE(followup.n_matching_post_mm_resightings, 0) < 3",
     fixed = TRUE
   )
-  expect_match(
+  expect_no_match(
     sql,
     "association.association_date >= mm.mm_capture_date",
     fixed = TRUE
   )
-  expect_match(
-    sql,
-    "'(^|[^A-Z])(IN|NM|SC|BW|BC|FC)([^A-Z]|$)'",
-    fixed = TRUE
-  )
-  expect_match(sql, "post_mm_xx_seen", fixed = TRUE)
-
-  matching_followup_resolved <- function(
-    resightings,
-    reference_date,
-    capture_date = "2026-09-01"
-  ) {
-    post_mm <- resightings[
-      resightings$date >= as.Date(capture_date) &
-        resightings$date <= as.Date(reference_date),
-    ]
-    matching <- toupper(trimws(post_mm$mark)) == "BY-YY"
-    has_nest_behaviour <- grepl(
-      "(^|[^A-Z])(IN|NM|SC|BW|BC|FC)([^A-Z]|$)",
-      toupper(trimws(post_mm$behav)),
-      perl = TRUE
-    )
-    sum(matching) >= 1 && (
-      any(matching & has_nest_behaviour) || sum(matching) >= 3
-    )
-  }
-
-  mock_resightings <- data.frame(
-    date = as.Date(c(
-      "2026-09-02", "2026-09-03", "2026-09-04", "2026-09-05"
-    )),
-    mark = c("X-X", "BY-YY", "BY-YY", "BY-YY"),
-    behav = c("AT", "AT", "AT", "AT"),
-    stringsAsFactors = FALSE
-  )
-
-  expect_false(matching_followup_resolved(mock_resightings, "2026-09-04"))
-  expect_true(matching_followup_resolved(mock_resightings, "2026-09-05"))
-
-  same_day_behaviour <- data.frame(
-    date = as.Date("2026-09-01"),
-    mark = "BY-YY",
-    behav = "AT, BW",
-    stringsAsFactors = FALSE
-  )
-  expect_true(
-    matching_followup_resolved(same_day_behaviour, "2026-09-01")
-  )
-
-  for (behaviour in c("SC", "BC", "FC")) {
-    qualifying_behaviour <- data.frame(
-      date = as.Date("2026-09-02"),
-      mark = "BY-YY",
-      behav = behaviour,
-      stringsAsFactors = FALSE
-    )
-    expect_true(
-      matching_followup_resolved(qualifying_behaviour, "2026-09-02")
-    )
-  }
-
-  one_matching_resighting <- data.frame(
-    date = as.Date(c("2026-09-02", "2026-09-03")),
-    mark = c("BY-YY", "YO-OR"),
-    behav = c("AT", "BW"),
-    stringsAsFactors = FALSE
-  )
-  expect_false(
-    matching_followup_resolved(one_matching_resighting, "2026-09-05")
-  )
+  expect_no_match(sql, "post_mm_xx_seen", fixed = TRUE)
 })
 
 
-test_that("MM identity matching can use LL and LR without UL or UR", {
-  sql <- todo_list_view_sql()
+test_that("four-gate identity matching owns short LL/LR and spacer aliases", {
+  sql <- views_source_sql()
 
-  expect_match(sql, "adult_mm_post_resighting_matched", fixed = TRUE)
-  expect_match(sql, "mm.LL_norm IS NOT NULL", fixed = TRUE)
-  expect_match(sql, "association.LL_obs = mm.LL_norm", fixed = TRUE)
-  expect_match(sql, "association.LR_obs = mm.LR_norm", fixed = TRUE)
+  expect_no_match(sql, "adult_mm_post_resighting_matched", fixed = TRUE)
+  expect_no_match(sql, "mm.LL_norm IS NOT NULL", fixed = TRUE)
+  expect_no_match(sql, "association.LL_obs = mm.LL_norm", fixed = TRUE)
+  expect_no_match(sql, "association.LR_obs = mm.LR_norm", fixed = TRUE)
+  expect_match(sql, "c.is_confirmed_xx = 0", fixed = TRUE)
   expect_match(sql, "requires_spacer_identity", fixed = TRUE)
   expect_match(sql, "'CP19738'", fixed = TRUE)
   expect_match(sql, "'CP19739'", fixed = TRUE)
@@ -617,12 +652,12 @@ test_that("hatch-stage parent work bypasses the clutch-age gate", {
   )
   expect_match(
     sql,
-    "OR active_nests.hatch_signs_present = 1",
+    "active_nests.hatch_signs_present = 1",
     fixed = TRUE
   )
   expect_match(
     sql,
-    "ELSE COALESCE(capture_age.capture_allowed_after_completion, 0)",
+    "ELSE COALESCE(adult_capture_age_status.capture_allowed_after_completion, 0)",
     fixed = TRUE
   )
 
@@ -663,178 +698,53 @@ test_that("partial H visits remain in potential-hatch checks", {
 })
 
 
-test_that("pending MM parents stay in resighting rather than capture work", {
-  sql <- todo_list_view_sql()
+test_that("the four-gate parent pipeline treats MM as non-definitive evidence", {
+  sql <- views_source_sql()
 
   expect_match(
     sql,
-    "WHEN COALESCE(adult_mm_followup_status.M_mm_resight_pending, 0) = 1\n      THEN 0",
+    "CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.ADULT_PARENT_NEST_ASSOCIATIONS AS",
     fixed = TRUE
   )
   expect_match(
     sql,
-    "(mm.sex = 'M' AND COALESCE(adult_parent_status.M_mm_resight_pending, 0) = 1)",
+    "CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.ADULT_PARENT_STATUS AS",
     fixed = TRUE
   )
-  expect_match(
-    sql,
-    "(mm.sex = 'F' AND COALESCE(adult_parent_status.F_mm_resight_pending, 0) = 1)",
-    fixed = TRUE
-  )
-  expect_no_match(sql, "AND followup.nest_id IS NULL", fixed = TRUE)
-  expect_no_match(sql, "'resight/band M (MM cap)'", fixed = TRUE)
-  expect_match(sql, "'MM cap '", fixed = TRUE)
-  expect_match(sql, "M_mm_resight_count", fixed = TRUE)
-  expect_match(
-    sql,
-    "adult_mm_followup_status.M_mm_resight_count, 0) AS M_mm_resight_count",
-    fixed = TRUE
-  )
-  expect_match(
-    sql,
-    "adult_mm_followup_status.F_mm_resight_count, 0) AS F_mm_resight_count",
-    fixed = TRUE
-  )
-  expect_match(
-    sql,
-    "matched.has_nest_behav,\n    matched.mm_capture_mark",
-    fixed = TRUE
-  )
-  expect_match(sql, "has_xx_nest_behav", fixed = TRUE)
-  expect_match(sql, "matched.has_nest_behav = 1", fixed = TRUE)
-  expect_no_match(
-    sql,
-    "association.is_confirmed_xx = 1\n         AND association.has_matching_nest_behav = 1",
-    fixed = TRUE
-  )
-  expect_match(sql, "xx_nest_behav_date", fixed = TRUE)
-  expect_match(sql, "matching_post_mm_resight_date", fixed = TRUE)
-  expect_match(
-    sql,
-    "later_capture.capture_date >= followup.xx_nest_behav_date",
-    fixed = TRUE
-  )
-  expect_match(
-    sql,
-    "A qualifying X-X nest-behaviour resighting after the MM capture\n         -- rules out the MM bird as the associated parent.",
-    fixed = TRUE
-  )
-  expect_match(sql, "M_mm_xx_parent_confirmed", fixed = TRUE)
-  expect_match(
-    sql,
-    "WHEN COALESCE(\n             adult_mm_followup_status.M_mm_xx_parent_confirmed,\n             0\n           ) = 1\n      THEN 'X-X'",
-    fixed = TRUE
-  )
+  expect_match(sql, "WHEN identity_summary.has_definitive_capture = 1 THEN 3", fixed = TRUE)
+  expect_match(sql, "WHEN identity_summary.has_confirming_resighting = 1 THEN 2", fixed = TRUE)
+  expect_match(sql, "WHEN identity_summary.n_nonconfirming_resightings >= 3 THEN 1", fixed = TRUE)
+  expect_match(sql, "capture_method IN ('TB', 'TN', 'HA')", fixed = TRUE)
+  expect_match(sql, "caught_with REGEXP", fixed = TRUE)
+  expect_match(sql, "IN|NM|SC|BW|BC|FC", fixed = TRUE)
 
-  alternate_xx_parent <- function(
-    is_xx,
-    has_nest_behaviour,
-    later_non_xx_capture = FALSE
-  ) {
-    isTRUE(is_xx) &&
-      isTRUE(has_nest_behaviour) &&
-      !isTRUE(later_non_xx_capture)
+  gate <- function(definitive_capture = FALSE,
+                   confirming_resight = FALSE,
+                   n_nonconfirming = 0L) {
+    if (definitive_capture) return(3L)
+    if (confirming_resight) return(2L)
+    if (n_nonconfirming >= 3L) return(1L)
+    0L
   }
 
-  # A different X-X bird with IN is a confirmed alternate parent after MM.
-  expect_true(alternate_xx_parent(TRUE, TRUE))
-  expect_false(alternate_xx_parent(TRUE, FALSE))
-  expect_false(alternate_xx_parent(TRUE, TRUE, TRUE))
-
-  mm_followup_pending <- function(n_matching, has_nest_behaviour) {
-    n_matching == 0L ||
-      (!isTRUE(has_nest_behaviour) && n_matching < 3L)
-  }
-
-  capture_candidate <- function(mm_pending, unknown_status) {
-    isTRUE(unknown_status) && !isTRUE(mm_pending)
-  }
-
-  xx_parent_confirmed <- function(is_xx, has_nest_behaviour) {
-    isTRUE(is_xx) && isTRUE(has_nest_behaviour)
-  }
-
-  xx_parent_remains_confirmed <- function(
-    xx_behaviour_date,
-    later_banded_capture_date = NA
-  ) {
-    capture_is_before_xx <- is.na(later_banded_capture_date) ||
-      as.Date(later_banded_capture_date) < as.Date(xx_behaviour_date)
-    capture_is_before_xx
-  }
-
-  displayed_mm_parent_mark <- function(
-    capture_mark,
-    xx_behaviour_date,
-    later_banded_capture_date = NA
-  ) {
-    if (xx_parent_remains_confirmed(
-      xx_behaviour_date,
-      later_banded_capture_date
-    )) {
-      return("X-X")
-    }
-    capture_mark
-  }
-
-  expect_true(mm_followup_pending(1L, FALSE))
-  expect_false(mm_followup_pending(1L, TRUE))
-  expect_false(mm_followup_pending(3L, FALSE))
-  expect_false(capture_candidate(TRUE, TRUE))
-  expect_true(capture_candidate(FALSE, TRUE))
-  expect_true(xx_parent_confirmed(TRUE, TRUE))
-  expect_false(xx_parent_confirmed(TRUE, FALSE))
-  expect_true(xx_parent_remains_confirmed("2026-09-01"))
-  expect_false(
-    xx_parent_remains_confirmed("2026-09-01", "2026-09-01")
-  )
-  expect_false(
-    xx_parent_remains_confirmed("2026-09-01", "2026-09-02")
-  )
-
-  # C0615-like chronology: the later BY-TY.YW resighting is the previously
-  # ruled-out MM identity and must not cancel the X-X parent confirmation.
-  expect_true(xx_parent_remains_confirmed("2026-09-25"))
-  expect_identical(
-    displayed_mm_parent_mark(
-      "BY-TY.YW",
-      "2026-09-25"
-    ),
-    "X-X"
-  )
-
-  # If that X-X bird is later banded as a new MM identity, the later capture
-  # cancels the X-X override; the new mark can then resolve via its own
-  # matching nest-behaviour resighting.
-  expect_false(
-    xx_parent_remains_confirmed(
-      "2026-09-25",
-      later_banded_capture_date = "2026-09-26"
-    )
-  )
-
-  new_mm_followup_resolves <- function(capture_mark, resighting_mark, behav) {
-    identical(capture_mark, resighting_mark) &&
-      grepl("(^|[^A-Z])(IN|NM|SC|BW|BC|FC)([^A-Z]|$)", behav)
-  }
-  expect_true(
-    new_mm_followup_resolves("BY-TY.YR", "BY-TY.YR", "AT, IN")
-  )
-  expect_false(
-    new_mm_followup_resolves("BY-TY.YR", "BY-TY.YW", "AT, IN")
-  )
+  # An MM capture alone is not a definitive association and does not count as
+  # one of the three non-confirming resightings.
+  expect_identical(gate(), 0L)
+  expect_identical(gate(n_nonconfirming = 2L), 0L)
+  expect_identical(gate(n_nonconfirming = 3L), 1L)
+  expect_identical(gate(confirming_resight = TRUE), 2L)
+  expect_identical(gate(definitive_capture = TRUE, confirming_resight = TRUE), 3L)
 })
 
 
-test_that("pair completion can proceed while opposite MM follow-up remains separate", {
+test_that("pair completion uses the four-gate status without phenology gating", {
   sql <- todo_list_view_sql()
+  source_sql <- views_source_sql()
 
-  expect_match(sql, "THEN '; status ?'", fixed = TRUE)
-  expect_match(
-    sql,
-    "WHEN COALESCE(adult_mm_followup_status.F_mm_xx_parent_confirmed, 0) = 1\n      THEN 0\n      WHEN COALESCE(adult_mm_followup_status.F_mm_resight_pending, 0) = 1",
-    fixed = TRUE
-  )
+  expect_match(sql, "FROM geo_parent_targets targets", fixed = TRUE)
+  expect_match(sql, "FIELD_2026_BADOatNZ.ADULT_PARENT_STATUS", fixed = TRUE)
+  expect_match(sql, "is_pair_completion", fixed = TRUE)
+  expect_match(sql, "geo_instruction", fixed = TRUE)
 
   resolved_parent_geo <- function(identity_has_geo, xx_parent_confirmed, pending) {
     if (isTRUE(xx_parent_confirmed) || isTRUE(pending)) 0 else identity_has_geo
@@ -843,15 +753,51 @@ test_that("pair completion can proceed while opposite MM follow-up remains separ
   expect_identical(resolved_parent_geo(1, FALSE, TRUE), 0)
   expect_identical(resolved_parent_geo(1, FALSE, FALSE), 1)
 
+  expect_match(sql, "parent_status.F_has_geo", fixed = TRUE)
+  expect_match(sql, "parent_status.M_has_geo", fixed = TRUE)
+
   expect_match(
-    sql,
-    "COALESCE(base.F_captured_has_geo, 0) = 1",
+    source_sql,
+    "CASE WHEN by_identity.association_selected = 1",
     fixed = TRUE
   )
-  expect_match(
-    sql,
-    "COALESCE(base.M_captured_has_geo, 0) = 1",
-    fixed = TRUE
+  expect_match(source_sql, "AS selected_has_geo", fixed = TRUE)
+  expect_match(source_sql, "status_by_sex.selected_has_geo", fixed = TRUE)
+  expect_no_match(source_sql, "status_by_sex.any_has_geo", fixed = TRUE)
+
+  selected_geo <- function(identities) {
+    selected <- identities[identities$association_selected == 1, , drop = FALSE]
+    if (nrow(selected) != 1L) return(0L)
+    as.integer(selected$has_geo[[1L]] == 1L)
+  }
+
+  # A selected unbanded parent must not inherit GEO from a provisional
+  # same-sex identity at the same nest (the C0615 failure mode).
+  expect_identical(
+    selected_geo(data.frame(
+      association_selected = c(1L, 0L),
+      has_geo = c(0L, 1L)
+    )),
+    0L
+  )
+
+  # A selected tagged parent remains GEO-eligible even if another identity is
+  # untagged or provisional.
+  expect_identical(
+    selected_geo(data.frame(
+      association_selected = c(1L, 0L),
+      has_geo = c(1L, 0L)
+    )),
+    1L
+  )
+
+  # Ambiguous same-sex evidence has no authoritative GEO identity.
+  expect_identical(
+    selected_geo(data.frame(
+      association_selected = c(0L, 0L),
+      has_geo = c(1L, 0L)
+    )),
+    0L
   )
 
   pair_target <- function(
@@ -889,26 +835,9 @@ test_that("pair completion can proceed while opposite MM follow-up remains separ
 test_that("pair completion bypasses the release ceiling but balance does not", {
   sql <- todo_list_view_sql()
 
-  expect_match(
-    sql,
-    "ranked_base.pair_target IS NOT NULL\n           OR ranked_base.geo_rank <= GREATEST(",
-    fixed = TRUE
-  )
-  expect_match(
-    sql,
-    "targets.pair_target IS NOT NULL\n                 OR targets.n_geo_deployed < targets.release_ceiling",
-    fixed = TRUE
-  )
-  expect_match(
-    sql,
-    "WHEN ranked.pair_target IS NOT NULL\n      THEN 1 ELSE 0",
-    fixed = TRUE
-  )
-  expect_no_match(
-    sql,
-    "WHEN ranked.geo_is_actionable = 1\n       AND ranked.pair_target IS NOT NULL\n       AND ranked.geo_rank <= GREATEST(",
-    fixed = TRUE
-  )
+  expect_match(sql, "999999 AS release_ceiling", fixed = TRUE)
+  expect_match(sql, "CASE WHEN targets.pair_target IS NOT NULL THEN 1 ELSE 0 END", fixed = TRUE)
+  expect_match(sql, "CASE WHEN targets.pair_target IS NOT NULL THEN 'pair completion' ELSE NULL END", fixed = TRUE)
 
   geo_is_actionable <- function(
     is_candidate,
@@ -941,26 +870,10 @@ test_that("notA follow-up notes use the compact operational wording", {
 test_that("one tagged parent produces pair completion without deployment-date gating", {
   sql <- todo_list_view_sql()
 
-  expect_match(
-    sql,
-    "COALESCE(base.F_has_geo, 0) = 1",
-    fixed = TRUE
-  )
-  expect_match(
-    sql,
-    "COALESCE(base.M_has_geo, 0) = 1",
-    fixed = TRUE
-  )
-  expect_no_match(
-    sql,
-    "base.is_pre25_nest = 1\n                 OR base.F_geo_deployment_date >= base.first_found_date",
-    fixed = TRUE
-  )
-  expect_no_match(
-    sql,
-    "base.is_pre25_nest = 1\n                 OR base.M_geo_deployment_date >= base.first_found_date",
-    fixed = TRUE
-  )
+  expect_match(sql, "parent_status.F_has_geo", fixed = TRUE)
+  expect_match(sql, "parent_status.M_has_geo", fixed = TRUE)
+  expect_no_match(sql, "is_pre25_nest", fixed = TRUE)
+  expect_no_match(sql, "geo_deployment_date >=", fixed = TRUE)
 
   pair_completion_target <- function(
     male_tagged,
@@ -1043,27 +956,9 @@ test_that("one tagged parent produces pair completion without deployment-date ga
 test_that("confirmed X-X alternate parent can complete a tagged pair", {
   sql <- todo_list_view_sql()
 
-  expect_match(
-    sql,
-    "COALESCE(base.M_captured_has_geo, 0) = 1",
-    fixed = TRUE
-  )
-  expect_match(
-    sql,
-    "COALESCE(base.F_captured_has_geo, 0) = 1",
-    fixed = TRUE
-  )
-  expect_no_match(
-    sql,
-    "COALESCE(base.M_captured_has_geo, 0) = 1\n                   AND (",
-    fixed = TRUE
-  )
-  expect_no_match(
-    sql,
-    "COALESCE(base.F_captured_has_geo, 0) = 1\n                   AND (",
-    fixed = TRUE
-  )
-  expect_match(sql, "THEN 'X-X F'", fixed = TRUE)
+  expect_match(sql, "parent_status.M_has_geo", fixed = TRUE)
+  expect_match(sql, "parent_status.F_has_geo", fixed = TRUE)
+  expect_match(sql, "tag X-X F (pair completion)", fixed = TRUE)
   expect_match(sql, "THEN '; CORRECT DUPLICATE'", fixed = TRUE)
   expect_match(
     sql,
@@ -1165,38 +1060,17 @@ test_that("live X-X after a dead MM capture remains GEO eligible", {
   )
   expect_match(
     sql,
-    "COALESCE(parent_status.M_mm_xx_parent_confirmed, 0) = 1",
+    "adult_parent_status.M_confirmed_unbanded = 1",
     fixed = TRUE
   )
   expect_match(
     sql,
-    "COALESCE(parent_status.M_resight_association_pending, 0) = 0",
+    "adult_parent_status.M_resight_association_pending",
     fixed = TRUE
   )
   expect_match(
     sql,
-    "A qualifying live resighting is stronger than an older dead capture",
-    fixed = TRUE
-  )
-  expect_match(sql, "M_identity_event_date", fixed = TRUE)
-  expect_match(sql, "latest_association_date", fixed = TRUE)
-  expect_match(
-    sql,
-    "classified.latest_association_date\n              >= identity_status.M_identity_event_date",
-    fixed = TRUE
-  )
-  expect_match(
-    sql,
-    "classified.latest_association_date\n              >= identity_status.F_identity_event_date",
-    fixed = TRUE
-  )
-  expect_equal(
-    length(gregexpr(">= identity_status.", sql, fixed = TRUE)[[1L]]),
-    4L
-  )
-  expect_match(
-    sql,
-    "AS M_mm_xx_parent_confirmed",
+    "M_confirmed_unbanded",
     fixed = TRUE
   )
 
@@ -1223,24 +1097,14 @@ test_that("live X-X after a dead MM capture remains GEO eligible", {
   expect_false(tag_eligible(TRUE, FALSE, FALSE))
   # Pending MM uncertainty still blocks tag deployment.
   expect_false(tag_eligible(TRUE, TRUE, TRUE, mm_resight_pending = TRUE))
-
-  association_is_current <- function(association_date, identity_date = NA) {
-    is.na(identity_date) || as.Date(association_date) >= as.Date(identity_date)
-  }
-  # Later live evidence may replace an older dead capture.
-  expect_true(association_is_current("2026-09-03", "2026-09-02"))
-  # Same-date evidence is retained because resightings do not carry time.
-  expect_true(association_is_current("2026-09-02", "2026-09-02"))
-  # An older association cannot displace a later capture identity.
-  expect_false(association_is_current("2026-09-01", "2026-09-02"))
 })
 
 
 test_that("pair completion may target one pending known-banded association", {
   sql <- todo_list_view_sql()
 
-  expect_match(sql, "M_pair_tag_eligible", fixed = TRUE)
-  expect_match(sql, "F_pair_tag_eligible", fixed = TRUE)
+  expect_match(sql, "geo_parent_plan.geo_tag_target", fixed = TRUE)
+  expect_match(sql, "geo_parent_plan.geo_band_target", fixed = TRUE)
   expect_match(
     sql,
     "COALESCE(parent_status.M_resight_association_ambiguous, 0) = 0",
@@ -1251,10 +1115,8 @@ test_that("pair completion may target one pending known-banded association", {
     "COALESCE(parent_status.F_resight_association_ambiguous, 0) = 0",
     fixed = TRUE
   )
-  expect_match(sql, "base.M_pair_tag_eligible = 1", fixed = TRUE)
-  expect_match(sql, "base.F_pair_tag_eligible = 1", fixed = TRUE)
   expect_match(sql, "M_resight_association_ambiguous", fixed = TRUE)
-  expect_match(sql, "n_association_identities", fixed = TRUE)
+  expect_match(sql, "F_resight_association_ambiguous", fixed = TRUE)
 
   pair_tag_allowed <- function(
     has_geo,
@@ -1291,8 +1153,8 @@ test_that("captured sex overrides a uniquely matching resighting sex", {
   expect_match(sql, "captured.capture_date <= raw.observation_date", fixed = TRUE)
   expect_match(sql, "captured.LL_norm = raw.LL_norm", fixed = TRUE)
   expect_match(sql, "captured.LR_norm = raw.LR_norm", fixed = TRUE)
-  expect_match(todo_sql, "adult_resighting_observations", fixed = TRUE)
-  expect_match(todo_sql, "adult_resighting_observations AS (", fixed = TRUE)
+  expect_match(sql, "adult_resighting_observations", fixed = TRUE)
+  expect_match(sql, "ADULT_SCRAPE_RESIGHTING_STATUS AS", fixed = TRUE)
   expect_match(
     todo_sql,
     "adult_parent_status.M_parent_mark AS authoritative_M_mark",
@@ -1321,102 +1183,87 @@ test_that("captured sex overrides a uniquely matching resighting sex", {
 })
 
 
+test_that("flags and ambiguous matches cannot collapse into pure X-X", {
+  sql <- views_source_sql()
+
+  expect_match(sql, "CONCAT(keyed.flag_code, '-X')", fixed = TRUE)
+  expect_match(sql, "AND (keyed.UL_raw IS NULL OR keyed.UL_raw REGEXP '^(X+|M)$')", fixed = TRUE)
+  expect_match(sql, "AND (keyed.UR_raw IS NULL OR keyed.UR_raw REGEXP '^(X+|M)$')", fixed = TRUE)
+  expect_match(sql, "WHEN identity_summary.has_ambiguous_match = 1 THEN 0", fixed = TRUE)
+  expect_match(sql, "CASE WHEN counts.n_candidate_identities = 1 THEN 1 ELSE 0 END", fixed = TRUE)
+
+  pure_xx <- function(LL, LR, UL = NULL, UR = NULL) {
+    identical(LL, "X") && identical(LR, "X") &&
+      (is.null(UL) || UL %in% c("X", "XX", "M")) &&
+      (is.null(UR) || UR %in% c("X", "XX", "M"))
+  }
+
+  expect_true(pure_xx("X", "X"))
+  expect_false(pure_xx("X", "X", UR = "FW74"))
+  expect_false(pure_xx("X", "X", UR = "T"))
+})
+
+
 test_that("generic banded-parent association follows the resighting threshold", {
   sql <- todo_list_view_sql()
+  full_sql <- views_source_sql()
 
+  expect_match(full_sql, "ADULT_SCRAPE_RESIGHTING_STATUS AS", fixed = TRUE)
+  expect_match(sql, "ADULT_SCRAPE_RESIGHTING_STATUS", fixed = TRUE)
+  expect_false(grepl("adult_resighting_association_status AS", sql, fixed = TRUE))
   expect_match(
-    sql,
-    "adult_resighting_association_status AS",
-    fixed = TRUE
-  )
-  expect_match(
-    sql,
+    full_sql,
     "M_resight_association_count",
     fixed = TRUE
   )
   expect_match(
-    sql,
+    full_sql,
     "M with ",
     fixed = TRUE
   )
   expect_match(
-    sql,
+    full_sql,
     "resightings",
     fixed = TRUE
   )
   expect_match(
-    sql,
+    full_sql,
     "SUM(candidate.association_eligible) AS n_matching_resightings",
     fixed = TRUE
   )
   expect_match(
-    sql,
+    full_sql,
     "SUM(candidate.association_eligible) >= 3",
     fixed = TRUE
   )
   expect_match(
-    sql,
+    full_sql,
     "identity_resolved",
     fixed = TRUE
   )
   expect_match(
-    sql,
-    "identity_has_nest_behav",
-    fixed = TRUE
-  )
-  expect_match(
-    sql,
-    "n_qualifying_identities",
-    fixed = TRUE
-  )
-  expect_match(
-    sql,
-    "WHEN UPPER(TRIM(candidate.mark)) NOT IN ('XX-XX', 'DEAD')",
-    fixed = TRUE
-  )
-  expect_match(
-    sql,
-    "M_resight_association_selected_mark,\n             ''\n           ))) = 'X-X'",
-    fixed = TRUE
-  )
-  expect_match(
-    sql,
-    "IN|NM|SC|BW|BC|FC",
+    full_sql,
+    "BW|NM|IN|BC|FC",
     fixed = TRUE
   )
   expect_equal(
-    length(gregexpr("IN|NM|SC|BW|BC|FC", sql, fixed = TRUE)[[1L]]),
+    length(gregexpr("BW|NM|IN|BC|FC", full_sql, fixed = TRUE)[[1L]]),
     1L
   )
-  expect_no_match(sql, "has_association_behaviour", fixed = TRUE)
-  expect_no_match(sql, "n_distinct_identities", fixed = TRUE)
+  expect_no_match(full_sql, "has_association_behaviour", fixed = TRUE)
+  expect_no_match(full_sql, "n_distinct_identities", fixed = TRUE)
   expect_match(
-    sql,
+    full_sql,
     "captured.capture_method, ''))) = 'TN'",
     fixed = TRUE
   )
 
   association_pending <- function(identity_behaviours) {
-    has_qualifying_behaviour <- vapply(identity_behaviours, function(behav) {
-      any(grepl(
-        "(^|[^A-Z])(IN|NM|SC|BW|BC|FC)([^A-Z]|$)",
-        behav
-      ))
-    }, logical(1))
     resolved <- vapply(identity_behaviours, function(behav) {
-      any(grepl(
-        "(^|[^A-Z])(IN|NM|SC|BW|BC|FC)([^A-Z]|$)",
-        behav
-      )) || length(behav) >= 3
+      any(grepl("(^|[^A-Z])(IN|NM|BW|BC|FC)([^A-Z]|$)", behav)) ||
+        length(behav) >= 3
     }, logical(1))
-    n_qualifying <- sum(has_qualifying_behaviour)
-    if (n_qualifying == 1) {
-      FALSE
-    } else if (n_qualifying == 0) {
-      sum(resolved) != 1
-    } else {
-      TRUE
-    }
+    sum(resolved) != 1
   }
 
   # One initial AT resighting is unresolved and remains on Parent resighting.
@@ -1425,7 +1272,7 @@ test_that("generic banded-parent association follows the resighting threshold", 
   expect_true(association_pending(list(c("AT", "AT"))))
   expect_false(association_pending(list(c("AT", "AT", "AT"))))
   # Any one of the approved association behaviours resolves the identity.
-  for (behav in c("IN", "NM", "SC", "BW", "BC", "FC")) {
+  for (behav in c("IN", "NM", "BW", "BC", "FC")) {
     expect_false(association_pending(list(behav)))
   }
   # A future confirming event is excluded before it reaches this calculation;
@@ -1436,17 +1283,6 @@ test_that("generic banded-parent association follows the resighting threshold", 
   expect_true(association_pending(list("AT", "AT")))
   # One confirmed identity displaces a provisional alternate identity.
   expect_false(association_pending(list("AT", "IN")))
-  # A qualifying identity also displaces an alternate that independently
-  # reached the three-resighting threshold.
-  expect_false(association_pending(list(c("AT", "AT", "AT"), "IN")))
-  # More than one qualifying identity remains ambiguous.
-  expect_true(association_pending(list("IN", "NM")))
-  # More than one identity resolved only by repeated resightings also remains
-  # ambiguous.
-  expect_true(association_pending(list(
-    c("AT", "AT", "AT"),
-    c("FL", "FL", "FL")
-  )))
 })
 
 
@@ -1463,7 +1299,7 @@ test_that("pending known-banded associations bypass GEO candidate selection", {
   )
   expect_match(
     sql,
-    "JOIN adult_resighting_association_status association",
+    "JOIN adult_parent_status association",
     fixed = TRUE
   )
   expect_match(
@@ -1478,25 +1314,38 @@ test_that("pending known-banded associations bypass GEO candidate selection", {
   )
   expect_match(
     sql,
-    "SELECT * FROM todo_parent_resighting_existing",
+    "FROM todo_parent_resighting_existing",
     fixed = TRUE
   )
 })
 
 
-test_that("parent-resighting identities are canonicalized and counted per pending bird", {
+test_that("four-gate parent-resighting identities are canonicalized and counted per pending bird", {
   sql <- views_source_sql()
 
   expect_match(
     sql,
-    "Only the four approved single-LR birds need spacer-aware aliases",
+    "CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.ADULT_RESIGHTING_IDENTITIES AS",
     fixed = TRUE
   )
-  expect_match(sql, "CONCAT(RIGHT(events.UR_norm, 1), events.LR_norm)", fixed = TRUE)
-  expect_match(sql, "association.LL_obs = mm.UL_norm", fixed = TRUE)
-  expect_match(sql, "association.LR_obs = mm.LR_norm", fixed = TRUE)
-  expect_match(sql, "HAVING COUNT(DISTINCT aliases.canonical_mark) = 1", fixed = TRUE)
-  expect_match(sql, "FROM FIELD_2026_BADOatNZ.RESIGHTINGS r", fixed = TRUE)
+  expect_match(
+    sql,
+    "CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.ADULT_IDENTITY_MATCHES AS",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.ADULT_PARENT_NEST_ASSOCIATIONS AS",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.ADULT_PARENT_STATUS AS",
+    fixed = TRUE
+  )
+  expect_match(sql, "c.is_confirmed_xx = 0", fixed = TRUE)
+  expect_match(sql, "association_confirming", fixed = TRUE)
+  expect_match(sql, "n_nonconfirming_resightings >= 3", fixed = TRUE)
   expect_match(sql, "M_resight_association_details", fixed = TRUE)
   expect_match(sql, "M_alternate_parent_details", fixed = TRUE)
   expect_match(sql, "M_resighting_identity_count", fixed = TRUE)
@@ -1513,6 +1362,19 @@ test_that("parent-resighting identities are canonicalized and counted per pendin
     fixed = TRUE
   )
   expect_match(sql, "association_eligible", fixed = TRUE)
+  expect_match(sql, "xx_supersession_evidence AS", fixed = TRUE)
+  expect_match(sql, "xx.identity_key LIKE 'xx:%'", fixed = TRUE)
+  expect_match(sql, "captured.capture_date > xx.observation_date", fixed = TRUE)
+  expect_match(
+    sql,
+    "r.observation_date <= superseded.supersession_capture_date",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "IN ('', 'X', 'XX', 'NA', 'N/A')",
+    fixed = TRUE
+  )
   expect_match(
     sql,
     "WHEN identity_counts.association_eligible = 0\n        THEN 0",
@@ -1593,135 +1455,30 @@ test_that("parent-resighting identities are canonicalized and counted per pendin
 })
 
 
-test_that("resolved MM follow-up uses the canonical captured parent mark", {
+test_that("the authoritative parent status is the sole parent-task input", {
   sql <- todo_list_view_sql()
+  full_sql <- views_source_sql()
 
   expect_match(
     sql,
-    "COALESCE(adult_mm_followup_status.F_mm_resight_pending, 0) = 1",
+    "JOIN adult_parent_status association",
     fixed = TRUE
   )
-  expect_match(
-    sql,
-    "adult_parent_identity_status.F_identity_mark",
-    fixed = TRUE
-  )
-  expect_match(
-    sql,
-    "M_mm_resight_count",
-    fixed = TRUE
-  )
-  expect_match(
-    sql,
-    "'MM cap ',",
-    fixed = TRUE
-  )
-  expect_match(
-    sql,
-    "' with '",
-    fixed = TRUE
-  )
+  expect_match(sql, "association.M_resight_association_pending = 1", fixed = TRUE)
+  expect_match(sql, "association.F_resight_association_pending = 1", fixed = TRUE)
+  expect_match(sql, "adult_parent_status.M_parent_mark AS M_mark", fixed = TRUE)
+  expect_match(sql, "adult_parent_status.F_parent_mark AS F_mark", fixed = TRUE)
+  expect_match(full_sql, "WHEN by_identity.association_pending = 1", fixed = TRUE)
 
-  displayed_female_mark <- function(
-    followup_pending,
-    mm_capture_mark,
-    identity_mark,
-    post_mm_xx_seen
-  ) {
-    if (isTRUE(followup_pending) && !is.null(mm_capture_mark)) {
-      if (isTRUE(post_mm_xx_seen)) {
-        return(paste(mm_capture_mark, "& X-X"))
-      }
-      return(mm_capture_mark)
+  format_identity <- function(mark, n_resightings, has_mm = FALSE) {
+    suffix <- if (has_mm) paste0(" (MM, ", n_resightings, ")") else {
+      paste0(" (", n_resightings, ")")
     }
-    identity_mark
+    paste0(mark, suffix)
   }
 
-  expect_identical(
-    displayed_female_mark(TRUE, "BY-YY", "BY-YY", TRUE),
-    "BY-YY & X-X"
-  )
-  expect_identical(
-    displayed_female_mark(FALSE, "BY-YY", "BY-YY", TRUE),
-    "BY-YY"
-  )
-})
-
-
-test_that("MM resighting rows do not repeat generic unresolved identities", {
-  sql <- views_source_sql()
-
-  expect_match(
-    sql,
-    "adult_parent_status.M_mm_resight_count",
-    fixed = TRUE
-  )
-  expect_no_match(
-    sql,
-    "adult_parent_status.M_alternate_parent_details",
-    fixed = TRUE
-  )
-  expect_no_match(
-    sql,
-    "adult_parent_status.F_alternate_parent_details",
-    fixed = TRUE
-  )
-})
-
-
-test_that("MM follow-up handles a distinct short-form alternative parent", {
-  sql <- todo_list_view_sql()
-
-  expect_match(
-    sql,
-    "adult_mm_alternate_parent_status AS",
-    fixed = TRUE
-  )
-  expect_match(
-    sql,
-    "ranked.requires_spacer_identity = 0",
-    fixed = TRUE
-  )
-  expect_match(
-    sql,
-    "ranked.has_full_mark_observation = 1",
-    fixed = TRUE
-  )
-  expect_match(
-    sql,
-    "ordered.n_alternate_resightings >= 3",
-    fixed = TRUE
-  )
-  expect_match(
-    sql,
-    "adult_parent_status.M_alternate_parent_marks",
-    fixed = TRUE
-  )
-
-  short_mark <- function(LL, LR, UL = NULL, UR = NULL) {
-    paste(LL, LR, sep = "-")
-  }
-  alternate_resolved <- function(
-    n_distinct_marks,
-    has_association_behaviour,
-    n_resightings
-  ) {
-    n_distinct_marks == 1 &&
-      (has_association_behaviour || n_resightings >= 3)
-  }
-
-  # Full UL/UR entry does not change the ordinary LL-LR identity.
-  expect_identical(
-    short_mark("BY", "LW", UL = "YO", UR = "TG"),
-    "BY-LW"
-  )
-  # AT alone leaves the single alternative unresolved.
-  expect_false(alternate_resolved(1, FALSE, 1))
-  # One qualifying behaviour or three subsequent events resolves it.
-  expect_true(alternate_resolved(1, TRUE, 1))
-  expect_true(alternate_resolved(1, FALSE, 3))
-  # Competing alternative marks remain ambiguous.
-  expect_false(alternate_resolved(2, TRUE, 3))
+  expect_identical(format_identity("MOCK-TG.GW", 2, TRUE), "MOCK-TG.GW (MM, 2)")
+  expect_identical(format_identity("MOCK-GY", 1, FALSE), "MOCK-GY (1)")
 })
 
 

@@ -4,54 +4,16 @@ list({
         if (!"rowid" %in% names(z)) {
             z[, `:=`(rowid, .I)]
         }
+        age_key <- toupper(trimws(as.character(z$age)))
+        method_key <- toupper(trimws(as.character(z$capture_method)))
         out <- data.table::rbindlist(list(z[age == "C" & capture_status != "F", .(rowid, variable = "capture_status", reason = "This looks like a chick capture. Please check capture_status; it is usually F for a first capture.")], z[age == "J" & !(capture_status %in% c("F", "C")), .(rowid, variable = "capture_status", reason = "This looks like a juvenile capture. Please check capture_status; juveniles usually use F or C.")], z[age == "C" & capture_method != "HA", .(rowid, variable = "capture_method", reason = "This looks like a chick capture. Please check capture_method; chick captures usually use HA.")],
-            z[age %in% c("A", "J") & !(capture_method %in% c("MM", "TN")), .(rowid, variable = "capture_method", reason = "Please check capture_method. Adult and juvenile captures usually use MM or TN.")]), use.names = TRUE, fill = TRUE)
+            z[age_key %in% c("A", "J") & !(method_key %in% c("MM", "TN")) & !(age_key == "A" & method_key == "HA"), .(rowid, variable = "capture_method", reason = "Please check capture_method. Adult and juvenile captures usually use MM or TN; age-A HA captures are allowed only under the separate HA timing and nest-linkage rule.")]), use.names = TRUE, fill = TRUE)
         if (nrow(out) == 0) {
             data.table::data.table(rowid = integer(), variable = character(), reason = character())
         } else {
             unique(out)
         }
     }, nam = "CAP_007 008 likely patterns")
-    out <- data.table::as.data.table(out)
-    if ("reason" %in% names(out)) {
-        out[, `:=`(reason, {
-            cleaned <- sub("^(ERROR|WARNING):\\s*", "", as.character(reason))
-            cleaned[is.na(reason)] <- NA_character_
-            ok_idx <- !is.na(cleaned) & nzchar(cleaned)
-            cleaned[ok_idx] <- paste0(
-                cleaned[ok_idx],
-                " Please double-check this entry. If it is correct, add a validator bypass comment to the event."
-            )
-            cleaned
-        })]
-    }
-    if ("type" %in% names(out)) {
-        out[, `:=`(type, NULL)]
-    }
-    out
-}, {
-    out <- try_validator({
-        z <- data.table::copy(x)
-        if (!"rowid" %in% names(z)) {
-            z[, `:=`(rowid, .I)]
-        }
-        comments_text <- if ("comments" %in% names(z)) as.character(z$comments) else rep(NA_character_, nrow(z))
-        phrase <- "(^|[^[:alpha:]])in[[:space:]_-]*situ([^[:alpha:]]|$)"
-        bad_idx <- which(
-            toupper(trimws(as.character(z$age))) == "C" &
-                !is.na(comments_text) &
-                grepl(phrase, comments_text, ignore.case = TRUE, perl = TRUE)
-        )
-        if (length(bad_idx) == 0) {
-            data.table::data.table(rowid = integer(), variable = character(), reason = character())
-        } else {
-            data.table::data.table(
-                rowid = z$rowid[bad_idx],
-                variable = "comments",
-                reason = "It looks like these are hiding-spot (in-situ) photos of a chick. Please enter them as a separate RESIGHTINGS event with age C and rclass 'H'; keep this CAPTURES row for handling, banding, and tent photos."
-            )
-        }
-    }, nam = "CAP_W013 in situ hiding photo")
     out <- data.table::as.data.table(out)
     if ("reason" %in% names(out)) {
         out[, `:=`(reason, {
@@ -636,46 +598,11 @@ list({
         if (!"rowid" %in% names(z)) {
             z[, `:=`(rowid, .I)]
         }
-        res <- data.table::as.data.table(db_get("SELECT nest_id, age, rclass FROM RESIGHTINGS"))
-        hide_nests <- unique(res[age == "C" & rclass == "H" & !is.na(nest_id), nest_id])
-        tent_raw <- trimws(as.character(z$chick_tent_photo))
-        tent_ok <- !is.na(z$chick_tent_photo) & tent_raw == "1"
-        hide_raw <- trimws(as.character(z$chick_hide_photo))
-        hide_ok <- is.na(z$chick_hide_photo) | !nzchar(hide_raw) | hide_raw == "NA" | hide_raw == "0"
-        bad_idx <- z[age == "C" & nest_id %in% hide_nests & (!tent_ok | !hide_ok), rowid]
-        if (length(bad_idx) == 0) {
-            data.table::data.table(rowid = integer(), variable = character(), reason = character())
-        } else {
-            data.table::data.table(rowid = bad_idx, variable = "chick_tent_photo", reason = "This chick also has an H-class hiding-spot photo. Please record the tent photo here with chick_tent_photo = 1, and leave chick_hide_photo blank or 0; the hiding-spot photo belongs in RESIGHTINGS.")
-        }
-    }, nam = "CAP_029 chick photo logic")
-    out <- data.table::as.data.table(out)
-    if ("reason" %in% names(out)) {
-        out[, `:=`(reason, {
-            cleaned <- sub("^(ERROR|WARNING):\\s*", "", as.character(reason))
-            cleaned[is.na(reason)] <- NA_character_
-            ok_idx <- !is.na(cleaned) & nzchar(cleaned)
-            cleaned[ok_idx] <- paste0(
-                cleaned[ok_idx],
-                " Please double-check this entry. If it is correct, add a validator bypass comment to the event."
-            )
-            cleaned
-        })]
-    }
-    if ("type" %in% names(out)) {
-        out[, `:=`(type, NULL)]
-    }
-    out
-}, {
-    out <- try_validator({
-        z <- data.table::copy(x)
-        if (!"rowid" %in% names(z)) {
-            z[, `:=`(rowid, .I)]
-        }
         to_time <- function(v) suppressWarnings(strptime(as.character(v), format = "%H:%M"))
         caught_t <- to_time(z$caught)
         rel_t <- to_time(z$released)
-        bad_idx <- unique(c(z[!is.na(caught_t) & format(caught_t, "%H:%M") < "07:00", rowid], z[!is.na(caught_t) & format(caught_t, "%H:%M") > "19:00", rowid], z[!is.na(rel_t) & format(rel_t, "%H:%M") < "07:00", rowid], z[!is.na(rel_t) & format(rel_t, "%H:%M") > "19:00", rowid]))
+        ha_adult <- toupper(trimws(as.character(z$age))) == "A" & toupper(trimws(as.character(z$capture_method))) == "HA"
+        bad_idx <- unique(c(z[!ha_adult & !is.na(caught_t) & format(caught_t, "%H:%M") < "07:00", rowid], z[!ha_adult & !is.na(caught_t) & format(caught_t, "%H:%M") > "19:00", rowid], z[!ha_adult & !is.na(rel_t) & format(rel_t, "%H:%M") < "07:00", rowid], z[!ha_adult & !is.na(rel_t) & format(rel_t, "%H:%M") > "19:00", rowid]))
         if (length(bad_idx) == 0) {
             data.table::data.table(rowid = integer(), variable = character(), reason = character())
         } else {

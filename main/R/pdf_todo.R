@@ -117,8 +117,6 @@ todo_pdf_query_tasks <- function() {
       F_resighting_identity_count,
       M_resight_association_pending,
       F_resight_association_pending,
-      M_mm_resight_pending,
-      F_mm_resight_pending,
       lat,
       lon,
       geo_priority_rank
@@ -682,9 +680,7 @@ todo_pdf_parent_resighting_rule_note <- function(
   male_identity_counts = NULL,
   female_identity_counts = NULL,
   male_association_pending = NULL,
-  female_association_pending = NULL,
-  male_mm_pending = NULL,
-  female_mm_pending = NULL
+  female_association_pending = NULL
 ) {
   notes <- as.character(notes)
   male_identity_counts <- suppressWarnings(as.numeric(male_identity_counts))
@@ -695,8 +691,6 @@ todo_pdf_parent_resighting_rule_note <- function(
   female_association_pending <- suppressWarnings(
     as.numeric(female_association_pending)
   )
-  male_mm_pending <- suppressWarnings(as.numeric(male_mm_pending))
-  female_mm_pending <- suppressWarnings(as.numeric(female_mm_pending))
   if (!length(male_identity_counts)) {
     male_identity_counts <- rep(NA_real_, length(notes))
   }
@@ -709,12 +703,6 @@ todo_pdf_parent_resighting_rule_note <- function(
   if (!length(female_association_pending)) {
     female_association_pending <- rep(NA_real_, length(notes))
   }
-  if (!length(male_mm_pending)) {
-    male_mm_pending <- rep(NA_real_, length(notes))
-  }
-  if (!length(female_mm_pending)) {
-    female_mm_pending <- rep(NA_real_, length(notes))
-  }
   male_identity_counts <- rep(male_identity_counts, length.out = length(notes))
   female_identity_counts <- rep(female_identity_counts, length.out = length(notes))
   male_association_pending <- rep(
@@ -725,8 +713,6 @@ todo_pdf_parent_resighting_rule_note <- function(
     female_association_pending,
     length.out = length(notes)
   )
-  male_mm_pending <- rep(male_mm_pending, length.out = length(notes))
-  female_mm_pending <- rep(female_mm_pending, length.out = length(notes))
 
   unname(vapply(
     seq_along(notes),
@@ -752,9 +738,7 @@ todo_pdf_parent_resighting_rule_note <- function(
         seen_note <- c(
           seen_note,
           if (!is.na(male_association_pending[[i]])
-              && male_association_pending[[i]] == 0
-              && !is.na(male_mm_pending[[i]])
-              && male_mm_pending[[i]] == 0) {
+              && male_association_pending[[i]] == 0) {
             "M resolved"
           } else {
             paste(
@@ -768,9 +752,7 @@ todo_pdf_parent_resighting_rule_note <- function(
         seen_note <- c(
           seen_note,
           if (!is.na(female_association_pending[[i]])
-              && female_association_pending[[i]] == 0
-              && !is.na(female_mm_pending[[i]])
-              && female_mm_pending[[i]] == 0) {
+              && female_association_pending[[i]] == 0) {
             "F resolved"
           } else {
             paste(
@@ -1103,9 +1085,7 @@ todo_pdf_prepare <- function(
       todo_dt$M_resighting_identity_count[parent_resighting_idx],
       todo_dt$F_resighting_identity_count[parent_resighting_idx],
       todo_dt$M_resight_association_pending[parent_resighting_idx],
-      todo_dt$F_resight_association_pending[parent_resighting_idx],
-      todo_dt$M_mm_resight_pending[parent_resighting_idx],
-      todo_dt$F_mm_resight_pending[parent_resighting_idx]
+      todo_dt$F_resight_association_pending[parent_resighting_idx]
     )
   todo_dt[, notes := parent_capture_notes]
 
@@ -1666,6 +1646,11 @@ todo_pdf_simple_table <- function(table_data, column_widths = NULL) {
 
   if (is.null(column_widths)) {
     column_widths <- rep(1, ncol(table_data))
+  } else if (length(column_widths) != ncol(table_data)) {
+    stop(
+      "column_widths must contain one value per table column.",
+      call. = FALSE
+    )
   }
   columns <- paste0(column_widths, "fr", collapse = ", ")
 
@@ -1773,7 +1758,7 @@ todo_pdf_body <- function(
       "",
       todo_pdf_simple_table(
         team_marks,
-        column_widths = c(12, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8)
+        column_widths = c(12, rep(8, ncol(team_marks) - 1L))
       ),
       ""
     )
