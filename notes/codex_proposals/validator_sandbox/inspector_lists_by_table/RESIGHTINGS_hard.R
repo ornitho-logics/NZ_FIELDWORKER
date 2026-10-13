@@ -902,25 +902,6 @@ list({
             )
         }, logical(1))
         z[, `:=`(parent_same_gps, parent_same_gps)]
-        bw_same_session_chick_gps <- vapply(seq_len(nrow(z)), function(i) {
-            is_bw_parent <- isTRUE(z$age_key[i] == "A") &&
-                any(z$behav_tokens[[i]] %in% "BW")
-            if (!is_bw_parent || !isTRUE(blankish(z$nest_id[i])) ||
-                isTRUE(blankish(z$gps_id[i])) || isTRUE(blankish(z$gps_point[i]))) {
-                return(FALSE)
-            }
-            any(
-                z$is_chick &
-                    !is.na(z$event_date) &
-                    !is.na(z$event_date[i]) &
-                    z$event_date == z$event_date[i] &
-                    !blankish(z$gps_id) &
-                    !blankish(z$gps_point) &
-                    gps_id_key == gps_id_key[i] &
-                    gps_point_key == gps_point_key[i]
-            )
-        }, logical(1))
-        z[, `:=`(allow_unlinked_bw, bw_same_session_chick_gps)]
         z[, `:=`(ring_present, !blankish(ring))]
         z[, `:=`(
             allow_unlinked_h_chick =
@@ -931,16 +912,11 @@ list({
                 !blankish(gps_point) &
                 (ring_present | parent_same_gps)
         )]
-        z[, `:=`(
-            needs_nest_id,
-            (is_chick & !allow_unlinked_h_chick) |
-                (is_parent_behaviour & !allow_unlinked_bw)
-        )]
+        z[, `:=`(needs_nest_id, (is_chick & !allow_unlinked_h_chick) | is_parent_behaviour)]
         out <- data.table::rbindlist(lapply(seq_len(nrow(z)), function(i) {
             row <- z[i]
             row_is_chick <- isTRUE(row$is_chick)
             row_is_parent_behaviour <- isTRUE(row$is_parent_behaviour)
-            row_allows_unlinked_bw <- isTRUE(row$allow_unlinked_bw)
             row_is_h <- isTRUE(row$rclass_key == "H")
             missing_chick_nest_reason <- if (row_is_h) {
                 "An H-class chick may omit nest_id only when ring is entered or a same-session age-A parent with LL and LR is recorded at the same GPS pair."
@@ -960,15 +936,11 @@ list({
             if ((is.na(row$nest_id) || !nzchar(trimws(as.character(row$nest_id)))) && row_is_chick) {
                 return(data.table::data.table(rowid = row$rowid, variable = "nest_id", reason = missing_chick_nest_reason))
             }
-            if ((is.na(row$nest_id) || !nzchar(trimws(as.character(row$nest_id)))) &&
-                row_is_parent_behaviour && !row_allows_unlinked_bw) {
+            if ((is.na(row$nest_id) || !nzchar(trimws(as.character(row$nest_id)))) && row_is_parent_behaviour) {
                 return(data.table::data.table(rowid = row$rowid, variable = "nest_id", reason = missing_parent_nest_reason))
             }
             row_nest <- trimws(as.character(row$nest_id))
             row_has_real_nest <- !is.na(row_nest) && nzchar(row_nest) && !is_no_nest(row_nest)
-            if (!row_has_real_nest && row_allows_unlinked_bw) {
-                return(empty)
-            }
             row_is_unbanded <- is_unbanded_resighting(row$UL[[1]], row$LL[[1]], row$UR[[1]], row$LR[[1]])
             if (row_has_real_nest && row_is_unbanded) {
                 return(empty)
@@ -997,7 +969,7 @@ list({
             if (!row_has_real_nest && row_is_chick) {
                 return(data.table::data.table(rowid = row$rowid, variable = "nest_id", reason = missing_chick_nest_reason))
             }
-            if (!row_has_real_nest && row_is_parent_behaviour && !row_allows_unlinked_bw) {
+            if (!row_has_real_nest && row_is_parent_behaviour) {
                 return(data.table::data.table(rowid = row$rowid, variable = "nest_id", reason = missing_parent_nest_reason))
             }
             if (!row_has_real_nest) {
