@@ -3,32 +3,39 @@
 ## Audit status
 
 This document records the current local validation contract after a
-source-to-document reconciliation on 2026-09-30 and a Git/status refresh on
-2026-10-06. It is a tracked documentation handoff, not a new biological-rule
-proposal.
+source-to-document reconciliation on 2026-10-10. It is a tracked documentation
+handoff for the local inspector/protocol work, not evidence that live inspectors
+have been deployed.
 
 - Repository: `2026_NZ_FIELDWORKER`
 - PR branch: `codex/parent-association-thread-docs-2026-10-06`
 - Base revision: `1617e84`, matching `origin/main` when the branch was created
 - The reviewed per-table `*_hard.R` and `*_warning.R` inspector lists are
   already tracked under `validator_sandbox/inspector_lists_by_table/`.
-- This PR does not change validator code or the protocol; it tracks this handoff
-  alongside the current Thread 4 SQL/PDF work.
+- The current local update changes the RESIGHTINGS hard/warning exports and the
+  synchronized validator protocol; it does not change SQL, application code, or
+  live inspectors.
 - No live database was connected to.
 - No live `inspectors` row was queried or changed.
-- `AGENTS.md` is intentionally updated in this PR under the user's explicit
-  request and now points to this tracked handoff and the inspector lists.
+- `AGENTS.md` was not changed in this update; its standing human-control and
+  live-database restrictions remain authoritative.
 
-The current authoritative protocol is version **1.3.3**, generated 2026-09-30.
+The current authoritative protocol is version **1.3.4**, generated 2026-10-10.
 The official YAML and local mirror are byte-identical with SHA-256:
 
-`9965d1f313ea172ac76f62b0b02e9c42895d659ee2fba9b62c526286c29b2732`
+`1de6c733851c992e296d048bbf35ba5feffda11d1ad7e43c147fe5007359ea7f`
 
-Version 1.3.3 requires a real nest or brood link for age-C first captures and permits
-an optional complete GPS pair for positive-nest chicks captured away from the nest.
-Version 1.3.2 adds save-blocking H-ring format and current-CAPTURES existence checks.
-The H-ring rule remains restricted to normalized `rclass = H`; ordinary RESIGHTINGS
-classes may still leave `ring` blank.
+Version 1.3.4 makes parent/chick co-entry save-blocking within one RESIGHTINGS
+portal submission: every age-C row, including ordinary `rclass = R`, `P`, or `V`
+rows, must be linked to an age-A parent whose behavior includes `BC` or `FC`, and
+each such parent row must have at least one linked age-C row. Version 1.3.4 also
+separates active-nest `IN`/`NM` state checks from brood-association checks and
+documents `BW` as broken-wing display. Version 1.3.3 requires a real nest or brood
+link for age-C first captures and permits an optional complete GPS pair for
+positive-nest chicks captured away from the nest. Version 1.3.2 adds save-blocking
+H-ring format and current-CAPTURES existence checks. The H-ring rule remains
+restricted to normalized `rclass = H`; ordinary RESIGHTINGS classes may still
+leave `ring` blank.
 
 ## Authority order
 
@@ -254,12 +261,14 @@ save-time exception in `RES_005B` permits a blank `nest_id` only for an H row wi
 the mandatory GPS pair and either a nonblank ring or a same-submission age-A row at
 the same GPS pair with both lower-leg fields. RES_010A and RES_010B independently
 require that a ring used for the ring branch has the CP format and exists in current
-CAPTURES. This remains intentionally narrower than a full family-association proof.
+CAPTURES. This remains intentionally narrower than a full family-association proof,
+but the separate same-session co-entry rule below still applies to an unlinked H row.
 
 Warning rules cover capture-history mark comparison, capture-history sex comparison
-(`RES_005H`), social-parent mark mismatch, same-occasion adult context, mixed-brood
-review, device defaults, tibia review, and GPS timing. `RES_006` remains a warning,
-not a blocker: the adult parent may be entered in another portal session.
+(`RES_005H`), social-parent mark mismatch, mixed-brood review, device defaults,
+tibia review, and GPS timing. The former one-directional
+`RES_006`/`RES_007` same-occasion warnings have been removed from the live warning
+export because the reciprocal requirement is now save-blocking in `RES_005J`.
 
 `RES_005H` compares the RESIGHTINGS `sex` field to the identified bird’s capture
 history, preferring nonblank archive `gen_sex`, then archive `field_sex`, then current
@@ -303,10 +312,13 @@ is not the normal hiding-photo record.
 ## Cross-table, chronology, and history boundaries
 
 Save-time checks can use current table rows, `GPS_POINTS`, current-season tables,
-`CAPTURES_ARCHIVE`, and selected nest-history surfaces. They should not assume that
-companion rows are in the same portal submission. This is why same-occasion adult
-context, delayed chick evidence, exact NESTS/RESIGHTINGS event identity, and some
-family associations remain warning or post-save concerns.
+`CAPTURES_ARCHIVE`, and selected nest-history surfaces. Most cross-table history
+checks still must not assume that companion rows are in the same portal submission.
+There is one explicit approved exception: parent/chick co-entry is mandatory when
+the current RESIGHTINGS submission contains age-C rows or age-A `BC`/`FC` rows.
+The association is tested only within the current submission, using the same date
+and either the same nonblank `nest_id` or the same complete `gps_id/gps_point` pair.
+Saved rows from earlier sessions do not satisfy this hard rule.
 
 Archive-aware rules distinguish:
 
@@ -321,20 +333,38 @@ implementation-quality item, not a new biological rule.
 
 The parent/MM operational methodology is also deliberately not a new hard validator:
 CAPTURES capture-method/nest linkage, first-marking/tag warnings, caught-with context,
-RESIGHTINGS mark-history/social-parent warnings, and same-occasion adult warnings
-provide evidence. Thread 4’s TODO/view logic can require stronger, reference-date and
+RESIGHTINGS mark-history/social-parent warnings provide evidence. Thread 4’s
+TODO/view logic can require stronger, reference-date and
 family-link evidence than a row-level save validator. Do not add a hard MM rule merely
 to make a task disappear; record truthful marks and behavior and resolve ambiguity in
 post-save/task logic.
 
-## Unlinked-H association discrepancy requiring follow-up
+## Parent/chick co-entry and behavior-stage rules
 
-The current validator contract and the current local `RESIGHTINGS_hard.R` export agree
-with protocol `RES_005B`: an unlinked H can pass the narrow save-time exception when
-its mandatory H/GPS/ring evidence is present, or when the current submission includes
-the specified age-A lower-leg evidence. The protocol does **not** require a prior
-CAPTURES family-link query in this save-time rule, and the separate parent-context
-warning remains non-blocking because rows may arrive in separate sessions.
+`RES_005J` is save-blocking and applies to every age-C RESIGHTINGS row, not only
+H-photo rows. A chick row may use `rclass = H`, `R`, `P`, or `V`, but it must be
+accompanied in the same portal submission by an age-A row whose comma-separated
+behavior includes `BC` or `FC`. Conversely, a parent row with `BC` or `FC` must
+have at least one linked age-C row in that submission. The parent and chick can be
+linked by the same valid `nest_id` or by the same `gps_id/gps_point` pair; the date
+must also match. This does not use saved RESIGHTINGS history to bypass the rule.
+
+`BW` means broken-wing display, not brood watch. It is a shorebird parent behavior
+that can occur at either the nest stage or the brood stage, so it remains part of
+the broad parent/nest-link behavior set but does not by itself assert that an
+individual chick was observed and does not trigger the reciprocal `BC`/`FC` rule.
+
+`RES_005D` now restricts adult `IN`/`NM` rows to positive nest_ids whose latest
+state is `F`, `I`, or `H`; `H` remains valid during asynchronous hatching. It no
+longer blocks adult `BW`, `BC`, or `FC` rows merely because the nest is at a later
+state. `RES_005K` requires positive-nest `BC`/`FC` rows to have latest state `H` or
+`notA`, and requires `gps_id/gps_point` for age-C rows and brood-associated adult
+`BW`/`BC`/`FC` rows when a `notA` nest still has `brood_size > 0`.
+
+The existing unlinked-H exception remains a narrow row-level exception: mandatory
+H GPS/ring/photo evidence still applies, and the row may omit `nest_id` only under
+the existing conditions. It does not remove the new same-session requirement for
+an accompanying age-A `BC`/`FC` parent.
 
 Thread 2’s schema memo and Thread 4’s TODO/map planning describe a stricter internal
 derived association: prior chick-CAPTURES ring/family evidence plus same-date, exact

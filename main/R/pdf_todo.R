@@ -91,6 +91,50 @@ todo_pdf_as_numeric <- function(x) {
 }
 
 
+todo_pdf_hatch_prediction_status <- function(hatch_prediction) {
+  empty_output <- data.table(
+    nest_id = character(),
+    has_float_data = logical(),
+    no_float_complete = logical()
+  )
+  if (
+    is.null(hatch_prediction)
+      || !nrow(hatch_prediction)
+      || !all(c("nest_id", "calibration_match_type") %in% names(hatch_prediction))
+  ) {
+    return(empty_output)
+  }
+
+  prediction <- data.table(hatch_prediction)
+  prediction[, nest_id := trimws(as.character(nest_id))]
+  prediction[, calibration_match_type := trimws(as.character(
+    calibration_match_type
+  ))]
+  prediction <- prediction[
+    !is.na(nest_id) & nzchar(nest_id)
+  ]
+  if (!nrow(prediction)) {
+    return(empty_output)
+  }
+
+  if ("float_date" %in% names(prediction)) {
+    float_raw <- trimws(as.character(prediction$float_date))
+    prediction[, has_float_data := !is.na(float_date) &
+      nzchar(float_raw) &
+      !(toupper(float_raw) %chin% c("NA", "NULL"))]
+  } else {
+    prediction[, has_float_data := FALSE]
+  }
+  prediction[, no_float_complete := calibration_match_type ==
+    "complete clutch chronology" & !has_float_data]
+
+  prediction[, .(
+    has_float_data = any(has_float_data),
+    no_float_complete = any(no_float_complete) & !any(has_float_data)
+  ), by = nest_id]
+}
+
+
 todo_pdf_query_tasks <- function() {
   # Keep every PDF entry point on the same bounded query plan. TODO_LIST is a
   # complex operational view, so avoid SELECT * and discourage MariaDB from
@@ -117,8 +161,6 @@ todo_pdf_query_tasks <- function() {
       F_resighting_identity_count,
       M_resight_association_pending,
       F_resight_association_pending,
-      M_mm_resight_pending,
-      F_mm_resight_pending,
       lat,
       lon,
       geo_priority_rank
@@ -335,9 +377,15 @@ todo_pdf_prepare_nest_summary <- function(
   todo = NULL,
   chick_captures = NULL,
   unseen_tagged_birds = NULL,
-  hatch_prediction = NULL
+  hatch_prediction = NULL,
+  parent_status = NULL
 ) {
   nests <- data.table(nests_latest)
+  if ("species" %in% names(nests)) {
+    nests <- nests[
+      toupper(trimws(as.character(species))) != "WRYB"
+    ]
+  }
   todo_dt <- data.table(todo)
   required_columns <- c(
     "nest_id",
@@ -472,6 +520,27 @@ todo_pdf_prepare_nest_summary <- function(
     )]
   }
 
+  # A complete clutch with no qualifying EGGS float record still has a
+  # chronology-based prediction upstream, but that prediction is not a
+  # fieldworker-facing hatch estimate until flotation has been recorded.
+  # Keep explicit flotation-exempt predictions (found-incomplete and stable
+  # one-egg/no-increase) available for the PDF.
+  prediction_status <- todo_pdf_hatch_prediction_status(hatch_prediction)
+  no_float_complete_nests <- prediction_status[
+    no_float_complete == TRUE,
+    nest_id
+  ]
+  no_float_complete_summary_nests <- character()
+  if (length(no_float_complete_nests)) {
+    no_hatch_evidence <- is.na(has_hatch_evidence) | !has_hatch_evidence
+    nest_ids <- trimws(as.character(nests$nest_id))
+    no_float_complete_summary_nests <- unique(nest_ids[
+      !is_negative_brood &
+        no_hatch_evidence &
+        nest_ids %chin% no_float_complete_nests
+    ])
+  }
+
   summary <- nests[
     !is.na(nest_id) & nzchar(trimws(as.character(nest_id))),
     .(
@@ -547,6 +616,58 @@ todo_pdf_prepare_nest_summary <- function(
         `Est. Hatch` := format(task_hatch, trim = TRUE, scientific = FALSE)
       ]
       summary[, task_hatch := NULL]
+    }
+  }
+
+  # Task rows can reintroduce the chronology-only value after the prediction
+  # merge above. Apply the flotation gate after all hatch-value sources so
+  # every PDF table uses the same fieldworker-facing rule.
+  if (length(no_float_complete_summary_nests)) {
+    summary[
+      Nest %chin% no_float_complete_summary_nests,
+      `Est. Hatch` := ""
+    ]
+  }
+
+  # BROODS_LATEST supplies the operational nest/brood rows, but its parent
+  # marks can be stale or derived by a different identity path. Replace them
+  # with the same authoritative four-gate status used by task rows, including
+  # nests that have no task today and therefore never appear in TODO_LIST.
+  if (
+    !is.null(parent_status)
+      && nrow(parent_status)
+      && all(c(
+        "nest_id", "M_parent_mark", "F_parent_mark"
+      ) %in% names(parent_status))
+  ) {
+    status <- data.table(parent_status)
+    status[, Nest := trimws(as.character(nest_id))]
+    status <- status[
+      !is.na(Nest) & nzchar(Nest),
+      .(
+        Nest,
+        M_status_mark = as.character(M_parent_mark),
+        F_status_mark = as.character(F_parent_mark)
+      )
+    ]
+    status <- status[!duplicated(Nest)]
+    if (nrow(status)) {
+      summary <- merge(summary, status, by = "Nest", all.x = TRUE, sort = FALSE)
+      has_status <- !is.na(summary$M_status_mark) |
+        !is.na(summary$F_status_mark)
+      summary[has_status, `:=`(
+        Male = fifelse(
+          is.na(M_status_mark) | !nzchar(trimws(M_status_mark)),
+          "",
+          M_status_mark
+        ),
+        Female = fifelse(
+          is.na(F_status_mark) | !nzchar(trimws(F_status_mark)),
+          "",
+          F_status_mark
+        )
+      )]
+      summary[, c("M_status_mark", "F_status_mark") := NULL]
     }
   }
 
@@ -682,9 +803,7 @@ todo_pdf_parent_resighting_rule_note <- function(
   male_identity_counts = NULL,
   female_identity_counts = NULL,
   male_association_pending = NULL,
-  female_association_pending = NULL,
-  male_mm_pending = NULL,
-  female_mm_pending = NULL
+  female_association_pending = NULL
 ) {
   notes <- as.character(notes)
   male_identity_counts <- suppressWarnings(as.numeric(male_identity_counts))
@@ -695,8 +814,6 @@ todo_pdf_parent_resighting_rule_note <- function(
   female_association_pending <- suppressWarnings(
     as.numeric(female_association_pending)
   )
-  male_mm_pending <- suppressWarnings(as.numeric(male_mm_pending))
-  female_mm_pending <- suppressWarnings(as.numeric(female_mm_pending))
   if (!length(male_identity_counts)) {
     male_identity_counts <- rep(NA_real_, length(notes))
   }
@@ -709,12 +826,6 @@ todo_pdf_parent_resighting_rule_note <- function(
   if (!length(female_association_pending)) {
     female_association_pending <- rep(NA_real_, length(notes))
   }
-  if (!length(male_mm_pending)) {
-    male_mm_pending <- rep(NA_real_, length(notes))
-  }
-  if (!length(female_mm_pending)) {
-    female_mm_pending <- rep(NA_real_, length(notes))
-  }
   male_identity_counts <- rep(male_identity_counts, length.out = length(notes))
   female_identity_counts <- rep(female_identity_counts, length.out = length(notes))
   male_association_pending <- rep(
@@ -725,8 +836,6 @@ todo_pdf_parent_resighting_rule_note <- function(
     female_association_pending,
     length.out = length(notes)
   )
-  male_mm_pending <- rep(male_mm_pending, length.out = length(notes))
-  female_mm_pending <- rep(female_mm_pending, length.out = length(notes))
 
   unname(vapply(
     seq_along(notes),
@@ -752,9 +861,7 @@ todo_pdf_parent_resighting_rule_note <- function(
         seen_note <- c(
           seen_note,
           if (!is.na(male_association_pending[[i]])
-              && male_association_pending[[i]] == 0
-              && !is.na(male_mm_pending[[i]])
-              && male_mm_pending[[i]] == 0) {
+              && male_association_pending[[i]] == 0) {
             "M resolved"
           } else {
             paste(
@@ -768,9 +875,7 @@ todo_pdf_parent_resighting_rule_note <- function(
         seen_note <- c(
           seen_note,
           if (!is.na(female_association_pending[[i]])
-              && female_association_pending[[i]] == 0
-              && !is.na(female_mm_pending[[i]])
-              && female_mm_pending[[i]] == 0) {
+              && female_association_pending[[i]] == 0) {
             "F resolved"
           } else {
             paste(
@@ -787,6 +892,42 @@ todo_pdf_parent_resighting_rule_note <- function(
   ))
 }
 
+todo_pdf_collapse_annotated_marks <- function(values) {
+  values <- as.character(values)
+  unname(vapply(
+    values,
+    function(value) {
+      if (is.na(value) || !nzchar(trimws(value))) {
+        return("")
+      }
+      marks <- trimws(unlist(strsplit(value, "&", fixed = TRUE)))
+      marks <- unique(marks[nzchar(marks)])
+      if (!length(marks)) {
+        return("")
+      }
+
+      has_count <- grepl(
+        "\\s+\\((?:MM\\s*,\\s*)?[0-9]+\\)$",
+        marks,
+        perl = TRUE
+      )
+      base_mark <- sub(
+        "\\s+\\((?:MM\\s*,\\s*)?[0-9]+\\)$",
+        "",
+        marks,
+        perl = TRUE
+      )
+      keep <- !(!has_count & vapply(
+        seq_along(marks),
+        function(i) any(has_count & base_mark == base_mark[[i]]),
+        logical(1)
+      ))
+      paste(marks[keep], collapse = " & ")
+    },
+    character(1)
+  ))
+}
+
 
 todo_pdf_prepare <- function(
   todo = NULL,
@@ -794,7 +935,8 @@ todo_pdf_prepare <- function(
   nests_latest = NULL,
   chick_captures = NULL,
   unseen_tagged_birds = NULL,
-  hatch_prediction = NULL
+  hatch_prediction = NULL,
+  parent_status = NULL
 ) {
   if (is.null(todo)) {
     todo <- todo_pdf_query_tasks()
@@ -1103,11 +1245,38 @@ todo_pdf_prepare <- function(
       todo_dt$M_resighting_identity_count[parent_resighting_idx],
       todo_dt$F_resighting_identity_count[parent_resighting_idx],
       todo_dt$M_resight_association_pending[parent_resighting_idx],
-      todo_dt$F_resight_association_pending[parent_resighting_idx],
-      todo_dt$M_mm_resight_pending[parent_resighting_idx],
-      todo_dt$F_mm_resight_pending[parent_resighting_idx]
+      todo_dt$F_resight_association_pending[parent_resighting_idx]
     )
   todo_dt[, notes := parent_capture_notes]
+
+  # A processing task that still requires flotation should not display a
+  # hatch interval. The hatch prediction remains available upstream for
+  # other consumers; this is only the fieldworker-facing PDF value.
+  processing_without_float <- todo_dt$todo == "Unprocessed nest" &
+    !is.na(todo_dt$notes) &
+    grepl("float", tolower(as.character(todo_dt$notes)), fixed = TRUE)
+  hatch_display <- todo_dt$min_days_to_hatch
+  hatch_display[processing_without_float] <- NA_real_
+
+  # Keep chronology predictions out of every task-table hatch column when the
+  # nest still needs its first flotation record. Broods and explicit
+  # flotation-exempt prediction types retain their existing values.
+  prediction_status <- todo_pdf_hatch_prediction_status(hatch_prediction)
+  no_float_complete_nests <- prediction_status[
+    no_float_complete == TRUE,
+    nest_id
+  ]
+  if (length(no_float_complete_nests)) {
+    task_nest_ids <- trimws(as.character(todo_dt$nest_id))
+    task_has_hatch_evidence <- toupper(trimws(as.character(
+      todo_dt$nest_state
+    ))) == "H" | todo_pdf_as_numeric(todo_dt$brood_size) > 0
+    hatch_display[
+      !is_negative_brood &
+        !task_has_hatch_evidence &
+        task_nest_ids %chin% no_float_complete_nests
+    ] <- NA_real_
+  }
 
   todo_dt[, let(clutch_brood = fifelse(
     is.na(pdf_clutch_size) & is.na(pdf_brood_size),
@@ -1125,7 +1294,7 @@ todo_pdf_prepare <- function(
       Nest = nest_id,
       State = pdf_state,
       `Clutch–Brood` = clutch_brood,
-      Hatch = min_days_to_hatch,
+      Hatch = hatch_display,
       `Last Visit` = last_visit_days_ago,
       Male = M_mark,
       Female = F_mark,
@@ -1143,6 +1312,11 @@ todo_pdf_prepare <- function(
     x[toupper(trimws(x)) == "NULL"] <- ""
     x
   }), .SDcols = c("Male", "Female")]
+  for (column in c("Male", "Female")) {
+    rows[Todo == "Parent resighting", (column) := todo_pdf_collapse_annotated_marks(
+      get(column)
+    )]
+  }
 
   list(
     title = glue("Cass To-Dos for {refdate}"),
@@ -1157,7 +1331,8 @@ todo_pdf_prepare <- function(
       todo_dt,
       chick_captures,
       unseen_tagged_birds,
-      hatch_prediction
+      hatch_prediction,
+      parent_status
     )
   )
 }
@@ -1183,7 +1358,7 @@ todo_pdf_heading <- function(todo_name) {
     ),
     "Parent resighting" = list(
       title = "Parents to resight for nest association",
-      subtitle = "Association of a banded parent resolves after either 1) three nest-linked resightings of the same identity, including the initial resighting, or 2) one ‘behav’ “IN”, “NM”, “BW”, “BC”, “FC” resighting. ‘MM’ refers to a parent caught with the mobile mistnet, and the number in brackets refers to the number of non-resolution ‘behav’ resightings currently made of a given individual at a given nest/brood. When there is no number, it means the parent’s association is established."
+      subtitle = "Association resolves after 3 nest-linked resightings or 1 confirming behav (“IN”, “NM”, “BW”, “BC”, “FC”). “MM, n” shows an MM capture and n non-confirming resightings."
     ),
     "Untrapped brood" = list(
       title = "Broods to band",
@@ -1336,9 +1511,9 @@ todo_pdf_nest_summary_table <- function(nest_summary, n_blocks = 3L) {
   rows_per_block <- max(block_sizes)
 
   max_font_size <- 8.5
-  label_inset_y <- 3
-  max_inset_y <- 4.2
-  target_table_height <- 320
+  label_inset_y <- 2
+  max_inset_y <- 3.2
+  target_table_height <- 280
   if (rows_per_block <= 12L) {
     font_size <- max_font_size
     inset_y <- max_inset_y
@@ -1910,13 +2085,23 @@ todo_pdf_save <- function(
       "SELECT * FROM EGGS_HATCH_PREDICTION"
     )
   }
+  parent_status <- DBq(
+    "
+    SELECT nest_id, M_parent_mark, F_parent_mark
+    FROM TODO_PARENT_STATUS
+    "
+  )
+  if ("error" %in% names(parent_status)) {
+    parent_status <- NULL
+  }
   pdf <- todo_pdf_prepare(
     todo,
     available_combos,
     broods_latest,
     chick_captures,
     unseen_tagged_birds,
-    hatch_prediction
+    hatch_prediction,
+    parent_status
   )
 
   todo_pdf_map_save(

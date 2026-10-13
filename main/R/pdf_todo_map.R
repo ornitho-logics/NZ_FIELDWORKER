@@ -26,9 +26,9 @@
     st_transform(2193) |>
     st_make_valid()
 
-  plots <- plots[plots$plot_name %in% c("B", "C"), ]
-  if (!all(c("B", "C") %in% plots$plot_name)) {
-    stop("Plot polygons B and C are required for the to-do map.")
+  plots <- plots[plots$plot_name %in% c("A", "B", "C"), ]
+  if (!all(c("A", "B", "C") %in% plots$plot_name)) {
+    stop("Plot polygons A, B, and C are required for the to-do map.")
   }
 
   plots
@@ -219,6 +219,11 @@
     reference_date
   )
   latest <- data.table(nests_latest)
+  if ("species" %in% names(latest)) {
+    latest <- latest[
+      toupper(trimws(as.character(species))) != "WRYB"
+    ]
+  }
   latest_columns <- c("nest_id", "lat", "lon")
   if (all(latest_columns %in% names(latest))) {
     latest[, nest_id := trimws(as.character(nest_id))]
@@ -801,6 +806,13 @@ todo_pdf_map_save <- function(
   gate_plot <- plots$plot_name[st_nearest_feature(gate, plots)]
 
   panel_specs <- list(
+    A = list(
+      rotation_deg = -90,
+      local_image_rotation = TRUE,
+      server_rotation = 0,
+      target_ratio = 1.55,
+      image_size = "1275,823"
+    ),
     B = list(
       rotation_deg = -90,
       local_image_rotation = TRUE,
@@ -868,7 +880,7 @@ todo_pdf_map_save <- function(
     filename = file,
     plot = map,
     width = 190,
-    height = 155,
+    height = 145,
     units = "mm",
     dpi = 240,
     bg = "white"

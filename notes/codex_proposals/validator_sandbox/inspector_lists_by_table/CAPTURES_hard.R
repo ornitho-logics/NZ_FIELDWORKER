@@ -21,15 +21,16 @@ list({
         has_positive_nest <- !missing_like(z$nest_id) & toupper(nest_key) != "NO_NEST" & !grepl("^-", nest_key)
         has_negative_brood <- !missing_like(z$nest_id) & grepl("^-", nest_key)
         first_chick_capture <- !is.na(age_chr) & toupper(age_chr) == "C" & status_chr == "F"
+        chick_recapture <- !is.na(age_chr) & toupper(age_chr) == "C" & status_chr == "R"
         adult_captured_with_chicks <- !is.na(age_chr) & toupper(age_chr) == "A" &
             !is.na(caught_with_chr) & grepl("(^|,)\\s*[0-9]*C\\s*(,|$)", caught_with_chr, perl = TRUE)
         has_real_nest_or_brood <- has_positive_nest | has_negative_brood
-        optional_positive_nest_gps <- has_positive_nest & (first_chick_capture | adult_captured_with_chicks)
+        optional_positive_nest_gps <- has_positive_nest & (first_chick_capture | chick_recapture | adult_captured_with_chicks)
         adult_with_chicks_positive_nest <- has_positive_nest & adult_captured_with_chicks
         gps_id_entered <- !missing_like(z$gps_id)
         gps_point_entered <- !missing_like(z$gps_point)
         has_any_gps <- gps_id_entered | gps_point_entered
-        gps_required <- (!has_positive_nest & !first_chick_capture) | has_negative_brood | adult_with_chicks_positive_nest
+        gps_required <- (!has_positive_nest & !first_chick_capture) | chick_recapture | has_negative_brood | adult_with_chicks_positive_nest
         optional_positive_nest_partial_gps <- has_positive_nest & first_chick_capture & xor(gps_id_entered, gps_point_entered)
         nest_gps_conflicts <- {
             bad_idx <- which(has_positive_nest & has_any_gps & !optional_positive_nest_gps)
@@ -84,6 +85,18 @@ list({
                     )
                 }
             }),
+            list({
+                bad_idx <- which(chick_recapture & missing_like(z$released))
+                if (length(bad_idx) == 0) {
+                    NULL
+                } else {
+                    data.table::data.table(
+                        rowid = z$rowid[bad_idx],
+                        variable = "released",
+                        reason = "Age-C recapture events must record the release time."
+                    )
+                }
+            }),
             lapply(c("gps_id", "gps_point"), function(col) {
                 bad_idx <- which(gps_required & missing_like(z[[col]]))
                 if (length(bad_idx) == 0) {
@@ -91,7 +104,8 @@ list({
                 }
                 negative_idx <- bad_idx[has_negative_brood[bad_idx]]
                 adult_brood_idx <- bad_idx[adult_with_chicks_positive_nest[bad_idx]]
-                ordinary_idx <- setdiff(bad_idx, c(negative_idx, adult_brood_idx))
+                chick_recapture_idx <- bad_idx[chick_recapture[bad_idx]]
+                ordinary_idx <- setdiff(bad_idx, c(negative_idx, adult_brood_idx, chick_recapture_idx))
                 pieces <- list()
                 if (length(negative_idx) > 0) {
                     pieces[[length(pieces) + 1L]] <- data.table::data.table(
@@ -105,6 +119,13 @@ list({
                         rowid = z$rowid[adult_brood_idx],
                         variable = col,
                         reason = "An adult captured with chicks from a positive nest must record both gps_id and gps_point because the capture may be away from the nest."
+                    )
+                }
+                if (length(chick_recapture_idx) > 0) {
+                    pieces[[length(pieces) + 1L]] <- data.table::data.table(
+                        rowid = z$rowid[chick_recapture_idx],
+                        variable = col,
+                        reason = "Age-C recapture events must record both gps_id and gps_point, even when nest_id is entered."
                     )
                 }
                 if (length(ordinary_idx) > 0) {
@@ -1630,6 +1651,7 @@ list({
             row <- z[i]
             problems <- list()
             age_val <- one_chr(row$age)
+            chick_recapture_row <- identical(age_val, "C") && identical(one_chr(row$capture_status), "R")
             if (identical(age_val, "A")) {
                 adult_missing <- c(tarsus = is.na(row$tarsus), culmen = is.na(row$culmen), total_head = is.na(row$total_head), head_white = is.na(row$head_white), head_black = is.na(row$head_black), rufous_band = is.na(row$rufous_band), wing = is.na(row$wing), weight = is.na(row$weight))
                 for (nm in names(adult_missing)[adult_missing]) {
@@ -1710,10 +1732,14 @@ list({
                 if (!(row$primary_samp %in% c("0", NA_character_))) {
                   problems[[length(problems) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = "primary_samp", reason = "Chick captures must use primary_samp 0 or blank.")
                 }
-                if (!(one_chr(row$chick_tent_photo) %in% c("0", "1"))) {
+                chick_tent_val <- one_chr(row$chick_tent_photo)
+                if ((!chick_recapture_row && !(chick_tent_val %in% c("0", "1"))) ||
+                    (chick_recapture_row && !is.na(chick_tent_val) && !(chick_tent_val %in% c("0", "1")))) {
                   problems[[length(problems) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = "chick_tent_photo", reason = "All chick captures must record chick_tent_photo as 0 or 1.")
                 }
-                if (!(one_chr(row$chick_hide_photo) %in% c("0", "1"))) {
+                chick_hide_val <- one_chr(row$chick_hide_photo)
+                if ((!chick_recapture_row && !(chick_hide_val %in% c("0", "1"))) ||
+                    (chick_recapture_row && !is.na(chick_hide_val) && !(chick_hide_val %in% c("0", "1")))) {
                   problems[[length(problems) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = "chick_hide_photo", reason = "All chick captures must record chick_hide_photo as 0 or 1.")
                 }
                 for (nm in c("mugshot_photo", "wing_photo")) {
