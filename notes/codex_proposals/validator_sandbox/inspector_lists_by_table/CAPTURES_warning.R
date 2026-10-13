@@ -473,7 +473,16 @@ list({
             if (length(dup_combos) == 0) {
                 empty
             } else {
-            x_pairs[combo %in% dup_combos, .(rowid, variable = "UL", reason = "These leg marks duplicate another record. Please check the marks; if the duplicate is genuine, add a note explaining that the bird should be recaptured for correction.")][, unique(.SD)]
+            x_pairs[combo %in% dup_combos, .(
+                rowid,
+                variable = "UL",
+                reason = paste(
+                    "This complete band combination (UL/LL/UR/LR) is already associated",
+                    "with another ring. A metal band on UL is common and is not the problem",
+                    "by itself; please check the full combination and ring. If two birds",
+                    "genuinely share the same combination, add a comment and arrange correction."
+                )
+            )][, unique(.SD)]
             }
         }
     }, nam = "CAP_012B duplicate markings")
