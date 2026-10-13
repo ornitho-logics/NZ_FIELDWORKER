@@ -4,7 +4,7 @@ todo_list_view_sql <- function() {
     collapse = "\n"
   )
   start_marker <-
-    "CREATE OR REPLACE( ALGORITHM = [A-Z]+)? VIEW FIELD_2026_BADOatNZ.TODO_LIST AS"
+    "CREATE OR REPLACE( ALGORITHM = [A-Z]+)? VIEW FIELD_2026_BADOatNZ.TODO_LIST_CALCULATE AS"
   end_marker <- paste(
     "CREATE OR REPLACE VIEW",
     "FIELD_2026_BADOatNZ.VIEW_1 AS"
@@ -26,6 +26,45 @@ views_source_sql <- function() {
     collapse = "\n"
   )
 }
+
+
+test_that("public TODO_LIST is a small snapshot-backed read boundary", {
+  sql <- views_source_sql()
+  start_marker <- paste(
+    "CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW",
+    "FIELD_2026_BADOatNZ.TODO_LIST AS"
+  )
+  end_marker <- paste(
+    "CREATE OR REPLACE VIEW",
+    "FIELD_2026_BADOatNZ.VIEW_1 AS"
+  )
+  start <- regexpr(start_marker, sql, fixed = TRUE)[[1]]
+  expect_gt(start, 0L)
+
+  remainder <- substring(sql, start)
+  finish <- regexpr(end_marker, remainder, fixed = TRUE)[[1]]
+  expect_gt(finish, 0L)
+  public_sql <- substring(remainder, 1L, finish - 1L)
+
+  expect_match(public_sql, "TODO_PARENT_TASKS", fixed = TRUE)
+  expect_match(public_sql, "TODO_NONPARENT_TASKS", fixed = TRUE)
+  expect_match(public_sql, "UNION ALL", fixed = TRUE)
+  expect_match(sql, "TODO_LIST_SNAPSHOT", fixed = TRUE)
+  expect_match(sql, "CREATE TABLE FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT", fixed = TRUE)
+  expect_match(sql, "INSERT INTO FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT", fixed = TRUE)
+})
+
+
+test_that("TODO snapshot refresh is explicit and uses live SQL sources", {
+  refresh_sql <- paste(
+    readLines(app_file("DATABASE", "refresh_todo_list_snapshot.SQL"), warn = FALSE),
+    collapse = "\n"
+  )
+
+  expect_match(refresh_sql, "TRUNCATE TABLE FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT", fixed = TRUE)
+  expect_match(refresh_sql, "SELECT *\nFROM FIELD_2026_BADOatNZ.TODO_LIST_CALCULATE", fixed = TRUE)
+  expect_false(grepl("\\.rds", refresh_sql, ignore.case = TRUE))
+})
 
 
 available_combos_view_sql <- function() {
@@ -103,7 +142,7 @@ test_that("TODO_LIST contains the bounded operational rules", {
 
   expect_match(
     sql,
-    "CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_LIST AS",
+    "CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_LIST_CALCULATE AS",
     fixed = TRUE
   )
   expect_match(
@@ -291,7 +330,7 @@ test_that("parent-status view projections remain deployable", {
   expect_gt(parent_start, 0L)
   parent_sql <- substring(sql, parent_start)
   parent_end <- regexpr(
-    "CREATE OR REPLACE( ALGORITHM = [A-Z]+)? VIEW FIELD_2026_BADOatNZ.TODO_LIST AS",
+    "CREATE OR REPLACE( ALGORITHM = [A-Z]+)? VIEW FIELD_2026_BADOatNZ.TODO_LIST_CALCULATE AS",
     parent_sql,
     perl = TRUE
   )[[1]]
@@ -524,22 +563,23 @@ test_that("four-gate identity matching owns short LL/LR and spacer aliases", {
 
 
 test_that("hatched brood task Hatch values use the recorded H date", {
-  sql <- todo_list_view_sql()
+  sql <- views_source_sql()
 
-  expect_match(sql, "MIN(observed_nest.date) AS hatch_date", fixed = TRUE)
+  expect_match(sql, "TODO_NEST_CONTEXT AS", fixed = TRUE)
+  expect_match(sql, "MIN(date) AS hatch_date", fixed = TRUE)
   expect_match(
     sql,
-    "AND UPPER(TRIM(COALESCE(observed_nest.nest_state, ''))) = 'H'",
+    "WHERE UPPER(TRIM(COALESCE(nest_state, ''))) = 'H'",
     fixed = TRUE
   )
   expect_match(
     sql,
-    "WHEN observed_hatch_dates.hatch_date IS NOT NULL",
+    "WHEN context.observed_hatch_date IS NOT NULL",
     fixed = TRUE
   )
   expect_match(
     sql,
-    "observed_hatch_dates.hatch_date,\n        sr.reference_date",
+    "context.observed_hatch_date,\n        sr.reference_date",
     fixed = TRUE
   )
   expect_match(
@@ -742,7 +782,7 @@ test_that("pair completion uses the four-gate status without phenology gating", 
   source_sql <- views_source_sql()
 
   expect_match(sql, "FROM geo_parent_targets targets", fixed = TRUE)
-  expect_match(sql, "FIELD_2026_BADOatNZ.ADULT_PARENT_STATUS", fixed = TRUE)
+  expect_match(sql, "FROM FIELD_2026_BADOatNZ.TODO_PARENT_STATUS", fixed = TRUE)
   expect_match(sql, "is_pair_completion", fixed = TRUE)
   expect_match(sql, "geo_instruction", fixed = TRUE)
 

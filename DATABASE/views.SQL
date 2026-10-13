@@ -4630,16 +4630,432 @@ adult_resighting_association_status AS (
   GROUP BY classified.nest_id
 )
 SELECT * FROM adult_resighting_association_status;
+
+
+/*
+  TODO_NEST_HISTORY and TODO_NEST_CONTEXT are the shared operational-nest
+  layer for TODO_LIST.  They deliberately materialize the reference-date-
+  bounded NESTS history and its processing summaries once behind MariaDB
+  view boundaries.  Task-specific CTEs should consume these small relations,
+  not rescan NESTS/EGGS independently.
+
+  This is a view-only optimization: the production app still reads the live
+  FIELD_2026_BADOatNZ tables, while local RDS files remain test fixtures only.
+  The output columns mirror the former TODO_LIST CTEs so task eligibility and
+  PDF columns do not change.
+*/
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_NEST_HISTORY AS
+WITH sr AS (
+  SELECT value AS reference_date
+  FROM FIELD_2026_BADOatNZ.settings
+  WHERE variable = 'reference_date'
+    AND value IS NOT NULL
+)
+SELECT
+  n.*,
+  sr.reference_date AS todo_reference_date
+FROM FIELD_2026_BADOatNZ.NESTS n
+CROSS JOIN sr
+WHERE n.nest_id IS NOT NULL
+  AND TRIM(n.nest_id) <> ''
+  AND UPPER(TRIM(COALESCE(n.site, ''))) = 'CR'
+  AND n.date <= sr.reference_date;
+
+
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT AS
+WITH history AS (
+  SELECT *
+  FROM FIELD_2026_BADOatNZ.TODO_NEST_HISTORY
+),
+first_processable_visit AS (
+  SELECT
+    nest_id,
+    MIN(date) AS first_processable_date,
+    MIN(
+      CAST(CONCAT(date, ' ', COALESCE(time_visit, '00:00:00')) AS DATETIME)
+    ) AS first_processable_datetime
+  FROM history
+  WHERE UPPER(TRIM(COALESCE(nest_state, ''))) IN ('F', 'I', 'PP', 'PD')
+  GROUP BY nest_id
+),
+photo_summary AS (
+  SELECT
+    nest_id,
+    MAX(date) AS last_photo_date,
+    MAX(
+      CAST(CONCAT(date, ' ', COALESCE(time_visit, '00:00:00')) AS DATETIME)
+    ) AS last_photo_datetime,
+    COUNT(*) AS n_photo_rows
+  FROM history
+  WHERE nest_photo = '1'
+     OR tent_photo = '1'
+  GROUP BY nest_id
+),
+processing_photo_summary AS (
+  SELECT
+    n.nest_id,
+    MAX(n.date) AS last_photo_date,
+    MAX(
+      CAST(CONCAT(n.date, ' ', COALESCE(n.time_visit, '00:00:00')) AS DATETIME)
+    ) AS last_photo_datetime,
+    COUNT(*) AS n_photo_rows
+  FROM history n
+  JOIN first_processable_visit
+    ON n.nest_id = first_processable_visit.nest_id
+  WHERE (n.nest_photo = '1' OR n.tent_photo = '1')
+    AND CAST(CONCAT(n.date, ' ', COALESCE(n.time_visit, '00:00:00')) AS DATETIME)
+        >= first_processable_visit.first_processable_datetime
+  GROUP BY n.nest_id
+),
+float_visit_summary AS (
+  SELECT
+    e.nest_id,
+    e.date AS float_date,
+    MAX(
+      CAST(CONCAT(e.date, ' ', COALESCE(e.time_visit, '00:00:00')) AS DATETIME)
+    ) AS float_datetime,
+    COUNT(*) AS n_float_rows
+  FROM FIELD_2026_BADOatNZ.EGGS e
+  JOIN FIELD_2026_BADOatNZ.NESTS_LATEST latest_nests
+    ON e.nest_id = latest_nests.nest_id
+  WHERE e.date <= latest_nests.reference_date
+    AND e.float_angle IS NOT NULL
+    AND e.float_location IS NOT NULL
+  GROUP BY e.nest_id, e.date
+),
+float_summary AS (
+  SELECT
+    float_visit_summary.nest_id,
+    MAX(float_visit_summary.float_date) AS last_float_date,
+    MAX(float_visit_summary.float_datetime) AS last_float_datetime,
+    SUM(float_visit_summary.n_float_rows) AS n_float_rows
+  FROM float_visit_summary
+  JOIN first_processable_visit
+    ON float_visit_summary.nest_id = first_processable_visit.nest_id
+   AND float_visit_summary.float_datetime
+       >= first_processable_visit.first_processable_datetime
+  GROUP BY float_visit_summary.nest_id
+),
+processed_visit_summary AS (
+  SELECT
+    first_processable_visit.nest_id,
+    CASE
+      WHEN processing_photo_summary.last_photo_datetime IS NOT NULL
+       AND float_summary.last_float_datetime IS NOT NULL
+      THEN GREATEST(
+        processing_photo_summary.last_photo_datetime,
+        float_summary.last_float_datetime
+      )
+      ELSE NULL
+    END AS last_processed_datetime
+  FROM first_processable_visit
+  LEFT JOIN processing_photo_summary
+    ON first_processable_visit.nest_id = processing_photo_summary.nest_id
+  LEFT JOIN float_summary
+    ON first_processable_visit.nest_id = float_summary.nest_id
+),
+processing_summary AS (
+  SELECT
+    first_processable_visit.nest_id,
+    first_processable_visit.first_processable_date,
+    first_processable_visit.first_processable_datetime,
+    processing_photo_summary.last_photo_date,
+    processing_photo_summary.last_photo_datetime,
+    float_summary.last_float_date,
+    float_summary.last_float_datetime,
+    COALESCE(processing_photo_summary.n_photo_rows, 0) AS n_photo_rows,
+    COALESCE(float_summary.n_float_rows, 0) AS n_float_rows,
+    processed_visit_summary.last_processed_datetime
+  FROM first_processable_visit
+  LEFT JOIN processing_photo_summary
+    ON first_processable_visit.nest_id = processing_photo_summary.nest_id
+  LEFT JOIN float_summary
+    ON first_processable_visit.nest_id = float_summary.nest_id
+  LEFT JOIN processed_visit_summary
+    ON first_processable_visit.nest_id = processed_visit_summary.nest_id
+),
+nest_discovery AS (
+  SELECT
+    nest_id,
+    COALESCE(
+      MIN(CASE WHEN UPPER(TRIM(COALESCE(nest_state, ''))) = 'F' THEN date END),
+      MIN(CASE WHEN UPPER(TRIM(COALESCE(nest_state, ''))) IN ('I', 'PP', 'PD') THEN date END),
+      MIN(date)
+    ) AS first_found_date
+  FROM history
+  GROUP BY nest_id
+),
+latest_clutch_ranked AS (
+  SELECT
+    n.nest_id,
+    n.clutch_size,
+    n.date AS clutch_date,
+    COALESCE(n.time_visit, '00:00:00') AS clutch_time_visit,
+    CAST(CONCAT(n.date, ' ', COALESCE(n.time_visit, '00:00:00')) AS DATETIME)
+      AS clutch_datetime,
+    CASE
+      WHEN n.nest_photo = '1' OR n.tent_photo = '1' THEN 1
+      ELSE 0
+    END AS clutch_has_photo,
+    ROW_NUMBER() OVER (
+      PARTITION BY n.nest_id
+      ORDER BY n.date DESC, n.time_visit DESC, n.pk DESC
+    ) AS row_num
+  FROM history n
+  WHERE n.clutch_size IS NOT NULL
+),
+latest_event_ranked AS (
+  SELECT
+    n.nest_id,
+    n.clutch_size,
+    n.date AS event_date,
+    ROW_NUMBER() OVER (
+      PARTITION BY n.nest_id
+      ORDER BY n.date DESC, n.time_visit DESC, n.pk DESC
+    ) AS row_num
+  FROM history n
+),
+latest_clutch_processing_status AS (
+  SELECT
+    latest_clutch_ranked.nest_id,
+    latest_clutch_ranked.clutch_has_photo,
+    MAX(
+      CASE
+        WHEN latest_nests.hatch_signs_present = 1 THEN 1
+        WHEN float_visit_summary.nest_id IS NOT NULL THEN 1
+        ELSE 0
+      END
+    ) AS clutch_has_float
+  FROM latest_clutch_ranked
+  LEFT JOIN FIELD_2026_BADOatNZ.NESTS_LATEST latest_nests
+    ON latest_clutch_ranked.nest_id = latest_nests.nest_id
+  LEFT JOIN float_visit_summary
+    ON latest_clutch_ranked.nest_id = float_visit_summary.nest_id
+   AND float_visit_summary.float_datetime
+       >= latest_clutch_ranked.clutch_datetime
+  WHERE latest_clutch_ranked.row_num = 1
+  GROUP BY
+    latest_clutch_ranked.nest_id,
+    latest_clutch_ranked.clutch_has_photo
+),
+clutch_at_processing_ranked AS (
+  SELECT
+    n.nest_id,
+    n.clutch_size,
+    ROW_NUMBER() OVER (
+      PARTITION BY n.nest_id
+      ORDER BY n.date DESC, n.time_visit DESC, n.pk DESC
+    ) AS row_num
+  FROM history n
+  JOIN processing_summary
+    ON n.nest_id = processing_summary.nest_id
+   AND processing_summary.last_processed_datetime IS NOT NULL
+   AND CAST(CONCAT(n.date, ' ', COALESCE(n.time_visit, '00:00:00')) AS DATETIME)
+       <= processing_summary.last_processed_datetime
+  WHERE n.clutch_size IS NOT NULL
+),
+hatched_nests AS (
+  SELECT
+    nest_id,
+    MIN(date) AS hatch_date
+  FROM history
+  WHERE UPPER(TRIM(COALESCE(nest_state, ''))) = 'H'
+  GROUP BY nest_id
+),
+observed_hatch_dates AS (
+  SELECT
+    nest_id,
+    MIN(date) AS hatch_date
+  FROM history
+  WHERE UPPER(TRIM(COALESCE(nest_state, ''))) = 'H'
+  GROUP BY nest_id
+),
+current_clutch AS (
+  SELECT
+    nest_id,
+    clutch_size AS current_clutch_size,
+    clutch_datetime AS current_clutch_datetime
+  FROM latest_clutch_ranked
+  WHERE row_num = 1
+),
+last_other_clutch AS (
+  SELECT
+    current_clutch.nest_id,
+    MAX(
+      CAST(
+        CONCAT(
+          history.date,
+          ' ',
+          COALESCE(history.time_visit, '00:00:00')
+        ) AS DATETIME
+      )
+    ) AS last_other_clutch_datetime
+  FROM current_clutch
+  LEFT JOIN history
+    ON current_clutch.nest_id = history.nest_id
+   AND history.clutch_size IS NOT NULL
+   AND history.clutch_size <> current_clutch.current_clutch_size
+   AND CAST(
+         CONCAT(
+           history.date,
+           ' ',
+           COALESCE(history.time_visit, '00:00:00')
+         ) AS DATETIME
+       ) <= current_clutch.current_clutch_datetime
+  GROUP BY current_clutch.nest_id
+),
+current_clutch_start AS (
+  SELECT
+    current_clutch.nest_id,
+    MIN(
+      CAST(
+        CONCAT(
+          history.date,
+          ' ',
+          COALESCE(history.time_visit, '00:00:00')
+        ) AS DATETIME
+      )
+    ) AS current_clutch_start_datetime
+  FROM current_clutch
+  JOIN history
+    ON current_clutch.nest_id = history.nest_id
+   AND history.clutch_size = current_clutch.current_clutch_size
+   AND CAST(
+         CONCAT(
+           history.date,
+           ' ',
+           COALESCE(history.time_visit, '00:00:00')
+         ) AS DATETIME
+       ) <= current_clutch.current_clutch_datetime
+  LEFT JOIN last_other_clutch
+    ON current_clutch.nest_id = last_other_clutch.nest_id
+  WHERE last_other_clutch.last_other_clutch_datetime IS NULL
+     OR CAST(
+          CONCAT(
+            history.date,
+            ' ',
+            COALESCE(history.time_visit, '00:00:00')
+          ) AS DATETIME
+        ) > last_other_clutch.last_other_clutch_datetime
+  GROUP BY current_clutch.nest_id
+),
+latest_float_status AS (
+  SELECT
+    p.nest_id,
+    MAX(p.float_date) AS latest_float_date,
+    CAST(AVG(p.predicted_days_since_laying + p.days_since_float) AS DECIMAL(6,1))
+      AS average_ref_date_days_since_laid,
+    CAST(ROUND(AVG(p.min_days_to_hatch), 0) AS SIGNED) AS min_days_to_hatch
+  FROM FIELD_2026_BADOatNZ.EGGS_HATCH_PREDICTION p
+  WHERE p.float_date IS NOT NULL
+    AND p.calibration_match_type IN ('exact', 'nearest')
+  GROUP BY p.nest_id
+)
+SELECT
+  n.nest_id,
+  n.species,
+  n.last_visit_datetime,
+  n.days_ago,
+  n.last_observer,
+  n.nest_state,
+  n.hatch_state,
+  n.hatch_signs_present,
+  n.bird_inc,
+  n.clutch_size,
+  n.brood_size,
+  COALESCE(latest_float_status.latest_float_date, n.latest_float_date)
+    AS latest_float_date,
+  COALESCE(
+    latest_float_status.average_ref_date_days_since_laid,
+    n.average_ref_date_days_since_laid
+  ) AS average_ref_date_days_since_laid,
+  COALESCE(latest_float_status.min_days_to_hatch, n.min_days_to_hatch)
+    AS base_min_days_to_hatch,
+  n.nest_photo,
+  n.tent_photo,
+  n.lat,
+  n.lon,
+  n.reference_date,
+  observed_hatch_dates.hatch_date AS observed_hatch_date,
+  nest_discovery.first_found_date,
+  first_processable_visit.first_processable_date,
+  first_processable_visit.first_processable_datetime,
+  processing_summary.last_photo_date,
+  processing_summary.last_photo_datetime,
+  processing_summary.last_float_date,
+  processing_summary.last_float_datetime,
+  processing_summary.n_photo_rows,
+  processing_summary.n_float_rows,
+  processing_summary.last_processed_datetime,
+  latest_clutch_ranked.clutch_size AS latest_clutch_size,
+  latest_clutch_ranked.clutch_date AS latest_clutch_date,
+  latest_clutch_ranked.clutch_datetime AS latest_clutch_datetime,
+  latest_clutch_ranked.clutch_has_photo AS latest_clutch_has_photo,
+  latest_event_ranked.clutch_size AS latest_event_clutch_size,
+  latest_event_ranked.event_date AS latest_event_date,
+  latest_clutch_processing_status.clutch_has_float,
+  clutch_at_processing_ranked.clutch_size AS clutch_at_processing_size,
+  current_clutch.current_clutch_size,
+  current_clutch.current_clutch_datetime,
+  current_clutch_start.current_clutch_start_datetime,
+  hatched_nests.hatch_date
+FROM FIELD_2026_BADOatNZ.NESTS_LATEST n
+LEFT JOIN latest_float_status
+  ON n.nest_id = latest_float_status.nest_id
+LEFT JOIN observed_hatch_dates
+  ON n.nest_id = observed_hatch_dates.nest_id
+LEFT JOIN nest_discovery
+  ON n.nest_id = nest_discovery.nest_id
+LEFT JOIN first_processable_visit
+  ON n.nest_id = first_processable_visit.nest_id
+LEFT JOIN processing_summary
+  ON n.nest_id = processing_summary.nest_id
+LEFT JOIN latest_clutch_ranked
+  ON n.nest_id = latest_clutch_ranked.nest_id
+ AND latest_clutch_ranked.row_num = 1
+LEFT JOIN latest_event_ranked
+  ON n.nest_id = latest_event_ranked.nest_id
+ AND latest_event_ranked.row_num = 1
+LEFT JOIN latest_clutch_processing_status
+  ON n.nest_id = latest_clutch_processing_status.nest_id
+LEFT JOIN clutch_at_processing_ranked
+  ON n.nest_id = clutch_at_processing_ranked.nest_id
+ AND clutch_at_processing_ranked.row_num = 1
+LEFT JOIN current_clutch
+  ON n.nest_id = current_clutch.nest_id
+LEFT JOIN current_clutch_start
+  ON n.nest_id = current_clutch_start.nest_id
+LEFT JOIN hatched_nests
+  ON n.nest_id = hatched_nests.nest_id;
+
+
+/*
+  TODO_PARENT_STATUS is the task-facing materialization boundary for the
+  authoritative four-gate parent pipeline. Keeping this as a separate
+  TEMPTABLE view prevents each parent-task branch from expanding
+  ADULT_PARENT_STATUS independently. It is a projection boundary, not a
+  second parent-association algorithm: the biological evidence ranking and
+  diagnostic columns remain in ADULT_PARENT_STATUS.
+
+  The production server continues to read live tables. No RDS path or local
+  snapshot file is referenced here.
+*/
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_PARENT_STATUS AS
+SELECT DISTINCT status.*
+FROM FIELD_2026_BADOatNZ.ADULT_PARENT_STATUS status;
+
+
 /*
   TODO_LIST is the authoritative fieldworker task engine. Its output rows are
   task-oriented; PDF, map, and table consumers should use this view rather
   than reproducing eligibility logic.
 
-  CTE families and fieldwork intent: sr/cr_current_nest_ids establish the
-  reference date and current CR universe; latest_float_* and
-  initial_clutch_status provide hatch timing; geo_deployment_status exposes
+  The materialized TODO_NEST_HISTORY/TODO_NEST_CONTEXT views establish the
+  reference-date-bounded CR history, latest operational state, hatch timing,
+  clutch/processing summaries, and capture-age inputs once. In this view,
+  initial_clutch_status supplies hatch timing; geo_deployment_status exposes
   GEO counts and quotas; latest_nests/active_nests define operational state
-  (pP/pD remain active like I); nest_history through processing_summary decide
+  (pP/pD remain active like I); the context-backed processing summaries decide
   photo/flotation completion; nest_discovery through
   latest_clutch_processing_status establish clutch and processing dates;
   BROODS_LATEST/brood follow-up retain post-hatch work after later state
@@ -4648,73 +5064,25 @@ SELECT * FROM adult_resighting_association_status;
   valid H-photo rings; adult_* CTEs resolve parent identity, X-X/death/GEO/MM
   evidence, behaviour association, and 36-hour gates;
   ADULT_PARENT_STATUS is the authoritative four-gate parent-association
-  result consumed by parent tasks, GEO/pair completion, PDF, map, and summary;
+  result, materialized for task assembly through TODO_PARENT_STATUS and
+  consumed by parent tasks, GEO/pair completion, PDF, map, and summary;
   ADULT_SCRAPE_RESIGHTING_STATUS is retained only for bounded scrape-photo
   eligibility; todo_parent_source/status combines parent inputs;
   geo_parent_plan ranks tag/band targets and exposes diagnostics; todo_* CTEs
   emit the individual operational task classes before the final UNION.
 
-  The CTEs remain separated for biological auditability. MariaDB can otherwise
-  merge nested derived relations repeatedly; the PDF caller sets
-  derived_merge=off and projects only the columns it consumes. That is a
-  caller-side planning safeguard, not a change to task eligibility.
+  The remaining CTEs are task assembly only. TODO_LIST is explicitly
+  ALGORITHM=TEMPTABLE, while the PDF caller also sets derived_merge=off and
+  projects only the columns it consumes. These are planning safeguards, not
+  changes to task eligibility.
 */
-CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_LIST AS
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_LIST_CALCULATE AS
 
 WITH sr AS (
   SELECT value AS reference_date
   FROM FIELD_2026_BADOatNZ.settings
   WHERE variable = 'reference_date'
     AND value IS NOT NULL
-),
-cr_current_nest_ids AS (
-  SELECT
-    latest_visit.nest_id
-  FROM (
-    SELECT
-      n.nest_id,
-      n.site,
-      ROW_NUMBER() OVER (
-        PARTITION BY n.nest_id
-        ORDER BY n.date DESC, n.time_visit DESC, n.pk DESC
-      ) AS row_num
-    FROM FIELD_2026_BADOatNZ.NESTS n
-    CROSS JOIN sr
-    WHERE n.nest_id IS NOT NULL
-      AND TRIM(n.nest_id) <> ''
-      AND n.date <= sr.reference_date
-  ) latest_visit
-  WHERE latest_visit.row_num = 1
-    AND UPPER(TRIM(COALESCE(latest_visit.site, ''))) = 'CR'
-),
-latest_float_dates AS (
-  SELECT
-    p.nest_id,
-    MAX(p.float_date) AS latest_float_date
-  FROM FIELD_2026_BADOatNZ.EGGS_HATCH_PREDICTION p
-  WHERE p.float_date IS NOT NULL
-    AND p.calibration_match_type IN ('exact', 'nearest')
-  GROUP BY p.nest_id
-),
-latest_float_status AS (
-  SELECT
-    p.nest_id,
-    d.latest_float_date,
-    CAST(
-      AVG(p.predicted_days_since_laying + p.days_since_float)
-      AS DECIMAL(6,1)
-    ) AS average_ref_date_days_since_laid,
-    CAST(
-      ROUND(AVG(p.min_days_to_hatch), 0)
-      AS SIGNED
-    ) AS min_days_to_hatch
-  FROM FIELD_2026_BADOatNZ.EGGS_HATCH_PREDICTION p
-  JOIN latest_float_dates d
-    ON p.nest_id = d.nest_id
-   AND p.float_date = d.latest_float_date
-  GROUP BY
-    p.nest_id,
-    d.latest_float_date
 ),
 geo_deployment_status AS (
   SELECT
@@ -4803,24 +5171,24 @@ initial_clutch_status AS (
   )
 ),
 latest_nests AS (
-  SELECT DISTINCT
-    n.nest_id,
-    n.species,
-    n.last_visit_datetime,
-    n.days_ago,
-    n.last_observer,
-    n.nest_state,
-    n.hatch_state,
-    n.hatch_signs_present,
-    n.bird_inc,
-    n.clutch_size,
-    n.brood_size,
-    latest_float_status.latest_float_date,
-    latest_float_status.average_ref_date_days_since_laid,
+  SELECT
+    context.nest_id,
+    context.species,
+    context.last_visit_datetime,
+    context.days_ago,
+    context.last_observer,
+    context.nest_state,
+    context.hatch_state,
+    context.hatch_signs_present,
+    context.bird_inc,
+    context.clutch_size,
+    context.brood_size,
+    context.latest_float_date,
+    context.average_ref_date_days_since_laid,
     CASE
-      WHEN observed_hatch_dates.hatch_date IS NOT NULL
+      WHEN context.observed_hatch_date IS NOT NULL
       THEN DATEDIFF(
-        observed_hatch_dates.hatch_date,
+        context.observed_hatch_date,
         sr.reference_date
       )
       WHEN initial_clutch_status.inferred_hatch_date IS NOT NULL
@@ -4828,37 +5196,16 @@ latest_nests AS (
         initial_clutch_status.inferred_hatch_date,
         sr.reference_date
       )
-      ELSE COALESCE(
-        latest_float_status.min_days_to_hatch,
-        n.min_days_to_hatch
-      )
+      ELSE context.base_min_days_to_hatch
     END AS min_days_to_hatch,
-    n.nest_photo,
-    n.tent_photo,
-    n.lat,
-    n.lon,
+    context.nest_photo,
+    context.tent_photo,
+    context.lat,
+    context.lon,
     sr.reference_date
-  FROM FIELD_2026_BADOatNZ.NESTS_LATEST n
-  JOIN cr_current_nest_ids
-    ON n.nest_id = cr_current_nest_ids.nest_id
+  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT context
   LEFT JOIN initial_clutch_status
-    ON n.nest_id = initial_clutch_status.nest_id
-  LEFT JOIN (
-    SELECT
-      observed_nest.nest_id,
-      MIN(observed_nest.date) AS hatch_date
-    FROM FIELD_2026_BADOatNZ.NESTS observed_nest
-    CROSS JOIN sr
-    WHERE observed_nest.nest_id IS NOT NULL
-      AND TRIM(observed_nest.nest_id) <> ''
-      AND UPPER(TRIM(COALESCE(observed_nest.site, ''))) = 'CR'
-      AND UPPER(TRIM(COALESCE(observed_nest.nest_state, ''))) = 'H'
-      AND observed_nest.date <= sr.reference_date
-    GROUP BY observed_nest.nest_id
-  ) observed_hatch_dates
-    ON n.nest_id = observed_hatch_dates.nest_id
-  LEFT JOIN latest_float_status
-    ON n.nest_id = latest_float_status.nest_id
+    ON context.nest_id = initial_clutch_status.nest_id
   CROSS JOIN sr
 ),
 active_nests AS (
@@ -4871,106 +5218,31 @@ active_nests AS (
     OR UPPER(TRIM(COALESCE(n.nest_state, ''))) NOT IN ('P', 'D', 'NOTA')
 ),
 nest_history AS (
-  SELECT DISTINCT
-    n.*
-  FROM FIELD_2026_BADOatNZ.NESTS n
-  CROSS JOIN sr
-  WHERE n.nest_id IS NOT NULL
-    AND TRIM(n.nest_id) <> ''
-    AND UPPER(TRIM(COALESCE(n.site, ''))) = 'CR'
-    AND n.date <= sr.reference_date
+  SELECT *
+  FROM FIELD_2026_BADOatNZ.TODO_NEST_HISTORY
 ),
 first_processable_visit AS (
   SELECT
-    nest_id,
-    MIN(date) AS first_processable_date,
-    MIN(
-      CAST(CONCAT(date, ' ', COALESCE(time_visit, '00:00:00')) AS DATETIME)
-    ) AS first_processable_datetime
-  FROM nest_history
-  WHERE UPPER(TRIM(COALESCE(nest_state, ''))) IN ('F', 'I', 'PP', 'PD')
-  GROUP BY nest_id
+    context.nest_id,
+    context.first_processable_date,
+    context.first_processable_datetime
+  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT context
 ),
 photo_summary AS (
   SELECT
-    nest_id,
-    MAX(date) AS last_photo_date,
-    MAX(
-      CAST(CONCAT(date, ' ', COALESCE(time_visit, '00:00:00')) AS DATETIME)
-    ) AS last_photo_datetime,
-    COUNT(*) AS n_photo_rows
-  FROM nest_history
-  WHERE nest_photo = '1'
-     OR tent_photo = '1'
-  GROUP BY nest_id
-),
-processing_photo_summary AS (
-  SELECT
-    n.nest_id,
-    MAX(n.date) AS last_photo_date,
-    MAX(
-      CAST(CONCAT(n.date, ' ', COALESCE(n.time_visit, '00:00:00')) AS DATETIME)
-    ) AS last_photo_datetime,
-    COUNT(*) AS n_photo_rows
-  FROM nest_history n
-  JOIN first_processable_visit
-    ON n.nest_id = first_processable_visit.nest_id
-  WHERE (n.nest_photo = '1' OR n.tent_photo = '1')
-    AND CAST(CONCAT(n.date, ' ', COALESCE(n.time_visit, '00:00:00')) AS DATETIME)
-        >= first_processable_visit.first_processable_datetime
-  GROUP BY n.nest_id
-),
-float_visit_summary AS (
-  SELECT
-    e.nest_id,
-    e.date AS float_date,
-    COALESCE(e.time_visit, '00:00:00') AS float_time_visit,
-    MAX(
-      CAST(CONCAT(e.date, ' ', COALESCE(e.time_visit, '00:00:00')) AS DATETIME)
-    ) AS float_datetime,
-    COUNT(*) AS n_float_rows
-  FROM FIELD_2026_BADOatNZ.EGGS e
-  CROSS JOIN sr
-  JOIN latest_nests
-    ON e.nest_id = latest_nests.nest_id
-  WHERE e.date <= sr.reference_date
-    AND e.float_angle IS NOT NULL
-    AND e.float_location IS NOT NULL
-  GROUP BY
-    e.nest_id,
-    e.date,
-    COALESCE(e.time_visit, '00:00:00')
+    context.nest_id,
+    context.last_photo_date,
+    context.last_photo_datetime,
+    context.n_photo_rows
+  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT context
 ),
 float_summary AS (
   SELECT
-    float_visit_summary.nest_id,
-    MAX(float_visit_summary.float_date) AS last_float_date,
-    MAX(float_visit_summary.float_datetime) AS last_float_datetime,
-    SUM(float_visit_summary.n_float_rows) AS n_float_rows
-  FROM float_visit_summary
-  JOIN first_processable_visit
-    ON float_visit_summary.nest_id = first_processable_visit.nest_id
-   AND float_visit_summary.float_datetime
-       >= first_processable_visit.first_processable_datetime
-  GROUP BY float_visit_summary.nest_id
-),
-processed_visit_summary AS (
-  SELECT
-    first_processable_visit.nest_id,
-    CASE
-      WHEN processing_photo_summary.last_photo_datetime IS NOT NULL
-       AND float_summary.last_float_datetime IS NOT NULL
-      THEN GREATEST(
-        processing_photo_summary.last_photo_datetime,
-        float_summary.last_float_datetime
-      )
-      ELSE NULL
-    END AS last_processed_datetime
-  FROM first_processable_visit
-  LEFT JOIN processing_photo_summary
-    ON first_processable_visit.nest_id = processing_photo_summary.nest_id
-  LEFT JOIN float_summary
-    ON first_processable_visit.nest_id = float_summary.nest_id
+    context.nest_id,
+    context.last_float_date,
+    context.last_float_datetime,
+    context.n_float_rows
+  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT context
 ),
 -- The initial processing task is resolved by any qualifying photo and
 -- flotation record from the first processable visit onward. This deliberately
@@ -4978,110 +5250,65 @@ processed_visit_summary AS (
 -- clutch-increase reprocessing is handled separately below.
 processing_summary AS (
   SELECT
-    first_processable_visit.nest_id,
-    first_processable_visit.first_processable_date,
-    processing_photo_summary.last_photo_date,
-    processing_photo_summary.last_photo_datetime,
-    float_summary.last_float_date,
-    float_summary.last_float_datetime,
-    COALESCE(processing_photo_summary.n_photo_rows, 0) AS n_photo_rows,
-    COALESCE(float_summary.n_float_rows, 0) AS n_float_rows,
-    processed_visit_summary.last_processed_datetime
-  FROM first_processable_visit
-  LEFT JOIN processing_photo_summary
-    ON first_processable_visit.nest_id = processing_photo_summary.nest_id
-  LEFT JOIN float_summary
-    ON first_processable_visit.nest_id = float_summary.nest_id
-  LEFT JOIN processed_visit_summary
-    ON first_processable_visit.nest_id = processed_visit_summary.nest_id
+    context.nest_id,
+    context.first_processable_date,
+    context.last_photo_date,
+    context.last_photo_datetime,
+    context.last_float_date,
+    context.last_float_datetime,
+    COALESCE(context.n_photo_rows, 0) AS n_photo_rows,
+    COALESCE(context.n_float_rows, 0) AS n_float_rows,
+    context.last_processed_datetime
+  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT context
 ),
 nest_discovery AS (
   SELECT
-    nest_id,
-    COALESCE(
-      MIN(CASE WHEN UPPER(TRIM(COALESCE(nest_state, ''))) = 'F' THEN date END),
-      MIN(CASE WHEN UPPER(TRIM(COALESCE(nest_state, ''))) IN ('I', 'PP', 'PD') THEN date END),
-      MIN(date)
-    ) AS first_found_date
-  FROM nest_history
-  GROUP BY nest_id
+    context.nest_id,
+    context.first_found_date
+  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT context
 ),
 latest_clutch_history AS (
   SELECT
-    n.nest_id,
-    n.clutch_size,
-    n.date AS clutch_date,
-    COALESCE(n.time_visit, '00:00:00') AS clutch_time_visit,
-    CAST(CONCAT(n.date, ' ', COALESCE(n.time_visit, '00:00:00')) AS DATETIME)
-      AS clutch_datetime,
-    CASE
-      WHEN n.nest_photo = '1' OR n.tent_photo = '1' THEN 1
-      ELSE 0
-    END AS clutch_has_photo,
-    ROW_NUMBER() OVER (
-      PARTITION BY n.nest_id
-      ORDER BY n.date DESC, n.time_visit DESC, n.pk DESC
-    ) AS row_num
-  FROM nest_history n
-  WHERE n.clutch_size IS NOT NULL
+    context.nest_id,
+    context.latest_clutch_size AS clutch_size,
+    context.latest_clutch_date AS clutch_date,
+    CAST(COALESCE(context.latest_clutch_datetime, '00:00:00') AS TIME)
+      AS clutch_time_visit,
+    context.latest_clutch_datetime AS clutch_datetime,
+    context.latest_clutch_has_photo AS clutch_has_photo,
+    1 AS row_num
+  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT context
+  WHERE context.latest_clutch_size IS NOT NULL
 ),
 latest_nest_event AS (
   SELECT
-    n.nest_id,
-    n.clutch_size,
-    n.date AS event_date,
-    ROW_NUMBER() OVER (
-      PARTITION BY n.nest_id
-      ORDER BY n.date DESC, n.time_visit DESC, n.pk DESC
-    ) AS row_num
-  FROM nest_history n
+    context.nest_id,
+    context.latest_event_clutch_size AS clutch_size,
+    context.latest_event_date AS event_date,
+    1 AS row_num
+  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT context
 ),
 latest_clutch_processing_status AS (
   SELECT
-    latest_clutch_history.nest_id,
-    latest_clutch_history.clutch_has_photo,
-    MAX(
-      CASE
-        WHEN latest_nests.hatch_signs_present = 1 THEN 1
-        WHEN float_visit_summary.nest_id IS NOT NULL THEN 1
-        ELSE 0
-      END
-    ) AS clutch_has_float
-  FROM latest_clutch_history
-  LEFT JOIN latest_nests
-    ON latest_clutch_history.nest_id = latest_nests.nest_id
-  LEFT JOIN float_visit_summary
-    ON latest_clutch_history.nest_id = float_visit_summary.nest_id
-   AND float_visit_summary.float_datetime
-       >= latest_clutch_history.clutch_datetime
-  WHERE latest_clutch_history.row_num = 1
-  GROUP BY
-    latest_clutch_history.nest_id,
-    latest_clutch_history.clutch_has_photo
+    context.nest_id,
+    context.latest_clutch_has_photo AS clutch_has_photo,
+    context.clutch_has_float
+  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT context
 ),
 clutch_at_processing AS (
   SELECT
-    n.nest_id,
-    n.clutch_size,
-    ROW_NUMBER() OVER (
-      PARTITION BY n.nest_id
-      ORDER BY n.date DESC, n.time_visit DESC, n.pk DESC
-    ) AS row_num
-  FROM nest_history n
-  JOIN processing_summary
-    ON n.nest_id = processing_summary.nest_id
-   AND processing_summary.last_processed_datetime IS NOT NULL
-   AND CAST(CONCAT(n.date, ' ', COALESCE(n.time_visit, '00:00:00')) AS DATETIME)
-       <= processing_summary.last_processed_datetime
-  WHERE n.clutch_size IS NOT NULL
+    context.nest_id,
+    context.clutch_at_processing_size AS clutch_size,
+    1 AS row_num
+  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT context
+  WHERE context.clutch_at_processing_size IS NOT NULL
 ),
 hatched_nests AS (
   SELECT
-    nest_id,
-    MIN(date) AS hatch_date
-  FROM nest_history
-  WHERE nest_state = 'H'
-  GROUP BY nest_id
+    context.nest_id,
+    context.hatch_date
+  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT context
+  WHERE context.hatch_date IS NOT NULL
 ),
 brood_followup_nests AS (
   -- BROODS_LATEST supplies hatch evidence from either an H nest visit or the
@@ -5176,10 +5403,10 @@ todo_parent_source AS (
     AND b.reference_date = sr.reference_date
 ),
 adult_parent_status AS (
-  /* DISTINCT is intentional: it prevents MariaDB from merging the
-     authoritative parent-status view separately into every parent-task branch. */
-  SELECT DISTINCT status.*
-  FROM FIELD_2026_BADOatNZ.ADULT_PARENT_STATUS status
+  /* Keep the legacy alias inside TODO_LIST, but cross the task-facing
+     materialization boundary in TODO_PARENT_STATUS first. */
+  SELECT *
+  FROM FIELD_2026_BADOatNZ.TODO_PARENT_STATUS
 ),
 adult_parent_geo_target_status AS (
   SELECT
@@ -5255,90 +5482,14 @@ adult_capture_interval_status AS (
   LEFT JOIN adult_parent_status adult_capture_timing
     ON todo_parent_source.nest_id = adult_capture_timing.nest_id
 ),
-adult_capture_current_clutch AS (
-  SELECT
-    active_nests.nest_id,
-    latest_clutch_history.clutch_size AS current_clutch_size,
-    latest_clutch_history.clutch_datetime AS current_clutch_datetime
-  FROM active_nests
-  JOIN latest_clutch_history
-    ON active_nests.nest_id = latest_clutch_history.nest_id
-   AND latest_clutch_history.row_num = 1
-  WHERE (
-      UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I', 'PP', 'PD')
-      OR (
-        active_nests.hatch_signs_present = 1
-        AND active_nests.latest_float_date IS NULL
-      )
-    )
-    AND latest_clutch_history.clutch_size IS NOT NULL
-    AND latest_clutch_history.clutch_size > 0
-),
-adult_capture_last_other_clutch AS (
-  SELECT
-    current_clutch.nest_id,
-    MAX(
-      CAST(
-        CONCAT(
-          history.date,
-          ' ',
-          COALESCE(history.time_visit, '00:00:00')
-        ) AS DATETIME
-      )
-    ) AS last_other_clutch_datetime
-  FROM adult_capture_current_clutch current_clutch
-  LEFT JOIN nest_history history
-    ON current_clutch.nest_id = history.nest_id
-   AND history.clutch_size IS NOT NULL
-   AND history.clutch_size <> current_clutch.current_clutch_size
-   AND CAST(
-         CONCAT(
-           history.date,
-           ' ',
-           COALESCE(history.time_visit, '00:00:00')
-         ) AS DATETIME
-       ) <= current_clutch.current_clutch_datetime
-  GROUP BY current_clutch.nest_id
-),
 adult_capture_current_clutch_start AS (
   SELECT
-    current_clutch.nest_id,
-    current_clutch.current_clutch_size,
-    current_clutch.current_clutch_datetime,
-    MIN(
-      CAST(
-        CONCAT(
-          history.date,
-          ' ',
-          COALESCE(history.time_visit, '00:00:00')
-        ) AS DATETIME
-      )
-    ) AS current_clutch_start_datetime
-  FROM adult_capture_current_clutch current_clutch
-  JOIN nest_history history
-    ON current_clutch.nest_id = history.nest_id
-   AND history.clutch_size = current_clutch.current_clutch_size
-   AND CAST(
-         CONCAT(
-           history.date,
-           ' ',
-           COALESCE(history.time_visit, '00:00:00')
-         ) AS DATETIME
-       ) <= current_clutch.current_clutch_datetime
-  LEFT JOIN adult_capture_last_other_clutch last_other
-    ON current_clutch.nest_id = last_other.nest_id
-  WHERE last_other.last_other_clutch_datetime IS NULL
-     OR CAST(
-          CONCAT(
-            history.date,
-            ' ',
-            COALESCE(history.time_visit, '00:00:00')
-          ) AS DATETIME
-        ) > last_other.last_other_clutch_datetime
-  GROUP BY
-    current_clutch.nest_id,
-    current_clutch.current_clutch_size,
-    current_clutch.current_clutch_datetime
+    context.nest_id,
+    context.current_clutch_size,
+    context.current_clutch_datetime,
+    context.current_clutch_start_datetime
+  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT context
+  WHERE context.current_clutch_size IS NOT NULL
 ),
 adult_capture_age_status AS (
   SELECT
@@ -7068,6 +7219,75 @@ WHERE NOT EXISTS (
   WHERE wryb_nest.nest_id = t.nest_id
     AND UPPER(TRIM(COALESCE(wryb_nest.species, ''))) = 'WRYB'
 );
+
+
+/*
+  Refreshable task snapshot
+
+  MariaDB can still expand a large graph when a public view is queried even
+  after its biological inputs have been split into helper views. The dynamic
+  calculator above is therefore kept as TODO_LIST_CALCULATE, while this
+  derived table is the production read boundary used by the app and PDF.
+
+  Rebuilding views creates an initial snapshot for the current settings date.
+  After new field rows are loaded, or after reference_date changes, rerun
+  DATABASE/refresh_todo_list_snapshot.SQL. The refresh is server-side and
+  uses the live FIELD_2026_BADOatNZ tables; local RDS files are never read by
+  this SQL source.
+*/
+DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.TODO_LIST;
+DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.TODO_PARENT_TASKS;
+DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.TODO_NONPARENT_TASKS;
+DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT;
+
+CREATE TABLE FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT AS
+SELECT *
+FROM FIELD_2026_BADOatNZ.TODO_LIST_CALCULATE
+WHERE 1 = 0;
+
+ALTER TABLE FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT
+  ADD INDEX idx_todo_snapshot_nest (nest_id),
+  ADD INDEX idx_todo_snapshot_reference (reference_date),
+  ADD INDEX idx_todo_snapshot_task (todo);
+
+INSERT INTO FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT
+SELECT *
+FROM FIELD_2026_BADOatNZ.TODO_LIST_CALCULATE;
+
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_PARENT_TASKS AS
+SELECT *
+FROM FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT
+WHERE todo IN (
+  'Untrapped parent',
+  'Parent capture',
+  'Parent resighting'
+);
+
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_NONPARENT_TASKS AS
+SELECT *
+FROM FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT
+WHERE todo NOT IN (
+  'Untrapped parent',
+  'Parent capture',
+  'Parent resighting'
+);
+
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_LIST AS
+WITH sr AS (
+  SELECT value AS reference_date
+  FROM FIELD_2026_BADOatNZ.settings
+  WHERE variable = 'reference_date'
+    AND value IS NOT NULL
+)
+SELECT parent_tasks.*
+FROM FIELD_2026_BADOatNZ.TODO_PARENT_TASKS parent_tasks
+JOIN sr
+  ON parent_tasks.reference_date = sr.reference_date
+UNION ALL
+SELECT nonparent_tasks.*
+FROM FIELD_2026_BADOatNZ.TODO_NONPARENT_TASKS nonparent_tasks
+JOIN sr
+  ON nonparent_tasks.reference_date = sr.reference_date;
 
 
 /*
