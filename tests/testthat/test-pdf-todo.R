@@ -658,6 +658,52 @@ test_that("PDF parent summary keeps mobile broods and hatched notA nests", {
 })
 
 
+test_that("PDF parent summary retains negative broods from task inputs", {
+  app <- load_main_app()
+  prepare_summary <- app$env$todo_pdf_prepare_nest_summary
+
+  nests <- data.frame(
+    nest_id = "A_MOCK_ACTIVE",
+    nest_state = "I",
+    has_hatch_evidence = FALSE,
+    is_negative_brood = FALSE,
+    min_days_to_hatch = 6,
+    M_mark = "MOCK-M",
+    F_mark = "MOCK-F",
+    stringsAsFactors = FALSE
+  )
+  todo <- data.frame(
+    nest_id = c("-C0224", "-A0509", "-B0905"),
+    todo = rep("Parent capture", 3),
+    M_mark = rep(NA_character_, 3),
+    F_mark = rep(NA_character_, 3),
+    stringsAsFactors = FALSE
+  )
+  chicks <- data.frame(
+    nest_id = c("-C0224", "-A0509", "-B0905"),
+    age = rep("C", 3),
+    LL = c("Y", "R", "B"),
+    LR = rep("X", 3),
+    date = as.Date(c("2026-09-26", "2026-10-11", "2026-10-13")),
+    site = rep("CR", 3),
+    stringsAsFactors = FALSE
+  )
+
+  summary <- prepare_summary(
+    nests,
+    as.Date("2026-10-15"),
+    todo = todo,
+    chick_captures = chicks
+  )
+
+  expect_true(all(todo$nest_id %in% summary$Nest))
+  expect_identical(
+    summary$LabelFill[match(todo$nest_id, summary$Nest)],
+    c("#f4d03f", "#c62828", "#1565c0")
+  )
+})
+
+
 test_that("notA task rows remain available to the PDF summary and map", {
   app <- load_main_app()
   prepare_summary <- app$env$todo_pdf_prepare_nest_summary

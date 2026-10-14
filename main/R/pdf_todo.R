@@ -387,6 +387,47 @@ todo_pdf_prepare_nest_summary <- function(
     ]
   }
   todo_dt <- data.table(todo)
+
+  # BROODS_LATEST is the authoritative source for negative broods. Local
+  # snapshot renders may only provide positive NESTS_LATEST rows, however;
+  # retain negative IDs visible in the task/chick inputs so the parent summary
+  # cannot silently omit mobile broods while the derived brood view is absent.
+  negative_ids <- character()
+  if (nrow(todo_dt) && "nest_id" %in% names(todo_dt)) {
+    task_ids <- trimws(as.character(todo_dt$nest_id))
+    negative_ids <- c(negative_ids, task_ids[grepl("^-", task_ids)])
+  }
+  chick_dt <- data.table(chick_captures)
+  if (nrow(chick_dt) && "nest_id" %in% names(chick_dt)) {
+    chick_ids <- trimws(as.character(chick_dt$nest_id))
+    negative_ids <- c(negative_ids, chick_ids[grepl("^-", chick_ids)])
+  }
+  negative_ids <- unique(negative_ids[!is.na(negative_ids) & nzchar(negative_ids)])
+  if (length(negative_ids)) {
+    existing_ids <- if ("nest_id" %in% names(nests)) {
+      trimws(as.character(nests$nest_id))
+    } else {
+      character()
+    }
+    missing_negative_ids <- negative_ids[!negative_ids %in% existing_ids]
+    if (length(missing_negative_ids)) {
+      nests <- rbind(
+        nests,
+        data.table(
+          nest_id = missing_negative_ids,
+          nest_state = NA_character_,
+          min_days_to_hatch = NA_real_,
+          M_mark = NA_character_,
+          F_mark = NA_character_,
+          brood_size = NA_real_,
+          is_negative_brood = TRUE,
+          has_hatch_evidence = TRUE,
+          task_fallback = TRUE
+        ),
+        fill = TRUE
+      )
+    }
+  }
   required_columns <- c(
     "nest_id",
     "nest_state",
