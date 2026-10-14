@@ -7546,7 +7546,6 @@ JOIN sr
 DROP TABLE FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_PREVIOUS;
 DROP TABLE FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_PREVIOUS;
 
-
 /*
   VIEW_1 is the tagged-bird follow-up view used by the PDF resight table.
   It resolves current tag ownership first, then matches exact and partial
