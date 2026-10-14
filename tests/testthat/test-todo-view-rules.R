@@ -6,8 +6,9 @@ todo_list_view_sql <- function() {
   start_marker <-
     "CREATE OR REPLACE( ALGORITHM = [A-Z]+)? VIEW FIELD_2026_BADOatNZ.TODO_LIST_CALCULATE AS"
   end_marker <- paste(
-    "CREATE OR REPLACE VIEW",
-    "FIELD_2026_BADOatNZ.VIEW_1 AS"
+    "/*",
+    "  Refreshable task snapshot",
+    sep = "\n"
   )
   start <- regexpr(start_marker, sql, perl = TRUE)[[1]]
   expect_gt(start, 0L)
@@ -50,8 +51,64 @@ test_that("public TODO_LIST is a small snapshot-backed read boundary", {
   expect_match(public_sql, "TODO_NONPARENT_TASKS", fixed = TRUE)
   expect_match(public_sql, "UNION ALL", fixed = TRUE)
   expect_match(sql, "TODO_LIST_SNAPSHOT", fixed = TRUE)
-  expect_match(sql, "CREATE TABLE FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT", fixed = TRUE)
-  expect_match(sql, "INSERT INTO FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT", fixed = TRUE)
+  expect_match(
+    sql,
+    "CREATE TABLE FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_BUILD",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "INSERT INTO FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_BUILD",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "CREATE TABLE FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_BUILD (",
+    fixed = TRUE
+  )
+  expect_no_match(
+    sql,
+    paste(
+      "CREATE TABLE FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_BUILD AS",
+      "SELECT *",
+      sep = "\n"
+    )
+  )
+  expect_match(
+    sql,
+    paste(
+      "CREATE TABLE IF NOT EXISTS FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT",
+      "LIKE FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_BUILD",
+      sep = "\n"
+    ),
+    fixed = TRUE
+  )
+  expect_match(sql, "RENAME TABLE", fixed = TRUE)
+  expect_match(
+    sql,
+    "TODO_LIST_SNAPSHOT_BUILD\n    TO FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT",
+    fixed = TRUE
+  )
+
+  parent_build_insert <- regexpr(
+    "INSERT INTO FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_BUILD",
+    sql,
+    fixed = TRUE
+  )[[1L]]
+  task_build_insert <- regexpr(
+    "INSERT INTO FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_BUILD",
+    sql,
+    fixed = TRUE
+  )[[1L]]
+  public_drop <- regexpr(
+    "DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.TODO_LIST;",
+    sql,
+    fixed = TRUE
+  )[[1L]]
+  expect_gt(parent_build_insert, 0L)
+  expect_gt(task_build_insert, 0L)
+  expect_gt(public_drop, parent_build_insert)
+  expect_gt(public_drop, task_build_insert)
 })
 
 
@@ -61,9 +118,56 @@ test_that("TODO snapshot refresh is explicit and uses live SQL sources", {
     collapse = "\n"
   )
 
-  expect_match(refresh_sql, "TRUNCATE TABLE FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT", fixed = TRUE)
+  expect_no_match(
+    refresh_sql,
+    "TRUNCATE TABLE FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT"
+  )
+  expect_match(
+    refresh_sql,
+    "CREATE TABLE FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_BUILD",
+    fixed = TRUE
+  )
+  expect_match(
+    refresh_sql,
+    "INSERT INTO FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_BUILD",
+    fixed = TRUE
+  )
+  expect_match(
+    refresh_sql,
+    "CREATE TABLE FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_BUILD (",
+    fixed = TRUE
+  )
+  expect_no_match(
+    refresh_sql,
+    paste(
+      "CREATE TABLE FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_BUILD AS",
+      "SELECT *",
+      sep = "\n"
+    )
+  )
+  expect_match(refresh_sql, "RENAME TABLE", fixed = TRUE)
   expect_match(refresh_sql, "SELECT *\nFROM FIELD_2026_BADOatNZ.TODO_LIST_CALCULATE", fixed = TRUE)
   expect_false(grepl("\\.rds", refresh_sql, ignore.case = TRUE))
+
+  parent_build_insert <- regexpr(
+    "INSERT INTO FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_BUILD",
+    refresh_sql,
+    fixed = TRUE
+  )[[1L]]
+  task_build_insert <- regexpr(
+    "INSERT INTO FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_BUILD",
+    refresh_sql,
+    fixed = TRUE
+  )[[1L]]
+  public_drop <- regexpr(
+    "DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.TODO_LIST;",
+    refresh_sql,
+    fixed = TRUE
+  )[[1L]]
+  expect_gt(parent_build_insert, 0L)
+  expect_gt(task_build_insert, 0L)
+  expect_gt(public_drop, parent_build_insert)
+  expect_gt(public_drop, task_build_insert)
 })
 
 
@@ -782,7 +886,7 @@ test_that("pair completion uses the four-gate status without phenology gating", 
   source_sql <- views_source_sql()
 
   expect_match(sql, "FROM geo_parent_targets targets", fixed = TRUE)
-  expect_match(sql, "FROM FIELD_2026_BADOatNZ.TODO_PARENT_STATUS", fixed = TRUE)
+  expect_match(sql, "FROM FIELD_2026_BADOatNZ.ADULT_PARENT_STATUS", fixed = TRUE)
   expect_match(sql, "is_pair_completion", fixed = TRUE)
   expect_match(sql, "geo_instruction", fixed = TRUE)
 
