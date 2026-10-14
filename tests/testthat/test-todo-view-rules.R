@@ -134,6 +134,26 @@ test_that("TODO snapshot refresh is explicit and uses live SQL sources", {
   )
   expect_match(
     refresh_sql,
+    paste(
+      "CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_INPUT AS",
+      "SELECT *",
+      "FROM FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_BUILD",
+      sep = "\n"
+    ),
+    fixed = TRUE
+  )
+  expect_match(
+    refresh_sql,
+    paste(
+      "CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_INPUT AS",
+      "SELECT *",
+      "FROM FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT;",
+      sep = "\n"
+    ),
+    fixed = TRUE
+  )
+  expect_match(
+    refresh_sql,
     "CREATE TABLE FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_BUILD (",
     fixed = TRUE
   )
@@ -168,6 +188,30 @@ test_that("TODO snapshot refresh is explicit and uses live SQL sources", {
   expect_gt(task_build_insert, 0L)
   expect_gt(public_drop, parent_build_insert)
   expect_gt(public_drop, task_build_insert)
+
+  parent_input_build <- regexpr(
+    paste(
+      "CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_INPUT AS",
+      "SELECT *",
+      "FROM FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_BUILD",
+      sep = "\n"
+    ),
+    refresh_sql,
+    fixed = TRUE
+  )[[1L]]
+  parent_input_snapshot <- regexpr(
+    paste(
+      "CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_INPUT AS",
+      "SELECT *",
+      "FROM FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT;",
+      sep = "\n"
+    ),
+    refresh_sql,
+    fixed = TRUE
+  )[[1L]]
+  expect_gt(parent_input_build, parent_build_insert)
+  expect_gt(task_build_insert, parent_input_build)
+  expect_gt(parent_input_snapshot, task_build_insert)
 })
 
 
@@ -886,7 +930,7 @@ test_that("pair completion uses the four-gate status without phenology gating", 
   source_sql <- views_source_sql()
 
   expect_match(sql, "FROM geo_parent_targets targets", fixed = TRUE)
-  expect_match(sql, "FROM FIELD_2026_BADOatNZ.ADULT_PARENT_STATUS", fixed = TRUE)
+  expect_match(sql, "FROM FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_INPUT", fixed = TRUE)
   expect_match(sql, "is_pair_completion", fixed = TRUE)
   expect_match(sql, "geo_instruction", fixed = TRUE)
 
