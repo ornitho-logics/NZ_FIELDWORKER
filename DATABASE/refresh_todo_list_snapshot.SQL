@@ -4,8 +4,16 @@
   This is a staged refresh. The current public TODO_* views remain available
   while the replacement snapshots are computed. If MariaDB or the client
   fails during either expensive INSERT, only the *_BUILD tables are affected;
-  the old public task output is not dropped. Execute this file with the SQL
-  client set to stop on error.
+  the old public task output is not dropped. After the parent BUILD has been
+  completed, the internal TODO_PARENT_STATUS_INPUT pointer also refers to that
+  BUILD table; the first statements of the next retry reset it to the live
+  pipeline. Execute this file with the SQL client set to stop on error.
+
+  TODO_PARENT_STATUS_INPUT is reset to the live authoritative pipeline before
+  stale BUILD tables are removed. After the new parent BUILD succeeds, the
+  input boundary is repointed to that BUILD table, so TODO_LIST_CALCULATE does
+  not expand ADULT_PARENT_STATUS a second time. It is repointed to the
+  promoted parent snapshot only after the task BUILD insert succeeds.
 
   The explicit task schema avoids CREATE TABLE AS SELECT ... WHERE 1 = 0,
   which otherwise expands TODO_LIST_CALCULATE just to infer column types.
@@ -18,6 +26,11 @@ DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_BUILD;
 DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_BUILD;
 DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_PREVIOUS;
 DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_PREVIOUS;
+
+/* Repair the task input boundary before removing any stale BUILD table. */
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_INPUT AS
+SELECT *
+FROM FIELD_2026_BADOatNZ.ADULT_PARENT_STATUS;
 
 /* Build parent status first, without touching the published view. */
 CREATE TABLE FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_BUILD (
@@ -114,6 +127,11 @@ INSERT INTO FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_BUILD
 SELECT *
 FROM FIELD_2026_BADOatNZ.ADULT_PARENT_STATUS;
 
+/* Feed task assembly from the completed parent BUILD, not the live pipeline. */
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_INPUT AS
+SELECT *
+FROM FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_BUILD;
+
 /* Build task rows while the existing TODO_LIST remains available. */
 CREATE TABLE FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_BUILD (
   nest_id VARCHAR(6) NULL,
@@ -188,6 +206,10 @@ RENAME TABLE
     TO FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_PREVIOUS,
   FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_BUILD
     TO FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT;
+
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_INPUT AS
+SELECT *
+FROM FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT;
 
 CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_PARENT_STATUS AS
 SELECT *

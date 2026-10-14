@@ -5087,12 +5087,23 @@ LEFT JOIN hatched_nests
   second parent-association algorithm: the biological evidence ranking and
   diagnostic columns remain in ADULT_PARENT_STATUS.
 
+  TODO_PARENT_STATUS_INPUT is the stable input boundary used by
+  TODO_LIST_CALCULATE. During a clean view installation it reads the live
+  authoritative pipeline. During a staged snapshot refresh it is temporarily
+  repointed to the populated parent-status BUILD table, so task assembly does
+  not calculate ADULT_PARENT_STATUS a second time. It is repointed to the
+  promoted parent snapshot only after task assembly succeeds.
+
   The production server continues to read live tables. No RDS path or local
   snapshot file is referenced here.
 */
 CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_PARENT_STATUS AS
 SELECT DISTINCT status.*
 FROM FIELD_2026_BADOatNZ.ADULT_PARENT_STATUS status;
+
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_INPUT AS
+SELECT *
+FROM FIELD_2026_BADOatNZ.ADULT_PARENT_STATUS;
 
 
 /*
@@ -5114,7 +5125,7 @@ FROM FIELD_2026_BADOatNZ.ADULT_PARENT_STATUS status;
   valid H-photo rings; adult_* CTEs resolve parent identity, X-X/death/GEO/MM
   evidence, behaviour association, and 36-hour gates;
   ADULT_PARENT_STATUS is the authoritative four-gate parent-association
-  result, materialized for task assembly through TODO_PARENT_STATUS and
+  result, exposed to task assembly through TODO_PARENT_STATUS_INPUT and
   consumed by parent tasks, GEO/pair completion, PDF, map, and summary;
   ADULT_SCRAPE_RESIGHTING_STATUS is retained only for bounded scrape-photo
   eligibility; todo_parent_source/status combines parent inputs;
@@ -5453,12 +5464,12 @@ todo_parent_source AS (
     AND b.reference_date = sr.reference_date
 ),
 adult_parent_status AS (
-  /* The calculator runs only during the explicit snapshot refresh. Read the
-     authoritative four-gate result directly here so the final snapshot
-     section can safely replace the public TODO_PARENT_STATUS view without
-     invalidating this calculator on a clean rebuild. */
+  /* TODO_PARENT_STATUS_INPUT is live during a clean install and points to the
+     populated parent BUILD table during a staged refresh. This keeps the
+     authoritative four-gate calculation out of the task insert's second
+     expansion while preserving a valid calculator before snapshots exist. */
   SELECT *
-  FROM FIELD_2026_BADOatNZ.ADULT_PARENT_STATUS
+  FROM FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_INPUT
 ),
 adult_parent_geo_target_status AS (
   SELECT
@@ -7429,6 +7440,15 @@ INSERT INTO FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_BUILD
 SELECT *
 FROM FIELD_2026_BADOatNZ.ADULT_PARENT_STATUS;
 
+/*
+  Switch only the task calculator's parent input to the completed BUILD
+  relation. The public TODO_* snapshots and views remain untouched until the
+  task BUILD insert below succeeds.
+*/
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_INPUT AS
+SELECT *
+FROM FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_BUILD;
+
 CREATE TABLE FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_BUILD (
   nest_id VARCHAR(6) NULL,
   reference_date DATE NULL,
@@ -7503,6 +7523,10 @@ RENAME TABLE
     TO FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_PREVIOUS,
   FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_BUILD
     TO FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT;
+
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_INPUT AS
+SELECT *
+FROM FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT;
 
 CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_PARENT_STATUS AS
 SELECT *
