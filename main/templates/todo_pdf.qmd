@@ -4,7 +4,7 @@ format:
   typst:
     papersize: a4
     margin:
-      x: 1.5cm
+      x: 1cm
       y: 1.5cm
     fontsize: 9pt
 execute:
