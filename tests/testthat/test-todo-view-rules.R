@@ -904,7 +904,7 @@ test_that("the four-gate parent pipeline treats MM as non-definitive evidence", 
   expect_match(sql, "WHEN identity_summary.n_nonconfirming_resightings >= 3 THEN 1", fixed = TRUE)
   expect_match(sql, "capture_method IN ('TB', 'TN', 'HA')", fixed = TRUE)
   expect_match(sql, "caught_with REGEXP", fixed = TRUE)
-  expect_match(sql, "IN|NM|SC|BW|BC|FC", fixed = TRUE)
+  expect_match(sql, "IN|NM|SC|BW|BC|FC|AC", fixed = TRUE)
 
   gate <- function(definitive_capture = FALSE,
                    confirming_resight = FALSE,
@@ -1431,11 +1431,11 @@ test_that("generic banded-parent association follows the resighting threshold", 
   )
   expect_match(
     full_sql,
-    "BW|NM|IN|BC|FC",
+    "BW|NM|IN|BC|FC|AC",
     fixed = TRUE
   )
   expect_equal(
-    length(gregexpr("BW|NM|IN|BC|FC", full_sql, fixed = TRUE)[[1L]]),
+    length(gregexpr("BW|NM|IN|BC|FC|AC", full_sql, fixed = TRUE)[[1L]]),
     1L
   )
   expect_no_match(full_sql, "has_association_behaviour", fixed = TRUE)
@@ -1448,7 +1448,7 @@ test_that("generic banded-parent association follows the resighting threshold", 
 
   association_pending <- function(identity_behaviours) {
     resolved <- vapply(identity_behaviours, function(behav) {
-      any(grepl("(^|[^A-Z])(IN|NM|BW|BC|FC)([^A-Z]|$)", behav)) ||
+      any(grepl("(^|[^A-Z])(IN|NM|BW|BC|FC|AC)([^A-Z]|$)", behav)) ||
         length(behav) >= 3
     }, logical(1))
     sum(resolved) != 1
@@ -1460,7 +1460,7 @@ test_that("generic banded-parent association follows the resighting threshold", 
   expect_true(association_pending(list(c("AT", "AT"))))
   expect_false(association_pending(list(c("AT", "AT", "AT"))))
   # Any one of the approved association behaviours resolves the identity.
-  for (behav in c("IN", "NM", "BW", "BC", "FC")) {
+  for (behav in c("IN", "NM", "BW", "BC", "FC", "AC")) {
     expect_false(association_pending(list(behav)))
   }
   # A future confirming event is excluded before it reaches this calculation;

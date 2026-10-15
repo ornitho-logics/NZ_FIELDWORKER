@@ -194,6 +194,16 @@ dashboardPage(
             class = "small font-weight-bold mb-3 d-none",
             "Download started. After it finishes, push Open or check Downloads or Recent in the Files app."
           ),
+          actionButton(
+            inputId = "refresh_todo_snapshot",
+            label = tagList(
+              icon("database"),
+              "Build To-do snapshot"
+            ),
+            class = "btn btn-secondary btn-lg btn-block field-download-button"
+          ),
+          uiOutput("todo_snapshot_status"),
+          br(),
           downloadLink(
             outputId = "todo_pdf",
             label = tagList(icon("file-pdf"), "Download To-do PDF"),

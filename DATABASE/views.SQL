@@ -2729,9 +2729,9 @@ SELECT
     THEN 1 ELSE 0
   END
     AS is_confirmed_xx,
-  CASE WHEN keyed.behav REGEXP '(^|[,[:space:]])(IN|NM|SC|BW|BC|FC)([,[:space:]]|$)'
+  CASE WHEN keyed.behav REGEXP '(^|[,[:space:]])(IN|NM|SC|BW|BC|FC|AC)([,[:space:]]|$)'
     THEN 1 ELSE 0 END AS association_confirming,
-  CASE WHEN keyed.behav REGEXP '(^|[,[:space:]])(IN|NM|SC|BW|BC|FC)([,[:space:]]|$)'
+  CASE WHEN keyed.behav REGEXP '(^|[,[:space:]])(IN|NM|SC|BW|BC|FC|AC)([,[:space:]]|$)'
     THEN 0 ELSE 1 END AS association_nonconfirming
 FROM keyed;
 
@@ -4156,7 +4156,7 @@ adult_association_resighting_candidates AS (
     END AS is_special_spacer_alias,
     CASE
       WHEN UPPER(TRIM(COALESCE(r.behav, ''))) REGEXP
-        '(^|[^A-Z])(BW|NM|IN|BC|FC)([^A-Z]|$)'
+        '(^|[^A-Z])(BW|NM|IN|BC|FC|AC)([^A-Z]|$)'
       THEN 1
       ELSE 0
     END AS has_nest_behav
@@ -5078,6 +5078,10 @@ LEFT JOIN current_clutch_start
 LEFT JOIN hatched_nests
   ON n.nest_id = hatched_nests.nest_id;
 
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT AS
+SELECT *
+FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT;
+
 
 /*
   TODO_PARENT_STATUS is the task-facing materialization boundary for the
@@ -5264,7 +5268,7 @@ latest_nests AS (
     context.lat,
     context.lon,
     sr.reference_date
-  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT context
+  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT context
   LEFT JOIN initial_clutch_status
     ON context.nest_id = initial_clutch_status.nest_id
   CROSS JOIN sr
@@ -5278,16 +5282,12 @@ active_nests AS (
   WHERE n.nest_state IS NULL
     OR UPPER(TRIM(COALESCE(n.nest_state, ''))) NOT IN ('P', 'D', 'NOTA')
 ),
-nest_history AS (
-  SELECT *
-  FROM FIELD_2026_BADOatNZ.TODO_NEST_HISTORY
-),
 first_processable_visit AS (
   SELECT
     context.nest_id,
     context.first_processable_date,
     context.first_processable_datetime
-  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT context
+  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT context
 ),
 photo_summary AS (
   SELECT
@@ -5295,7 +5295,7 @@ photo_summary AS (
     context.last_photo_date,
     context.last_photo_datetime,
     context.n_photo_rows
-  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT context
+  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT context
 ),
 float_summary AS (
   SELECT
@@ -5303,7 +5303,7 @@ float_summary AS (
     context.last_float_date,
     context.last_float_datetime,
     context.n_float_rows
-  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT context
+  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT context
 ),
 -- The initial processing task is resolved by any qualifying photo and
 -- flotation record from the first processable visit onward. This deliberately
@@ -5320,13 +5320,13 @@ processing_summary AS (
     COALESCE(context.n_photo_rows, 0) AS n_photo_rows,
     COALESCE(context.n_float_rows, 0) AS n_float_rows,
     context.last_processed_datetime
-  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT context
+  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT context
 ),
 nest_discovery AS (
   SELECT
     context.nest_id,
     context.first_found_date
-  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT context
+  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT context
 ),
 latest_clutch_history AS (
   SELECT
@@ -5338,7 +5338,7 @@ latest_clutch_history AS (
     context.latest_clutch_datetime AS clutch_datetime,
     context.latest_clutch_has_photo AS clutch_has_photo,
     1 AS row_num
-  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT context
+  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT context
   WHERE context.latest_clutch_size IS NOT NULL
 ),
 latest_nest_event AS (
@@ -5347,28 +5347,28 @@ latest_nest_event AS (
     context.latest_event_clutch_size AS clutch_size,
     context.latest_event_date AS event_date,
     1 AS row_num
-  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT context
+  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT context
 ),
 latest_clutch_processing_status AS (
   SELECT
     context.nest_id,
     context.latest_clutch_has_photo AS clutch_has_photo,
     context.clutch_has_float
-  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT context
+  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT context
 ),
 clutch_at_processing AS (
   SELECT
     context.nest_id,
     context.clutch_at_processing_size AS clutch_size,
     1 AS row_num
-  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT context
+  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT context
   WHERE context.clutch_at_processing_size IS NOT NULL
 ),
 hatched_nests AS (
   SELECT
     context.nest_id,
     context.hatch_date
-  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT context
+  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT context
   WHERE context.hatch_date IS NOT NULL
 ),
 brood_followup_nests AS (
@@ -5551,7 +5551,7 @@ adult_capture_current_clutch_start AS (
     context.current_clutch_size,
     context.current_clutch_datetime,
     context.current_clutch_start_datetime
-  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT context
+  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT context
   WHERE context.current_clutch_size IS NOT NULL
 ),
 adult_capture_age_status AS (
@@ -7335,17 +7335,166 @@ WHERE NOT EXISTS (
   error so a failed INSERT cannot reach the promotion statements.
 */
 
--- Remove only leftovers from an interrupted build. Published objects remain.
+/*
+  Build the bounded operational context and both replacements without touching
+  the currently published data. The parent-status schema is explicit as well,
+  so neither snapshot creation expands a view merely to infer column types.
+*/
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT AS
+SELECT *
+FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT;
+
+DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT_BUILD;
+DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT_PREVIOUS;
 DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_BUILD;
 DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_BUILD;
 DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_PREVIOUS;
 DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_PREVIOUS;
 
-/*
-  Build both replacements without touching the currently published data.
-  The parent-status schema is explicit as well, so neither snapshot creation
-  expands a view merely to infer column types.
-*/
+CREATE TABLE FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT_BUILD (
+  nest_id VARCHAR(6) NULL,
+  species VARCHAR(20) NULL,
+  last_visit_datetime DATETIME NULL,
+  days_ago INT NULL,
+  last_observer VARCHAR(100) NULL,
+  nest_state VARCHAR(10) NULL,
+  hatch_state VARCHAR(10) NULL,
+  hatch_signs_present TINYINT NULL,
+  bird_inc VARCHAR(20) NULL,
+  clutch_size DECIMAL(10, 0) NULL,
+  brood_size DECIMAL(10, 0) NULL,
+  latest_float_date DATE NULL,
+  average_ref_date_days_since_laid DECIMAL(6, 1) NULL,
+  base_min_days_to_hatch INT NULL,
+  nest_photo VARCHAR(5) NULL,
+  tent_photo VARCHAR(5) NULL,
+  lat DOUBLE NULL,
+  lon DOUBLE NULL,
+  reference_date DATE NULL,
+  observed_hatch_date DATE NULL,
+  first_found_date DATE NULL,
+  first_processable_date DATE NULL,
+  first_processable_datetime DATETIME NULL,
+  last_photo_date DATE NULL,
+  last_photo_datetime DATETIME NULL,
+  last_float_date DATE NULL,
+  last_float_datetime DATETIME NULL,
+  n_photo_rows BIGINT NULL,
+  n_float_rows BIGINT NULL,
+  last_processed_datetime DATETIME NULL,
+  latest_clutch_size DECIMAL(10, 0) NULL,
+  latest_clutch_date DATE NULL,
+  latest_clutch_datetime DATETIME NULL,
+  latest_clutch_has_photo TINYINT NULL,
+  latest_event_clutch_size DECIMAL(10, 0) NULL,
+  latest_event_date DATE NULL,
+  clutch_has_float TINYINT NULL,
+  clutch_at_processing_size DECIMAL(10, 0) NULL,
+  current_clutch_size DECIMAL(10, 0) NULL,
+  current_clutch_datetime DATETIME NULL,
+  current_clutch_start_datetime DATETIME NULL,
+  hatch_date DATE NULL,
+  INDEX idx_todo_nest_context_nest (nest_id),
+  INDEX idx_todo_nest_context_reference (reference_date),
+  INDEX idx_todo_nest_context_nest_reference (nest_id, reference_date)
+);
+
+CREATE TABLE IF NOT EXISTS FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT
+LIKE FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT_BUILD;
+
+INSERT INTO FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT_BUILD (
+  nest_id,
+  species,
+  last_visit_datetime,
+  days_ago,
+  last_observer,
+  nest_state,
+  hatch_state,
+  hatch_signs_present,
+  bird_inc,
+  clutch_size,
+  brood_size,
+  latest_float_date,
+  average_ref_date_days_since_laid,
+  base_min_days_to_hatch,
+  nest_photo,
+  tent_photo,
+  lat,
+  lon,
+  reference_date,
+  observed_hatch_date,
+  first_found_date,
+  first_processable_date,
+  first_processable_datetime,
+  last_photo_date,
+  last_photo_datetime,
+  last_float_date,
+  last_float_datetime,
+  n_photo_rows,
+  n_float_rows,
+  last_processed_datetime,
+  latest_clutch_size,
+  latest_clutch_date,
+  latest_clutch_datetime,
+  latest_clutch_has_photo,
+  latest_event_clutch_size,
+  latest_event_date,
+  clutch_has_float,
+  clutch_at_processing_size,
+  current_clutch_size,
+  current_clutch_datetime,
+  current_clutch_start_datetime,
+  hatch_date
+)
+SELECT
+  nest_id,
+  species,
+  last_visit_datetime,
+  days_ago,
+  last_observer,
+  nest_state,
+  hatch_state,
+  hatch_signs_present,
+  bird_inc,
+  clutch_size,
+  brood_size,
+  latest_float_date,
+  average_ref_date_days_since_laid,
+  base_min_days_to_hatch,
+  nest_photo,
+  tent_photo,
+  lat,
+  lon,
+  reference_date,
+  observed_hatch_date,
+  first_found_date,
+  first_processable_date,
+  first_processable_datetime,
+  last_photo_date,
+  last_photo_datetime,
+  last_float_date,
+  last_float_datetime,
+  n_photo_rows,
+  n_float_rows,
+  last_processed_datetime,
+  latest_clutch_size,
+  latest_clutch_date,
+  latest_clutch_datetime,
+  latest_clutch_has_photo,
+  latest_event_clutch_size,
+  latest_event_date,
+  clutch_has_float,
+  clutch_at_processing_size,
+  current_clutch_size,
+  current_clutch_datetime,
+  current_clutch_start_datetime,
+  hatch_date
+FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT;
+
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT AS
+SELECT *
+FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT_BUILD;
+
 CREATE TABLE FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_BUILD (
   nest_id VARCHAR(6) NULL,
   reference_date DATE NULL,
@@ -7513,8 +7662,13 @@ DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.TODO_LIST;
 DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.TODO_PARENT_TASKS;
 DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.TODO_NONPARENT_TASKS;
 DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.TODO_PARENT_STATUS;
+DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT;
 
 RENAME TABLE
+  FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT
+    TO FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT_PREVIOUS,
+  FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT_BUILD
+    TO FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT,
   FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT
     TO FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_PREVIOUS,
   FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_BUILD
@@ -7523,6 +7677,10 @@ RENAME TABLE
     TO FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_PREVIOUS,
   FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_BUILD
     TO FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT;
+
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT AS
+SELECT *
+FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT;
 
 CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_INPUT AS
 SELECT *
@@ -7569,6 +7727,7 @@ JOIN sr
 
 DROP TABLE FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_PREVIOUS;
 DROP TABLE FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_PREVIOUS;
+DROP TABLE FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT_PREVIOUS;
 
 /*
   VIEW_1 is the tagged-bird follow-up view used by the PDF resight table.
