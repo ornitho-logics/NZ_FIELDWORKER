@@ -879,7 +879,7 @@ list({
         z[, `:=`(rclass_key, toupper(trimws(as.character(rclass))))]
         z[, `:=`(behav_tokens, lapply(behav, parse_behav))]
         z[, `:=`(is_chick, !is.na(age_key) & age_key == "C")]
-        parent_behaviour_codes <- c("IN", "NM", "BW", "BC", "FC")
+        parent_behaviour_codes <- c("IN", "NM", "BW", "BC", "FC", "AC")
         z[, `:=`(
             is_parent_behaviour = !is.na(age_key) & age_key == "A" &
                 vapply(behav_tokens, function(tok) any(tok %in% parent_behaviour_codes), logical(1))
@@ -923,8 +923,8 @@ list({
             } else {
                 "Chick resightings must record nest_id."
             }
-            missing_parent_nest_reason <- if (any(row$behav_tokens[[1]] %in% c("BC", "FC"))) {
-                "Adult BC/FC resightings that associate a parent with chicks must include nest_id. If the brood is mobile after notA, also enter both gps_id and gps_point."
+            missing_parent_nest_reason <- if (any(row$behav_tokens[[1]] %in% c("BC", "FC", "AC"))) {
+                "Adult BC/FC/AC resightings that associate a parent with chicks must include nest_id. If the brood is mobile after notA, also enter both gps_id and gps_point."
             } else if (any(row$behav_tokens[[1]] %in% "BW")) {
                 "Adult BW (broken-wing display) resightings must include nest_id so the parent observation is linked to the nest or brood."
             } else {
@@ -1125,7 +1125,7 @@ list({
             behav_tokens = lapply(behav, parse_behav)
         )]
         z[, `:=`(
-            parent_with_chicks = !is.na(age_key) & age_key == "A" & vapply(behav_tokens, function(tokens) any(tokens %in% c("BC", "FC")), logical(1)),
+            parent_with_chicks = !is.na(age_key) & age_key == "A" & vapply(behav_tokens, function(tokens) any(tokens %in% c("BC", "FC", "AC")), logical(1)),
             chick_event = !is.na(age_key) & age_key == "C"
         )]
         parents <- z[parent_with_chicks & !is.na(date_key)]
@@ -1139,7 +1139,7 @@ list({
                 out_parts[[length(out_parts) + 1L]] <- data.table::data.table(
                     rowid = chicks$rowid[missing_parent],
                     variable = "age",
-                    reason = "Each age-C RESIGHTINGS event must be accompanied in this portal session by an age-A parent event with behav BC or FC, linked by the same nest_id or gps_id/gps_point. Enter the parent event and keep the linkage consistent."
+                    reason = "Each age-C RESIGHTINGS event must be accompanied in this portal session by an age-A parent event with behav BC, FC, or AC, linked by the same nest_id or gps_id/gps_point. Enter the parent event and keep the linkage consistent."
                 )
             }
         }
@@ -1151,7 +1151,7 @@ list({
                 out_parts[[length(out_parts) + 1L]] <- data.table::data.table(
                     rowid = parents$rowid[missing_chick],
                     variable = "behav",
-                    reason = "This adult BC/FC RESIGHTINGS event says you saw chicks. Enter an age-C RESIGHTINGS event for each chick in this portal session, using rclass H, R, P, or V as appropriate and the same nest_id or gps_id/gps_point."
+                    reason = "This adult BC/FC/AC RESIGHTINGS event says you saw chicks. Enter an age-C RESIGHTINGS event for each chick in this portal session, using rclass H, R, P, or V as appropriate and the same nest_id or gps_id/gps_point."
                 )
             }
         }
@@ -1234,17 +1234,17 @@ list({
                 if (is.null(latest)) next
                 state_key <- latest$state_key[[1]]
                 tokens <- row$behav_tokens[[1]]
-                if (isTRUE(row$age_key[[1]] == "A") && any(tokens %in% c("BC", "FC")) && !state_key %in% c("H", "NOTA")) {
+                if (isTRUE(row$age_key[[1]] == "A") && any(tokens %in% c("BC", "FC", "AC")) && !state_key %in% c("H", "NOTA")) {
                     out_parts[[length(out_parts) + 1L]] <- data.table::data.table(
                         rowid = row$rowid,
                         variable = "nest_id",
-                        reason = "Parent-with-chicks behavior BC/FC requires a linked nest_id whose latest nest_state is H or notA. Check the nest state or nest linkage."
+                        reason = "Parent-with-chicks behavior BC/FC/AC requires a linked nest_id whose latest nest_state is H or notA. Check the nest state or nest linkage."
                     )
                 }
                 mobile_brood <- state_key == "NOTA" && !is.na(latest$brood_num[[1]]) && latest$brood_num[[1]] > 0
                 needs_mobile_gps <- mobile_brood && (
                     isTRUE(row$age_key[[1]] == "C") ||
-                    (isTRUE(row$age_key[[1]] == "A") && any(tokens %in% c("BW", "BC", "FC")))
+                    (isTRUE(row$age_key[[1]] == "A") && any(tokens %in% c("BW", "BC", "FC", "AC")))
                 )
                 if (needs_mobile_gps && !has_gps_pair(row$gps_id_key[[1]], row$gps_point_key[[1]])) {
                     if (is.na(row$gps_id_key[[1]]) || !nzchar(row$gps_id_key[[1]])) {
@@ -1912,7 +1912,7 @@ list({
         if (!"rowid" %in% names(z)) {
             z[, `:=`(rowid, .I)]
         }
-        allowed <- c("IN", "CO", "PR", "BW", "BC", "NM", "SC", "FC", "FA", "FM", "FF", "RS", "LF", "AT", "FT", "OB")
+        allowed <- c("IN", "CO", "PR", "BW", "BC", "AC", "NM", "SC", "FC", "FA", "FM", "FF", "RS", "LF", "AT", "FT", "OB")
         raw <- trimws(as.character(z$behav))
         present_idx <- which(!is.na(z$behav) & nzchar(raw))
         bad_idx <- present_idx[!vapply(strsplit(raw[present_idx], ","), FUN.VALUE = logical(1), FUN = function(tokens) {
@@ -2090,7 +2090,7 @@ list({
                 z[missing_history, .(
                     rowid,
                     variable = "ring",
-                    reason = "An H-class chick ring must already exist in CAPTURES because the chick must have been banded before its hiding-spot photo was taken."
+                    reason = "This H-class chick ring is not yet recorded in CAPTURES. Check the ring code or enter the chick's CAPTURES record so this hiding-spot resighting can be linked to the captured chick."
                 )]
             }
         }

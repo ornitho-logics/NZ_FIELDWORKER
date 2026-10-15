@@ -893,7 +893,7 @@ list({
                     return(FALSE)
                 }
                 tokens <- trimws(strsplit(value, ",", fixed = TRUE)[[1]])
-                any(tokens %in% c("IN", "NM", "BW", "BC", "FC"))
+                any(tokens %in% c("IN", "NM", "BW", "BC", "FC", "AC"))
             }, logical(1))
         }
 
