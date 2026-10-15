@@ -344,7 +344,7 @@ The operational split is:
   other needs resighting.
 
 The association-confirming behaviour tokens are `IN`, `NM`, `SC`, `BW`, `BC`,
-and `FC`. They are matched as behaviour tokens. A matching identity is also
+`FC`, and `AC` (`Alert with chick(s)`). They are matched as behaviour tokens. A matching identity is also
 resolved after three nest-linked resightings, counting the initial resighting;
 behaviour is not required for that repeated-resight path. A single identity
 with one of the qualifying behaviours takes precedence over all same-sex
@@ -452,7 +452,7 @@ The later nest-linked resighting must match the captured identity. Ordinary
 birds match by normalized LL/LR; spacer-dependent one-band birds require the
 canonical full identity. MM association resolves after either:
 
-1. one matching resighting with `IN`, `NM`, `SC`, `BW`, `BC`, or `FC`; or
+1. one matching resighting with `IN`, `NM`, `SC`, `BW`, `BC`, `FC`, or `AC`; or
 2. three matching resightings, counting the first matching resighting.
 
 A same-sex X-X resighting with an association behaviour can instead establish

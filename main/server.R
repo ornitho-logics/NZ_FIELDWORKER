@@ -1,6 +1,7 @@
 function(input, output, session) {
   reference_date <- reactiveVal(get_reference_date())
   pending_refdate <- reactiveVal(NULL)
+  todo_refresh_job <- reactiveVal(NULL)
   refdate_today_notice_shown <- reactiveVal(FALSE)
 
   same_refdate <- function(x, y) {
@@ -99,6 +100,162 @@ function(input, output, session) {
       },
       delay = 0
     )
+  })
+
+  observeEvent(input$refresh_todo_snapshot, {
+    if (!is.null(pending_refdate())) {
+      WarnToast("Wait for the reference date change to finish before refreshing the To-do snapshot.")
+      return()
+    }
+
+    refdate <- get_reference_date()
+    if (is.na(refdate)) {
+      ErrToast("Set a valid reference date before building the To-do snapshot.")
+      return()
+    }
+
+    existing <- todo_refresh_job()
+    if (
+      !is.null(existing) &&
+        existing$state %in% c("queued", "running")
+    ) {
+      WarnToast("A To-do snapshot build is already running.")
+      return()
+    }
+
+    job <- tryCatch(
+      todo_snapshot_refresh_start(refdate = refdate),
+      error = function(error) error
+    )
+
+    if (inherits(job, "error")) {
+      ErrToast(conditionMessage(job))
+      return()
+    }
+
+    todo_refresh_job(job)
+    WarnToast(glue(
+      "To-do snapshot build started for {refdate}. The current PDF remains available until the new build succeeds."
+    ))
+  }, ignoreInit = TRUE)
+
+  observe({
+    job <- todo_refresh_job()
+
+    if (is.null(job) || !(job$state %in% c("queued", "running"))) {
+      return()
+    }
+
+    invalidateLater(1000, session)
+    updated <- tryCatch(
+      todo_snapshot_refresh_status(job),
+      error = function(error) {
+        job$state <- "failed"
+        job$detail <- conditionMessage(error)
+        job
+      }
+    )
+
+    if (
+      !identical(updated$state, job$state) ||
+        !identical(updated$detail, job$detail)
+    ) {
+      if (identical(updated$state, "succeeded") &&
+          !todo_snapshot_is_current(updated$refdate)) {
+        updated$state <- "failed"
+        updated$detail <- "The build finished, but the published snapshot does not match the reference date."
+      }
+
+      todo_refresh_job(updated)
+
+      if (identical(updated$state, "succeeded")) {
+        WarnToast(glue(
+          "To-do snapshot for {updated$refdate} is ready."
+        ))
+      } else if (updated$state %in% c("failed", "busy")) {
+        ErrToast(glue(
+          "To-do snapshot build {updated$state}.",
+          if (!is.null(updated$detail)) glue(" Details: {updated$detail}") else ""
+        ))
+      }
+    }
+  })
+
+  output$todo_snapshot_status <- renderUI({
+    job <- todo_refresh_job()
+
+    if (!is.null(job)) {
+      if (job$state %in% c("queued", "running")) {
+        stage <- if (is.null(job$detail) || !nzchar(job$detail)) {
+          if (identical(job$state, "queued")) {
+            "Waiting to start"
+          } else {
+            "Preparing snapshot"
+          }
+        } else {
+          job$detail
+        }
+
+        return(tags$div(
+          class = "todo-snapshot-progress mt-2",
+          tags$div(
+            class = "d-flex align-items-center small text-muted",
+            tags$span(
+              class = "spinner-border spinner-border-sm mr-2",
+              role = "status",
+              `aria-hidden` = "true"
+            ),
+            tags$span(
+              glue(
+                "{stage} for reference date {job$refdate}. ",
+                "This may take several minutes."
+              )
+            )
+          ),
+          tags$div(
+            class = "progress mt-2",
+            style = "height: 6px;",
+            role = "progressbar",
+            `aria-label` = "To-do snapshot build in progress",
+            `aria-valuemin` = "0",
+            `aria-valuemax` = "100",
+            tags$div(
+              class = "progress-bar progress-bar-striped progress-bar-animated",
+              style = "width: 100%;"
+            )
+          )
+        ))
+      }
+
+      if (identical(job$state, "succeeded")) {
+        return(tags$p(
+          class = "small text-success mt-2",
+          glue("To-do snapshot ready for {job$refdate}.")
+        ))
+      }
+
+      return(tags$p(
+        class = "small text-danger mt-2",
+        glue("To-do snapshot build {job$state}. Please try again.")
+      ))
+    }
+
+    ready <- tryCatch(
+      todo_snapshot_is_current(reference_date()),
+      error = function(error) FALSE
+    )
+
+    if (isTRUE(ready)) {
+      tags$p(
+        class = "small text-success mt-2",
+        glue("To-do snapshot ready for {reference_date()}.")
+      )
+    } else {
+      tags$p(
+        class = "small text-warning mt-2",
+        "Build the To-do snapshot after changing the reference date."
+      )
+    }
   })
 
   if (isTRUE(getOption("fieldworker.debug_input", FALSE))) {
@@ -371,6 +528,7 @@ function(input, output, session) {
         "todo_pdf",
         {
           req(active_refdate())
+          req(todo_snapshot_is_current(active_refdate()))
 
           todo_pdf_save(file)
         }

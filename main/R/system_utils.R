@@ -103,6 +103,231 @@ set_reference_date <- function(refdate) {
 }
 
 
+mariadb_client_command <- function(
+  configured = Sys.getenv("MARIADB_CLIENT", unset = "")
+) {
+  candidates <- c(
+    configured,
+    unname(Sys.which(c("mariadb", "mysql")))
+  )
+  candidates <- candidates[nzchar(candidates)]
+
+  if (!length(candidates)) {
+    stop(
+      "Neither mariadb nor mysql is available to refresh the TODO snapshot.",
+      call. = FALSE
+    )
+  }
+
+  candidates[[1L]]
+}
+
+
+todo_refresh_sql_path <- function() {
+  configured <- Sys.getenv("FIELDWORKER_REFRESH_SQL", unset = "")
+  candidates <- c(
+    configured,
+    file.path(getwd(), "DATABASE", "refresh_todo_list_snapshot.SQL"),
+    file.path(getwd(), "..", "DATABASE", "refresh_todo_list_snapshot.SQL")
+  )
+  candidates <- candidates[nzchar(candidates)]
+  candidates <- normalizePath(candidates, mustWork = FALSE)
+  candidates <- candidates[file.exists(candidates)]
+
+  if (!length(candidates)) {
+    stop(
+      "Could not locate DATABASE/refresh_todo_list_snapshot.SQL.",
+      call. = FALSE
+    )
+  }
+
+  candidates[[1L]]
+}
+
+
+todo_refresh_client_cnf <- function() {
+  cnf_path <- path.expand(Sys.getenv("DATAENTRY_CNF", unset = ""))
+
+  if (!nzchar(cnf_path) || !file.exists(cnf_path)) {
+    stop(
+      "DATAENTRY_CNF is not configured for the TODO snapshot worker.",
+      call. = FALSE
+    )
+  }
+
+  cnf <- read.ini(cnf_path)
+  client <- cnf[[group]]
+
+  if (is.null(client)) {
+    stop(
+      glue("Database configuration group '{group}' is unavailable."),
+      call. = FALSE
+    )
+  }
+
+  client[[1]][c("database", "dbname")] <- NULL
+  names(client) <- "client"
+
+  client_cnf <- tempfile("fieldworker-todo-client-", fileext = ".cnf")
+  write.ini(client, client_cnf)
+  Sys.chmod(client_cnf, "0600")
+  client_cnf
+}
+
+
+todo_snapshot_refresh_start <- function(
+  refdate = get_reference_date(),
+  database = db,
+  client_command = mariadb_client_command(),
+  sql_path = todo_refresh_sql_path()
+) {
+  refdate <- as.Date(refdate)
+
+  if (is.na(refdate)) {
+    stop("A valid reference date is required to refresh the TODO snapshot.", call. = FALSE)
+  }
+
+  client_cnf <- todo_refresh_client_cnf()
+  job_id <- basename(tempfile("todo-refresh-"))
+  status_file <- file.path(tempdir(), paste0(job_id, ".status"))
+  log_file <- file.path(tempdir(), paste0(job_id, ".log"))
+  script_file <- file.path(tempdir(), paste0(job_id, ".sh"))
+
+  writeLines("queued", status_file, useBytes = TRUE)
+
+  client <- shQuote(client_command)
+  cnf <- shQuote(client_cnf)
+  database_arg <- shQuote(database)
+  sql <- shQuote(sql_path)
+  status <- shQuote(status_file)
+  log <- shQuote(log_file)
+  lock_dir <- shQuote(
+    file.path(tempdir(), "FIELD_2026_BADOatNZ.todo_snapshot_refresh.lock")
+  )
+
+  worker <- c(
+    "#!/bin/sh",
+    "set +e",
+    glue("if ! mkdir {lock_dir} 2>/dev/null; then"),
+    glue("  printf '%s\\n' 'busy' > {status}; exit 75;"),
+    "fi",
+    glue("trap \"rmdir {lock_dir} 2>/dev/null; rm -f {cnf}\" EXIT"),
+    glue(
+      "printf '%s\\n' 'running' > {status}"
+    ),
+    glue(
+      "{client} --defaults-extra-file={cnf} {database_arg} ",
+      "< {sql} > {log} 2>&1 &"
+    ),
+    "client_pid=$!",
+    "while kill -0 \"$client_pid\" 2>/dev/null; do",
+    glue(
+      "  stage_line=$(grep 'TODO_REFRESH_STAGE|' {log} 2>/dev/null | tail -n 1)"
+    ),
+    "  case \"$stage_line\" in",
+    "    *'TODO_REFRESH_STAGE|nest_context'*) detail='Building nest context' ;;",
+    "    *'TODO_REFRESH_STAGE|parent_status'*) detail='Building parent status' ;;",
+    "    *'TODO_REFRESH_STAGE|task_rows'*) detail='Building task rows' ;;",
+    "    *'TODO_REFRESH_STAGE|publishing'*) detail='Publishing snapshot' ;;",
+    "    *) detail='Preparing snapshot' ;;",
+    "  esac",
+    glue("  printf 'running|%s\\n' \"$detail\" > {status}"),
+    "  sleep 1",
+    "done",
+    "wait \"$client_pid\"",
+    "refresh_status=$?",
+    glue(
+      "if [ \"$refresh_status\" -eq 0 ]; then ",
+      "printf '%s\\n' 'succeeded' > {status}; ",
+      "else printf 'failed|%s\\n' \"$refresh_status\" > {status}; fi"
+    ),
+    "exit \"$refresh_status\""
+  )
+  writeLines(worker, script_file, useBytes = TRUE)
+  Sys.chmod(script_file, "0700")
+
+  launched <- try(
+    system2("/bin/sh", script_file, stdout = FALSE, stderr = FALSE, wait = FALSE),
+    silent = TRUE
+  )
+
+  if (inherits(launched, "try-error")) {
+    unlink(c(client_cnf, status_file, script_file))
+    stop(
+      "Could not start the TODO snapshot worker.",
+      call. = FALSE
+    )
+  }
+
+  list(
+    id = job_id,
+    refdate = refdate,
+    state = "queued",
+    status_file = status_file,
+    log_file = log_file,
+    script_file = script_file,
+    started_at = Sys.time()
+  )
+}
+
+
+todo_snapshot_refresh_status <- function(job) {
+  if (is.null(job)) {
+    return(list(state = "idle"))
+  }
+
+  state <- "running"
+  detail <- NULL
+
+  if (file.exists(job$status_file)) {
+    status_lines <- readLines(job$status_file, warn = FALSE)
+    status_line <- if (length(status_lines)) {
+      trimws(status_lines[[1L]])
+    } else {
+      "running"
+    }
+    fields <- strsplit(status_line, "[|]", fixed = FALSE)[[1L]]
+    state <- fields[[1L]]
+    if (length(fields) > 1L) {
+      detail <- fields[[2L]]
+    }
+  }
+
+  if (state %in% c("succeeded", "failed", "busy")) {
+    unlink(job$script_file)
+  }
+
+  job$state <- state
+  job$detail <- detail
+  job
+}
+
+
+todo_snapshot_is_current <- function(refdate = get_reference_date()) {
+  refdate <- as.Date(refdate)
+
+  if (is.na(refdate)) {
+    return(FALSE)
+  }
+
+  x <- DBq(
+    paste(
+      "SELECT COUNT(*) AS n",
+      "FROM TODO_PARENT_STATUS_SNAPSHOT",
+      "WHERE reference_date = ?"
+    ),
+    params = list(as.character(refdate)),
+    derived_merge_off = TRUE
+  )
+
+  if ("error" %in% names(x) || nrow(x) == 0L || is.na(x$n[[1L]])) {
+    return(FALSE)
+  }
+
+  as.numeric(x$n[[1L]]) > 0
+}
+
+
 dbtable_is_updated <- function(tab) {
   tab <- as.character(tab)
   tab <- unique(tab[!is.na(tab) & nzchar(tab)])

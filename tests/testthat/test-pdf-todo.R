@@ -106,7 +106,7 @@ test_that("to-do headings use the current operational subtitles", {
   )
   expect_identical(
     heading("Parent resighting")$subtitle,
-    "Association resolves after 3 nest-linked resightings or 1 confirming behav (“IN”, “NM”, “BW”, “BC”, “FC”). “MM, n” shows an MM capture and n non-confirming resightings."
+    "Association resolves after 3 nest-linked resightings or 1 confirming behav (“IN”, “NM”, “BW”, “BC”, “FC”, “AC”). “MM, n” shows an MM capture and n non-confirming resightings."
   )
   expect_identical(
     heading("nest check")$subtitle,
@@ -597,7 +597,7 @@ test_that("PDF note key includes only definitions used by task notes", {
     collapse = "\n"
   )
   expect_true(grepl(
-    "Captured with mobile mist net. Three subsequent nest-linked resightings with matching sex and identity confirms association OR a single nest-linked resighting with behav 'IN', 'NM', 'BW', 'BC', or 'FC'.",
+    "Captured with mobile mist net. Three subsequent nest-linked resightings with matching sex and identity confirms association OR a single nest-linked resighting with behav 'IN', 'NM', 'BW', 'BC', 'FC', or 'AC'.",
     revised_key,
     fixed = TRUE
   ))

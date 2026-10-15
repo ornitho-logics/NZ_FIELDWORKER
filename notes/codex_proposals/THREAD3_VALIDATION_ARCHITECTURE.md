@@ -27,7 +27,8 @@ The official YAML and local mirror are byte-identical with SHA-256:
 
 Version 1.3.4 makes parent/chick co-entry save-blocking within one RESIGHTINGS
 portal submission: every age-C row, including ordinary `rclass = R`, `P`, or `V`
-rows, must be linked to an age-A parent whose behavior includes `BC` or `FC`, and
+rows, must be linked to an age-A parent whose behavior includes `BC`, `FC`, or
+`AC`, and
 each such parent row must have at least one linked age-C row. Version 1.3.4 also
 separates active-nest `IN`/`NM` state checks from brood-association checks and
 documents `BW` as broken-wing display. Version 1.3.3 requires a real nest or brood
@@ -315,7 +316,8 @@ Save-time checks can use current table rows, `GPS_POINTS`, current-season tables
 `CAPTURES_ARCHIVE`, and selected nest-history surfaces. Most cross-table history
 checks still must not assume that companion rows are in the same portal submission.
 There is one explicit approved exception: parent/chick co-entry is mandatory when
-the current RESIGHTINGS submission contains age-C rows or age-A `BC`/`FC` rows.
+the current RESIGHTINGS submission contains age-C rows or age-A `BC`/`FC`/`AC`
+rows.
 The association is tested only within the current submission, using the same date
 and either the same nonblank `nest_id` or the same complete `gps_id/gps_point` pair.
 Saved rows from earlier sessions do not satisfy this hard rule.
@@ -344,27 +346,28 @@ post-save/task logic.
 `RES_005J` is save-blocking and applies to every age-C RESIGHTINGS row, not only
 H-photo rows. A chick row may use `rclass = H`, `R`, `P`, or `V`, but it must be
 accompanied in the same portal submission by an age-A row whose comma-separated
-behavior includes `BC` or `FC`. Conversely, a parent row with `BC` or `FC` must
-have at least one linked age-C row in that submission. The parent and chick can be
+behavior includes `BC`, `FC`, or `AC`. Conversely, a parent row with `BC`, `FC`,
+or `AC` must have at least one linked age-C row in that submission. The parent and chick can be
 linked by the same valid `nest_id` or by the same `gps_id/gps_point` pair; the date
 must also match. This does not use saved RESIGHTINGS history to bypass the rule.
 
 `BW` means broken-wing display, not brood watch. It is a shorebird parent behavior
 that can occur at either the nest stage or the brood stage, so it remains part of
 the broad parent/nest-link behavior set but does not by itself assert that an
-individual chick was observed and does not trigger the reciprocal `BC`/`FC` rule.
+individual chick was observed and does not trigger the reciprocal `BC`/`FC`/`AC`
+rule.
 
 `RES_005D` now restricts adult `IN`/`NM` rows to positive nest_ids whose latest
 state is `F`, `I`, or `H`; `H` remains valid during asynchronous hatching. It no
 longer blocks adult `BW`, `BC`, or `FC` rows merely because the nest is at a later
-state. `RES_005K` requires positive-nest `BC`/`FC` rows to have latest state `H` or
-`notA`, and requires `gps_id/gps_point` for age-C rows and brood-associated adult
-`BW`/`BC`/`FC` rows when a `notA` nest still has `brood_size > 0`.
+state. `RES_005K` requires positive-nest `BC`/`FC`/`AC` rows to have latest state
+`H` or `notA`, and requires `gps_id/gps_point` for age-C rows and brood-associated
+adult `BW`/`BC`/`FC`/`AC` rows when a `notA` nest still has `brood_size > 0`.
 
 The existing unlinked-H exception remains a narrow row-level exception: mandatory
 H GPS/ring/photo evidence still applies, and the row may omit `nest_id` only under
 the existing conditions. It does not remove the new same-session requirement for
-an accompanying age-A `BC`/`FC` parent.
+an accompanying age-A `BC`/`FC`/`AC` parent.
 
 Thread 2’s schema memo and Thread 4’s TODO/map planning describe a stricter internal
 derived association: prior chick-CAPTURES ring/family evidence plus same-date, exact
