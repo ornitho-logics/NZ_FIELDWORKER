@@ -599,6 +599,17 @@ list({
         ]
         if (nrow(all_nests) > 0) {
             data.table::setorder(all_nests, nest_id, date_ord, time_ord, source_ord, state_ord, rowid)
+            all_nests[, `:=`(event_order, seq_len(.N)), by = nest_id]
+            all_nests[, `:=`(
+                first_h_order = {
+                    h_idx <- which(nest_state == "H")
+                    if (length(h_idx) == 0L) NA_integer_ else min(event_order[h_idx])
+                },
+                first_h_date = {
+                    h_idx <- which(nest_state == "H")
+                    if (length(h_idx) == 0L) as.Date(NA) else min(date_ord[h_idx])
+                }
+            ), by = nest_id]
             all_nests[, `:=`(
                 previous_state = data.table::shift(nest_state),
                 previous_clutch = data.table::shift(clutch_size),
@@ -619,9 +630,26 @@ list({
             terminal_h_nota <- integer()
         }
         allowed_after_terminal_h <- rep(FALSE, nrow(z))
+        allowed_h_grace <- rep(FALSE, nrow(z))
         terminal_h_nota <- terminal_h_nota[!is.na(terminal_h_nota)]
         if (length(terminal_h_nota) > 0) {
             allowed_after_terminal_h[terminal_h_nota] <- TRUE
+        }
+        if (nrow(all_nests) > 0 && "event_order" %in% names(all_nests)) {
+            grace_rows <- all_nests[
+                source == "current" &
+                    !is.na(rowid) &
+                    !is.na(first_h_order) &
+                    event_order > first_h_order &
+                    !is.na(first_h_date) &
+                    !is.na(date_ord) &
+                    date_ord <= first_h_date + 2,
+                rowid
+            ]
+            grace_rows <- grace_rows[!is.na(grace_rows)]
+            if (length(grace_rows) > 0) {
+                allowed_h_grace[grace_rows] <- TRUE
+            }
         }
         bad_idx <- which(
             !is.na(clutch_num) &
@@ -629,7 +657,8 @@ list({
                 clutch_num == 0 &
                 brood_num >= 1 &
                 !as.character(z$nest_state) %in% c("H", "pP", "P") &
-                !allowed_after_terminal_h
+                !allowed_after_terminal_h &
+                !allowed_h_grace
         )
         if (length(bad_idx) == 0) {
             empty

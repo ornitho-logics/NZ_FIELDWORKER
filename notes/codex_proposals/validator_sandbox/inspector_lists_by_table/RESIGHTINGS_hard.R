@@ -2090,7 +2090,7 @@ list({
                 z[missing_history, .(
                     rowid,
                     variable = "ring",
-                    reason = "An H-class chick ring must already exist in CAPTURES because the chick must have been banded before its hiding-spot photo was taken."
+                    reason = "This H-class chick ring is not yet recorded in CAPTURES. Check the ring code or enter the chick's CAPTURES record so this hiding-spot resighting can be linked to the captured chick."
                 )]
             }
         }
