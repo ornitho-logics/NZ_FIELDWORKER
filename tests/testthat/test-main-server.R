@@ -211,6 +211,76 @@ test_that("overview graph helpers use aligned reference-date queries", {
 })
 
 
+test_that("band-combo overview reconciles adult identities and exposes safe diagnostics", {
+  app <- load_main_app()
+  refdate <- as.Date("2026-07-21")
+  queries <- list()
+
+  app$env$db_get <- function(sql, params) {
+    queries[[length(queries) + 1L]] <<- list(sql = sql, params = params)
+
+    if (grepl("adult_event_rows", sql, fixed = TRUE)) {
+      return(data.frame(
+        adult_event_rows = 0L,
+        non_adult_event_rows = 0L,
+        unique_adult_identities = 0L,
+        capture_only_identities = 0L,
+        resighting_only_identities = 0L,
+        capture_and_resighting_identities = 0L,
+        identities_with_multiple_normalized_marks = 0L
+      ))
+    }
+
+    data.frame()
+  }
+
+  expect_s3_class(
+    app$env$overview_band_combos_graph(refdate),
+    "ggplot"
+  )
+  diagnostic <- app$env$overview_band_combo_diagnostic(refdate)
+
+  expect_equal(diagnostic$unique_adult_identities, 0L)
+  expect_length(queries, 2L)
+
+  graph_sql <- queries[[1]]$sql
+  diagnostic_sql <- queries[[2]]$sql
+
+  expect_match(
+    graph_sql,
+    "UPPER(TRIM(COALESCE(c.age, ''))) = 'A'",
+    fixed = TRUE
+  )
+  expect_match(
+    graph_sql,
+    "UPPER(TRIM(COALESCE(r.age, ''))) = 'A'",
+    fixed = TRUE
+  )
+  expect_match(graph_sql, "c.UL_in", fixed = TRUE)
+  expect_match(graph_sql, "c.UL_raw REGEXP '^F[A-Z0-9]+$'", fixed = TRUE)
+  expect_match(graph_sql, "requires_spacer_identity", fixed = TRUE)
+  expect_match(graph_sql, "ambiguous_short_single_lr", fixed = TRUE)
+  expect_match(
+    graph_sql,
+    "COUNT(DISTINCT CONCAT(c.base_identity_key",
+    fixed = TRUE
+  )
+  expect_match(diagnostic_sql, "adult_event_rows", fixed = TRUE)
+  expect_match(diagnostic_sql, "capture_only_identities", fixed = TRUE)
+  expect_match(diagnostic_sql, "resighting_only_identities", fixed = TRUE)
+  expect_match(
+    diagnostic_sql,
+    "capture_and_resighting_identities",
+    fixed = TRUE
+  )
+  expect_match(
+    diagnostic_sql,
+    "identities_with_multiple_normalized_marks",
+    fixed = TRUE
+  )
+})
+
+
 test_that("pair tally does not fall back to the obsolete heuristic", {
   app <- load_main_app()
   calls <- 0L
