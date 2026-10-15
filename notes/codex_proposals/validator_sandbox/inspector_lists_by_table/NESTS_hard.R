@@ -541,6 +541,46 @@ list({
     }
     out
 }, {
+    out <- try_validator({
+        z <- data.table::copy(x)
+        z[, `:=`(rowid, .I)]
+        clutch_num <- suppressWarnings(as.numeric(as.character(z$clutch_size)))
+        brood_num <- suppressWarnings(as.numeric(as.character(z$brood_size)))
+        state_key <- trimws(as.character(z$nest_state))
+        bad_idx <- which(
+            !is.na(clutch_num) &
+                clutch_num == 0 &
+                !is.na(brood_num) &
+                brood_num > 0 &
+                state_key == "I"
+        )
+        if (length(bad_idx) == 0) {
+            data.table::data.table(rowid = integer(), variable = character(), reason = character())
+        } else {
+            data.table::data.table(
+                rowid = z$rowid[bad_idx],
+                variable = "nest_state",
+                reason = "When clutch_size is 0 and brood_size is positive, nest_state must be H rather than I: the eggs have hatched, but chicks are still present.")
+        }
+    }, nam = "hatch state for brood")
+    out <- data.table::as.data.table(out)
+    if ("reason" %in% names(out)) {
+        out[, `:=`(reason, {
+            cleaned <- sub("^(ERROR|WARNING):\\s*", "", as.character(reason))
+            cleaned[is.na(reason)] <- NA_character_
+            ok_idx <- !is.na(cleaned) & nzchar(cleaned)
+            cleaned[ok_idx] <- paste0(
+                cleaned[ok_idx],
+                " Please double-check this entry. If it is correct, add a validator bypass comment to the event."
+            )
+            cleaned
+        })]
+    }
+    if ("type" %in% names(out)) {
+        out[, `:=`(type, NULL)]
+    }
+    out
+}, {
     out <- try_validator(is.regexp_validator(x[, .(cam_id)], regexp = "^[A-Za-z0-9]{2,3}$", reason = "Camera ID must use the current two- or three-character format."), nam = "camera id")
     out <- data.table::as.data.table(out)
     if ("reason" %in% names(out)) {
