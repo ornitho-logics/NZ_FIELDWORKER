@@ -258,6 +258,7 @@ test_that("band-combo overview reconciles adult identities and exposes safe diag
   )
   expect_match(graph_sql, "c.UL_in", fixed = TRUE)
   expect_match(graph_sql, "c.UL_raw REGEXP '^F[A-Z0-9]+$'", fixed = TRUE)
+  expect_false(grepl("r.ring", graph_sql, fixed = TRUE))
   expect_match(graph_sql, "requires_spacer_identity", fixed = TRUE)
   expect_match(graph_sql, "ambiguous_short_single_lr", fixed = TRUE)
   expect_match(

@@ -1691,10 +1691,9 @@ overview_band_combo_query <- function(
       "      WHEN UPPER(TRIM(COALESCE(r.sex, ''))) IN ('M', 'MU') THEN 'Male'",
       "      WHEN UPPER(TRIM(COALESCE(r.sex, ''))) IN ('F', 'FU') THEN 'Female'",
       "    END AS observed_sex,",
-      "    CASE",
-      "      WHEN UPPER(TRIM(COALESCE(r.ring, ''))) IN ('', 'X', 'XX', 'NA', 'N/A') THEN NULL",
-      "      ELSE REPLACE(UPPER(TRIM(r.ring)), '-', '')",
-      "    END AS metal_ring,",
+      # Adult identity matching uses observed bands; the RESIGHTINGS ring
+      # field is reserved for chick hiding-spot records and is not required.
+      "    CAST(NULL AS CHAR(50)) AS metal_ring,",
       "    UPPER(NULLIF(TRIM(r.UL), '')) AS UL_raw,",
       "    UPPER(NULLIF(TRIM(r.LL), '')) AS LL_raw,",
       "    UPPER(NULLIF(TRIM(r.UR), '')) AS UR_raw,",
