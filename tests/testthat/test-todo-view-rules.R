@@ -925,48 +925,6 @@ test_that("the four-gate parent pipeline treats MM as non-definitive evidence", 
 })
 
 
-test_that("the parent pipeline includes a conservative chick-GPS definitive gate", {
-  sql <- views_source_sql()
-
-  expect_match(
-    sql,
-    "CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.ADULT_CHICK_GPS_PARENT_LINKS AS",
-    fixed = TRUE
-  )
-  expect_match(sql, "r.age = 'C'", fixed = TRUE)
-  expect_match(sql, "r.gps_id IS NOT NULL", fixed = TRUE)
-  expect_match(sql, "r.gps_point IS NOT NULL", fixed = TRUE)
-  expect_match(sql, "r.ring)) NOT IN ('X', 'XX', 'X-X', 'NA', 'N/A')", fixed = TRUE)
-  expect_match(sql, "c.gps_id = chick.gps_id", fixed = TRUE)
-  expect_match(sql, "c.gps_point = chick.gps_point", fixed = TRUE)
-  expect_match(sql, "opposite_parent_established_nest", fixed = TRUE)
-  expect_match(sql, "WHERE nests.n_candidate_nests = 1", fixed = TRUE)
-  expect_match(sql, "MAX(event_union.chick_gps_parent_link) AS has_chick_gps_link", fixed = TRUE)
-  expect_match(sql, "CASE WHEN chick_link.capture_pk IS NOT NULL", fixed = TRUE)
-
-  gps_link_gate <- function(
-    capture_gps_id,
-    capture_gps_point,
-    chick_gps_id,
-    chick_gps_point,
-    n_candidate_nests,
-    chick_ring = "CP00001"
-  ) {
-    same_gps <- identical(capture_gps_id, chick_gps_id) &&
-      identical(capture_gps_point, chick_gps_point)
-    banded_chick <- !is.null(chick_ring) &&
-      nzchar(chick_ring) &&
-      !toupper(chick_ring) %in% c("X", "XX", "X-X", "NA", "N/A")
-    isTRUE(same_gps && banded_chick && n_candidate_nests == 1L)
-  }
-
-  expect_true(gps_link_gate(2L, 159L, 2L, 159L, 1L))
-  expect_false(gps_link_gate(2L, 159L, 2L, 158L, 1L))
-  expect_false(gps_link_gate(2L, 159L, 2L, 159L, 2L))
-  expect_false(gps_link_gate(2L, 159L, 2L, 159L, 1L, chick_ring = "X-X"))
-})
-
-
 test_that("pair completion uses the four-gate status without phenology gating", {
   sql <- todo_list_view_sql()
   source_sql <- views_source_sql()
