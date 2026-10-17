@@ -54,7 +54,13 @@ test_that("TODO task assembly consumes the bounded context input", {
     "TODO_NEST_CONTEXT_SNAPSHOT_BUILD\n    TO FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT",
     fixed = TRUE
   )
-  for (stage in c("nest_context", "parent_status", "task_rows", "publishing")) {
+  for (stage in c(
+    "nest_context",
+    "chick_gps_links",
+    "parent_status",
+    "task_rows",
+    "publishing"
+  )) {
     expect_match(
       refresh_sql,
       paste0("TODO_REFRESH_STAGE|", stage),
@@ -72,6 +78,11 @@ test_that("TODO task assembly consumes the bounded context input", {
     refresh_sql,
     fixed = TRUE
   )[[1L]]
+  link_build <- regexpr(
+    "INSERT INTO FIELD_2026_BADOatNZ.TODO_PARENT_CHICK_GPS_LINKS_SNAPSHOT_BUILD",
+    refresh_sql,
+    fixed = TRUE
+  )[[1L]]
   task_build <- regexpr(
     "INSERT INTO FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_BUILD",
     refresh_sql,
@@ -84,9 +95,36 @@ test_that("TODO task assembly consumes the bounded context input", {
   )[[1L]]
 
   expect_gt(context_build, 0L)
-  expect_gt(parent_build, context_build)
+  expect_gt(link_build, context_build)
+  expect_gt(parent_build, link_build)
   expect_gt(task_build, parent_build)
   expect_gt(public_drop, task_build)
+
+  expect_match(
+    refresh_sql,
+    "CREATE TABLE FIELD_2026_BADOatNZ.TODO_PARENT_CHICK_GPS_LINKS_SNAPSHOT_BUILD (",
+    fixed = TRUE
+  )
+  expect_match(
+    refresh_sql,
+    "INDEX idx_parent_chick_gps_capture_nest (capture_pk, nest_id)",
+    fixed = TRUE
+  )
+  expect_match(
+    refresh_sql,
+    paste(
+      "CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.ADULT_CHICK_GPS_PARENT_LINKS_INPUT AS",
+      "SELECT *",
+      "FROM FIELD_2026_BADOatNZ.TODO_PARENT_CHICK_GPS_LINKS_SNAPSHOT_BUILD;",
+      sep = "\n"
+    ),
+    fixed = TRUE
+  )
+  expect_match(
+    refresh_sql,
+    "TODO_PARENT_CHICK_GPS_LINKS_SNAPSHOT_BUILD\n    TO FIELD_2026_BADOatNZ.TODO_PARENT_CHICK_GPS_LINKS_SNAPSHOT",
+    fixed = TRUE
+  )
 })
 
 
@@ -121,6 +159,11 @@ test_that("downloads UI exposes the asynchronous snapshot action", {
     readLines(app_file("main", "server.R"), warn = FALSE),
     collapse = "\n"
   )
+  system_utils <- paste(
+    readLines(app_file("main", "R", "system_utils.R"), warn = FALSE),
+    collapse = "\n"
+  )
   expect_match(server, "progress-bar-striped", fixed = TRUE)
   expect_match(server, "This may take several minutes.", fixed = TRUE)
+  expect_match(system_utils, "TODO_REFRESH_STAGE|chick_gps_links", fixed = TRUE)
 })

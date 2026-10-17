@@ -116,6 +116,14 @@ test_that("to-do headings use the current operational subtitles", {
     heading("notA nest-check")$subtitle,
     "these nests have finished and can be closed; nest_ids with state \"H\" may still be active mobile broods that require monitoring"
   )
+  expect_identical(
+    heading("Chick flagging")$title,
+    "Broods to flag"
+  )
+  expect_identical(
+    heading("Chick flagging")$subtitle,
+    "recapture chicks aged 21 days or more and assign unique engraved UL flags"
+  )
 })
 
 
@@ -200,6 +208,11 @@ test_that("parent-resighting PDF notes retain rules and identity counts", {
       female_association_pending = c(0, 1)
     ),
     c("1 male seen; F resolved", "1 male seen; 2 females seen")
+  )
+
+  expect_identical(
+    extract_rule_note("not yet floated"),
+    "not yet floated"
   )
 })
 

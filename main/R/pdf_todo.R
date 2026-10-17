@@ -895,6 +895,10 @@ todo_pdf_parent_resighting_rule_note <- function(
         ""
       }
 
+      if (grepl("not yet floated", note, fixed = TRUE)) {
+        return(trimws(as.character(notes[[i]])))
+      }
+
       seen_note <- character()
       male_count <- male_identity_counts[[i]]
       female_count <- female_identity_counts[[i]]
@@ -927,7 +931,18 @@ todo_pdf_parent_resighting_rule_note <- function(
         )
       }
 
-      paste(c(seen_note, rule_note[nzchar(rule_note)]), collapse = "; ")
+      rendered_note <- paste(
+        c(seen_note, rule_note[nzchar(rule_note)]),
+        collapse = "; "
+      )
+      if (!nzchar(rendered_note) && grepl(
+        "not yet floated|identity unknown",
+        note,
+        perl = TRUE
+      )) {
+        rendered_note <- trimws(as.character(notes[[i]]))
+      }
+      rendered_note
     },
     character(1)
   ))
@@ -1404,6 +1419,10 @@ todo_pdf_heading <- function(todo_name) {
     "Untrapped brood" = list(
       title = "Broods to band",
       subtitle = NULL
+    ),
+    "Chick flagging" = list(
+      title = "Broods to flag",
+      subtitle = "recapture chicks aged 21 days or more and assign unique engraved UL flags"
     ),
     "nest check" = list(
       title = "Nests to check for potential hatch",
@@ -1926,7 +1945,12 @@ todo_pdf_body <- function(
 
       if (todo == "Hiding spot photos needed") {
         names(todo_rows)[names(todo_rows) == "Nest"] <- "Brood"
-      } else if (todo %in% c("Parent capture", "Parent resighting", "Untrapped brood")) {
+      } else if (todo %in% c(
+        "Parent capture",
+        "Parent resighting",
+        "Untrapped brood",
+        "Chick flagging"
+      )) {
         names(todo_rows)[names(todo_rows) == "Nest"] <- "Nest/Brood"
       }
 
