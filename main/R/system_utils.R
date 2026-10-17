@@ -158,15 +158,17 @@ todo_refresh_client_cnf <- function() {
   cnf <- read.ini(cnf_path)
   client <- cnf[[group]]
 
-  if (is.null(client)) {
+  if (is.null(client) || !length(client)) {
     stop(
       glue("Database configuration group '{group}' is unavailable."),
       call. = FALSE
     )
   }
 
-  client[[1]][c("database", "dbname")] <- NULL
-  names(client) <- "client"
+  # Remove the application-only database name, then wrap the section under
+  # the standard [client] name expected by MariaDB command-line clients.
+  client[c("database", "dbname")] <- NULL
+  client <- list(client = client)
 
   client_cnf <- tempfile("fieldworker-todo-client-", fileext = ".cnf")
   write.ini(client, client_cnf)

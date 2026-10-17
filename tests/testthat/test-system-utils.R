@@ -125,6 +125,41 @@ test_that("SQL database downloads use an available dump client", {
 })
 
 
+test_that("TODO refresh worker rewrites the configured client section", {
+  env <- new.env(parent = globalenv())
+  env$group <- "nz_fieldworker"
+  env$read.ini <- function(...) {
+    list(
+      nz_fieldworker = list(
+        host = "localhost",
+        user = "mock",
+        password = "secret",
+        database = "FIELD_2026_BADOatNZ"
+      )
+    )
+  }
+  captured <- NULL
+  env$write.ini <- function(x, file) {
+    captured <<- x
+    writeLines("[client]", file)
+  }
+  source_app_file(app_file("main", "R", "system_utils.R"), env)
+
+  source_cnf <- tempfile(fileext = ".cnf")
+  writeLines("[nz_fieldworker]", source_cnf)
+  withr::local_envvar(DATAENTRY_CNF = source_cnf)
+
+  client_cnf <- env$todo_refresh_client_cnf()
+  on.exit(unlink(client_cnf), add = TRUE)
+
+  expect_identical(names(captured), "client")
+  expect_identical(names(captured[[1]]), c("host", "user", "password"))
+  expect_identical(captured[[1]]$host, "localhost")
+  expect_null(captured[[1]]$database)
+  expect_true(file.exists(client_cnf))
+})
+
+
 test_that("SQL database downloads keep a completed dump with view warnings", {
   env <- new.env(parent = globalenv())
   env$glue <- glue::glue
