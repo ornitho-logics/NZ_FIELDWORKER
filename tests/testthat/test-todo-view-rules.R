@@ -516,7 +516,7 @@ test_that("hiding-photo TODO counts distinct captured and photographed rings", {
 
   expect_match(
     sql,
-    "COUNT(DISTINCT NULLIF(\n      NULLIF(UPPER(TRIM(COALESCE(c.ring, ''))), ''),\n      'NA'\n    )) AS n_captured_chick_rings",
+    "COUNT(DISTINCT events.ring_key) AS n_captured_chick_rings",
     fixed = TRUE
   )
   expect_match(sql, "COUNT(*) AS n_chick_captures", fixed = TRUE)
@@ -782,17 +782,32 @@ test_that("hatched brood task Hatch values use the recorded H date", {
 })
 
 
-test_that("brood banding notes identify broods young enough for leg flags", {
+test_that("brood flagging tasks use the 21-day age gate and latest chick status", {
   sql <- todo_list_view_sql()
 
   expect_match(
     sql,
-    "DATEDIFF(\n             brood_followup_nests.hatch_date,\n             brood_followup_nests.reference_date\n           ) <= -21",
+    "'Chick flagging' AS todo",
     fixed = TRUE
   )
   expect_match(
     sql,
-    "'no chick captures; chicks old enough for leg flags'",
+    "DATEDIFF(\n          brood_followup_nests.reference_date,\n          brood_followup_nests.hatch_date\n        ) >= 21",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "n_unflagged_chick_identities",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "brood_followup_nests.brood_size",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "COALESCE(chick_captures.n_chick_captures, 0) = 0",
     fixed = TRUE
   )
   expect_match(
@@ -801,31 +816,37 @@ test_that("brood banding notes identify broods young enough for leg flags", {
     fixed = TRUE
   )
 
-  banding_note <- function(hatch_value = NA_integer_, discovery_age = NA_integer_) {
-    if (!is.na(hatch_value) && hatch_value <= -21L) {
+  flagging_note <- function(
+    hatch_age = NA_integer_,
+    discovery_age = NA_integer_,
+    n_chick_captures = 0L,
+    n_unflagged = 0L
+  ) {
+    age <- if (!is.na(hatch_age)) hatch_age else discovery_age
+    if (!is.na(age) && age >= 21L && (n_chick_captures == 0L || n_unflagged > 0L)) {
+      if (n_unflagged > 0L) {
+        return("recapture chicks; assign engraved UL flags")
+      }
       return("no chick captures; chicks old enough for leg flags")
     }
-    if (!is.na(discovery_age) && discovery_age >= 21L) {
-      return("no chick captures; chicks old enough for leg flags")
-    }
-    "no chick captures"
+    NULL
   }
 
   expect_identical(
-    banding_note(hatch_value = -21L),
+    flagging_note(hatch_age = 21L),
     "no chick captures; chicks old enough for leg flags"
   )
   expect_identical(
-    banding_note(hatch_value = -20L),
-    "no chick captures"
+    flagging_note(hatch_age = 22L, n_chick_captures = 2L, n_unflagged = 1L),
+    "recapture chicks; assign engraved UL flags"
   )
   expect_identical(
-    banding_note(discovery_age = 21L),
+    flagging_note(discovery_age = 21L),
     "no chick captures; chicks old enough for leg flags"
   )
   expect_identical(
-    banding_note(discovery_age = 20L),
-    "no chick captures"
+    flagging_note(discovery_age = 20L),
+    NULL
   )
 })
 
@@ -863,18 +884,23 @@ test_that("hatch-stage parent work bypasses the clutch-age gate", {
 })
 
 
-test_that("partial H visits remain in potential-hatch checks", {
+test_that("partial hatch signs retain the unhatched-egg instruction", {
   sql <- todo_list_view_sql()
 
   expect_match(
     sql,
-    "UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) = 'H'\n        AND COALESCE(active_nests.clutch_size, 0) > 0\n        AND active_nests.days_ago >= 1",
+    "active_nests.hatch_signs_present = 1\n          OR UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) = 'H'",
     fixed = TRUE
   )
   expect_match(sql, "'; unhatched egg(s)'", fixed = TRUE)
 
-  asynchronous_hatch_check <- function(nest_state, clutch_size, days_ago) {
-    toupper(trimws(nest_state)) == "H" &&
+  asynchronous_hatch_check <- function(
+    nest_state,
+    clutch_size,
+    days_ago,
+    hatch_signs_present = 0L
+  ) {
+    (hatch_signs_present == 1L || toupper(trimws(nest_state)) == "H") &&
       !is.na(clutch_size) && clutch_size > 0 &&
       days_ago >= 1
   }
@@ -882,7 +908,78 @@ test_that("partial H visits remain in potential-hatch checks", {
   expect_true(asynchronous_hatch_check("H", 1, 1))
   expect_false(asynchronous_hatch_check("H", 0, 1))
   expect_false(asynchronous_hatch_check("H", 1, 0))
-  expect_false(asynchronous_hatch_check("I", 1, 1))
+  expect_true(asynchronous_hatch_check("I", 1, 1, hatch_signs_present = 1L))
+})
+
+
+test_that("missing parent identities retain a resighting fallback", {
+  sql <- todo_list_view_sql()
+
+  expect_match(
+    sql,
+    "'not yet floated'",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "WHEN MAX(min_days_to_hatch) IS NULL\n      THEN 'not yet floated'",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "AND NOT EXISTS (\n      SELECT 1\n      FROM todo_untrapped_parent candidate",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "association.nest_id IS NULL",
+    fixed = TRUE
+  )
+})
+
+
+test_that("negative broods use discovery age in shared task hatch fields", {
+  sql <- todo_list_view_sql()
+
+  expect_match(
+    sql,
+    "DATEDIFF(b.discovery_date, b.reference_date)",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "'Chick flagging' AS todo",
+    fixed = TRUE
+  )
+
+  negative_estimate <- function(reference_date, discovery_date) {
+    as.integer(as.Date(discovery_date) - as.Date(reference_date))
+  }
+  expect_identical(
+    negative_estimate("2026-10-20", "2026-10-01"),
+    -19L
+  )
+})
+
+
+test_that("deployment SQL handles archive collation and negative brood aliases", {
+  sql <- views_source_sql()
+
+  expect_match(
+    sql,
+    "GROUP BY BADOatNZ.SEX.ring",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "CONVERT(NULLIF(TRIM(ca.ring), '') USING utf8mb4) COLLATE utf8mb4_uca1400_ai_ci",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "DATEDIFF(d.discovery_date, sr.reference_date) AS min_days_to_hatch",
+    fixed = TRUE
+  )
 })
 
 
@@ -922,6 +1019,54 @@ test_that("the four-gate parent pipeline treats MM as non-definitive evidence", 
   expect_identical(gate(n_nonconfirming = 3L), 1L)
   expect_identical(gate(confirming_resight = TRUE), 2L)
   expect_identical(gate(definitive_capture = TRUE, confirming_resight = TRUE), 3L)
+})
+
+
+test_that("the parent pipeline includes a conservative chick-GPS definitive gate", {
+  sql <- views_source_sql()
+
+  expect_match(
+    sql,
+    "CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.ADULT_CHICK_GPS_PARENT_LINKS AS",
+    fixed = TRUE
+  )
+  expect_match(sql, "ADULT_CAPTURE_IDENTITIES_ALL", fixed = TRUE)
+  expect_match(sql, "ADULT_RESIGHTING_IDENTITIES_ALL", fixed = TRUE)
+  expect_match(sql, "c.spacer_key = r.spacer_key", fixed = TRUE)
+  expect_match(sql, "best.capture_sex AS established_sex", fixed = TRUE)
+  expect_no_match(sql, "WHERE best.capture_sex = r.observed_sex", fixed = TRUE)
+  expect_match(sql, "ADULT_CHICK_GPS_PARENT_LINKS_INPUT", fixed = TRUE)
+  expect_match(sql, "r.age = 'C'", fixed = TRUE)
+  expect_match(sql, "r.gps_id IS NOT NULL", fixed = TRUE)
+  expect_match(sql, "r.gps_point IS NOT NULL", fixed = TRUE)
+  expect_match(sql, "r.ring)) NOT IN ('X', 'XX', 'X-X', 'NA', 'N/A')", fixed = TRUE)
+  expect_match(sql, "c.gps_id = chick.gps_id", fixed = TRUE)
+  expect_match(sql, "c.gps_point = chick.gps_point", fixed = TRUE)
+  expect_match(sql, "opposite_parent_established_nest", fixed = TRUE)
+  expect_match(sql, "WHERE nests.n_candidate_nests = 1", fixed = TRUE)
+  expect_match(sql, "MAX(event_union.chick_gps_parent_link) AS has_chick_gps_link", fixed = TRUE)
+  expect_match(sql, "CASE WHEN chick_link.capture_pk IS NOT NULL", fixed = TRUE)
+
+  gps_link_gate <- function(
+    capture_gps_id,
+    capture_gps_point,
+    chick_gps_id,
+    chick_gps_point,
+    n_candidate_nests,
+    chick_ring = "CP00001"
+  ) {
+    same_gps <- identical(capture_gps_id, chick_gps_id) &&
+      identical(capture_gps_point, chick_gps_point)
+    banded_chick <- !is.null(chick_ring) &&
+      nzchar(chick_ring) &&
+      !toupper(chick_ring) %in% c("X", "XX", "X-X", "NA", "N/A")
+    isTRUE(same_gps && banded_chick && n_candidate_nests == 1L)
+  }
+
+  expect_true(gps_link_gate(2L, 159L, 2L, 159L, 1L))
+  expect_false(gps_link_gate(2L, 159L, 2L, 158L, 1L))
+  expect_false(gps_link_gate(2L, 159L, 2L, 159L, 2L))
+  expect_false(gps_link_gate(2L, 159L, 2L, 159L, 1L, chick_ring = "X-X"))
 })
 
 

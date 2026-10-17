@@ -56,7 +56,7 @@ LEFT JOIN (
   FROM BADOatNZ.SEX
   WHERE ring IS NOT NULL
     AND TRIM(ring) <> ''
-  GROUP BY ring
+  GROUP BY BADOatNZ.SEX.ring
 ) sex_lookup
   ON TRIM(c.ring) = sex_lookup.ring;
 
@@ -83,15 +83,15 @@ WITH sr AS (
 ),
 historical_used_marks AS (
   SELECT
-    'CAPTURES_ARCHIVE' AS source_table,
-    'release' AS source_stage,
-    NULLIF(TRIM(ca.ring), '') AS ring,
+    CONVERT('CAPTURES_ARCHIVE' USING utf8mb4) COLLATE utf8mb4_uca1400_ai_ci AS source_table,
+    CONVERT('release' USING utf8mb4) COLLATE utf8mb4_uca1400_ai_ci AS source_stage,
+    CONVERT(NULLIF(TRIM(ca.ring), '') USING utf8mb4) COLLATE utf8mb4_uca1400_ai_ci AS ring,
     ca.date AS date_,
-    ca.capture_status,
-    NULLIF(UPPER(TRIM(ca.UL)), '') AS UL_raw,
-    NULLIF(UPPER(TRIM(ca.LL)), '') AS LL_raw,
-    NULLIF(UPPER(TRIM(ca.UR)), '') AS UR_raw,
-    NULLIF(UPPER(TRIM(ca.LR)), '') AS LR_raw
+    CONVERT(ca.capture_status USING utf8mb4) COLLATE utf8mb4_uca1400_ai_ci AS capture_status,
+    CONVERT(NULLIF(UPPER(TRIM(ca.UL)), '') USING utf8mb4) COLLATE utf8mb4_uca1400_ai_ci AS UL_raw,
+    CONVERT(NULLIF(UPPER(TRIM(ca.LL)), '') USING utf8mb4) COLLATE utf8mb4_uca1400_ai_ci AS LL_raw,
+    CONVERT(NULLIF(UPPER(TRIM(ca.UR)), '') USING utf8mb4) COLLATE utf8mb4_uca1400_ai_ci AS UR_raw,
+    CONVERT(NULLIF(UPPER(TRIM(ca.LR)), '') USING utf8mb4) COLLATE utf8mb4_uca1400_ai_ci AS LR_raw
   FROM FIELD_2026_BADOatNZ.CAPTURES_ARCHIVE ca
   CROSS JOIN sr
   WHERE ca.date <= sr.reference_date
@@ -99,15 +99,15 @@ historical_used_marks AS (
 ),
 current_used_marks_release AS (
   SELECT
-    'CAPTURES' AS source_table,
-    'release' AS source_stage,
-    NULLIF(TRIM(c.ring), '') AS ring,
+    CONVERT('CAPTURES' USING utf8mb4) COLLATE utf8mb4_uca1400_ai_ci AS source_table,
+    CONVERT('release' USING utf8mb4) COLLATE utf8mb4_uca1400_ai_ci AS source_stage,
+    CONVERT(NULLIF(TRIM(c.ring), '') USING utf8mb4) COLLATE utf8mb4_uca1400_ai_ci AS ring,
     c.date AS date_,
-    c.capture_status,
-    NULLIF(UPPER(TRIM(c.UL)), '') AS UL_raw,
-    NULLIF(UPPER(TRIM(c.LL)), '') AS LL_raw,
-    NULLIF(UPPER(TRIM(c.UR)), '') AS UR_raw,
-    NULLIF(UPPER(TRIM(c.LR)), '') AS LR_raw
+    CONVERT(c.capture_status USING utf8mb4) COLLATE utf8mb4_uca1400_ai_ci AS capture_status,
+    CONVERT(NULLIF(UPPER(TRIM(c.UL)), '') USING utf8mb4) COLLATE utf8mb4_uca1400_ai_ci AS UL_raw,
+    CONVERT(NULLIF(UPPER(TRIM(c.LL)), '') USING utf8mb4) COLLATE utf8mb4_uca1400_ai_ci AS LL_raw,
+    CONVERT(NULLIF(UPPER(TRIM(c.UR)), '') USING utf8mb4) COLLATE utf8mb4_uca1400_ai_ci AS UR_raw,
+    CONVERT(NULLIF(UPPER(TRIM(c.LR)), '') USING utf8mb4) COLLATE utf8mb4_uca1400_ai_ci AS LR_raw
   FROM FIELD_2026_BADOatNZ.CAPTURES c
   CROSS JOIN sr
   WHERE c.date <= sr.reference_date
@@ -115,15 +115,15 @@ current_used_marks_release AS (
 ),
 current_used_marks_input AS (
   SELECT
-    'CAPTURES' AS source_table,
-    'input' AS source_stage,
-    NULLIF(TRIM(c.ring), '') AS ring,
+    CONVERT('CAPTURES' USING utf8mb4) COLLATE utf8mb4_uca1400_ai_ci AS source_table,
+    CONVERT('input' USING utf8mb4) COLLATE utf8mb4_uca1400_ai_ci AS source_stage,
+    CONVERT(NULLIF(TRIM(c.ring), '') USING utf8mb4) COLLATE utf8mb4_uca1400_ai_ci AS ring,
     c.date AS date_,
-    c.capture_status,
-    NULLIF(UPPER(TRIM(c.UL_in)), '') AS UL_raw,
-    NULLIF(UPPER(TRIM(c.LL_in)), '') AS LL_raw,
-    NULLIF(UPPER(TRIM(c.UR_in)), '') AS UR_raw,
-    NULLIF(UPPER(TRIM(c.LR_in)), '') AS LR_raw
+    CONVERT(c.capture_status USING utf8mb4) COLLATE utf8mb4_uca1400_ai_ci AS capture_status,
+    CONVERT(NULLIF(UPPER(TRIM(c.UL_in)), '') USING utf8mb4) COLLATE utf8mb4_uca1400_ai_ci AS UL_raw,
+    CONVERT(NULLIF(UPPER(TRIM(c.LL_in)), '') USING utf8mb4) COLLATE utf8mb4_uca1400_ai_ci AS LL_raw,
+    CONVERT(NULLIF(UPPER(TRIM(c.UR_in)), '') USING utf8mb4) COLLATE utf8mb4_uca1400_ai_ci AS UR_raw,
+    CONVERT(NULLIF(UPPER(TRIM(c.LR_in)), '') USING utf8mb4) COLLATE utf8mb4_uca1400_ai_ci AS LR_raw
   FROM FIELD_2026_BADOatNZ.CAPTURES c
   CROSS JOIN sr
   WHERE c.date <= sr.reference_date
@@ -1446,7 +1446,7 @@ negative_units AS (
     CAST(NULL AS CHAR(50)) AS hatch_state,
     CAST(NULL AS UNSIGNED) AS clutch_size,
     CAST(NULL AS UNSIGNED) AS brood_size,
-    CAST(NULL AS SIGNED) AS min_days_to_hatch,
+    DATEDIFF(d.discovery_date, sr.reference_date) AS min_days_to_hatch,
     pm.M_mark,
     pm.F_mark,
     CAST(NULL AS CHAR(1)) AS nest_photo,
@@ -2452,7 +2452,7 @@ LEFT JOIN stratum_status strata
   ordinary matching key, while flags and the four approved single-LR spacer
   identities receive explicit aliases.
 */
-CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.ADULT_CAPTURE_IDENTITIES AS
+CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.ADULT_CAPTURE_IDENTITIES_ALL AS
 
 WITH sr AS (
   SELECT value AS reference_date
@@ -2462,7 +2462,13 @@ WITH sr AS (
 ), normalized AS (
   SELECT
     CAST(c.pk AS CHAR(64)) AS capture_pk,
-    c.nest_id,
+    CASE
+      WHEN c.nest_id IS NULL
+        OR TRIM(c.nest_id) = ''
+        OR UPPER(TRIM(c.nest_id)) = 'NO_NEST'
+      THEN NULL
+      ELSE TRIM(c.nest_id)
+    END AS nest_id,
     LEFT(c.field_sex, 1) AS capture_sex,
     c.date AS capture_date,
     CAST(CONCAT(c.date, ' ', COALESCE(c.released, c.caught, '00:00:00')) AS DATETIME)
@@ -2480,10 +2486,7 @@ WITH sr AS (
     NULLIF(UPPER(TRIM(c.tag_id)), '') AS tag_id
   FROM FIELD_2026_BADOatNZ.CAPTURES c
   CROSS JOIN sr
-  WHERE c.nest_id IS NOT NULL
-    AND TRIM(c.nest_id) <> ''
-    AND UPPER(TRIM(c.nest_id)) <> 'NO_NEST'
-    AND UPPER(TRIM(COALESCE(c.site, ''))) = 'CR'
+  WHERE UPPER(TRIM(COALESCE(c.site, ''))) = 'CR'
     AND c.age = 'A'
     AND LEFT(c.field_sex, 1) IN ('M', 'F')
     AND c.date <= sr.reference_date
@@ -2496,22 +2499,27 @@ WITH sr AS (
     and GEO match for ADULT_IDENTITY_MATCHES.
   */
   SELECT
-    CONCAT('archive:', COALESCE(c.ring, ''), ':', c.date) AS capture_pk,
-    CAST(NULL AS CHAR(6)) AS nest_id,
-    COALESCE(NULLIF(LEFT(c.gen_sex, 1), ''), LEFT(c.field_sex, 1)) AS capture_sex,
+    CONVERT(CONCAT('archive:', COALESCE(c.ring, ''), ':', c.date) USING utf8mb4)
+      COLLATE utf8mb4_uca1400_ai_ci AS capture_pk,
+    CONVERT(CAST(NULL AS CHAR(6)) USING utf8mb4) COLLATE utf8mb4_uca1400_ai_ci AS nest_id,
+    CONVERT(COALESCE(NULLIF(LEFT(c.gen_sex, 1), ''), LEFT(c.field_sex, 1)) USING utf8mb4)
+      COLLATE utf8mb4_uca1400_ai_ci AS capture_sex,
     c.date AS capture_date,
     CAST(CONCAT(c.date, ' 00:00:00') AS DATETIME) AS capture_datetime,
-    CAST(NULL AS CHAR(8)) AS capture_method,
-    UPPER(TRIM(COALESCE(c.capture_status, ''))) AS capture_status,
-    CAST(NULL AS CHAR(20)) AS caught_with,
-    NULLIF(REPLACE(UPPER(TRIM(c.ring)), '-', ''), '') AS metal_ring,
-    UPPER(TRIM(COALESCE(c.UL, ''))) AS UL_raw,
-    UPPER(TRIM(COALESCE(c.LL, ''))) AS LL_raw,
-    UPPER(TRIM(COALESCE(c.UR, ''))) AS UR_raw,
-    UPPER(TRIM(COALESCE(c.LR, ''))) AS LR_raw,
-    UPPER(TRIM(COALESCE(c.tag_type, ''))) AS tag_type,
-    CAST(NULL AS CHAR(8)) AS tag_action,
-    NULLIF(UPPER(TRIM(c.tag_id)), '') AS tag_id
+    CONVERT(CAST(NULL AS CHAR(8)) USING utf8mb4) COLLATE utf8mb4_uca1400_ai_ci AS capture_method,
+    CONVERT(UPPER(TRIM(COALESCE(c.capture_status, ''))) USING utf8mb4)
+      COLLATE utf8mb4_uca1400_ai_ci AS capture_status,
+    CONVERT(CAST(NULL AS CHAR(20)) USING utf8mb4) COLLATE utf8mb4_uca1400_ai_ci AS caught_with,
+    CONVERT(NULLIF(REPLACE(UPPER(TRIM(c.ring)), '-', ''), '') USING utf8mb4)
+      COLLATE utf8mb4_uca1400_ai_ci AS metal_ring,
+    CONVERT(UPPER(TRIM(COALESCE(c.UL, ''))) USING utf8mb4) COLLATE utf8mb4_uca1400_ai_ci AS UL_raw,
+    CONVERT(UPPER(TRIM(COALESCE(c.LL, ''))) USING utf8mb4) COLLATE utf8mb4_uca1400_ai_ci AS LL_raw,
+    CONVERT(UPPER(TRIM(COALESCE(c.UR, ''))) USING utf8mb4) COLLATE utf8mb4_uca1400_ai_ci AS UR_raw,
+    CONVERT(UPPER(TRIM(COALESCE(c.LR, ''))) USING utf8mb4) COLLATE utf8mb4_uca1400_ai_ci AS LR_raw,
+    CONVERT(UPPER(TRIM(COALESCE(c.tag_type, ''))) USING utf8mb4)
+      COLLATE utf8mb4_uca1400_ai_ci AS tag_type,
+    CONVERT(CAST(NULL AS CHAR(8)) USING utf8mb4) COLLATE utf8mb4_uca1400_ai_ci AS tag_action,
+    CONVERT(NULLIF(UPPER(TRIM(c.tag_id)), '') USING utf8mb4) COLLATE utf8mb4_uca1400_ai_ci AS tag_id
   FROM FIELD_2026_BADOatNZ.CAPTURES_ARCHIVE c
   CROSS JOIN sr
   WHERE UPPER(TRIM(COALESCE(c.site_code, ''))) = 'CR'
@@ -2616,7 +2624,13 @@ SELECT
 FROM keyed;
 
 
-CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.ADULT_RESIGHTING_IDENTITIES AS
+CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.ADULT_CAPTURE_IDENTITIES AS
+SELECT *
+FROM FIELD_2026_BADOatNZ.ADULT_CAPTURE_IDENTITIES_ALL
+WHERE nest_id IS NOT NULL;
+
+
+CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.ADULT_RESIGHTING_IDENTITIES_ALL AS
 
 WITH sr AS (
   SELECT value AS reference_date
@@ -2626,7 +2640,13 @@ WITH sr AS (
 ), normalized AS (
   SELECT
     r.pk AS resighting_pk,
-    r.nest_id,
+    CASE
+      WHEN r.nest_id IS NULL
+        OR TRIM(r.nest_id) = ''
+        OR UPPER(TRIM(r.nest_id)) = 'NO_NEST'
+      THEN NULL
+      ELSE TRIM(r.nest_id)
+    END AS nest_id,
     LEFT(r.sex, 1) AS observed_sex,
     r.date AS observation_date,
     UPPER(TRIM(COALESCE(r.behav, ''))) AS behav,
@@ -2641,9 +2661,7 @@ WITH sr AS (
     UPPER(TRIM(r.LR)) AS LR_raw
   FROM FIELD_2026_BADOatNZ.RESIGHTINGS r
   CROSS JOIN sr
-  WHERE r.nest_id IS NOT NULL
-    AND TRIM(r.nest_id) <> ''
-    AND UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'
+  WHERE UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'
     AND r.age = 'A'
     AND LEFT(r.sex, 1) IN ('M', 'F')
     AND r.date <= sr.reference_date
@@ -2734,6 +2752,12 @@ SELECT
   CASE WHEN keyed.behav REGEXP '(^|[,[:space:]])(IN|NM|SC|BW|BC|FC|AC)([,[:space:]]|$)'
     THEN 0 ELSE 1 END AS association_nonconfirming
 FROM keyed;
+
+
+CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.ADULT_RESIGHTING_IDENTITIES AS
+SELECT *
+FROM FIELD_2026_BADOatNZ.ADULT_RESIGHTING_IDENTITIES_ALL
+WHERE nest_id IS NOT NULL;
 
 
 /*
@@ -2983,6 +3007,328 @@ SELECT
 FROM unmatched;
 
 
+/*
+  Link an age-A capture to a banded age-C chick through an exact GPS pair.
+  This is an additional definitive parent-association gate. It is kept
+  separate from ADULT_CAPTURE_IDENTITIES because the capture may have no
+  nest_id when the originating nest has already been closed.
+
+  A nest is accepted only when the GPS-linked evidence identifies one unique
+  operational nest/brood. If both the capture and chick lack nest_id, a
+  unique banded opposite-sex adult at the same GPS pair may supply the nest
+  through that identity's established nest-linked evidence. Conflicting or
+  non-unique candidates remain unresolved and do not promote a parent.
+*/
+CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.ADULT_CHICK_GPS_PARENT_LINKS AS
+
+WITH sr AS (
+  SELECT value AS reference_date
+  FROM FIELD_2026_BADOatNZ.settings
+  WHERE variable = 'reference_date'
+    AND value IS NOT NULL
+), capture_identities AS (
+  SELECT
+    captured.*,
+    raw.gps_id,
+    raw.gps_point
+  FROM FIELD_2026_BADOatNZ.ADULT_CAPTURE_IDENTITIES_ALL captured
+  JOIN FIELD_2026_BADOatNZ.CAPTURES raw
+    ON CAST(raw.pk AS CHAR(64)) = captured.capture_pk
+  WHERE UPPER(TRIM(COALESCE(raw.site, ''))) = 'CR'
+    AND raw.age = 'A'
+    AND LEFT(raw.field_sex, 1) IN ('M', 'F')
+    AND raw.date <= (SELECT reference_date FROM sr)
+    AND raw.gps_id IS NOT NULL
+    AND raw.gps_point IS NOT NULL
+), chick_events AS (
+  SELECT
+    r.pk AS chick_resighting_pk,
+    CASE
+      WHEN r.nest_id IS NULL
+        OR TRIM(r.nest_id) = ''
+        OR UPPER(TRIM(r.nest_id)) = 'NO_NEST'
+      THEN NULL
+      ELSE TRIM(r.nest_id)
+    END AS nest_id,
+    r.date AS observation_date,
+    r.gps_id,
+    r.gps_point
+  FROM FIELD_2026_BADOatNZ.RESIGHTINGS r
+  CROSS JOIN sr
+  WHERE UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'
+    AND r.age = 'C'
+    AND r.date <= sr.reference_date
+    AND r.gps_id IS NOT NULL
+    AND r.gps_point IS NOT NULL
+    AND NULLIF(TRIM(r.ring), '') IS NOT NULL
+    AND UPPER(TRIM(r.ring)) NOT IN ('X', 'XX', 'X-X', 'NA', 'N/A')
+), opposite_keyed AS (
+  SELECT
+    observed.*,
+    raw.gps_id,
+    raw.gps_point
+  FROM FIELD_2026_BADOatNZ.ADULT_RESIGHTING_IDENTITIES_ALL observed
+  JOIN FIELD_2026_BADOatNZ.RESIGHTINGS raw
+    ON raw.pk = observed.resighting_pk
+  WHERE UPPER(TRIM(COALESCE(raw.site, ''))) = 'CR'
+    AND raw.age = 'A'
+    AND LEFT(raw.sex, 1) IN ('M', 'F')
+    AND raw.date <= (SELECT reference_date FROM sr)
+    AND raw.gps_id IS NOT NULL
+    AND raw.gps_point IS NOT NULL
+), opposite_candidates AS (
+  SELECT
+    r.resighting_pk,
+    c.identity_key,
+    c.capture_sex,
+    CASE WHEN c.capture_sex = r.observed_sex THEN 1 ELSE 0 END AS sex_match,
+    1 AS match_priority
+  FROM opposite_keyed r
+  JOIN FIELD_2026_BADOatNZ.ADULT_CAPTURE_IDENTITIES_ALL c
+    ON c.metal_ring = r.metal_ring
+   AND c.capture_date <= r.observation_date
+   AND c.is_confirmed_xx = 0
+  WHERE r.metal_ring IS NOT NULL
+
+  UNION ALL
+
+  SELECT
+    r.resighting_pk,
+    c.identity_key,
+    c.capture_sex,
+    CASE WHEN c.capture_sex = r.observed_sex THEN 1 ELSE 0 END,
+    2
+  FROM opposite_keyed r
+  JOIN FIELD_2026_BADOatNZ.ADULT_CAPTURE_IDENTITIES_ALL c
+    ON c.flag_code = r.flag_code
+   AND c.capture_date <= r.observation_date
+   AND c.is_confirmed_xx = 0
+  WHERE r.flag_code IS NOT NULL
+    AND r.metal_ring IS NULL
+
+  UNION ALL
+
+  SELECT
+    r.resighting_pk,
+    c.identity_key,
+    c.capture_sex,
+    CASE WHEN c.capture_sex = r.observed_sex THEN 1 ELSE 0 END,
+    2
+  FROM opposite_keyed r
+  JOIN FIELD_2026_BADOatNZ.ADULT_CAPTURE_IDENTITIES_ALL c
+    ON c.spacer_key = r.spacer_key
+   AND c.capture_date <= r.observation_date
+   AND c.is_confirmed_xx = 0
+  WHERE r.spacer_key IS NOT NULL
+    AND r.metal_ring IS NULL
+
+  UNION ALL
+
+  SELECT
+    r.resighting_pk,
+    c.identity_key,
+    c.capture_sex,
+    CASE WHEN c.capture_sex = r.observed_sex THEN 1 ELSE 0 END,
+    3
+  FROM opposite_keyed r
+  JOIN FIELD_2026_BADOatNZ.ADULT_CAPTURE_IDENTITIES_ALL c
+    ON c.lower_key = r.lower_key
+   AND c.capture_date <= r.observation_date
+   AND c.is_confirmed_xx = 0
+  WHERE r.lower_key IS NOT NULL
+    AND r.metal_ring IS NULL
+
+  UNION ALL
+
+  SELECT
+    r.resighting_pk,
+    c.identity_key,
+    c.capture_sex,
+    CASE WHEN c.capture_sex = r.observed_sex THEN 1 ELSE 0 END,
+    4
+  FROM opposite_keyed r
+  JOIN FIELD_2026_BADOatNZ.ADULT_CAPTURE_IDENTITIES_ALL c
+    ON c.full_key = r.full_key
+   AND c.capture_date <= r.observation_date
+   AND c.is_confirmed_xx = 0
+  WHERE r.full_key IS NOT NULL
+    AND r.metal_ring IS NULL
+), opposite_best_priority AS (
+  SELECT resighting_pk, MIN(match_priority) AS match_priority
+  FROM opposite_candidates
+  GROUP BY resighting_pk
+), opposite_best_sex AS (
+  SELECT
+    candidates.resighting_pk,
+    candidates.match_priority,
+    MAX(candidates.sex_match) AS sex_match
+  FROM opposite_candidates candidates
+  JOIN opposite_best_priority priority
+    ON candidates.resighting_pk = priority.resighting_pk
+   AND candidates.match_priority = priority.match_priority
+  GROUP BY candidates.resighting_pk, candidates.match_priority
+), opposite_best AS (
+  SELECT DISTINCT
+    candidates.resighting_pk,
+    candidates.identity_key,
+    candidates.capture_sex
+  FROM opposite_candidates candidates
+  JOIN opposite_best_priority priority
+    ON candidates.resighting_pk = priority.resighting_pk
+   AND candidates.match_priority = priority.match_priority
+  JOIN opposite_best_sex sex_choice
+    ON candidates.resighting_pk = sex_choice.resighting_pk
+   AND candidates.match_priority = sex_choice.match_priority
+   AND candidates.sex_match = sex_choice.sex_match
+), opposite_counts AS (
+  SELECT
+    resighting_pk,
+    COUNT(DISTINCT identity_key) AS n_candidate_identities
+  FROM opposite_best
+  GROUP BY resighting_pk
+), opposite_identity_events AS (
+  SELECT
+    r.resighting_pk,
+    r.nest_id,
+    best.capture_sex AS established_sex,
+    r.observed_sex,
+    r.gps_id,
+    r.gps_point,
+    best.identity_key
+  FROM opposite_keyed r
+  JOIN opposite_best best
+    ON r.resighting_pk = best.resighting_pk
+  JOIN opposite_counts counts
+    ON best.resighting_pk = counts.resighting_pk
+   AND counts.n_candidate_identities = 1
+), known_parent_nests AS (
+  SELECT
+    c.identity_key,
+    c.capture_sex AS sex,
+    c.nest_id
+  FROM FIELD_2026_BADOatNZ.ADULT_CAPTURE_IDENTITIES c
+  WHERE c.nest_id IS NOT NULL
+    AND c.definitive_capture = 1
+
+  UNION
+
+  SELECT
+    r.identity_key,
+    r.sex,
+    r.nest_id
+  FROM FIELD_2026_BADOatNZ.ADULT_IDENTITY_MATCHES r
+  WHERE r.nest_id IS NOT NULL
+    AND r.is_ambiguous_match = 0
+    AND r.association_confirming = 1
+), nest_candidates AS (
+  SELECT
+    c.capture_pk,
+    c.identity_key,
+    c.capture_sex,
+    c.nest_id,
+    'capture_or_chick_nest' AS link_source
+  FROM capture_identities c
+  JOIN chick_events chick
+    ON c.gps_id = chick.gps_id
+   AND c.gps_point = chick.gps_point
+  WHERE c.nest_id IS NOT NULL
+     OR chick.nest_id IS NOT NULL
+
+  UNION ALL
+
+  SELECT
+    c.capture_pk,
+    c.identity_key,
+    c.capture_sex,
+    opposite.nest_id,
+    'opposite_parent_nest' AS link_source
+  FROM capture_identities c
+  JOIN chick_events chick
+    ON c.gps_id = chick.gps_id
+   AND c.gps_point = chick.gps_point
+  JOIN opposite_identity_events opposite
+    ON opposite.gps_id = c.gps_id
+   AND opposite.gps_point = c.gps_point
+   AND opposite.established_sex <> c.capture_sex
+  WHERE c.nest_id IS NULL
+    AND chick.nest_id IS NULL
+    AND opposite.nest_id IS NOT NULL
+
+  UNION ALL
+
+  SELECT
+    c.capture_pk,
+    c.identity_key,
+    c.capture_sex,
+    known.nest_id,
+    'opposite_parent_established_nest' AS link_source
+  FROM capture_identities c
+  JOIN chick_events chick
+    ON c.gps_id = chick.gps_id
+   AND c.gps_point = chick.gps_point
+  JOIN opposite_identity_events opposite
+    ON opposite.gps_id = c.gps_id
+   AND opposite.gps_point = c.gps_point
+   AND opposite.established_sex <> c.capture_sex
+   AND opposite.nest_id IS NULL
+  JOIN known_parent_nests known
+    ON known.identity_key = opposite.identity_key
+   AND known.sex = opposite.established_sex
+  WHERE c.nest_id IS NULL
+    AND chick.nest_id IS NULL
+), unique_nests AS (
+  SELECT
+    candidates.capture_pk,
+    candidates.identity_key,
+    candidates.capture_sex,
+    MIN(candidates.nest_id) AS nest_id,
+    COUNT(DISTINCT candidates.nest_id) AS n_candidate_nests,
+    GROUP_CONCAT(
+      DISTINCT candidates.link_source
+      ORDER BY candidates.link_source
+      SEPARATOR ','
+    ) AS link_source
+  FROM nest_candidates candidates
+  WHERE candidates.nest_id IS NOT NULL
+  GROUP BY
+    candidates.capture_pk,
+    candidates.identity_key,
+    candidates.capture_sex
+)
+SELECT
+  captures.capture_pk,
+  captures.identity_key,
+  captures.capture_sex,
+  nests.nest_id,
+  captures.capture_date,
+  captures.capture_datetime,
+  captures.display_mark,
+  captures.has_geo,
+  captures.is_au_migrant,
+  captures.is_dead,
+  captures.is_single_colour_recruit,
+  nests.link_source,
+  1 AS has_chick_gps_link
+FROM capture_identities captures
+JOIN unique_nests nests
+  ON captures.capture_pk = nests.capture_pk
+ AND captures.identity_key = nests.identity_key
+ AND captures.capture_sex = nests.capture_sex
+WHERE nests.n_candidate_nests = 1;
+
+
+/*
+  Refresh-time input boundary for the GPS-linked parent gate. During a staged
+  refresh this points first to the live linker, then to its completed build
+  table, and finally to the published link snapshot. Keeping this boundary
+  separate lets parent-status assembly consume one materialized result.
+*/
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW
+  FIELD_2026_BADOatNZ.ADULT_CHICK_GPS_PARENT_LINKS_INPUT AS
+SELECT *
+FROM FIELD_2026_BADOatNZ.ADULT_CHICK_GPS_PARENT_LINKS;
+
+
 CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.ADULT_PARENT_NEST_ASSOCIATIONS AS
 
 WITH xx_supersession_evidence AS (
@@ -3062,12 +3408,46 @@ WITH xx_supersession_evidence AS (
     c.is_au_migrant,
     c.is_dead,
     c.is_single_colour_recruit,
-    c.definitive_capture,
+    CASE WHEN chick_link.capture_pk IS NOT NULL
+      THEN 1 ELSE c.definitive_capture END AS definitive_capture,
     0 AS confirming_resighting,
     0 AS nonconfirming_resighting,
     c.has_mm_capture,
-    0 AS ambiguous_match
+    0 AS ambiguous_match,
+    CASE WHEN chick_link.capture_pk IS NOT NULL THEN 1 ELSE 0 END
+      AS chick_gps_parent_link
   FROM FIELD_2026_BADOatNZ.ADULT_CAPTURE_IDENTITIES c
+  LEFT JOIN FIELD_2026_BADOatNZ.ADULT_CHICK_GPS_PARENT_LINKS_INPUT chick_link
+    ON chick_link.capture_pk = c.capture_pk
+   AND chick_link.identity_key = c.identity_key
+   AND chick_link.nest_id = c.nest_id
+
+  UNION ALL
+
+  SELECT
+    chick_link.nest_id,
+    chick_link.capture_sex AS sex,
+    chick_link.identity_key,
+    CONCAT('chick-gps:', chick_link.capture_pk) AS event_pk,
+    chick_link.capture_datetime AS event_datetime,
+    1 AS capture_source,
+    chick_link.display_mark,
+    chick_link.has_geo,
+    chick_link.is_au_migrant,
+    chick_link.is_dead,
+    chick_link.is_single_colour_recruit,
+    1 AS definitive_capture,
+    0 AS confirming_resighting,
+    0 AS nonconfirming_resighting,
+    0 AS has_mm_capture,
+    0 AS ambiguous_match,
+    1 AS chick_gps_parent_link
+  FROM FIELD_2026_BADOatNZ.ADULT_CHICK_GPS_PARENT_LINKS_INPUT chick_link
+  WHERE NOT EXISTS (
+    SELECT 1
+    FROM FIELD_2026_BADOatNZ.ADULT_CAPTURE_IDENTITIES captured
+    WHERE captured.capture_pk = chick_link.capture_pk
+  )
 
   UNION ALL
 
@@ -3092,7 +3472,8 @@ WITH xx_supersession_evidence AS (
     r.association_confirming AS confirming_resighting,
     r.association_nonconfirming AS nonconfirming_resighting,
     r.has_mm_capture,
-    r.is_ambiguous_match AS ambiguous_match
+    r.is_ambiguous_match AS ambiguous_match,
+    0 AS chick_gps_parent_link
   FROM FIELD_2026_BADOatNZ.ADULT_IDENTITY_MATCHES r
   LEFT JOIN xx_superseded superseded
     ON superseded.nest_id = r.nest_id
@@ -3121,6 +3502,7 @@ WITH xx_supersession_evidence AS (
     MAX(event_union.is_dead) AS identity_is_dead,
     MAX(event_union.is_single_colour_recruit) AS identity_single_colour_recruit,
     MAX(event_union.definitive_capture) AS has_definitive_capture,
+    MAX(event_union.chick_gps_parent_link) AS has_chick_gps_link,
     MAX(event_union.confirming_resighting) AS has_confirming_resighting,
     COUNT(DISTINCT CASE WHEN event_union.nonconfirming_resighting = 1 THEN event_union.event_pk END)
       AS n_nonconfirming_resightings,
@@ -3193,6 +3575,7 @@ SELECT
   classified.observed_mark,
   classified.identity_key,
   classified.association_level,
+  classified.has_chick_gps_link,
   classified.association_selected,
   classified.association_ambiguous,
   CASE
@@ -5396,14 +5779,29 @@ nota_followup_nests AS (
        AND COALESCE(n.brood_size, 0) > 0
      )
 ),
-chick_captures AS (
+chick_capture_events AS (
   SELECT
     c.nest_id,
-    COUNT(*) AS n_chick_captures,
-    COUNT(DISTINCT NULLIF(
+    NULLIF(
       NULLIF(UPPER(TRIM(COALESCE(c.ring, ''))), ''),
       'NA'
-    )) AS n_captured_chick_rings
+    ) AS ring_key,
+    CASE
+      WHEN UPPER(COALESCE(NULLIF(TRIM(c.UL), ''), NULLIF(TRIM(c.UL_in), '')))
+             REGEXP '^F[A-Z0-9]+$'
+      THEN UPPER(COALESCE(NULLIF(TRIM(c.UL), ''), NULLIF(TRIM(c.UL_in), '')))
+      ELSE NULL
+    END AS flag_code,
+    ROW_NUMBER() OVER (
+      PARTITION BY c.nest_id,
+        COALESCE(
+          NULLIF(NULLIF(UPPER(TRIM(COALESCE(c.ring, ''))), ''), 'NA'),
+          CONCAT('capture:', c.pk)
+        )
+      ORDER BY c.date DESC,
+        COALESCE(c.released, c.caught, '00:00:00') DESC,
+        c.pk DESC
+    ) AS row_num
   FROM FIELD_2026_BADOatNZ.CAPTURES c
   CROSS JOIN sr
   WHERE c.nest_id IS NOT NULL
@@ -5412,7 +5810,19 @@ chick_captures AS (
     AND UPPER(TRIM(COALESCE(c.site, ''))) = 'CR'
     AND c.age = 'C'
     AND c.date <= sr.reference_date
-  GROUP BY c.nest_id
+),
+chick_captures AS (
+  SELECT
+    events.nest_id,
+    COUNT(*) AS n_chick_captures,
+    COUNT(DISTINCT events.ring_key) AS n_captured_chick_rings,
+    SUM(CASE WHEN events.flag_code IS NULL THEN 1 ELSE 0 END)
+      AS n_unflagged_chick_identities,
+    SUM(CASE WHEN events.flag_code IS NOT NULL THEN 1 ELSE 0 END)
+      AS n_flagged_chick_identities
+  FROM chick_capture_events events
+  WHERE events.row_num = 1
+  GROUP BY events.nest_id
 ),
 hiding_spot_photos AS (
   SELECT
@@ -6107,7 +6517,7 @@ todo_untrapped_parent_candidate AS (
       b.brood_size,
       CAST(NULL AS DATE),
       CAST(NULL AS DECIMAL(6,1)),
-      b.min_days_to_hatch,
+      DATEDIFF(b.discovery_date, b.reference_date),
       b.nest_photo,
       b.tent_photo,
       b.lat,
@@ -6526,6 +6936,56 @@ todo_parent_capture AS (
   FROM todo_untrapped_parent
   WHERE parent_task_class = 'Parent capture'
 ),
+parent_units AS (
+  SELECT
+    active_nests.nest_id,
+    active_nests.reference_date,
+    active_nests.min_days_to_hatch,
+    active_nests.days_ago AS last_visit_days_ago,
+    active_nests.nest_state,
+    active_nests.clutch_size,
+    active_nests.brood_size,
+    active_nests.lat,
+    active_nests.lon,
+    nest_discovery.first_found_date
+  FROM active_nests
+  LEFT JOIN nest_discovery
+    ON active_nests.nest_id = nest_discovery.nest_id
+  UNION ALL
+  SELECT
+    n.nest_id,
+    n.reference_date,
+    n.min_days_to_hatch,
+    n.days_ago AS last_visit_days_ago,
+    n.nest_state,
+    n.clutch_size,
+    n.brood_size,
+    n.lat,
+    n.lon,
+    nest_discovery.first_found_date
+  FROM latest_nests n
+  JOIN hatched_nests
+    ON n.nest_id = hatched_nests.nest_id
+  LEFT JOIN nest_discovery
+    ON n.nest_id = nest_discovery.nest_id
+  WHERE UPPER(TRIM(COALESCE(n.nest_state, ''))) = 'NOTA'
+  UNION ALL
+  SELECT
+    b.nest_id,
+    b.reference_date,
+    DATEDIFF(b.discovery_date, b.reference_date),
+    DATEDIFF(b.reference_date, b.latest_encounter_date) AS last_visit_days_ago,
+    b.nest_state,
+    b.clutch_size,
+    b.brood_size,
+    b.lat,
+    b.lon,
+    b.discovery_date AS first_found_date
+  FROM FIELD_2026_BADOatNZ.BROODS_LATEST b
+  CROSS JOIN sr
+  WHERE b.is_negative_brood = 1
+    AND b.reference_date = sr.reference_date
+),
 todo_parent_resighting_existing AS (
   SELECT
     nest_id,
@@ -6650,69 +7110,79 @@ todo_parent_resighting_existing AS (
     END AS F_mark,
     parent_units.lat,
     parent_units.lon
-  FROM (
-    SELECT
-      active_nests.nest_id,
-      active_nests.reference_date,
-      active_nests.min_days_to_hatch,
-      active_nests.days_ago AS last_visit_days_ago,
-      active_nests.nest_state,
-      active_nests.clutch_size,
-      active_nests.brood_size,
-      active_nests.lat,
-      active_nests.lon,
-      nest_discovery.first_found_date
-    FROM active_nests
-    LEFT JOIN nest_discovery
-      ON active_nests.nest_id = nest_discovery.nest_id
-    UNION ALL
-    SELECT
-      n.nest_id,
-      n.reference_date,
-      n.min_days_to_hatch,
-      n.days_ago AS last_visit_days_ago,
-      n.nest_state,
-      n.clutch_size,
-      n.brood_size,
-      n.lat,
-      n.lon,
-      nest_discovery.first_found_date
-    FROM latest_nests n
-    JOIN hatched_nests
-      ON n.nest_id = hatched_nests.nest_id
-    LEFT JOIN nest_discovery
-      ON n.nest_id = nest_discovery.nest_id
-    WHERE UPPER(TRIM(COALESCE(n.nest_state, ''))) = 'NOTA'
-    UNION ALL
-    SELECT
-      b.nest_id,
-      b.reference_date,
-      b.min_days_to_hatch,
-      DATEDIFF(b.reference_date, b.latest_encounter_date) AS last_visit_days_ago,
-      b.nest_state,
-      b.clutch_size,
-      b.brood_size,
-      b.lat,
-      b.lon,
-      b.discovery_date AS first_found_date
-    FROM FIELD_2026_BADOatNZ.BROODS_LATEST b
-    CROSS JOIN sr
-    WHERE b.is_negative_brood = 1
-      AND b.reference_date = sr.reference_date
-  ) parent_units
+  FROM parent_units
   JOIN adult_parent_status association
     ON parent_units.nest_id = association.nest_id
   LEFT JOIN adult_parent_status
     ON parent_units.nest_id = adult_parent_status.nest_id
   WHERE association.M_resight_association_pending = 1
      OR association.F_resight_association_pending = 1
+  UNION ALL
+  /*
+    A parent with no selected identity must still receive a resighting task
+    when the capture branch did not produce an actionable row. This keeps
+    unresolved nest association visible without weakening the four-gate
+    evidence hierarchy or creating a second capture target.
+  */
+  SELECT
+    parent_units.nest_id,
+    parent_units.reference_date,
+    'Parent resighting' AS todo,
+    CASE
+      WHEN parent_units.min_days_to_hatch IS NULL
+      THEN 'not yet floated'
+      WHEN association.nest_id IS NULL
+       OR (
+         COALESCE(association.M_unknown_status, 0) = 1
+         AND COALESCE(association.F_unknown_status, 0) = 1
+       )
+      THEN 'parent identity unknown'
+      WHEN COALESCE(association.M_unknown_status, 0) = 1
+      THEN 'M identity unknown'
+      ELSE 'F identity unknown'
+    END AS notes,
+    DATEDIFF(
+      parent_units.reference_date,
+      COALESCE(parent_units.first_found_date, parent_units.reference_date)
+    ) AS days_overdue,
+    350
+      + DATEDIFF(
+          parent_units.reference_date,
+          COALESCE(parent_units.first_found_date, parent_units.reference_date)
+        ) AS priority,
+    parent_units.min_days_to_hatch,
+    parent_units.last_visit_days_ago,
+    parent_units.nest_state,
+    parent_units.clutch_size,
+    parent_units.brood_size,
+    association.M_parent_mark AS M_mark,
+    association.F_parent_mark AS F_mark,
+    parent_units.lat,
+    parent_units.lon
+  FROM parent_units
+  LEFT JOIN adult_parent_status association
+    ON parent_units.nest_id = association.nest_id
+  WHERE (
+      association.nest_id IS NULL
+      OR COALESCE(association.M_unknown_status, 0) = 1
+      OR COALESCE(association.F_unknown_status, 0) = 1
+    )
+    AND NOT EXISTS (
+      SELECT 1
+      FROM todo_untrapped_parent candidate
+      WHERE candidate.nest_id = parent_units.nest_id
+    )
 ),
 todo_parent_resighting AS (
   SELECT
     nest_id,
     reference_date,
     'Parent resighting' AS todo,
-    GROUP_CONCAT(DISTINCT notes ORDER BY notes SEPARATOR '; ') AS notes,
+    CASE
+      WHEN MAX(min_days_to_hatch) IS NULL
+      THEN 'not yet floated'
+      ELSE GROUP_CONCAT(DISTINCT notes ORDER BY notes SEPARATOR '; ')
+    END AS notes,
     MAX(days_overdue) AS days_overdue,
     MAX(priority) AS priority,
     MAX(min_days_to_hatch) AS min_days_to_hatch,
@@ -6959,7 +7429,10 @@ todo_nest_check AS (
         'no entry'
       ),
       CASE
-        WHEN UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) = 'H'
+        WHEN (
+          active_nests.hatch_signs_present = 1
+          OR UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) = 'H'
+        )
          AND COALESCE(active_nests.clutch_size, 0) > 0
         THEN '; unhatched egg(s)'
         ELSE ''
@@ -7040,14 +7513,7 @@ todo_untrapped_brood AS (
     brood_followup_nests.nest_id,
     brood_followup_nests.reference_date,
     'Untrapped brood' AS todo,
-    CASE
-      WHEN DATEDIFF(
-             brood_followup_nests.hatch_date,
-             brood_followup_nests.reference_date
-           ) <= -21
-      THEN 'no chick captures; chicks old enough for leg flags'
-      ELSE 'no chick captures'
-    END AS notes,
+    'no chick captures' AS notes,
     DATEDIFF(
       brood_followup_nests.reference_date,
       brood_followup_nests.hatch_date
@@ -7074,20 +7540,19 @@ todo_untrapped_brood AS (
   LEFT JOIN adult_parent_status
     ON brood_followup_nests.nest_id = adult_parent_status.nest_id
   WHERE COALESCE(chick_captures.n_chick_captures, 0) = 0
+    AND DATEDIFF(
+          brood_followup_nests.reference_date,
+          brood_followup_nests.hatch_date
+        ) < 21
   UNION ALL
   SELECT
     b.nest_id,
     b.reference_date,
     'Untrapped brood' AS todo,
-    CASE
-      WHEN b.discovery_date IS NOT NULL
-       AND DATEDIFF(b.reference_date, b.discovery_date) >= 21
-      THEN 'no chick captures; chicks old enough for leg flags'
-      ELSE 'no chick captures'
-    END AS notes,
+    'no chick captures' AS notes,
     DATEDIFF(b.reference_date, b.discovery_date) AS days_overdue,
     450 + DATEDIFF(b.reference_date, b.discovery_date) AS priority,
-    CAST(NULL AS SIGNED) AS min_days_to_hatch,
+    DATEDIFF(b.discovery_date, b.reference_date) AS min_days_to_hatch,
     DATEDIFF(b.reference_date, b.latest_encounter_date) AS last_visit_days_ago,
     CAST(NULL AS CHAR(10)) AS nest_state,
     CAST(NULL AS SIGNED) AS clutch_size,
@@ -7105,6 +7570,109 @@ todo_untrapped_brood AS (
   WHERE b.is_negative_brood = 1
     AND b.reference_date = sr.reference_date
     AND COALESCE(chick_captures.n_chick_captures, 0) = 0
+    AND DATEDIFF(b.reference_date, b.discovery_date) < 21
+),
+todo_chick_flagging AS (
+  SELECT
+    brood_followup_nests.nest_id,
+    brood_followup_nests.reference_date,
+    'Chick flagging' AS todo,
+    CASE
+      WHEN COALESCE(chick_captures.n_unflagged_chick_identities, 0) > 0
+       OR COALESCE(brood_followup_nests.brood_size, 0)
+          > COALESCE(chick_captures.n_captured_chick_rings, 0)
+      THEN CONCAT(
+        'recapture chicks; assign engraved UL flags (',
+        GREATEST(
+          COALESCE(chick_captures.n_unflagged_chick_identities, 0),
+          COALESCE(brood_followup_nests.brood_size, 0)
+            - COALESCE(chick_captures.n_captured_chick_rings, 0)
+        ),
+        ' pending)'
+      )
+      ELSE 'no chick captures; chicks old enough for leg flags'
+    END AS notes,
+    DATEDIFF(
+      brood_followup_nests.reference_date,
+      brood_followup_nests.hatch_date
+    ) AS days_overdue,
+    475 + DATEDIFF(
+      brood_followup_nests.reference_date,
+      brood_followup_nests.hatch_date
+    ) AS priority,
+    DATEDIFF(
+      brood_followup_nests.hatch_date,
+      brood_followup_nests.reference_date
+    ) AS min_days_to_hatch,
+    brood_followup_nests.days_ago AS last_visit_days_ago,
+    brood_followup_nests.nest_state,
+    brood_followup_nests.clutch_size,
+    brood_followup_nests.brood_size,
+    adult_parent_status.M_parent_mark AS M_mark,
+    adult_parent_status.F_parent_mark AS F_mark,
+    brood_followup_nests.lat,
+    brood_followup_nests.lon
+  FROM brood_followup_nests
+  LEFT JOIN chick_captures
+    ON brood_followup_nests.nest_id = chick_captures.nest_id
+  LEFT JOIN adult_parent_status
+    ON brood_followup_nests.nest_id = adult_parent_status.nest_id
+  WHERE DATEDIFF(
+          brood_followup_nests.reference_date,
+          brood_followup_nests.hatch_date
+        ) >= 21
+    AND (
+      COALESCE(chick_captures.n_chick_captures, 0) = 0
+      OR COALESCE(chick_captures.n_unflagged_chick_identities, 0) > 0
+      OR COALESCE(brood_followup_nests.brood_size, 0)
+         > COALESCE(chick_captures.n_captured_chick_rings, 0)
+    )
+  UNION ALL
+  SELECT
+    b.nest_id,
+    b.reference_date,
+    'Chick flagging' AS todo,
+    CASE
+      WHEN COALESCE(chick_captures.n_unflagged_chick_identities, 0) > 0
+       OR COALESCE(b.brood_size, 0)
+          > COALESCE(chick_captures.n_captured_chick_rings, 0)
+      THEN CONCAT(
+        'recapture chicks; assign engraved UL flags (',
+        GREATEST(
+          COALESCE(chick_captures.n_unflagged_chick_identities, 0),
+          COALESCE(b.brood_size, 0)
+            - COALESCE(chick_captures.n_captured_chick_rings, 0)
+        ),
+        ' pending)'
+      )
+      ELSE 'no chick captures; chicks old enough for leg flags'
+    END AS notes,
+    DATEDIFF(b.reference_date, b.discovery_date) AS days_overdue,
+    475 + DATEDIFF(b.reference_date, b.discovery_date) AS priority,
+    DATEDIFF(b.discovery_date, b.reference_date) AS min_days_to_hatch,
+    DATEDIFF(b.reference_date, b.latest_encounter_date) AS last_visit_days_ago,
+    CAST(NULL AS CHAR(10)) AS nest_state,
+    CAST(NULL AS SIGNED) AS clutch_size,
+    CAST(NULL AS SIGNED) AS brood_size,
+    adult_parent_status.M_parent_mark AS M_mark,
+    adult_parent_status.F_parent_mark AS F_mark,
+    b.lat,
+    b.lon
+  FROM FIELD_2026_BADOatNZ.BROODS_LATEST b
+  CROSS JOIN sr
+  LEFT JOIN chick_captures
+    ON b.nest_id = chick_captures.nest_id
+  LEFT JOIN adult_parent_status
+    ON b.nest_id = adult_parent_status.nest_id
+  WHERE b.is_negative_brood = 1
+    AND b.reference_date = sr.reference_date
+    AND DATEDIFF(b.reference_date, b.discovery_date) >= 21
+    AND (
+      COALESCE(chick_captures.n_chick_captures, 0) = 0
+      OR COALESCE(chick_captures.n_unflagged_chick_identities, 0) > 0
+      OR COALESCE(b.brood_size, 0)
+         > COALESCE(chick_captures.n_captured_chick_rings, 0)
+    )
 ),
 todo_hiding_spot_photos AS (
   SELECT
@@ -7172,7 +7740,7 @@ todo_hiding_spot_photos AS (
     ) AS notes,
     GREATEST(0, DATEDIFF(b.reference_date, b.discovery_date) - 1) AS days_overdue,
     400 + GREATEST(0, DATEDIFF(b.reference_date, b.discovery_date) - 1) AS priority,
-    CAST(NULL AS SIGNED) AS min_days_to_hatch,
+    DATEDIFF(b.discovery_date, b.reference_date) AS min_days_to_hatch,
     DATEDIFF(b.reference_date, b.latest_encounter_date) AS last_visit_days_ago,
     CAST(NULL AS CHAR(10)) AS nest_state,
     CAST(NULL AS SIGNED) AS clutch_size,
@@ -7287,6 +7855,8 @@ FROM (
   UNION ALL
   SELECT * FROM todo_untrapped_brood
   UNION ALL
+  SELECT * FROM todo_chick_flagging
+  UNION ALL
   SELECT * FROM todo_hiding_spot_photos
   UNION ALL
   SELECT * FROM todo_nota_nest_check
@@ -7327,6 +7897,10 @@ WHERE NOT EXISTS (
   graph just to infer column types, taking several minutes before any task
   row was written.
 
+  The GPS-linked chick-parent result is staged before parent status. This keeps
+  the expensive GPS matching graph out of repeated parent-status expansions
+  while preserving the same definitive evidence gate.
+
   Rebuilding views creates an initial snapshot for the current settings date.
   After new field rows are loaded, or after reference_date changes, rerun
   DATABASE/refresh_todo_list_snapshot.SQL. The refresh is server-side and
@@ -7344,12 +7918,20 @@ CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_NEST_CONTE
 SELECT *
 FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT;
 
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.ADULT_CHICK_GPS_PARENT_LINKS_INPUT AS
+SELECT *
+FROM FIELD_2026_BADOatNZ.ADULT_CHICK_GPS_PARENT_LINKS;
+
 DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT_BUILD;
 DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT_PREVIOUS;
+DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_PARENT_CHICK_GPS_LINKS_SNAPSHOT_BUILD;
+DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_PARENT_CHICK_GPS_LINKS_SNAPSHOT_PREVIOUS;
 DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_BUILD;
 DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_BUILD;
 DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_PREVIOUS;
 DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_PREVIOUS;
+
+SELECT 'TODO_REFRESH_STAGE|nest_context' AS refresh_stage;
 
 CREATE TABLE FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT_BUILD (
   nest_id VARCHAR(6) NULL,
@@ -7495,6 +8077,41 @@ CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_NEST_CONTE
 SELECT *
 FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT_BUILD;
 
+SELECT 'TODO_REFRESH_STAGE|chick_gps_links' AS refresh_stage;
+
+CREATE TABLE FIELD_2026_BADOatNZ.TODO_PARENT_CHICK_GPS_LINKS_SNAPSHOT_BUILD (
+  capture_pk VARCHAR(64) NULL,
+  identity_key VARCHAR(255) NULL,
+  capture_sex VARCHAR(1) NULL,
+  nest_id VARCHAR(6) NULL,
+  capture_date DATE NULL,
+  capture_datetime DATETIME NULL,
+  display_mark VARCHAR(50) NULL,
+  has_geo TINYINT NULL,
+  is_au_migrant TINYINT NULL,
+  is_dead TINYINT NULL,
+  is_single_colour_recruit TINYINT NULL,
+  link_source VARCHAR(255) NULL,
+  has_chick_gps_link TINYINT NULL,
+  INDEX idx_parent_chick_gps_capture (capture_pk),
+  INDEX idx_parent_chick_gps_nest (nest_id),
+  INDEX idx_parent_chick_gps_identity (identity_key),
+  INDEX idx_parent_chick_gps_capture_nest (capture_pk, nest_id)
+);
+
+CREATE TABLE IF NOT EXISTS FIELD_2026_BADOatNZ.TODO_PARENT_CHICK_GPS_LINKS_SNAPSHOT
+LIKE FIELD_2026_BADOatNZ.TODO_PARENT_CHICK_GPS_LINKS_SNAPSHOT_BUILD;
+
+INSERT INTO FIELD_2026_BADOatNZ.TODO_PARENT_CHICK_GPS_LINKS_SNAPSHOT_BUILD
+SELECT *
+FROM FIELD_2026_BADOatNZ.ADULT_CHICK_GPS_PARENT_LINKS;
+
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.ADULT_CHICK_GPS_PARENT_LINKS_INPUT AS
+SELECT *
+FROM FIELD_2026_BADOatNZ.TODO_PARENT_CHICK_GPS_LINKS_SNAPSHOT_BUILD;
+
+SELECT 'TODO_REFRESH_STAGE|parent_status' AS refresh_stage;
+
 CREATE TABLE FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_BUILD (
   nest_id VARCHAR(6) NULL,
   reference_date DATE NULL,
@@ -7598,6 +8215,8 @@ CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_PARENT_STA
 SELECT *
 FROM FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_BUILD;
 
+SELECT 'TODO_REFRESH_STAGE|task_rows' AS refresh_stage;
+
 CREATE TABLE FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_BUILD (
   nest_id VARCHAR(6) NULL,
   reference_date DATE NULL,
@@ -7652,6 +8271,8 @@ INSERT INTO FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_BUILD
 SELECT *
 FROM FIELD_2026_BADOatNZ.TODO_LIST_CALCULATE;
 
+SELECT 'TODO_REFRESH_STAGE|publishing' AS refresh_stage;
+
 /*
   Promotion boundary. Nothing above this point changes a public TODO view.
   The table rename is atomic; the view recreation is small and reads only the
@@ -7663,12 +8284,17 @@ DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.TODO_PARENT_TASKS;
 DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.TODO_NONPARENT_TASKS;
 DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.TODO_PARENT_STATUS;
 DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT;
+DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.ADULT_CHICK_GPS_PARENT_LINKS_INPUT;
 
 RENAME TABLE
   FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT
     TO FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT_PREVIOUS,
   FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT_BUILD
     TO FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT,
+  FIELD_2026_BADOatNZ.TODO_PARENT_CHICK_GPS_LINKS_SNAPSHOT
+    TO FIELD_2026_BADOatNZ.TODO_PARENT_CHICK_GPS_LINKS_SNAPSHOT_PREVIOUS,
+  FIELD_2026_BADOatNZ.TODO_PARENT_CHICK_GPS_LINKS_SNAPSHOT_BUILD
+    TO FIELD_2026_BADOatNZ.TODO_PARENT_CHICK_GPS_LINKS_SNAPSHOT,
   FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT
     TO FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_PREVIOUS,
   FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_BUILD
@@ -7681,6 +8307,10 @@ RENAME TABLE
 CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT AS
 SELECT *
 FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT;
+
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.ADULT_CHICK_GPS_PARENT_LINKS_INPUT AS
+SELECT *
+FROM FIELD_2026_BADOatNZ.TODO_PARENT_CHICK_GPS_LINKS_SNAPSHOT;
 
 CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_INPUT AS
 SELECT *
