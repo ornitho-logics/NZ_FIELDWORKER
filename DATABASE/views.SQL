@@ -2983,6 +2983,473 @@ SELECT
 FROM unmatched;
 
 
+/*
+  Link an age-A capture to a banded age-C chick through an exact GPS pair.
+  This is an additional definitive parent-association gate. It is kept
+  separate from ADULT_CAPTURE_IDENTITIES because the capture may have no
+  nest_id when the originating nest has already been closed.
+
+  A nest is accepted only when the GPS-linked evidence identifies one unique
+  operational nest/brood. If both the capture and chick lack nest_id, a
+  unique banded opposite-sex adult at the same GPS pair may supply the nest
+  through that identity's established nest-linked evidence. Conflicting or
+  non-unique candidates remain unresolved and do not promote a parent.
+*/
+CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.ADULT_CHICK_GPS_PARENT_LINKS AS
+
+WITH sr AS (
+  SELECT value AS reference_date
+  FROM FIELD_2026_BADOatNZ.settings
+  WHERE variable = 'reference_date'
+    AND value IS NOT NULL
+), capture_normalized AS (
+  SELECT
+    CAST(c.pk AS CHAR(64)) AS capture_pk,
+    CASE
+      WHEN c.nest_id IS NULL
+        OR TRIM(c.nest_id) = ''
+        OR UPPER(TRIM(c.nest_id)) = 'NO_NEST'
+      THEN NULL
+      ELSE TRIM(c.nest_id)
+    END AS nest_id,
+    LEFT(c.field_sex, 1) AS capture_sex,
+    c.date AS capture_date,
+    CAST(CONCAT(c.date, ' ', COALESCE(c.released, c.caught, '00:00:00')) AS DATETIME)
+      AS capture_datetime,
+    c.gps_id,
+    c.gps_point,
+    NULLIF(REPLACE(UPPER(TRIM(c.ring)), '-', ''), '') AS metal_ring,
+    UPPER(TRIM(COALESCE(NULLIF(TRIM(c.UL), ''), NULLIF(TRIM(c.UL_in), '')))) AS UL_raw,
+    UPPER(TRIM(COALESCE(NULLIF(TRIM(c.LL), ''), NULLIF(TRIM(c.LL_in), '')))) AS LL_raw,
+    UPPER(TRIM(COALESCE(NULLIF(TRIM(c.UR), ''), NULLIF(TRIM(c.UR_in), '')))) AS UR_raw,
+    UPPER(TRIM(COALESCE(NULLIF(TRIM(c.LR), ''), NULLIF(TRIM(c.LR_in), '')))) AS LR_raw,
+    UPPER(TRIM(COALESCE(c.tag_type, ''))) AS tag_type,
+    UPPER(TRIM(COALESCE(c.tag_action, ''))) AS tag_action,
+    NULLIF(UPPER(TRIM(c.tag_id)), '') AS tag_id,
+    UPPER(TRIM(COALESCE(c.capture_status, ''))) AS capture_status
+  FROM FIELD_2026_BADOatNZ.CAPTURES c
+  CROSS JOIN sr
+  WHERE UPPER(TRIM(COALESCE(c.site, ''))) = 'CR'
+    AND c.age = 'A'
+    AND LEFT(c.field_sex, 1) IN ('M', 'F')
+    AND c.date <= sr.reference_date
+    AND c.gps_id IS NOT NULL
+    AND c.gps_point IS NOT NULL
+), capture_derived AS (
+  SELECT
+    capture_normalized.*,
+    CASE WHEN capture_normalized.UL_raw IN ('X', 'XX', 'M')
+              OR capture_normalized.UL_raw IS NULL
+      THEN 'X' ELSE capture_normalized.UL_raw END AS UL_norm,
+    CASE WHEN capture_normalized.LL_raw IN ('X', 'XX', 'M')
+              OR capture_normalized.LL_raw IS NULL
+      THEN 'X' ELSE capture_normalized.LL_raw END AS LL_norm,
+    CASE WHEN capture_normalized.UR_raw IN ('X', 'XX', 'M')
+              OR capture_normalized.UR_raw IS NULL
+      THEN 'X' ELSE capture_normalized.UR_raw END AS UR_norm,
+    CASE WHEN capture_normalized.LR_raw IN ('X', 'XX', 'M')
+              OR capture_normalized.LR_raw IS NULL
+      THEN 'X' ELSE capture_normalized.LR_raw END AS LR_norm,
+    CASE
+      WHEN capture_normalized.UL_raw REGEXP '^F[A-Z0-9]+$'
+        THEN capture_normalized.UL_raw
+      WHEN capture_normalized.UR_raw REGEXP '^F[A-Z0-9]+$'
+        THEN capture_normalized.UR_raw
+      ELSE NULL
+    END AS flag_code
+  FROM capture_normalized
+), capture_keyed AS (
+  SELECT
+    capture_derived.*,
+    CASE WHEN capture_derived.LL_raw IS NOT NULL
+       AND capture_derived.LR_raw IS NOT NULL
+       AND (
+         capture_derived.LL_norm <> 'X'
+         OR capture_derived.LR_norm <> 'X'
+         OR (
+           (capture_derived.UL_raw IS NULL
+             OR capture_derived.UL_raw REGEXP '^(X+|M)$')
+           AND (capture_derived.UR_raw IS NULL
+             OR capture_derived.UR_raw REGEXP '^(X+|M)$')
+         )
+       )
+      THEN CONCAT(capture_derived.LL_norm, '|', capture_derived.LR_norm) END AS lower_key,
+    CONCAT_WS(
+      '|',
+      capture_derived.UL_norm,
+      capture_derived.LL_norm,
+      capture_derived.UR_norm,
+      capture_derived.LR_norm
+    ) AS full_key
+  FROM capture_derived
+), capture_identities AS (
+  SELECT
+    capture_keyed.*,
+    CASE
+      WHEN capture_keyed.metal_ring IS NOT NULL
+        THEN CONCAT('ring:', capture_keyed.metal_ring)
+      WHEN capture_keyed.flag_code IS NOT NULL
+        THEN CONCAT('flag:', capture_keyed.flag_code)
+      WHEN capture_keyed.lower_key IS NOT NULL
+        THEN CONCAT('lower:', capture_keyed.lower_key)
+      ELSE CONCAT('capture:', capture_keyed.capture_pk)
+    END AS identity_key,
+    CASE
+      WHEN capture_keyed.flag_code IS NOT NULL
+        THEN CONCAT(capture_keyed.flag_code, '-X')
+      WHEN capture_keyed.LL_norm = 'X'
+       AND capture_keyed.LR_norm = 'X'
+       AND (capture_keyed.UL_raw IS NULL
+         OR capture_keyed.UL_raw REGEXP '^(X+|M)$')
+       AND (capture_keyed.UR_raw IS NULL
+         OR capture_keyed.UR_raw REGEXP '^(X+|M)$')
+        THEN 'X-X'
+      ELSE FIELD_2026_BADOatNZ.format_mark(
+        capture_keyed.UL_norm,
+        capture_keyed.LL_norm,
+        capture_keyed.UR_norm,
+        capture_keyed.LR_norm
+      )
+    END AS display_mark,
+    CASE
+      WHEN capture_keyed.tag_type = 'GEO'
+       AND capture_keyed.tag_action IN ('D', 'S', 'N')
+       AND capture_keyed.tag_id IS NOT NULL
+      THEN 1
+      WHEN capture_keyed.UL_raw REGEXP '^T[A-Z0-9]*$'
+        OR capture_keyed.UR_raw REGEXP '^T[A-Z0-9]*$'
+      THEN 1 ELSE 0
+    END AS has_geo,
+    CASE WHEN LEFT(capture_keyed.UL_raw, 2) = 'FO'
+           OR LEFT(capture_keyed.UR_raw, 2) = 'FO'
+      THEN 1 ELSE 0 END AS is_au_migrant,
+    CASE WHEN capture_keyed.capture_status = 'D' THEN 1 ELSE 0 END AS is_dead,
+    CASE WHEN capture_keyed.LL_raw REGEXP '^[OYWBRGL]$'
+           AND capture_keyed.LR_raw REGEXP '^[OYWBRGL]$'
+      THEN 1 ELSE 0 END AS is_single_colour_recruit
+  FROM capture_keyed
+), chick_events AS (
+  SELECT DISTINCT
+    r.pk AS chick_resighting_pk,
+    CASE
+      WHEN r.nest_id IS NULL
+        OR TRIM(r.nest_id) = ''
+        OR UPPER(TRIM(r.nest_id)) = 'NO_NEST'
+      THEN NULL
+      ELSE TRIM(r.nest_id)
+    END AS nest_id,
+    r.date AS observation_date,
+    r.gps_id,
+    r.gps_point,
+    REPLACE(UPPER(TRIM(r.ring)), '-', '') AS chick_ring
+  FROM FIELD_2026_BADOatNZ.RESIGHTINGS r
+  CROSS JOIN sr
+  WHERE UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'
+    AND r.age = 'C'
+    AND r.date <= sr.reference_date
+    AND r.gps_id IS NOT NULL
+    AND r.gps_point IS NOT NULL
+    AND NULLIF(TRIM(r.ring), '') IS NOT NULL
+    AND UPPER(TRIM(r.ring)) NOT IN ('X', 'XX', 'X-X', 'NA', 'N/A')
+), opposite_raw AS (
+  SELECT
+    r.pk AS resighting_pk,
+    CASE
+      WHEN r.nest_id IS NULL
+        OR TRIM(r.nest_id) = ''
+        OR UPPER(TRIM(r.nest_id)) = 'NO_NEST'
+      THEN NULL
+      ELSE TRIM(r.nest_id)
+    END AS nest_id,
+    LEFT(r.sex, 1) AS observed_sex,
+    r.date AS observation_date,
+    r.gps_id,
+    r.gps_point,
+    NULLIF(REPLACE(UPPER(TRIM(r.ring)), '-', ''), '') AS metal_ring,
+    UPPER(TRIM(r.UL)) AS UL_raw,
+    UPPER(TRIM(r.LL)) AS LL_raw,
+    UPPER(TRIM(r.UR)) AS UR_raw,
+    UPPER(TRIM(r.LR)) AS LR_raw
+  FROM FIELD_2026_BADOatNZ.RESIGHTINGS r
+  CROSS JOIN sr
+  WHERE UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'
+    AND r.age = 'A'
+    AND LEFT(r.sex, 1) IN ('M', 'F')
+    AND r.date <= sr.reference_date
+    AND r.gps_id IS NOT NULL
+    AND r.gps_point IS NOT NULL
+), opposite_derived AS (
+  SELECT
+    opposite_raw.*,
+    CASE WHEN opposite_raw.UL_raw IN ('X', 'XX', 'M')
+              OR opposite_raw.UL_raw IS NULL
+      THEN 'X' ELSE opposite_raw.UL_raw END AS UL_norm,
+    CASE WHEN opposite_raw.LL_raw IN ('X', 'XX', 'M')
+              OR opposite_raw.LL_raw IS NULL
+      THEN 'X' ELSE opposite_raw.LL_raw END AS LL_norm,
+    CASE WHEN opposite_raw.UR_raw IN ('X', 'XX', 'M')
+              OR opposite_raw.UR_raw IS NULL
+      THEN 'X' ELSE opposite_raw.UR_raw END AS UR_norm,
+    CASE WHEN opposite_raw.LR_raw IN ('X', 'XX', 'M')
+              OR opposite_raw.LR_raw IS NULL
+      THEN 'X' ELSE opposite_raw.LR_raw END AS LR_norm,
+    CASE
+      WHEN opposite_raw.UL_raw REGEXP '^F[A-Z0-9]+$'
+        THEN opposite_raw.UL_raw
+      WHEN opposite_raw.UR_raw REGEXP '^F[A-Z0-9]+$'
+        THEN opposite_raw.UR_raw
+      ELSE NULL
+    END AS flag_code
+  FROM opposite_raw
+), opposite_keyed AS (
+  SELECT
+    opposite_derived.*,
+    CASE WHEN opposite_derived.LL_raw IS NOT NULL
+       AND opposite_derived.LR_raw IS NOT NULL
+       AND (
+         opposite_derived.LL_norm <> 'X'
+         OR opposite_derived.LR_norm <> 'X'
+         OR (
+           (opposite_derived.UL_raw IS NULL
+             OR opposite_derived.UL_raw REGEXP '^(X+|M)$')
+           AND (opposite_derived.UR_raw IS NULL
+             OR opposite_derived.UR_raw REGEXP '^(X+|M)$')
+         )
+       )
+      THEN CONCAT(opposite_derived.LL_norm, '|', opposite_derived.LR_norm) END AS lower_key,
+    CONCAT_WS(
+      '|',
+      opposite_derived.UL_norm,
+      opposite_derived.LL_norm,
+      opposite_derived.UR_norm,
+      opposite_derived.LR_norm
+    ) AS full_key
+  FROM opposite_derived
+), opposite_candidates AS (
+  SELECT
+    r.resighting_pk,
+    c.identity_key,
+    c.capture_sex,
+    CASE WHEN c.capture_sex = r.observed_sex THEN 1 ELSE 0 END AS sex_match,
+    1 AS match_priority
+  FROM opposite_keyed r
+  JOIN FIELD_2026_BADOatNZ.ADULT_CAPTURE_IDENTITIES c
+    ON c.metal_ring = r.metal_ring
+   AND c.capture_date <= r.observation_date
+   AND c.is_confirmed_xx = 0
+  WHERE r.metal_ring IS NOT NULL
+
+  UNION ALL
+
+  SELECT
+    r.resighting_pk,
+    c.identity_key,
+    c.capture_sex,
+    CASE WHEN c.capture_sex = r.observed_sex THEN 1 ELSE 0 END,
+    2
+  FROM opposite_keyed r
+  JOIN FIELD_2026_BADOatNZ.ADULT_CAPTURE_IDENTITIES c
+    ON c.flag_code = r.flag_code
+   AND c.capture_date <= r.observation_date
+   AND c.is_confirmed_xx = 0
+  WHERE r.flag_code IS NOT NULL
+    AND r.metal_ring IS NULL
+
+  UNION ALL
+
+  SELECT
+    r.resighting_pk,
+    c.identity_key,
+    c.capture_sex,
+    CASE WHEN c.capture_sex = r.observed_sex THEN 1 ELSE 0 END,
+    3
+  FROM opposite_keyed r
+  JOIN FIELD_2026_BADOatNZ.ADULT_CAPTURE_IDENTITIES c
+    ON c.lower_key = r.lower_key
+   AND c.capture_date <= r.observation_date
+   AND c.is_confirmed_xx = 0
+  WHERE r.lower_key IS NOT NULL
+    AND r.metal_ring IS NULL
+
+  UNION ALL
+
+  SELECT
+    r.resighting_pk,
+    c.identity_key,
+    c.capture_sex,
+    CASE WHEN c.capture_sex = r.observed_sex THEN 1 ELSE 0 END,
+    4
+  FROM opposite_keyed r
+  JOIN FIELD_2026_BADOatNZ.ADULT_CAPTURE_IDENTITIES c
+    ON c.full_key = r.full_key
+   AND c.capture_date <= r.observation_date
+   AND c.is_confirmed_xx = 0
+  WHERE r.full_key IS NOT NULL
+    AND r.metal_ring IS NULL
+), opposite_best_priority AS (
+  SELECT resighting_pk, MIN(match_priority) AS match_priority
+  FROM opposite_candidates
+  GROUP BY resighting_pk
+), opposite_best_sex AS (
+  SELECT
+    candidates.resighting_pk,
+    candidates.match_priority,
+    MAX(candidates.sex_match) AS sex_match
+  FROM opposite_candidates candidates
+  JOIN opposite_best_priority priority
+    ON candidates.resighting_pk = priority.resighting_pk
+   AND candidates.match_priority = priority.match_priority
+  GROUP BY candidates.resighting_pk, candidates.match_priority
+), opposite_best AS (
+  SELECT DISTINCT
+    candidates.resighting_pk,
+    candidates.identity_key,
+    candidates.capture_sex
+  FROM opposite_candidates candidates
+  JOIN opposite_best_priority priority
+    ON candidates.resighting_pk = priority.resighting_pk
+   AND candidates.match_priority = priority.match_priority
+  JOIN opposite_best_sex sex_choice
+    ON candidates.resighting_pk = sex_choice.resighting_pk
+   AND candidates.match_priority = sex_choice.match_priority
+   AND candidates.sex_match = sex_choice.sex_match
+), opposite_counts AS (
+  SELECT
+    resighting_pk,
+    COUNT(DISTINCT identity_key) AS n_candidate_identities
+  FROM opposite_best
+  GROUP BY resighting_pk
+), opposite_identity_events AS (
+  SELECT
+    r.resighting_pk,
+    r.nest_id,
+    r.observed_sex,
+    r.gps_id,
+    r.gps_point,
+    best.identity_key
+  FROM opposite_keyed r
+  JOIN opposite_best best
+    ON r.resighting_pk = best.resighting_pk
+  JOIN opposite_counts counts
+    ON best.resighting_pk = counts.resighting_pk
+   AND counts.n_candidate_identities = 1
+  WHERE best.capture_sex = r.observed_sex
+), known_parent_nests AS (
+  SELECT
+    c.identity_key,
+    c.capture_sex AS sex,
+    c.nest_id
+  FROM FIELD_2026_BADOatNZ.ADULT_CAPTURE_IDENTITIES c
+  WHERE c.nest_id IS NOT NULL
+    AND c.definitive_capture = 1
+
+  UNION
+
+  SELECT
+    r.identity_key,
+    r.sex,
+    r.nest_id
+  FROM FIELD_2026_BADOatNZ.ADULT_IDENTITY_MATCHES r
+  WHERE r.nest_id IS NOT NULL
+    AND r.is_ambiguous_match = 0
+    AND r.association_confirming = 1
+), nest_candidates AS (
+  SELECT
+    c.capture_pk,
+    c.identity_key,
+    c.capture_sex,
+    c.nest_id,
+    'capture_or_chick_nest' AS link_source
+  FROM capture_identities c
+  JOIN chick_events chick
+    ON c.gps_id = chick.gps_id
+   AND c.gps_point = chick.gps_point
+  WHERE c.nest_id IS NOT NULL
+     OR chick.nest_id IS NOT NULL
+
+  UNION ALL
+
+  SELECT
+    c.capture_pk,
+    c.identity_key,
+    c.capture_sex,
+    opposite.nest_id,
+    'opposite_parent_nest' AS link_source
+  FROM capture_identities c
+  JOIN chick_events chick
+    ON c.gps_id = chick.gps_id
+   AND c.gps_point = chick.gps_point
+  JOIN opposite_identity_events opposite
+    ON opposite.gps_id = c.gps_id
+   AND opposite.gps_point = c.gps_point
+   AND opposite.observed_sex <> c.capture_sex
+  WHERE c.nest_id IS NULL
+    AND chick.nest_id IS NULL
+    AND opposite.nest_id IS NOT NULL
+
+  UNION ALL
+
+  SELECT
+    c.capture_pk,
+    c.identity_key,
+    c.capture_sex,
+    known.nest_id,
+    'opposite_parent_established_nest' AS link_source
+  FROM capture_identities c
+  JOIN chick_events chick
+    ON c.gps_id = chick.gps_id
+   AND c.gps_point = chick.gps_point
+  JOIN opposite_identity_events opposite
+    ON opposite.gps_id = c.gps_id
+   AND opposite.gps_point = c.gps_point
+   AND opposite.observed_sex <> c.capture_sex
+   AND opposite.nest_id IS NULL
+  JOIN known_parent_nests known
+    ON known.identity_key = opposite.identity_key
+   AND known.sex = opposite.observed_sex
+  WHERE c.nest_id IS NULL
+    AND chick.nest_id IS NULL
+), unique_nests AS (
+  SELECT
+    candidates.capture_pk,
+    candidates.identity_key,
+    candidates.capture_sex,
+    MIN(candidates.nest_id) AS nest_id,
+    COUNT(DISTINCT candidates.nest_id) AS n_candidate_nests,
+    GROUP_CONCAT(
+      DISTINCT candidates.link_source
+      ORDER BY candidates.link_source
+      SEPARATOR ','
+    ) AS link_source
+  FROM nest_candidates candidates
+  WHERE candidates.nest_id IS NOT NULL
+  GROUP BY
+    candidates.capture_pk,
+    candidates.identity_key,
+    candidates.capture_sex
+)
+SELECT
+  captures.capture_pk,
+  captures.identity_key,
+  captures.capture_sex,
+  nests.nest_id,
+  captures.capture_date,
+  captures.capture_datetime,
+  captures.display_mark,
+  captures.has_geo,
+  captures.is_au_migrant,
+  captures.is_dead,
+  captures.is_single_colour_recruit,
+  nests.link_source,
+  1 AS has_chick_gps_link
+FROM capture_identities captures
+JOIN unique_nests nests
+  ON captures.capture_pk = nests.capture_pk
+ AND captures.identity_key = nests.identity_key
+ AND captures.capture_sex = nests.capture_sex
+WHERE nests.n_candidate_nests = 1;
+
+
 CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.ADULT_PARENT_NEST_ASSOCIATIONS AS
 
 WITH xx_supersession_evidence AS (
@@ -3062,12 +3529,46 @@ WITH xx_supersession_evidence AS (
     c.is_au_migrant,
     c.is_dead,
     c.is_single_colour_recruit,
-    c.definitive_capture,
+    CASE WHEN chick_link.capture_pk IS NOT NULL
+      THEN 1 ELSE c.definitive_capture END AS definitive_capture,
     0 AS confirming_resighting,
     0 AS nonconfirming_resighting,
     c.has_mm_capture,
-    0 AS ambiguous_match
+    0 AS ambiguous_match,
+    CASE WHEN chick_link.capture_pk IS NOT NULL THEN 1 ELSE 0 END
+      AS chick_gps_parent_link
   FROM FIELD_2026_BADOatNZ.ADULT_CAPTURE_IDENTITIES c
+  LEFT JOIN FIELD_2026_BADOatNZ.ADULT_CHICK_GPS_PARENT_LINKS chick_link
+    ON chick_link.capture_pk = c.capture_pk
+   AND chick_link.identity_key = c.identity_key
+   AND chick_link.nest_id = c.nest_id
+
+  UNION ALL
+
+  SELECT
+    chick_link.nest_id,
+    chick_link.capture_sex AS sex,
+    chick_link.identity_key,
+    CONCAT('chick-gps:', chick_link.capture_pk) AS event_pk,
+    chick_link.capture_datetime AS event_datetime,
+    1 AS capture_source,
+    chick_link.display_mark,
+    chick_link.has_geo,
+    chick_link.is_au_migrant,
+    chick_link.is_dead,
+    chick_link.is_single_colour_recruit,
+    1 AS definitive_capture,
+    0 AS confirming_resighting,
+    0 AS nonconfirming_resighting,
+    0 AS has_mm_capture,
+    0 AS ambiguous_match,
+    1 AS chick_gps_parent_link
+  FROM FIELD_2026_BADOatNZ.ADULT_CHICK_GPS_PARENT_LINKS chick_link
+  WHERE NOT EXISTS (
+    SELECT 1
+    FROM FIELD_2026_BADOatNZ.ADULT_CAPTURE_IDENTITIES captured
+    WHERE captured.capture_pk = chick_link.capture_pk
+  )
 
   UNION ALL
 
@@ -3092,7 +3593,8 @@ WITH xx_supersession_evidence AS (
     r.association_confirming AS confirming_resighting,
     r.association_nonconfirming AS nonconfirming_resighting,
     r.has_mm_capture,
-    r.is_ambiguous_match AS ambiguous_match
+    r.is_ambiguous_match AS ambiguous_match,
+    0 AS chick_gps_parent_link
   FROM FIELD_2026_BADOatNZ.ADULT_IDENTITY_MATCHES r
   LEFT JOIN xx_superseded superseded
     ON superseded.nest_id = r.nest_id
@@ -3121,6 +3623,7 @@ WITH xx_supersession_evidence AS (
     MAX(event_union.is_dead) AS identity_is_dead,
     MAX(event_union.is_single_colour_recruit) AS identity_single_colour_recruit,
     MAX(event_union.definitive_capture) AS has_definitive_capture,
+    MAX(event_union.chick_gps_parent_link) AS has_chick_gps_link,
     MAX(event_union.confirming_resighting) AS has_confirming_resighting,
     COUNT(DISTINCT CASE WHEN event_union.nonconfirming_resighting = 1 THEN event_union.event_pk END)
       AS n_nonconfirming_resightings,
@@ -3193,6 +3696,7 @@ SELECT
   classified.observed_mark,
   classified.identity_key,
   classified.association_level,
+  classified.has_chick_gps_link,
   classified.association_selected,
   classified.association_ambiguous,
   CASE
