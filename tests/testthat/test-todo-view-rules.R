@@ -795,11 +795,6 @@ test_that("brood banding notes identify broods young enough for leg flags", {
     "'no chick captures; chicks old enough for leg flags'",
     fixed = TRUE
   )
-  expect_match(
-    sql,
-    "DATEDIFF(b.reference_date, b.discovery_date) >= 21",
-    fixed = TRUE
-  )
 
   banding_note <- function(hatch_value = NA_integer_, discovery_age = NA_integer_) {
     if (!is.na(hatch_value) && hatch_value <= -21L) {
@@ -863,18 +858,23 @@ test_that("hatch-stage parent work bypasses the clutch-age gate", {
 })
 
 
-test_that("partial H visits remain in potential-hatch checks", {
+test_that("partial hatch signs retain the unhatched-egg instruction", {
   sql <- todo_list_view_sql()
 
   expect_match(
     sql,
-    "UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) = 'H'\n        AND COALESCE(active_nests.clutch_size, 0) > 0\n        AND active_nests.days_ago >= 1",
+    "active_nests.hatch_signs_present = 1\n          OR UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) = 'H'",
     fixed = TRUE
   )
   expect_match(sql, "'; unhatched egg(s)'", fixed = TRUE)
 
-  asynchronous_hatch_check <- function(nest_state, clutch_size, days_ago) {
-    toupper(trimws(nest_state)) == "H" &&
+  asynchronous_hatch_check <- function(
+    nest_state,
+    clutch_size,
+    days_ago,
+    hatch_signs_present = 0L
+  ) {
+    (hatch_signs_present == 1L || toupper(trimws(nest_state)) == "H") &&
       !is.na(clutch_size) && clutch_size > 0 &&
       days_ago >= 1
   }
@@ -882,7 +882,73 @@ test_that("partial H visits remain in potential-hatch checks", {
   expect_true(asynchronous_hatch_check("H", 1, 1))
   expect_false(asynchronous_hatch_check("H", 0, 1))
   expect_false(asynchronous_hatch_check("H", 1, 0))
-  expect_false(asynchronous_hatch_check("I", 1, 1))
+  expect_true(asynchronous_hatch_check("I", 1, 1, hatch_signs_present = 1L))
+})
+
+
+test_that("missing parent identities retain a resighting fallback", {
+  sql <- todo_list_view_sql()
+
+  expect_match(
+    sql,
+    "'not yet floated'",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "WHEN MAX(min_days_to_hatch) IS NULL\n      THEN 'not yet floated'",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "AND NOT EXISTS (\n      SELECT 1\n      FROM todo_untrapped_parent candidate",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "association.nest_id IS NULL",
+    fixed = TRUE
+  )
+})
+
+
+test_that("negative broods use discovery age in shared task hatch fields", {
+  sql <- todo_list_view_sql()
+
+  expect_match(
+    sql,
+    "DATEDIFF(b.discovery_date, b.reference_date)",
+    fixed = TRUE
+  )
+
+  negative_estimate <- function(reference_date, discovery_date) {
+    as.integer(as.Date(discovery_date) - as.Date(reference_date))
+  }
+  expect_identical(
+    negative_estimate("2026-10-20", "2026-10-01"),
+    -19L
+  )
+})
+
+
+test_that("deployment SQL handles archive collation and negative brood aliases", {
+  sql <- views_source_sql()
+
+  expect_match(
+    sql,
+    "GROUP BY BADOatNZ.SEX.ring",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "CONVERT(NULLIF(TRIM(ca.ring), '') USING utf8mb4) COLLATE utf8mb4_uca1400_ai_ci",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "DATEDIFF(d.discovery_date, sr.reference_date) AS min_days_to_hatch",
+    fixed = TRUE
+  )
 })
 
 
@@ -933,6 +999,12 @@ test_that("the parent pipeline includes a conservative chick-GPS definitive gate
     "CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.ADULT_CHICK_GPS_PARENT_LINKS AS",
     fixed = TRUE
   )
+  expect_match(sql, "ADULT_CAPTURE_IDENTITIES_ALL", fixed = TRUE)
+  expect_match(sql, "ADULT_RESIGHTING_IDENTITIES_ALL", fixed = TRUE)
+  expect_match(sql, "c.spacer_key = r.spacer_key", fixed = TRUE)
+  expect_match(sql, "best.capture_sex AS established_sex", fixed = TRUE)
+  expect_no_match(sql, "WHERE best.capture_sex = r.observed_sex", fixed = TRUE)
+  expect_match(sql, "ADULT_CHICK_GPS_PARENT_LINKS_INPUT", fixed = TRUE)
   expect_match(sql, "r.age = 'C'", fixed = TRUE)
   expect_match(sql, "r.gps_id IS NOT NULL", fixed = TRUE)
   expect_match(sql, "r.gps_point IS NOT NULL", fixed = TRUE)

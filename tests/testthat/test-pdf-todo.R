@@ -201,6 +201,11 @@ test_that("parent-resighting PDF notes retain rules and identity counts", {
     ),
     c("1 male seen; F resolved", "1 male seen; 2 females seen")
   )
+
+  expect_identical(
+    extract_rule_note("not yet floated"),
+    "not yet floated"
+  )
 })
 
 
