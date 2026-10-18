@@ -133,7 +133,7 @@ list({
         if (!"LR" %in% names(z)) z[, LR := NA_character_]
         blankish <- function(v) {
             raw <- trimws(as.character(v))
-            is.na(v) | !nzchar(raw) | toupper(raw) == "NA"
+            is.na(v) | !nzchar(raw) | toupper(raw) %in% c("NA", "X", "XX")
         }
         rclass_key <- toupper(trimws(as.character(z$rclass)))
         ul_key <- toupper(trimws(as.character(z$UL)))
