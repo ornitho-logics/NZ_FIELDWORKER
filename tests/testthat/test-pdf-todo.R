@@ -116,14 +116,6 @@ test_that("to-do headings use the current operational subtitles", {
     heading("notA nest-check")$subtitle,
     "these nests have finished and can be closed; nest_ids with state \"H\" may still be active mobile broods that require monitoring"
   )
-  expect_identical(
-    heading("Chick flagging")$title,
-    "Broods to flag"
-  )
-  expect_identical(
-    heading("Chick flagging")$subtitle,
-    "recapture chicks aged 21 days or more and assign unique engraved UL flags"
-  )
 })
 
 

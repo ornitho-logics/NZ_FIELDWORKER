@@ -516,7 +516,7 @@ test_that("hiding-photo TODO counts distinct captured and photographed rings", {
 
   expect_match(
     sql,
-    "COUNT(DISTINCT events.ring_key) AS n_captured_chick_rings",
+    "COUNT(DISTINCT NULLIF(\n      NULLIF(UPPER(TRIM(COALESCE(c.ring, ''))), ''),\n      'NA'\n    )) AS n_captured_chick_rings",
     fixed = TRUE
   )
   expect_match(sql, "COUNT(*) AS n_chick_captures", fixed = TRUE)
@@ -782,71 +782,45 @@ test_that("hatched brood task Hatch values use the recorded H date", {
 })
 
 
-test_that("brood flagging tasks use the 21-day age gate and latest chick status", {
+test_that("brood banding notes identify broods young enough for leg flags", {
   sql <- todo_list_view_sql()
 
   expect_match(
     sql,
-    "'Chick flagging' AS todo",
+    "DATEDIFF(\n             brood_followup_nests.hatch_date,\n             brood_followup_nests.reference_date\n           ) <= -21",
     fixed = TRUE
   )
   expect_match(
     sql,
-    "DATEDIFF(\n          brood_followup_nests.reference_date,\n          brood_followup_nests.hatch_date\n        ) >= 21",
-    fixed = TRUE
-  )
-  expect_match(
-    sql,
-    "n_unflagged_chick_identities",
-    fixed = TRUE
-  )
-  expect_match(
-    sql,
-    "brood_followup_nests.brood_size",
-    fixed = TRUE
-  )
-  expect_match(
-    sql,
-    "COALESCE(chick_captures.n_chick_captures, 0) = 0",
-    fixed = TRUE
-  )
-  expect_match(
-    sql,
-    "DATEDIFF(b.reference_date, b.discovery_date) >= 21",
+    "'no chick captures; chicks old enough for leg flags'",
     fixed = TRUE
   )
 
-  flagging_note <- function(
-    hatch_age = NA_integer_,
-    discovery_age = NA_integer_,
-    n_chick_captures = 0L,
-    n_unflagged = 0L
-  ) {
-    age <- if (!is.na(hatch_age)) hatch_age else discovery_age
-    if (!is.na(age) && age >= 21L && (n_chick_captures == 0L || n_unflagged > 0L)) {
-      if (n_unflagged > 0L) {
-        return("recapture chicks; assign engraved UL flags")
-      }
+  banding_note <- function(hatch_value = NA_integer_, discovery_age = NA_integer_) {
+    if (!is.na(hatch_value) && hatch_value <= -21L) {
       return("no chick captures; chicks old enough for leg flags")
     }
-    NULL
+    if (!is.na(discovery_age) && discovery_age >= 21L) {
+      return("no chick captures; chicks old enough for leg flags")
+    }
+    "no chick captures"
   }
 
   expect_identical(
-    flagging_note(hatch_age = 21L),
+    banding_note(hatch_value = -21L),
     "no chick captures; chicks old enough for leg flags"
   )
   expect_identical(
-    flagging_note(hatch_age = 22L, n_chick_captures = 2L, n_unflagged = 1L),
-    "recapture chicks; assign engraved UL flags"
+    banding_note(hatch_value = -20L),
+    "no chick captures"
   )
   expect_identical(
-    flagging_note(discovery_age = 21L),
+    banding_note(discovery_age = 21L),
     "no chick captures; chicks old enough for leg flags"
   )
   expect_identical(
-    flagging_note(discovery_age = 20L),
-    NULL
+    banding_note(discovery_age = 20L),
+    "no chick captures"
   )
 })
 
@@ -944,11 +918,6 @@ test_that("negative broods use discovery age in shared task hatch fields", {
   expect_match(
     sql,
     "DATEDIFF(b.discovery_date, b.reference_date)",
-    fixed = TRUE
-  )
-  expect_match(
-    sql,
-    "'Chick flagging' AS todo",
     fixed = TRUE
   )
 

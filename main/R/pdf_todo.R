@@ -1420,10 +1420,6 @@ todo_pdf_heading <- function(todo_name) {
       title = "Broods to band",
       subtitle = NULL
     ),
-    "Chick flagging" = list(
-      title = "Broods to flag",
-      subtitle = "recapture chicks aged 21 days or more and assign unique engraved UL flags"
-    ),
     "nest check" = list(
       title = "Nests to check for potential hatch",
       subtitle = "egg floatation data estimates that these nests are within 7 days of hatching"
@@ -1948,8 +1944,7 @@ todo_pdf_body <- function(
       } else if (todo %in% c(
         "Parent capture",
         "Parent resighting",
-        "Untrapped brood",
-        "Chick flagging"
+        "Untrapped brood"
       )) {
         names(todo_rows)[names(todo_rows) == "Nest"] <- "Nest/Brood"
       }
