@@ -288,7 +288,7 @@ test_that("AVAILABLE_COMBOS keeps all eligible OY marks in CR", {
 
 
 test_that("TODO_LIST contains the bounded operational rules", {
-  sql <- todo_list_view_sql()
+  sql <- views_source_sql()
 
   expect_match(
     sql,
@@ -399,7 +399,7 @@ test_that("H hiding-photo association is shared by BROODS_LATEST and TODO_LIST",
   expect_match(sql, "'ambiguous_capture_history'", fixed = TRUE)
   expect_match(
     sql,
-    "h.association_method IN (\n      'direct',\n      'same_occasion_adult',\n      'ring_capture'",
+    "h.association_method IN (\n    'direct',\n    'same_occasion_adult',\n    'ring_capture'",
     fixed = TRUE
   )
 })
@@ -424,7 +424,7 @@ test_that("brood photo follow-up uses the unified brood evidence source", {
 
   expect_match(
     sql,
-    "JOIN FIELD_2026_BADOatNZ.BROODS_LATEST b\n    ON n.nest_id = b.nest_id",
+    "JOIN brood_context b\n    ON n.nest_id = b.nest_id",
     fixed = TRUE
   )
   expect_match(sql, "b.has_hatch_evidence = 1", fixed = TRUE)
@@ -514,7 +514,7 @@ test_that("parent-status view projections remain deployable", {
 
 
 test_that("hiding-photo TODO counts distinct captured and photographed rings", {
-  sql <- todo_list_view_sql()
+  sql <- views_source_sql()
 
   expect_match(
     sql,

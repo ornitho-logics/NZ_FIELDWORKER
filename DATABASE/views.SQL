@@ -5512,6 +5512,135 @@ FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT;
 
 
 /*
+  TODO_BROOD_CONTEXT_INPUT is the task-facing projection of BROODS_LATEST.
+  The task calculator needs only this compact set of fields, but several task
+  branches use it. During a staged refresh the boundary is repointed to an
+  indexed snapshot, so those branches do not expand BROODS_LATEST repeatedly.
+  The fallback keeps a clean view installation functional before the first
+  snapshot refresh.
+*/
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_INPUT AS
+SELECT
+  nest_id,
+  species,
+  is_negative_brood,
+  discovery_date,
+  latest_encounter_date,
+  latest_encounter_datetime,
+  hatch_evidence_date,
+  has_hatch_evidence,
+  nest_state,
+  hatch_state,
+  clutch_size,
+  brood_size,
+  lat,
+  lon,
+  nest_photo,
+  tent_photo,
+  reference_date
+FROM FIELD_2026_BADOatNZ.BROODS_LATEST;
+
+
+/*
+  TODO_CHICK_CAPTURE_CONTEXT_INPUT is the compact task-facing aggregate for
+  age-C chick captures. It is deliberately separate from the task view because
+  four task branches consume the same capture counts. During a staged refresh
+  this boundary is repointed to an indexed snapshot, preventing each branch
+  from rescanning and regrouping CAPTURES independently.
+*/
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_INPUT AS
+WITH sr AS (
+  SELECT value AS reference_date
+  FROM FIELD_2026_BADOatNZ.settings
+  WHERE variable = 'reference_date'
+    AND value IS NOT NULL
+),
+chick_events AS (
+  SELECT
+    c.nest_id,
+    NULLIF(
+      NULLIF(UPPER(TRIM(COALESCE(c.ring, ''))), ''),
+      'NA'
+    ) AS ring_key,
+    CASE
+      WHEN UPPER(NULLIF(TRIM(c.UL), '')) REGEXP '^F[A-Z0-9]+$'
+      THEN UPPER(NULLIF(TRIM(c.UL), ''))
+      WHEN UPPER(NULLIF(TRIM(c.UL_in), '')) REGEXP '^F[A-Z0-9]+$'
+      THEN UPPER(NULLIF(TRIM(c.UL_in), ''))
+      ELSE NULL
+    END AS flag_code
+  FROM FIELD_2026_BADOatNZ.CAPTURES c
+  CROSS JOIN sr
+  WHERE c.nest_id IS NOT NULL
+    AND TRIM(c.nest_id) <> ''
+    AND UPPER(TRIM(c.nest_id)) <> 'NO_NEST'
+    AND UPPER(TRIM(COALESCE(c.site, ''))) = 'CR'
+    AND c.age = 'C'
+    AND c.date <= sr.reference_date
+)
+SELECT
+  chick_events.nest_id,
+  COUNT(*) AS n_chick_captures,
+  COUNT(DISTINCT chick_events.ring_key) AS n_captured_chick_rings,
+  COUNT(DISTINCT CASE
+    WHEN chick_events.flag_code IS NOT NULL
+    THEN chick_events.ring_key
+  END) AS n_flagged_chick_rings,
+  SUM(CASE
+    WHEN chick_events.ring_key IS NULL THEN 1
+    ELSE 0
+  END) AS n_unringed_chick_captures
+FROM chick_events
+GROUP BY chick_events.nest_id;
+
+
+/*
+  TODO_HIDING_SPOT_PHOTO_CONTEXT_INPUT is the shared, reference-date-bounded
+  H-photo aggregate. Both brood task unions need the same distinct-ring count;
+  a staged refresh can therefore compute this evidence summary once without
+  changing the association-method, GPS, or photo metadata predicates.
+*/
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_INPUT AS
+WITH sr AS (
+  SELECT value AS reference_date
+  FROM FIELD_2026_BADOatNZ.settings
+  WHERE variable = 'reference_date'
+    AND value IS NOT NULL
+)
+SELECT
+  h.resolved_nest_id AS nest_id,
+  COUNT(DISTINCT h.ring) AS n_hiding_spot_photos
+FROM FIELD_2026_BADOatNZ.RESIGHTINGS_H_BROOD_ASSOCIATIONS h
+JOIN FIELD_2026_BADOatNZ.RESIGHTINGS r
+  ON r.pk = h.resighting_pk
+JOIN FIELD_2026_BADOatNZ.GPS_POINTS g
+  ON r.gps_id = g.gps_id
+ AND r.gps_point = g.gps_point
+CROSS JOIN sr
+WHERE h.resolved_nest_id IS NOT NULL
+  AND h.association_method IN (
+    'direct',
+    'same_occasion_adult',
+    'ring_capture'
+  )
+  AND UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'
+  AND r.age = 'C'
+  AND r.rclass = 'H'
+  AND r.date <= sr.reference_date
+  AND r.gps_id IS NOT NULL
+  AND r.gps_point IS NOT NULL
+  AND NULLIF(
+        NULLIF(UPPER(TRIM(COALESCE(r.photo_start, ''))), ''),
+        'NA'
+      ) IS NOT NULL
+  AND NULLIF(
+        NULLIF(UPPER(TRIM(COALESCE(r.photo_end, ''))), ''),
+        'NA'
+      ) IS NOT NULL
+GROUP BY h.resolved_nest_id;
+
+
+/*
   TODO_PARENT_STATUS is the task-facing materialization boundary for the
   authoritative four-gate parent pipeline. Keeping this as a separate
   TEMPTABLE view prevents each parent-task branch from expanding
@@ -5664,6 +5793,19 @@ initial_clutch_status AS (
     'stable one-egg/no increase'
   )
 ),
+/*
+  All task-side context projections share this one bounded relation. During a
+  staged refresh the relation is an indexed snapshot table; during a clean
+  view installation it remains the live TODO_NEST_CONTEXT fallback.
+*/
+task_context AS (
+  SELECT *
+  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT
+),
+brood_context AS (
+  SELECT *
+  FROM FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_INPUT
+),
 latest_nests AS (
   SELECT
     context.nest_id,
@@ -5697,7 +5839,7 @@ latest_nests AS (
     context.lat,
     context.lon,
     sr.reference_date
-  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT context
+  FROM task_context context
   LEFT JOIN initial_clutch_status
     ON context.nest_id = initial_clutch_status.nest_id
   CROSS JOIN sr
@@ -5716,7 +5858,7 @@ first_processable_visit AS (
     context.nest_id,
     context.first_processable_date,
     context.first_processable_datetime
-  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT context
+  FROM task_context context
 ),
 photo_summary AS (
   SELECT
@@ -5724,7 +5866,7 @@ photo_summary AS (
     context.last_photo_date,
     context.last_photo_datetime,
     context.n_photo_rows
-  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT context
+  FROM task_context context
 ),
 float_summary AS (
   SELECT
@@ -5732,7 +5874,7 @@ float_summary AS (
     context.last_float_date,
     context.last_float_datetime,
     context.n_float_rows
-  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT context
+  FROM task_context context
 ),
 -- The initial processing task is resolved by any qualifying photo and
 -- flotation record from the first processable visit onward. This deliberately
@@ -5749,13 +5891,13 @@ processing_summary AS (
     COALESCE(context.n_photo_rows, 0) AS n_photo_rows,
     COALESCE(context.n_float_rows, 0) AS n_float_rows,
     context.last_processed_datetime
-  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT context
+  FROM task_context context
 ),
 nest_discovery AS (
   SELECT
     context.nest_id,
     context.first_found_date
-  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT context
+  FROM task_context context
 ),
 latest_clutch_history AS (
   SELECT
@@ -5767,7 +5909,7 @@ latest_clutch_history AS (
     context.latest_clutch_datetime AS clutch_datetime,
     context.latest_clutch_has_photo AS clutch_has_photo,
     1 AS row_num
-  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT context
+  FROM task_context context
   WHERE context.latest_clutch_size IS NOT NULL
 ),
 latest_nest_event AS (
@@ -5776,28 +5918,28 @@ latest_nest_event AS (
     context.latest_event_clutch_size AS clutch_size,
     context.latest_event_date AS event_date,
     1 AS row_num
-  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT context
+  FROM task_context context
 ),
 latest_clutch_processing_status AS (
   SELECT
     context.nest_id,
     context.latest_clutch_has_photo AS clutch_has_photo,
     context.clutch_has_float
-  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT context
+  FROM task_context context
 ),
 clutch_at_processing AS (
   SELECT
     context.nest_id,
     context.clutch_at_processing_size AS clutch_size,
     1 AS row_num
-  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT context
+  FROM task_context context
   WHERE context.clutch_at_processing_size IS NOT NULL
 ),
 hatched_nests AS (
   SELECT
     context.nest_id,
     context.hatch_date
-  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT context
+  FROM task_context context
   WHERE context.hatch_date IS NOT NULL
 ),
 brood_followup_nests AS (
@@ -5808,7 +5950,7 @@ brood_followup_nests AS (
     n.*,
     b.hatch_evidence_date AS hatch_date
   FROM latest_nests n
-  JOIN FIELD_2026_BADOatNZ.BROODS_LATEST b
+  JOIN brood_context b
     ON n.nest_id = b.nest_id
    AND b.reference_date = n.reference_date
   WHERE b.is_negative_brood = 0
@@ -5826,75 +5968,12 @@ nota_followup_nests AS (
      )
 ),
 chick_captures AS (
-  SELECT
-    chick_events.nest_id,
-    COUNT(*) AS n_chick_captures,
-    COUNT(DISTINCT chick_events.ring_key) AS n_captured_chick_rings,
-    COUNT(DISTINCT CASE
-      WHEN chick_events.flag_code IS NOT NULL
-      THEN chick_events.ring_key
-    END) AS n_flagged_chick_rings,
-    SUM(CASE
-      WHEN chick_events.ring_key IS NULL THEN 1
-      ELSE 0
-    END) AS n_unringed_chick_captures
-  FROM (
-    SELECT
-      c.nest_id,
-      NULLIF(
-        NULLIF(UPPER(TRIM(COALESCE(c.ring, ''))), ''),
-        'NA'
-      ) AS ring_key,
-      CASE
-        WHEN UPPER(NULLIF(TRIM(c.UL), '')) REGEXP '^F[A-Z0-9]+$'
-        THEN UPPER(NULLIF(TRIM(c.UL), ''))
-        WHEN UPPER(NULLIF(TRIM(c.UL_in), '')) REGEXP '^F[A-Z0-9]+$'
-        THEN UPPER(NULLIF(TRIM(c.UL_in), ''))
-        ELSE NULL
-      END AS flag_code
-    FROM FIELD_2026_BADOatNZ.CAPTURES c
-    CROSS JOIN sr
-    WHERE c.nest_id IS NOT NULL
-      AND TRIM(c.nest_id) <> ''
-      AND UPPER(TRIM(c.nest_id)) <> 'NO_NEST'
-      AND UPPER(TRIM(COALESCE(c.site, ''))) = 'CR'
-      AND c.age = 'C'
-      AND c.date <= sr.reference_date
-  ) chick_events
-  GROUP BY chick_events.nest_id
+  SELECT *
+  FROM FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_INPUT
 ),
 hiding_spot_photos AS (
-  SELECT
-    h.resolved_nest_id AS nest_id,
-    COUNT(DISTINCT h.ring) AS n_hiding_spot_photos
-  FROM FIELD_2026_BADOatNZ.RESIGHTINGS_H_BROOD_ASSOCIATIONS h
-  JOIN FIELD_2026_BADOatNZ.RESIGHTINGS r
-    ON r.pk = h.resighting_pk
-  JOIN FIELD_2026_BADOatNZ.GPS_POINTS g
-    ON r.gps_id = g.gps_id
-   AND r.gps_point = g.gps_point
-  CROSS JOIN sr
-  WHERE h.resolved_nest_id IS NOT NULL
-    AND h.association_method IN (
-      'direct',
-      'same_occasion_adult',
-      'ring_capture'
-    )
-    AND UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'
-    AND r.age = 'C'
-    AND r.rclass = 'H'
-    AND r.date <= sr.reference_date
-    AND r.gps_id IS NOT NULL
-    AND r.gps_point IS NOT NULL
-    AND NULLIF(
-          NULLIF(UPPER(TRIM(COALESCE(r.photo_start, ''))), ''),
-          'NA'
-        ) IS NOT NULL
-    AND NULLIF(
-          NULLIF(UPPER(TRIM(COALESCE(r.photo_end, ''))), ''),
-          'NA'
-        ) IS NOT NULL
-  GROUP BY h.resolved_nest_id
+  SELECT *
+  FROM FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_INPUT
 ),
 todo_parent_source AS (
   SELECT
@@ -5907,7 +5986,7 @@ todo_parent_source AS (
     b.nest_id,
     CAST(NULL AS CHAR(50)) AS M_mark,
     CAST(NULL AS CHAR(50)) AS F_mark
-  FROM FIELD_2026_BADOatNZ.BROODS_LATEST b
+  FROM brood_context b
   CROSS JOIN sr
   WHERE b.is_negative_brood = 1
     AND b.reference_date = sr.reference_date
@@ -6001,7 +6080,7 @@ adult_capture_current_clutch_start AS (
     context.current_clutch_datetime,
     context.capture_gate_clutch_start_datetime AS current_clutch_start_datetime,
     context.last_float_datetime
-  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT context
+  FROM task_context context
   WHERE context.capture_gate_clutch_size IS NOT NULL
 ),
 adult_capture_age_status AS (
@@ -6087,7 +6166,7 @@ adult_capture_age_status AS (
     CAST(NULL AS DATE) AS clutch_completion_basis_date,
     1 AS clutch_completion_confirmed,
     1 AS capture_allowed_after_completion
-  FROM FIELD_2026_BADOatNZ.BROODS_LATEST b
+  FROM brood_context b
   CROSS JOIN sr
   WHERE b.is_negative_brood = 1
     AND b.reference_date = sr.reference_date
@@ -6140,7 +6219,7 @@ geo_parent_targets AS (
     WHERE UPPER(TRIM(COALESCE(n.nest_state, ''))) = 'NOTA'
     UNION
     SELECT b.nest_id, b.reference_date
-    FROM FIELD_2026_BADOatNZ.BROODS_LATEST b
+    FROM brood_context b
     CROSS JOIN sr
     WHERE b.is_negative_brood = 1
       AND b.reference_date = sr.reference_date
@@ -6561,7 +6640,7 @@ todo_untrapped_parent_candidate AS (
       b.reference_date,
       b.discovery_date,
       1
-    FROM FIELD_2026_BADOatNZ.BROODS_LATEST b
+    FROM brood_context b
     CROSS JOIN sr
     WHERE b.is_negative_brood = 1
       AND b.reference_date = sr.reference_date
@@ -7017,7 +7096,7 @@ parent_units AS (
     b.lat,
     b.lon,
     b.discovery_date AS first_found_date
-  FROM FIELD_2026_BADOatNZ.BROODS_LATEST b
+  FROM brood_context b
   CROSS JOIN sr
   WHERE b.is_negative_brood = 1
     AND b.reference_date = sr.reference_date
@@ -7084,7 +7163,7 @@ todo_parent_resighting_existing AS (
         CASE
           WHEN association.F_resighting_identity_count > 0
            AND association.F_resight_association_pending = 0
-           AND adult_parent_status.F_mm_resight_pending = 0
+           AND association.F_mm_resight_pending = 0
           THEN '; F resolved'
           ELSE ''
         END
@@ -7100,7 +7179,7 @@ todo_parent_resighting_existing AS (
         CASE
           WHEN association.M_resighting_identity_count > 0
            AND association.M_resight_association_pending = 0
-           AND adult_parent_status.M_mm_resight_pending = 0
+           AND association.M_mm_resight_pending = 0
           THEN '; M resolved'
           ELSE ''
         END
@@ -7127,30 +7206,28 @@ todo_parent_resighting_existing AS (
     CASE
       WHEN association.M_resight_association_pending = 1
       THEN COALESCE(
-        adult_parent_status.M_resight_association_details,
-        adult_parent_status.M_parent_mark
+        association.M_resight_association_details,
+        association.M_parent_mark
       )
       /* Keep a resolved opposite-sex identity visible on the same
          resighting row; only the unresolved identity needs detail text. */
-      ELSE adult_parent_status.M_parent_mark
+      ELSE association.M_parent_mark
     END AS M_mark,
     CASE
       WHEN association.F_resight_association_pending = 1
       THEN COALESCE(
-        adult_parent_status.F_resight_association_details,
-        adult_parent_status.F_parent_mark
+        association.F_resight_association_details,
+        association.F_parent_mark
       )
       /* Keep a resolved opposite-sex identity visible on the same
          resighting row; only the unresolved identity needs detail text. */
-      ELSE adult_parent_status.F_parent_mark
+      ELSE association.F_parent_mark
     END AS F_mark,
     parent_units.lat,
     parent_units.lon
   FROM parent_units
   JOIN adult_parent_status association
     ON parent_units.nest_id = association.nest_id
-  LEFT JOIN adult_parent_status
-    ON parent_units.nest_id = adult_parent_status.nest_id
   WHERE association.M_resight_association_pending = 1
      OR association.F_resight_association_pending = 1
   UNION ALL
@@ -7537,7 +7614,7 @@ todo_nest_check AS (
     -- redundant even if the nest visit still carries a partial hatch sign.
     AND NOT EXISTS (
       SELECT 1
-      FROM FIELD_2026_BADOatNZ.BROODS_LATEST brood_evidence
+      FROM brood_context brood_evidence
       WHERE brood_evidence.nest_id = active_nests.nest_id
         AND brood_evidence.reference_date = active_nests.reference_date
         AND brood_evidence.is_negative_brood = 0
@@ -7597,7 +7674,7 @@ todo_untrapped_brood AS (
     adult_parent_status.F_parent_mark AS F_mark,
     b.lat,
     b.lon
-  FROM FIELD_2026_BADOatNZ.BROODS_LATEST b
+  FROM brood_context b
   CROSS JOIN sr
   LEFT JOIN chick_captures
     ON b.nest_id = chick_captures.nest_id
@@ -7693,7 +7770,7 @@ todo_broods_to_recapture_for_flagging AS (
     adult_parent_status.F_parent_mark AS F_mark,
     b.lat,
     b.lon
-  FROM FIELD_2026_BADOatNZ.BROODS_LATEST b
+  FROM brood_context b
   CROSS JOIN sr
   LEFT JOIN chick_captures
     ON b.nest_id = chick_captures.nest_id
@@ -7786,7 +7863,7 @@ todo_hiding_spot_photos AS (
     adult_parent_status.F_parent_mark AS F_mark,
     b.lat,
     b.lon
-  FROM FIELD_2026_BADOatNZ.BROODS_LATEST b
+  FROM brood_context b
   CROSS JOIN sr
   LEFT JOIN hiding_spot_photos
     ON b.nest_id = hiding_spot_photos.nest_id
@@ -7938,6 +8015,18 @@ WHERE NOT EXISTS (
   the expensive GPS matching graph out of repeated parent-status expansions
   while preserving the same definitive evidence gate.
 
+  The compact brood input is staged before GPS links. This keeps repeated
+  brood-task branches from independently expanding BROODS_LATEST while
+  preserving the same source fields and eligibility predicates.
+
+  The compact chick-capture aggregate is staged before GPS links as well. This
+  keeps the untrapped-brood, flagging, and hiding-photo branches from
+  independently regrouping CAPTURES while preserving the same ring and flag
+  calculations.
+
+  The shared H-photo evidence aggregate is staged alongside it, so both brood
+  task unions reuse one reference-date-bounded result.
+
   Rebuilding views creates an initial snapshot for the current settings date.
   After new field rows are loaded, or after reference_date changes, rerun
   DATABASE/refresh_todo_list_snapshot.SQL. The refresh is server-side and
@@ -7955,12 +8044,130 @@ CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_NEST_CONTE
 SELECT *
 FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT;
 
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_INPUT AS
+SELECT
+  nest_id,
+  species,
+  is_negative_brood,
+  discovery_date,
+  latest_encounter_date,
+  latest_encounter_datetime,
+  hatch_evidence_date,
+  has_hatch_evidence,
+  nest_state,
+  hatch_state,
+  clutch_size,
+  brood_size,
+  lat,
+  lon,
+  nest_photo,
+  tent_photo,
+  reference_date
+FROM FIELD_2026_BADOatNZ.BROODS_LATEST;
+
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_INPUT AS
+WITH sr AS (
+  SELECT value AS reference_date
+  FROM FIELD_2026_BADOatNZ.settings
+  WHERE variable = 'reference_date'
+    AND value IS NOT NULL
+),
+chick_events AS (
+  SELECT
+    c.nest_id,
+    NULLIF(
+      NULLIF(UPPER(TRIM(COALESCE(c.ring, ''))), ''),
+      'NA'
+    ) AS ring_key,
+    CASE
+      WHEN UPPER(NULLIF(TRIM(c.UL), '')) REGEXP '^F[A-Z0-9]+$'
+      THEN UPPER(NULLIF(TRIM(c.UL), ''))
+      WHEN UPPER(NULLIF(TRIM(c.UL_in), '')) REGEXP '^F[A-Z0-9]+$'
+      THEN UPPER(NULLIF(TRIM(c.UL_in), ''))
+      ELSE NULL
+    END AS flag_code
+  FROM FIELD_2026_BADOatNZ.CAPTURES c
+  CROSS JOIN sr
+  WHERE c.nest_id IS NOT NULL
+    AND TRIM(c.nest_id) <> ''
+    AND UPPER(TRIM(c.nest_id)) <> 'NO_NEST'
+    AND UPPER(TRIM(COALESCE(c.site, ''))) = 'CR'
+    AND c.age = 'C'
+    AND c.date <= sr.reference_date
+)
+SELECT
+  chick_events.nest_id,
+  COUNT(*) AS n_chick_captures,
+  COUNT(DISTINCT chick_events.ring_key) AS n_captured_chick_rings,
+  COUNT(DISTINCT CASE
+    WHEN chick_events.flag_code IS NOT NULL
+    THEN chick_events.ring_key
+  END) AS n_flagged_chick_rings,
+  SUM(CASE
+    WHEN chick_events.ring_key IS NULL THEN 1
+    ELSE 0
+  END) AS n_unringed_chick_captures
+FROM chick_events
+GROUP BY chick_events.nest_id;
+
+
+/*
+  TODO_HIDING_SPOT_PHOTO_CONTEXT_INPUT is the shared, reference-date-bounded
+  H-photo aggregate. Both brood task unions need the same distinct-ring count;
+  a staged refresh can therefore compute this evidence summary once without
+  changing the association-method, GPS, or photo metadata predicates.
+*/
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_INPUT AS
+WITH sr AS (
+  SELECT value AS reference_date
+  FROM FIELD_2026_BADOatNZ.settings
+  WHERE variable = 'reference_date'
+    AND value IS NOT NULL
+)
+SELECT
+  h.resolved_nest_id AS nest_id,
+  COUNT(DISTINCT h.ring) AS n_hiding_spot_photos
+FROM FIELD_2026_BADOatNZ.RESIGHTINGS_H_BROOD_ASSOCIATIONS h
+JOIN FIELD_2026_BADOatNZ.RESIGHTINGS r
+  ON r.pk = h.resighting_pk
+JOIN FIELD_2026_BADOatNZ.GPS_POINTS g
+  ON r.gps_id = g.gps_id
+ AND r.gps_point = g.gps_point
+CROSS JOIN sr
+WHERE h.resolved_nest_id IS NOT NULL
+  AND h.association_method IN (
+    'direct',
+    'same_occasion_adult',
+    'ring_capture'
+  )
+  AND UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'
+  AND r.age = 'C'
+  AND r.rclass = 'H'
+  AND r.date <= sr.reference_date
+  AND r.gps_id IS NOT NULL
+  AND r.gps_point IS NOT NULL
+  AND NULLIF(
+        NULLIF(UPPER(TRIM(COALESCE(r.photo_start, ''))), ''),
+        'NA'
+      ) IS NOT NULL
+  AND NULLIF(
+        NULLIF(UPPER(TRIM(COALESCE(r.photo_end, ''))), ''),
+        'NA'
+      ) IS NOT NULL
+GROUP BY h.resolved_nest_id;
+
 CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.ADULT_CHICK_GPS_PARENT_LINKS_INPUT AS
 SELECT *
 FROM FIELD_2026_BADOatNZ.ADULT_CHICK_GPS_PARENT_LINKS;
 
 DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT_BUILD;
 DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT_PREVIOUS;
+DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_SNAPSHOT_BUILD;
+DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_SNAPSHOT_PREVIOUS;
+DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_SNAPSHOT_BUILD;
+DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_SNAPSHOT_PREVIOUS;
+DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_SNAPSHOT_BUILD;
+DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_SNAPSHOT_PREVIOUS;
 DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_PARENT_CHICK_GPS_LINKS_SNAPSHOT_BUILD;
 DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_PARENT_CHICK_GPS_LINKS_SNAPSHOT_PREVIOUS;
 DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_BUILD;
@@ -8015,7 +8222,6 @@ CREATE TABLE FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT_BUILD (
   capture_gate_clutch_size DECIMAL(10, 0) NULL,
   capture_gate_clutch_start_datetime DATETIME NULL,
   hatch_date DATE NULL,
-  INDEX idx_todo_nest_context_nest (nest_id),
   INDEX idx_todo_nest_context_reference (reference_date),
   INDEX idx_todo_nest_context_nest_reference (nest_id, reference_date)
 );
@@ -8119,6 +8325,139 @@ FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT;
 CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT AS
 SELECT *
 FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT_BUILD;
+
+SELECT 'TODO_REFRESH_STAGE|brood_context' AS refresh_stage;
+
+CREATE TABLE FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_SNAPSHOT_BUILD (
+  nest_id VARCHAR(6) NULL,
+  species VARCHAR(20) NULL,
+  is_negative_brood TINYINT NULL,
+  discovery_date DATE NULL,
+  latest_encounter_date DATE NULL,
+  latest_encounter_datetime DATETIME NULL,
+  hatch_evidence_date DATE NULL,
+  has_hatch_evidence TINYINT NULL,
+  nest_state VARCHAR(10) NULL,
+  hatch_state VARCHAR(50) NULL,
+  clutch_size DECIMAL(10, 0) NULL,
+  brood_size DECIMAL(10, 0) NULL,
+  lat DOUBLE NULL,
+  lon DOUBLE NULL,
+  nest_photo VARCHAR(5) NULL,
+  tent_photo VARCHAR(5) NULL,
+  reference_date DATE NULL,
+  INDEX idx_todo_brood_context_nest_reference (nest_id, reference_date),
+  INDEX idx_todo_brood_context_kind_reference (
+    is_negative_brood,
+    reference_date,
+    nest_id
+  )
+);
+
+CREATE TABLE IF NOT EXISTS FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_SNAPSHOT
+LIKE FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_SNAPSHOT_BUILD;
+
+INSERT INTO FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_SNAPSHOT_BUILD (
+  nest_id,
+  species,
+  is_negative_brood,
+  discovery_date,
+  latest_encounter_date,
+  latest_encounter_datetime,
+  hatch_evidence_date,
+  has_hatch_evidence,
+  nest_state,
+  hatch_state,
+  clutch_size,
+  brood_size,
+  lat,
+  lon,
+  nest_photo,
+  tent_photo,
+  reference_date
+)
+SELECT
+  nest_id,
+  species,
+  is_negative_brood,
+  discovery_date,
+  latest_encounter_date,
+  latest_encounter_datetime,
+  hatch_evidence_date,
+  has_hatch_evidence,
+  nest_state,
+  hatch_state,
+  clutch_size,
+  brood_size,
+  lat,
+  lon,
+  nest_photo,
+  tent_photo,
+  reference_date
+FROM FIELD_2026_BADOatNZ.BROODS_LATEST;
+
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_INPUT AS
+SELECT *
+FROM FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_SNAPSHOT_BUILD;
+
+SELECT 'TODO_REFRESH_STAGE|chick_capture_context' AS refresh_stage;
+
+/* Materialize the shared chick-capture aggregate once for all brood tasks. */
+CREATE TABLE FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_SNAPSHOT_BUILD (
+  nest_id VARCHAR(6) NULL,
+  n_chick_captures BIGINT NULL,
+  n_captured_chick_rings BIGINT NULL,
+  n_flagged_chick_rings BIGINT NULL,
+  n_unringed_chick_captures BIGINT NULL,
+  INDEX idx_todo_chick_capture_context_nest (nest_id)
+);
+
+CREATE TABLE IF NOT EXISTS FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_SNAPSHOT
+LIKE FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_SNAPSHOT_BUILD;
+
+INSERT INTO FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_SNAPSHOT_BUILD (
+  nest_id,
+  n_chick_captures,
+  n_captured_chick_rings,
+  n_flagged_chick_rings,
+  n_unringed_chick_captures
+)
+SELECT
+  nest_id,
+  n_chick_captures,
+  n_captured_chick_rings,
+  n_flagged_chick_rings,
+  n_unringed_chick_captures
+FROM FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_INPUT;
+
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_INPUT AS
+SELECT *
+FROM FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_SNAPSHOT_BUILD;
+
+SELECT 'TODO_REFRESH_STAGE|hiding_spot_photos' AS refresh_stage;
+
+/* Materialize the shared H-photo evidence aggregate once for brood tasks. */
+CREATE TABLE FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_SNAPSHOT_BUILD (
+  nest_id VARCHAR(6) NULL,
+  n_hiding_spot_photos BIGINT NULL,
+  INDEX idx_todo_hiding_spot_photo_context_nest (nest_id)
+);
+
+CREATE TABLE IF NOT EXISTS FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_SNAPSHOT
+LIKE FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_SNAPSHOT_BUILD;
+
+INSERT INTO FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_SNAPSHOT_BUILD (
+  nest_id,
+  n_hiding_spot_photos
+)
+SELECT
+  nest_id,
+  n_hiding_spot_photos
+FROM FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_INPUT;
+
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_INPUT AS
+SELECT *
+FROM FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_SNAPSHOT_BUILD;
 
 SELECT 'TODO_REFRESH_STAGE|chick_gps_links' AS refresh_stage;
 
@@ -8327,6 +8666,9 @@ DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.TODO_PARENT_TASKS;
 DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.TODO_NONPARENT_TASKS;
 DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.TODO_PARENT_STATUS;
 DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT;
+DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_INPUT;
+DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_INPUT;
+DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_INPUT;
 DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.ADULT_CHICK_GPS_PARENT_LINKS_INPUT;
 
 RENAME TABLE
@@ -8334,6 +8676,18 @@ RENAME TABLE
     TO FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT_PREVIOUS,
   FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT_BUILD
     TO FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT,
+  FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_SNAPSHOT
+    TO FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_SNAPSHOT_PREVIOUS,
+  FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_SNAPSHOT_BUILD
+    TO FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_SNAPSHOT,
+  FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_SNAPSHOT
+    TO FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_SNAPSHOT_PREVIOUS,
+  FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_SNAPSHOT_BUILD
+    TO FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_SNAPSHOT,
+  FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_SNAPSHOT
+    TO FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_SNAPSHOT_PREVIOUS,
+  FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_SNAPSHOT_BUILD
+    TO FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_SNAPSHOT,
   FIELD_2026_BADOatNZ.TODO_PARENT_CHICK_GPS_LINKS_SNAPSHOT
     TO FIELD_2026_BADOatNZ.TODO_PARENT_CHICK_GPS_LINKS_SNAPSHOT_PREVIOUS,
   FIELD_2026_BADOatNZ.TODO_PARENT_CHICK_GPS_LINKS_SNAPSHOT_BUILD
@@ -8350,6 +8704,18 @@ RENAME TABLE
 CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT AS
 SELECT *
 FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT;
+
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_INPUT AS
+SELECT *
+FROM FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_SNAPSHOT;
+
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_INPUT AS
+SELECT *
+FROM FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_SNAPSHOT;
+
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_INPUT AS
+SELECT *
+FROM FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_SNAPSHOT;
 
 CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.ADULT_CHICK_GPS_PARENT_LINKS_INPUT AS
 SELECT *
@@ -8401,6 +8767,9 @@ JOIN sr
 DROP TABLE FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_PREVIOUS;
 DROP TABLE FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_PREVIOUS;
 DROP TABLE FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT_PREVIOUS;
+DROP TABLE FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_SNAPSHOT_PREVIOUS;
+DROP TABLE FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_SNAPSHOT_PREVIOUS;
+DROP TABLE FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_SNAPSHOT_PREVIOUS;
 
 /*
   VIEW_1 is the tagged-bird follow-up view used by the PDF resight table.
