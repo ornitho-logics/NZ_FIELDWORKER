@@ -56,6 +56,7 @@ test_that("public TODO_LIST is a small snapshot-backed read boundary", {
     "CREATE TABLE FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_BUILD",
     fixed = TRUE
   )
+  expect_match(sql, "todo VARCHAR(64) NOT NULL", fixed = TRUE)
   expect_match(
     sql,
     "INSERT INTO FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_BUILD",
@@ -127,6 +128,7 @@ test_that("TODO snapshot refresh is explicit and uses live SQL sources", {
     "CREATE TABLE FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_BUILD",
     fixed = TRUE
   )
+  expect_match(refresh_sql, "todo VARCHAR(64) NOT NULL", fixed = TRUE)
   expect_match(
     refresh_sql,
     "INSERT INTO FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_BUILD",
@@ -516,10 +518,12 @@ test_that("hiding-photo TODO counts distinct captured and photographed rings", {
 
   expect_match(
     sql,
-    "COUNT(DISTINCT NULLIF(\n      NULLIF(UPPER(TRIM(COALESCE(c.ring, ''))), ''),\n      'NA'\n    )) AS n_captured_chick_rings",
+    "COUNT(DISTINCT chick_events.ring_key) AS n_captured_chick_rings",
     fixed = TRUE
   )
   expect_match(sql, "COUNT(*) AS n_chick_captures", fixed = TRUE)
+  expect_match(sql, "n_flagged_chick_rings", fixed = TRUE)
+  expect_match(sql, "n_unringed_chick_captures", fixed = TRUE)
   expect_match(
     sql,
     "COUNT(DISTINCT h.ring) AS n_hiding_spot_photos",
@@ -782,45 +786,40 @@ test_that("hatched brood task Hatch values use the recorded H date", {
 })
 
 
-test_that("brood banding notes identify broods young enough for leg flags", {
+test_that("brood flagging tasks use the 21-day age gate and avoid duplicate banding work", {
   sql <- todo_list_view_sql()
 
   expect_match(
     sql,
-    "DATEDIFF(\n             brood_followup_nests.hatch_date,\n             brood_followup_nests.reference_date\n           ) <= -21",
+    "'Broods to recapture for flagging' AS todo",
     fixed = TRUE
   )
   expect_match(
     sql,
-    "'no chick captures; chicks old enough for leg flags'",
+    "DATEDIFF(\n          brood_followup_nests.reference_date,\n          brood_followup_nests.hatch_date\n        ) >= 21",
     fixed = TRUE
   )
-
-  banding_note <- function(hatch_value = NA_integer_, discovery_age = NA_integer_) {
-    if (!is.na(hatch_value) && hatch_value <= -21L) {
-      return("no chick captures; chicks old enough for leg flags")
-    }
-    if (!is.na(discovery_age) && discovery_age >= 21L) {
-      return("no chick captures; chicks old enough for leg flags")
-    }
-    "no chick captures"
-  }
-
-  expect_identical(
-    banding_note(hatch_value = -21L),
-    "no chick captures; chicks old enough for leg flags"
+  expect_match(
+    sql,
+    "DATEDIFF(b.reference_date, b.discovery_date) >= 21",
+    fixed = TRUE
   )
-  expect_identical(
-    banding_note(hatch_value = -20L),
-    "no chick captures"
+  expect_match(sql, "n_flagged_chick_rings", fixed = TRUE)
+  expect_match(sql, "n_unringed_chick_captures", fixed = TRUE)
+  expect_match(
+    sql,
+    "DATEDIFF(\n          brood_followup_nests.reference_date,\n          brood_followup_nests.hatch_date\n        ) < 21",
+    fixed = TRUE
   )
-  expect_identical(
-    banding_note(discovery_age = 21L),
-    "no chick captures; chicks old enough for leg flags"
+  expect_match(
+    sql,
+    "DATEDIFF(b.reference_date, b.discovery_date) < 21",
+    fixed = TRUE
   )
-  expect_identical(
-    banding_note(discovery_age = 20L),
-    "no chick captures"
+  expect_no_match(
+    sql,
+    "'no chick captures; chicks old enough for leg flags'",
+    fixed = TRUE
   )
 })
 

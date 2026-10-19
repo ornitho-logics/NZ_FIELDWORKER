@@ -1401,6 +1401,10 @@ todo_pdf_heading <- function(todo_name) {
       title = "Broods to photograph",
       subtitle = "find these broods and take in-situ and tent photos before the chicks are 7 days old"
     ),
+    "Broods to recapture for flagging" = list(
+      title = "Broods to recapture for flagging",
+      subtitle = "recapture chicks aged 21 days or more and assign unique engraved UL flags (e.g., FW73)"
+    ),
     "Unprocessed nest" = list(
       title = "Nests to process",
       subtitle = "egg photos and/or floatation needed"
@@ -1940,7 +1944,10 @@ todo_pdf_body <- function(
       todo_rows <- as.data.frame(rows[Todo == todo, ..table_cols])
       heading <- todo_pdf_heading(todo)
 
-      if (todo == "Hiding spot photos needed") {
+      if (todo %in% c(
+        "Hiding spot photos needed",
+        "Broods to recapture for flagging"
+      )) {
         names(todo_rows)[names(todo_rows) == "Nest"] <- "Brood"
       } else if (todo %in% c(
         "Parent capture",
@@ -1952,7 +1959,11 @@ todo_pdf_body <- function(
 
       parent_resighting_table <- todo == "Parent resighting"
 
-      if (!(todo %in% c("notA nest-check", "Hiding spot photos needed"))) {
+      if (!(todo %in% c(
+        "notA nest-check",
+        "Hiding spot photos needed",
+        "Broods to recapture for flagging"
+      ))) {
         names(todo_rows)[names(todo_rows) == "Hatch"] <- "Est. Hatch"
       }
 

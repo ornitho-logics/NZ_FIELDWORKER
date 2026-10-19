@@ -337,7 +337,7 @@ SELECT 'TODO_REFRESH_STAGE|task_rows' AS refresh_stage;
 CREATE TABLE FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_BUILD (
   nest_id VARCHAR(6) NULL,
   reference_date DATE NULL,
-  todo VARCHAR(25) NOT NULL,
+  todo VARCHAR(64) NOT NULL,
   notes LONGTEXT NULL,
   days_overdue BIGINT NULL,
   priority BIGINT NULL,
