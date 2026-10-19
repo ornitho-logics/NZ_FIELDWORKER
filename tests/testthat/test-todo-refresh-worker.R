@@ -55,6 +55,33 @@ test_that("TODO task assembly consumes the bounded context input", {
     )
   )
 
+  resighting_start <- regexpr(
+    "todo_parent_resighting_existing AS (",
+    task_sql,
+    fixed = TRUE
+  )[[1L]]
+  resighting_end <- regexpr(
+    "todo_parent_resighting AS (",
+    substring(task_sql, resighting_start),
+    fixed = TRUE
+  )[[1L]]
+  expect_gt(resighting_start, 0L)
+  expect_gt(resighting_end, 0L)
+  resighting_sql <- substring(
+    task_sql,
+    resighting_start,
+    resighting_start + resighting_end - 2L
+  )
+  expect_equal(
+    length(strsplit(resighting_sql, "\n  JOIN adult_parent_status association\n", fixed = TRUE)[[1L]]) - 1L,
+    1L
+  )
+  expect_no_match(
+    resighting_sql,
+    "LEFT JOIN adult_parent_status\n",
+    fixed = TRUE
+  )
+
   expect_match(
     refresh_sql,
     "CREATE TABLE FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT_BUILD (",

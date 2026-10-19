@@ -7123,7 +7123,7 @@ todo_parent_resighting_existing AS (
         CASE
           WHEN association.F_resighting_identity_count > 0
            AND association.F_resight_association_pending = 0
-           AND adult_parent_status.F_mm_resight_pending = 0
+           AND association.F_mm_resight_pending = 0
           THEN '; F resolved'
           ELSE ''
         END
@@ -7139,7 +7139,7 @@ todo_parent_resighting_existing AS (
         CASE
           WHEN association.M_resighting_identity_count > 0
            AND association.M_resight_association_pending = 0
-           AND adult_parent_status.M_mm_resight_pending = 0
+           AND association.M_mm_resight_pending = 0
           THEN '; M resolved'
           ELSE ''
         END
@@ -7166,30 +7166,28 @@ todo_parent_resighting_existing AS (
     CASE
       WHEN association.M_resight_association_pending = 1
       THEN COALESCE(
-        adult_parent_status.M_resight_association_details,
-        adult_parent_status.M_parent_mark
+        association.M_resight_association_details,
+        association.M_parent_mark
       )
       /* Keep a resolved opposite-sex identity visible on the same
          resighting row; only the unresolved identity needs detail text. */
-      ELSE adult_parent_status.M_parent_mark
+      ELSE association.M_parent_mark
     END AS M_mark,
     CASE
       WHEN association.F_resight_association_pending = 1
       THEN COALESCE(
-        adult_parent_status.F_resight_association_details,
-        adult_parent_status.F_parent_mark
+        association.F_resight_association_details,
+        association.F_parent_mark
       )
       /* Keep a resolved opposite-sex identity visible on the same
          resighting row; only the unresolved identity needs detail text. */
-      ELSE adult_parent_status.F_parent_mark
+      ELSE association.F_parent_mark
     END AS F_mark,
     parent_units.lat,
     parent_units.lon
   FROM parent_units
   JOIN adult_parent_status association
     ON parent_units.nest_id = association.nest_id
-  LEFT JOIN adult_parent_status
-    ON parent_units.nest_id = adult_parent_status.nest_id
   WHERE association.M_resight_association_pending = 1
      OR association.F_resight_association_pending = 1
   UNION ALL
