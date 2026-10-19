@@ -105,6 +105,11 @@ test_that("TODO task assembly consumes the bounded context input", {
     "INDEX idx_todo_nest_context_nest_reference (nest_id, reference_date)",
     fixed = TRUE
   )
+  expect_no_match(
+    refresh_sql,
+    "INDEX idx_todo_nest_context_nest (nest_id),",
+    fixed = TRUE
+  )
   expect_match(refresh_sql, "capture_gate_clutch_size", fixed = TRUE)
   expect_match(
     refresh_sql,

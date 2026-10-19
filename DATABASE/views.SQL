@@ -8083,7 +8083,6 @@ CREATE TABLE FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT_BUILD (
   capture_gate_clutch_size DECIMAL(10, 0) NULL,
   capture_gate_clutch_start_datetime DATETIME NULL,
   hatch_date DATE NULL,
-  INDEX idx_todo_nest_context_nest (nest_id),
   INDEX idx_todo_nest_context_reference (reference_date),
   INDEX idx_todo_nest_context_nest_reference (nest_id, reference_date)
 );
