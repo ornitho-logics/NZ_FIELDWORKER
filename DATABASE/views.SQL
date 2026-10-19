@@ -5694,6 +5694,15 @@ initial_clutch_status AS (
     'stable one-egg/no increase'
   )
 ),
+/*
+  All task-side context projections share this one bounded relation. During a
+  staged refresh the relation is an indexed snapshot table; during a clean
+  view installation it remains the live TODO_NEST_CONTEXT fallback.
+*/
+task_context AS (
+  SELECT *
+  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT
+),
 latest_nests AS (
   SELECT
     context.nest_id,
@@ -5727,7 +5736,7 @@ latest_nests AS (
     context.lat,
     context.lon,
     sr.reference_date
-  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT context
+  FROM task_context context
   LEFT JOIN initial_clutch_status
     ON context.nest_id = initial_clutch_status.nest_id
   CROSS JOIN sr
@@ -5746,7 +5755,7 @@ first_processable_visit AS (
     context.nest_id,
     context.first_processable_date,
     context.first_processable_datetime
-  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT context
+  FROM task_context context
 ),
 photo_summary AS (
   SELECT
@@ -5754,7 +5763,7 @@ photo_summary AS (
     context.last_photo_date,
     context.last_photo_datetime,
     context.n_photo_rows
-  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT context
+  FROM task_context context
 ),
 float_summary AS (
   SELECT
@@ -5762,7 +5771,7 @@ float_summary AS (
     context.last_float_date,
     context.last_float_datetime,
     context.n_float_rows
-  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT context
+  FROM task_context context
 ),
 -- The initial processing task is resolved by any qualifying photo and
 -- flotation record from the first processable visit onward. This deliberately
@@ -5779,13 +5788,13 @@ processing_summary AS (
     COALESCE(context.n_photo_rows, 0) AS n_photo_rows,
     COALESCE(context.n_float_rows, 0) AS n_float_rows,
     context.last_processed_datetime
-  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT context
+  FROM task_context context
 ),
 nest_discovery AS (
   SELECT
     context.nest_id,
     context.first_found_date
-  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT context
+  FROM task_context context
 ),
 latest_clutch_history AS (
   SELECT
@@ -5797,7 +5806,7 @@ latest_clutch_history AS (
     context.latest_clutch_datetime AS clutch_datetime,
     context.latest_clutch_has_photo AS clutch_has_photo,
     1 AS row_num
-  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT context
+  FROM task_context context
   WHERE context.latest_clutch_size IS NOT NULL
 ),
 latest_nest_event AS (
@@ -5806,28 +5815,28 @@ latest_nest_event AS (
     context.latest_event_clutch_size AS clutch_size,
     context.latest_event_date AS event_date,
     1 AS row_num
-  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT context
+  FROM task_context context
 ),
 latest_clutch_processing_status AS (
   SELECT
     context.nest_id,
     context.latest_clutch_has_photo AS clutch_has_photo,
     context.clutch_has_float
-  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT context
+  FROM task_context context
 ),
 clutch_at_processing AS (
   SELECT
     context.nest_id,
     context.clutch_at_processing_size AS clutch_size,
     1 AS row_num
-  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT context
+  FROM task_context context
   WHERE context.clutch_at_processing_size IS NOT NULL
 ),
 hatched_nests AS (
   SELECT
     context.nest_id,
     context.hatch_date
-  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT context
+  FROM task_context context
   WHERE context.hatch_date IS NOT NULL
 ),
 brood_followup_nests AS (
@@ -6031,7 +6040,7 @@ adult_capture_current_clutch_start AS (
     context.current_clutch_datetime,
     context.capture_gate_clutch_start_datetime AS current_clutch_start_datetime,
     context.last_float_datetime
-  FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT context
+  FROM task_context context
   WHERE context.capture_gate_clutch_size IS NOT NULL
 ),
 adult_capture_age_status AS (
