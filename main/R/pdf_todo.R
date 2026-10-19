@@ -2101,7 +2101,22 @@ todo_pdf_save <- function(
 
   if (is.null(broods_latest)) {
     if (is.null(nests_latest)) {
-      broods_latest <- DBq("SELECT * FROM BROODS_LATEST")
+      # BROODS_LATEST is a complex derived view. Keep the same optimizer
+      # safeguard used by the task query so a failed expansion cannot be
+      # silently converted into an incomplete PDF.
+      broods_latest <- DBq(
+        "SELECT * FROM BROODS_LATEST",
+        derived_merge_off = TRUE
+      )
+      if ("error" %in% names(broods_latest)) {
+        stop(
+          paste0(
+            "BROODS_LATEST could not be loaded for the to-do PDF: ",
+            as.character(broods_latest$error[[1L]])
+          ),
+          call. = FALSE
+        )
+      }
     } else {
       # Keep the legacy argument working for older local preview scripts.
       broods_latest <- nests_latest
