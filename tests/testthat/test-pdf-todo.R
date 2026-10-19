@@ -943,6 +943,62 @@ test_that("parent summary displays hatch intervals", {
 })
 
 
+test_that("negative broods with NULL species retain PDF hatch and map data", {
+  app <- load_main_app()
+  prepare_summary <- app$env$todo_pdf_prepare_nest_summary
+  prepare_nests <- get(
+    ".todo_pdf_map_prepare_nests",
+    envir = app$env
+  )
+
+  nests <- data.frame(
+    nest_id = c("-C_MOCK", "A_MOCK_TASK"),
+    species = c(NA_character_, "BADO"),
+    nest_state = c(NA_character_, "I"),
+    is_negative_brood = c(TRUE, FALSE),
+    has_hatch_evidence = c(TRUE, FALSE),
+    discovery_date = as.Date(c("2026-10-18", NA)),
+    hatch_evidence_date = as.Date(c(NA, NA)),
+    min_days_to_hatch = c(-2, 7),
+    M_mark = c("MOCK-M", NA),
+    F_mark = c("MOCK-F", NA),
+    lat = c(-43.1, -43.2),
+    lon = c(170.1, 170.2),
+    stringsAsFactors = FALSE
+  )
+
+  summary <- prepare_summary(
+    nests_latest = nests,
+    reference_date = as.Date("2026-10-20"),
+    todo = data.frame(),
+    chick_captures = data.frame()
+  )
+  expect_identical(
+    summary[summary$Nest == "-C_MOCK", `Est. Hatch`],
+    "-2"
+  )
+
+  todo <- data.frame(
+    nest_id = c("A_MOCK_TASK", "-C_MOCK"),
+    todo = c("nest check", "nest check"),
+    notes = c(NA_character_, NA_character_),
+    reference_date = as.Date(c("2026-10-20", "2026-10-20")),
+    lat = c(-43.2, -43.1),
+    lon = c(170.2, 170.1),
+    stringsAsFactors = FALSE
+  )
+  mapped <- prepare_nests(
+    todo = todo,
+    chick_captures = data.frame(),
+    nests_latest = nests
+  )
+  expect_true("-C_MOCK" %in% mapped$nest_id)
+  negative_map_row <- mapped[mapped$nest_id == "-C_MOCK", ]
+  expect_equal(nrow(negative_map_row), 1L)
+  expect_false(any(sf::st_is_empty(negative_map_row)))
+})
+
+
 test_that("parent summary uses canonical status marks across task types", {
   app <- load_main_app()
   prepare_summary <- app$env$todo_pdf_prepare_nest_summary
