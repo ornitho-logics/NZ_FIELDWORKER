@@ -514,7 +514,7 @@ test_that("parent-status view projections remain deployable", {
 
 
 test_that("hiding-photo TODO counts distinct captured and photographed rings", {
-  sql <- todo_list_view_sql()
+  sql <- views_source_sql()
 
   expect_match(
     sql,

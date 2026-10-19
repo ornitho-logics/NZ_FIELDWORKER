@@ -228,6 +228,7 @@ todo_snapshot_refresh_start <- function(
     ),
     "  case \"$stage_line\" in",
     "    *'TODO_REFRESH_STAGE|nest_context'*) detail='Building nest context' ;;",
+    "    *'TODO_REFRESH_STAGE|chick_capture_context'*) detail='Aggregating chick captures' ;;",
     "    *'TODO_REFRESH_STAGE|chick_gps_links'*) detail='Linking chicks to parents' ;;",
     "    *'TODO_REFRESH_STAGE|parent_status'*) detail='Building parent status' ;;",
     "    *'TODO_REFRESH_STAGE|task_rows'*) detail='Building task rows' ;;",

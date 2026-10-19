@@ -39,6 +39,7 @@ test_that("TODO task assembly consumes the bounded context input", {
   expect_no_match(task_sql, "TODO_NEST_CONTEXT context", fixed = TRUE)
   expect_no_match(task_sql, "nest_history AS (", fixed = TRUE)
   expect_match(task_sql, "TODO_BROOD_CONTEXT_INPUT", fixed = TRUE)
+  expect_match(task_sql, "TODO_CHICK_CAPTURE_CONTEXT_INPUT", fixed = TRUE)
   expect_no_match(task_sql, "BROODS_LATEST b", fixed = TRUE)
   expect_no_match(task_sql, "BROODS_LATEST brood_evidence", fixed = TRUE)
   expect_match(task_sql, "brood_context AS (", fixed = TRUE)
@@ -58,6 +59,11 @@ test_that("TODO task assembly consumes the bounded context input", {
   expect_match(
     task_sql,
     "FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT\n),\nbrood_context AS",
+    fixed = TRUE
+  )
+  expect_match(
+    task_sql,
+    "FROM FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_INPUT\n),",
     fixed = TRUE
   )
   expect_false(
@@ -123,6 +129,16 @@ test_that("TODO task assembly consumes the bounded context input", {
   )
   expect_match(
     refresh_sql,
+    "CREATE TABLE FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_SNAPSHOT_BUILD (",
+    fixed = TRUE
+  )
+  expect_match(
+    refresh_sql,
+    "INDEX idx_todo_chick_capture_context_nest (nest_id)",
+    fixed = TRUE
+  )
+  expect_match(
+    refresh_sql,
     "INDEX idx_todo_brood_context_nest_reference (nest_id, reference_date)",
     fixed = TRUE
   )
@@ -134,6 +150,7 @@ test_that("TODO task assembly consumes the bounded context input", {
   for (stage in c(
     "nest_context",
     "brood_context",
+    "chick_capture_context",
     "chick_gps_links",
     "parent_status",
     "task_rows",
@@ -178,9 +195,16 @@ test_that("TODO task assembly consumes the bounded context input", {
     refresh_sql,
     fixed = TRUE
   )[[1L]]
+  chick_capture_build <- regexpr(
+    "INSERT INTO FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_SNAPSHOT_BUILD",
+    refresh_sql,
+    fixed = TRUE
+  )[[1L]]
   expect_gt(link_build, context_build)
   expect_gt(brood_build, context_build)
+  expect_gt(chick_capture_build, brood_build)
   expect_gt(link_build, brood_build)
+  expect_gt(link_build, chick_capture_build)
   expect_gt(parent_build, link_build)
   expect_gt(task_build, parent_build)
   expect_gt(public_drop, task_build)
@@ -213,6 +237,11 @@ test_that("TODO task assembly consumes the bounded context input", {
   expect_match(
     refresh_sql,
     "TODO_BROOD_CONTEXT_SNAPSHOT_BUILD\n    TO FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_SNAPSHOT",
+    fixed = TRUE
+  )
+  expect_match(
+    refresh_sql,
+    "TODO_CHICK_CAPTURE_CONTEXT_SNAPSHOT_BUILD\n    TO FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_SNAPSHOT",
     fixed = TRUE
   )
 })
@@ -256,4 +285,9 @@ test_that("downloads UI exposes the asynchronous snapshot action", {
   expect_match(server, "progress-bar-striped", fixed = TRUE)
   expect_match(server, "This may take several minutes.", fixed = TRUE)
   expect_match(system_utils, "TODO_REFRESH_STAGE|chick_gps_links", fixed = TRUE)
+  expect_match(
+    system_utils,
+    "TODO_REFRESH_STAGE|chick_capture_context",
+    fixed = TRUE
+  )
 })
