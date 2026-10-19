@@ -101,6 +101,14 @@ test_that("to-do headings use the current operational subtitles", {
     "find these broods and take in-situ and tent photos before the chicks are 7 days old"
   )
   expect_identical(
+    heading("Broods to recapture for flagging")$title,
+    "Broods to recapture for flagging"
+  )
+  expect_identical(
+    heading("Broods to recapture for flagging")$subtitle,
+    "recapture chicks aged 21 days or more and assign unique engraved UL flags (e.g., FW73)"
+  )
+  expect_identical(
     heading("Parent capture")$subtitle,
     "follow notes for tag deployment or band-only instructions"
   )
@@ -1349,18 +1357,25 @@ test_that("chick colour labels are used in operational parent and brood tables",
   rows <- data.table::data.table(
     Todo = c(
       "Hiding spot photos needed",
+      "Broods to recapture for flagging",
       "Parent capture",
       "Parent resighting",
       "Untrapped brood"
     ),
-    Nest = c("-MOCK_BROOD", "MOCK_NEST", "MOCK_NEST", "MOCK_BROOD"),
-    State = c("NA", "I", "I", "NA"),
-    `Clutch–Brood` = c("NA–3", "3–0", "3–0", "NA–3"),
-    Hatch = c("", "09-25", "09-25", ""),
-    `Last Visit` = c("2", "1", "1", "2"),
-    Male = c("", "MOCK-M", "MOCK-M", ""),
-    Female = c("", "MOCK-F", "MOCK-F", ""),
-    Notes = c("photo", "capture", "resight", "band")
+    Nest = c(
+      "-MOCK_BROOD",
+      "-MOCK_BROOD",
+      "MOCK_NEST",
+      "MOCK_NEST",
+      "MOCK_BROOD"
+    ),
+    State = c("NA", "NA", "I", "I", "NA"),
+    `Clutch–Brood` = c("NA–3", "NA–3", "3–0", "3–0", "NA–3"),
+    Hatch = c("", "", "09-25", "09-25", ""),
+    `Last Visit` = c("2", "2", "1", "1", "2"),
+    Male = c("", "", "MOCK-M", "MOCK-M", ""),
+    Female = c("", "", "MOCK-F", "MOCK-F", ""),
+    Notes = c("photo", "flag", "capture", "resight", "band")
   )
   nest_summary <- data.table::data.table(
     Nest = c("-MOCK_BROOD", "MOCK_NEST"),
@@ -1375,10 +1390,12 @@ test_that("chick colour labels are used in operational parent and brood tables",
   body_text <- paste(body, collapse = "\n")
 
   expect_true(grepl("## Broods to photograph", body_text, fixed = TRUE))
+  expect_true(grepl("## Broods to recapture for flagging", body_text, fixed = TRUE))
   expect_true(grepl("## Parents to capture", body_text, fixed = TRUE))
   expect_true(grepl("## Parents to resight", body_text, fixed = TRUE))
   expect_true(grepl("## Broods to band", body_text, fixed = TRUE))
   expect_true(grepl("Nest/Brood", body_text, fixed = TRUE))
+  expect_true(grepl("Brood", body_text, fixed = TRUE))
   expect_true(grepl("#f4d03f", body_text, fixed = TRUE))
   expect_true(grepl("#1565c0", body_text, fixed = TRUE))
   expect_true(grepl("stroke: none", body_text, fixed = TRUE))

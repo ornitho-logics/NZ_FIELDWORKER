@@ -93,6 +93,8 @@ CREATE TABLE FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT_BUILD (
   current_clutch_size DECIMAL(10, 0) NULL,
   current_clutch_datetime DATETIME NULL,
   current_clutch_start_datetime DATETIME NULL,
+  capture_gate_clutch_size DECIMAL(10, 0) NULL,
+  capture_gate_clutch_start_datetime DATETIME NULL,
   hatch_date DATE NULL,
   INDEX idx_todo_nest_context_nest (nest_id),
   INDEX idx_todo_nest_context_reference (reference_date),
@@ -144,6 +146,8 @@ INSERT INTO FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT_BUILD (
   current_clutch_size,
   current_clutch_datetime,
   current_clutch_start_datetime,
+  capture_gate_clutch_size,
+  capture_gate_clutch_start_datetime,
   hatch_date
 )
 SELECT
@@ -188,6 +192,8 @@ SELECT
   current_clutch_size,
   current_clutch_datetime,
   current_clutch_start_datetime,
+  capture_gate_clutch_size,
+  capture_gate_clutch_start_datetime,
   hatch_date
 FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT;
 
@@ -337,7 +343,7 @@ SELECT 'TODO_REFRESH_STAGE|task_rows' AS refresh_stage;
 CREATE TABLE FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_BUILD (
   nest_id VARCHAR(6) NULL,
   reference_date DATE NULL,
-  todo VARCHAR(25) NOT NULL,
+  todo VARCHAR(64) NOT NULL,
   notes LONGTEXT NULL,
   days_overdue BIGINT NULL,
   priority BIGINT NULL,

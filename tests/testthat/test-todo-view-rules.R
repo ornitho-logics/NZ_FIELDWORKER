@@ -56,6 +56,7 @@ test_that("public TODO_LIST is a small snapshot-backed read boundary", {
     "CREATE TABLE FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_BUILD",
     fixed = TRUE
   )
+  expect_match(sql, "todo VARCHAR(64) NOT NULL", fixed = TRUE)
   expect_match(
     sql,
     "INSERT INTO FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_BUILD",
@@ -127,6 +128,7 @@ test_that("TODO snapshot refresh is explicit and uses live SQL sources", {
     "CREATE TABLE FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_BUILD",
     fixed = TRUE
   )
+  expect_match(refresh_sql, "todo VARCHAR(64) NOT NULL", fixed = TRUE)
   expect_match(
     refresh_sql,
     "INSERT INTO FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_BUILD",
@@ -516,10 +518,12 @@ test_that("hiding-photo TODO counts distinct captured and photographed rings", {
 
   expect_match(
     sql,
-    "COUNT(DISTINCT NULLIF(\n      NULLIF(UPPER(TRIM(COALESCE(c.ring, ''))), ''),\n      'NA'\n    )) AS n_captured_chick_rings",
+    "COUNT(DISTINCT chick_events.ring_key) AS n_captured_chick_rings",
     fixed = TRUE
   )
   expect_match(sql, "COUNT(*) AS n_chick_captures", fixed = TRUE)
+  expect_match(sql, "n_flagged_chick_rings", fixed = TRUE)
+  expect_match(sql, "n_unringed_chick_captures", fixed = TRUE)
   expect_match(
     sql,
     "COUNT(DISTINCT h.ring) AS n_hiding_spot_photos",
@@ -782,45 +786,40 @@ test_that("hatched brood task Hatch values use the recorded H date", {
 })
 
 
-test_that("brood banding notes identify broods young enough for leg flags", {
+test_that("brood flagging tasks use the 21-day age gate and avoid duplicate banding work", {
   sql <- todo_list_view_sql()
 
   expect_match(
     sql,
-    "DATEDIFF(\n             brood_followup_nests.hatch_date,\n             brood_followup_nests.reference_date\n           ) <= -21",
+    "'Broods to recapture for flagging' AS todo",
     fixed = TRUE
   )
   expect_match(
     sql,
-    "'no chick captures; chicks old enough for leg flags'",
+    "DATEDIFF(\n          brood_followup_nests.reference_date,\n          brood_followup_nests.hatch_date\n        ) >= 21",
     fixed = TRUE
   )
-
-  banding_note <- function(hatch_value = NA_integer_, discovery_age = NA_integer_) {
-    if (!is.na(hatch_value) && hatch_value <= -21L) {
-      return("no chick captures; chicks old enough for leg flags")
-    }
-    if (!is.na(discovery_age) && discovery_age >= 21L) {
-      return("no chick captures; chicks old enough for leg flags")
-    }
-    "no chick captures"
-  }
-
-  expect_identical(
-    banding_note(hatch_value = -21L),
-    "no chick captures; chicks old enough for leg flags"
+  expect_match(
+    sql,
+    "DATEDIFF(b.reference_date, b.discovery_date) >= 21",
+    fixed = TRUE
   )
-  expect_identical(
-    banding_note(hatch_value = -20L),
-    "no chick captures"
+  expect_match(sql, "n_flagged_chick_rings", fixed = TRUE)
+  expect_match(sql, "n_unringed_chick_captures", fixed = TRUE)
+  expect_match(
+    sql,
+    "DATEDIFF(\n          brood_followup_nests.reference_date,\n          brood_followup_nests.hatch_date\n        ) < 21",
+    fixed = TRUE
   )
-  expect_identical(
-    banding_note(discovery_age = 21L),
-    "no chick captures; chicks old enough for leg flags"
+  expect_match(
+    sql,
+    "DATEDIFF(b.reference_date, b.discovery_date) < 21",
+    fixed = TRUE
   )
-  expect_identical(
-    banding_note(discovery_age = 20L),
-    "no chick captures"
+  expect_no_match(
+    sql,
+    "'no chick captures; chicks old enough for leg flags'",
+    fixed = TRUE
   )
 })
 
@@ -934,6 +933,64 @@ test_that("two-egg parent capture waits seven days after inferred completion", {
   expect_identical(third_egg_completion, as.Date("2026-10-19"))
   expect_identical(capture_allowed("2026-10-25", third_egg_completion), 0L)
   expect_identical(capture_allowed("2026-10-26", third_egg_completion), 1L)
+})
+
+
+test_that("a lower latest clutch does not reset the parent capture gate", {
+  sql <- views_source_sql()
+
+  expect_match(sql, "historical_max_clutch", fixed = TRUE)
+  expect_match(sql, "capture_gate_clutch_size", fixed = TRUE)
+  expect_match(sql, "capture_gate_clutch_start_datetime", fixed = TRUE)
+  expect_match(
+    sql,
+    paste(
+      "current_clutch.current_clutch_size",
+      "< historical_max_clutch.historical_max_clutch_size",
+      sep = "\n         "
+    ),
+    fixed = TRUE
+  )
+
+  capture_gate_inputs <- function(
+      current_clutch_size,
+      current_clutch_start_date,
+      historical_max_clutch_size,
+      historical_max_clutch_start_date
+  ) {
+    if (
+      !is.na(historical_max_clutch_size) &&
+        current_clutch_size < historical_max_clutch_size
+    ) {
+      return(list(
+        clutch_size = historical_max_clutch_size,
+        start_date = as.Date(historical_max_clutch_start_date)
+      ))
+    }
+    list(
+      clutch_size = current_clutch_size,
+      start_date = as.Date(current_clutch_start_date)
+    )
+  }
+
+  reduced_clutch <- capture_gate_inputs(
+    current_clutch_size = 2L,
+    current_clutch_start_date = "2026-10-15",
+    historical_max_clutch_size = 3L,
+    historical_max_clutch_start_date = "2026-10-10"
+  )
+  expect_identical(reduced_clutch$clutch_size, 3L)
+  expect_identical(reduced_clutch$start_date, as.Date("2026-10-10"))
+  expect_true(as.Date("2026-10-17") - reduced_clutch$start_date >= 7L)
+
+  unchanged_clutch <- capture_gate_inputs(
+    current_clutch_size = 2L,
+    current_clutch_start_date = "2026-10-15",
+    historical_max_clutch_size = 2L,
+    historical_max_clutch_start_date = "2026-10-15"
+  )
+  expect_identical(unchanged_clutch$clutch_size, 2L)
+  expect_identical(unchanged_clutch$start_date, as.Date("2026-10-15"))
 })
 
 

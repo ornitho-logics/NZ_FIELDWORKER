@@ -5311,6 +5311,37 @@ current_clutch AS (
   FROM latest_clutch_ranked
   WHERE row_num = 1
 ),
+/* Compute the maximum clutch and its first recorded date in one history pass. */
+historical_clutch_ranked AS (
+  SELECT
+    history.nest_id,
+    history.clutch_size,
+    CAST(
+      CONCAT(
+        history.date,
+        ' ',
+        COALESCE(history.time_visit, '00:00:00')
+      ) AS DATETIME
+    ) AS clutch_datetime,
+    MAX(history.clutch_size) OVER (
+      PARTITION BY history.nest_id
+    ) AS historical_max_clutch_size
+  FROM history
+  WHERE history.clutch_size > 0
+),
+historical_max_clutch AS (
+  SELECT
+    nest_id,
+    MAX(historical_max_clutch_size) AS historical_max_clutch_size,
+    MIN(
+      CASE
+        WHEN clutch_size = historical_max_clutch_size
+        THEN clutch_datetime
+      END
+    ) AS historical_max_clutch_start_datetime
+  FROM historical_clutch_ranked
+  GROUP BY nest_id
+),
 last_other_clutch AS (
   SELECT
     current_clutch.nest_id,
@@ -5431,6 +5462,18 @@ SELECT
   current_clutch.current_clutch_size,
   current_clutch.current_clutch_datetime,
   current_clutch_start.current_clutch_start_datetime,
+  CASE
+    WHEN current_clutch.current_clutch_size
+         < historical_max_clutch.historical_max_clutch_size
+    THEN historical_max_clutch.historical_max_clutch_size
+    ELSE current_clutch.current_clutch_size
+  END AS capture_gate_clutch_size,
+  CASE
+    WHEN current_clutch.current_clutch_size
+         < historical_max_clutch.historical_max_clutch_size
+    THEN historical_max_clutch.historical_max_clutch_start_datetime
+    ELSE current_clutch_start.current_clutch_start_datetime
+  END AS capture_gate_clutch_start_datetime,
   hatched_nests.hatch_date
 FROM FIELD_2026_BADOatNZ.NESTS_LATEST n
 LEFT JOIN latest_float_status
@@ -5458,6 +5501,8 @@ LEFT JOIN current_clutch
   ON n.nest_id = current_clutch.nest_id
 LEFT JOIN current_clutch_start
   ON n.nest_id = current_clutch_start.nest_id
+LEFT JOIN historical_max_clutch
+  ON n.nest_id = historical_max_clutch.nest_id
 LEFT JOIN hatched_nests
   ON n.nest_id = hatched_nests.nest_id;
 
@@ -5509,8 +5554,9 @@ FROM FIELD_2026_BADOatNZ.ADULT_PARENT_STATUS;
   BROODS_LATEST/brood follow-up retain post-hatch work after later state
   changes, while nota follow-up handles closure work;
   chick_captures/hiding_spot_photos compare unique captured chick rings with
-  valid H-photo rings; adult_* CTEs resolve parent identity, X-X/death/GEO/MM
-  evidence, behaviour association, and 36-hour gates;
+  valid H-photo rings and engraved UL flags; adult_* CTEs resolve parent
+  identity, X-X/death/GEO/MM evidence, behaviour association, and 36-hour
+  gates;
   ADULT_PARENT_STATUS is the authoritative four-gate parent-association
   result, exposed to task assembly through TODO_PARENT_STATUS_INPUT and
   consumed by parent tasks, GEO/pair completion, PDF, map, and summary;
@@ -5781,21 +5827,41 @@ nota_followup_nests AS (
 ),
 chick_captures AS (
   SELECT
-    c.nest_id,
+    chick_events.nest_id,
     COUNT(*) AS n_chick_captures,
-    COUNT(DISTINCT NULLIF(
-      NULLIF(UPPER(TRIM(COALESCE(c.ring, ''))), ''),
-      'NA'
-    )) AS n_captured_chick_rings
-  FROM FIELD_2026_BADOatNZ.CAPTURES c
-  CROSS JOIN sr
-  WHERE c.nest_id IS NOT NULL
-    AND TRIM(c.nest_id) <> ''
-    AND UPPER(TRIM(c.nest_id)) <> 'NO_NEST'
-    AND UPPER(TRIM(COALESCE(c.site, ''))) = 'CR'
-    AND c.age = 'C'
-    AND c.date <= sr.reference_date
-  GROUP BY c.nest_id
+    COUNT(DISTINCT chick_events.ring_key) AS n_captured_chick_rings,
+    COUNT(DISTINCT CASE
+      WHEN chick_events.flag_code IS NOT NULL
+      THEN chick_events.ring_key
+    END) AS n_flagged_chick_rings,
+    SUM(CASE
+      WHEN chick_events.ring_key IS NULL THEN 1
+      ELSE 0
+    END) AS n_unringed_chick_captures
+  FROM (
+    SELECT
+      c.nest_id,
+      NULLIF(
+        NULLIF(UPPER(TRIM(COALESCE(c.ring, ''))), ''),
+        'NA'
+      ) AS ring_key,
+      CASE
+        WHEN UPPER(NULLIF(TRIM(c.UL), '')) REGEXP '^F[A-Z0-9]+$'
+        THEN UPPER(NULLIF(TRIM(c.UL), ''))
+        WHEN UPPER(NULLIF(TRIM(c.UL_in), '')) REGEXP '^F[A-Z0-9]+$'
+        THEN UPPER(NULLIF(TRIM(c.UL_in), ''))
+        ELSE NULL
+      END AS flag_code
+    FROM FIELD_2026_BADOatNZ.CAPTURES c
+    CROSS JOIN sr
+    WHERE c.nest_id IS NOT NULL
+      AND TRIM(c.nest_id) <> ''
+      AND UPPER(TRIM(c.nest_id)) <> 'NO_NEST'
+      AND UPPER(TRIM(COALESCE(c.site, ''))) = 'CR'
+      AND c.age = 'C'
+      AND c.date <= sr.reference_date
+  ) chick_events
+  GROUP BY chick_events.nest_id
 ),
 hiding_spot_photos AS (
   SELECT
@@ -5931,12 +5997,12 @@ adult_capture_interval_status AS (
 adult_capture_current_clutch_start AS (
   SELECT
     context.nest_id,
-    context.current_clutch_size,
+    context.capture_gate_clutch_size AS current_clutch_size,
     context.current_clutch_datetime,
-    context.current_clutch_start_datetime,
+    context.capture_gate_clutch_start_datetime AS current_clutch_start_datetime,
     context.last_float_datetime
   FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT context
-  WHERE context.current_clutch_size IS NOT NULL
+  WHERE context.capture_gate_clutch_size IS NOT NULL
 ),
 adult_capture_age_status AS (
   SELECT
@@ -7483,14 +7549,7 @@ todo_untrapped_brood AS (
     brood_followup_nests.nest_id,
     brood_followup_nests.reference_date,
     'Untrapped brood' AS todo,
-    CASE
-      WHEN DATEDIFF(
-             brood_followup_nests.hatch_date,
-             brood_followup_nests.reference_date
-           ) <= -21
-      THEN 'no chick captures; chicks old enough for leg flags'
-      ELSE 'no chick captures'
-    END AS notes,
+    'no chick captures' AS notes,
     DATEDIFF(
       brood_followup_nests.reference_date,
       brood_followup_nests.hatch_date
@@ -7517,17 +7576,16 @@ todo_untrapped_brood AS (
   LEFT JOIN adult_parent_status
     ON brood_followup_nests.nest_id = adult_parent_status.nest_id
   WHERE COALESCE(chick_captures.n_chick_captures, 0) = 0
+    AND DATEDIFF(
+          brood_followup_nests.reference_date,
+          brood_followup_nests.hatch_date
+        ) < 21
   UNION ALL
   SELECT
     b.nest_id,
     b.reference_date,
     'Untrapped brood' AS todo,
-    CASE
-      WHEN b.discovery_date IS NOT NULL
-       AND DATEDIFF(b.reference_date, b.discovery_date) >= 21
-      THEN 'no chick captures; chicks old enough for leg flags'
-      ELSE 'no chick captures'
-    END AS notes,
+    'no chick captures' AS notes,
     DATEDIFF(b.reference_date, b.discovery_date) AS days_overdue,
     450 + DATEDIFF(b.reference_date, b.discovery_date) AS priority,
     CAST(NULL AS SIGNED) AS min_days_to_hatch,
@@ -7547,6 +7605,111 @@ todo_untrapped_brood AS (
     ON b.nest_id = adult_parent_status.nest_id
   WHERE b.is_negative_brood = 1
     AND b.reference_date = sr.reference_date
+    AND DATEDIFF(b.reference_date, b.discovery_date) < 21
+),
+todo_broods_to_recapture_for_flagging AS (
+  SELECT
+    brood_followup_nests.nest_id,
+    brood_followup_nests.reference_date,
+    'Broods to recapture for flagging' AS todo,
+    CASE
+      WHEN COALESCE(chick_captures.n_chick_captures, 0) = 0
+      THEN 'no chick captures; recapture chicks and assign unique engraved UL flags'
+      WHEN COALESCE(chick_captures.n_unringed_chick_captures, 0) > 0
+      THEN 'recapture chicks; assign unique engraved UL flags (some chick captures lack metal-ring IDs)'
+      ELSE CONCAT(
+        'recapture chicks; assign unique engraved UL flags (',
+        GREATEST(
+          COALESCE(brood_followup_nests.brood_size, 0),
+          COALESCE(chick_captures.n_captured_chick_rings, 0)
+        ) - COALESCE(chick_captures.n_flagged_chick_rings, 0),
+        ' pending)'
+      )
+    END AS notes,
+    DATEDIFF(
+      brood_followup_nests.reference_date,
+      brood_followup_nests.hatch_date
+    ) AS days_overdue,
+    475 + DATEDIFF(
+      brood_followup_nests.reference_date,
+      brood_followup_nests.hatch_date
+    ) AS priority,
+    DATEDIFF(
+      brood_followup_nests.hatch_date,
+      brood_followup_nests.reference_date
+    ) AS min_days_to_hatch,
+    brood_followup_nests.days_ago AS last_visit_days_ago,
+    brood_followup_nests.nest_state,
+    brood_followup_nests.clutch_size,
+    brood_followup_nests.brood_size,
+    adult_parent_status.M_parent_mark AS M_mark,
+    adult_parent_status.F_parent_mark AS F_mark,
+    brood_followup_nests.lat,
+    brood_followup_nests.lon
+  FROM brood_followup_nests
+  LEFT JOIN chick_captures
+    ON brood_followup_nests.nest_id = chick_captures.nest_id
+  LEFT JOIN adult_parent_status
+    ON brood_followup_nests.nest_id = adult_parent_status.nest_id
+  WHERE DATEDIFF(
+          brood_followup_nests.reference_date,
+          brood_followup_nests.hatch_date
+        ) >= 21
+    AND (
+      COALESCE(chick_captures.n_chick_captures, 0) = 0
+      OR COALESCE(chick_captures.n_unringed_chick_captures, 0) > 0
+      OR GREATEST(
+           COALESCE(brood_followup_nests.brood_size, 0),
+           COALESCE(chick_captures.n_captured_chick_rings, 0)
+         ) > COALESCE(chick_captures.n_flagged_chick_rings, 0)
+    )
+  UNION ALL
+  SELECT
+    b.nest_id,
+    b.reference_date,
+    'Broods to recapture for flagging' AS todo,
+    CASE
+      WHEN COALESCE(chick_captures.n_chick_captures, 0) = 0
+      THEN 'no chick captures; recapture chicks and assign unique engraved UL flags'
+      WHEN COALESCE(chick_captures.n_unringed_chick_captures, 0) > 0
+      THEN 'recapture chicks; assign unique engraved UL flags (some chick captures lack metal-ring IDs)'
+      ELSE CONCAT(
+        'recapture chicks; assign unique engraved UL flags (',
+        GREATEST(
+          COALESCE(b.brood_size, 0),
+          COALESCE(chick_captures.n_captured_chick_rings, 0)
+        ) - COALESCE(chick_captures.n_flagged_chick_rings, 0),
+        ' pending)'
+      )
+    END AS notes,
+    DATEDIFF(b.reference_date, b.discovery_date) AS days_overdue,
+    475 + DATEDIFF(b.reference_date, b.discovery_date) AS priority,
+    DATEDIFF(b.discovery_date, b.reference_date) AS min_days_to_hatch,
+    DATEDIFF(b.reference_date, b.latest_encounter_date) AS last_visit_days_ago,
+    CAST(NULL AS CHAR(10)) AS nest_state,
+    CAST(NULL AS SIGNED) AS clutch_size,
+    CAST(NULL AS SIGNED) AS brood_size,
+    adult_parent_status.M_parent_mark AS M_mark,
+    adult_parent_status.F_parent_mark AS F_mark,
+    b.lat,
+    b.lon
+  FROM FIELD_2026_BADOatNZ.BROODS_LATEST b
+  CROSS JOIN sr
+  LEFT JOIN chick_captures
+    ON b.nest_id = chick_captures.nest_id
+  LEFT JOIN adult_parent_status
+    ON b.nest_id = adult_parent_status.nest_id
+  WHERE b.is_negative_brood = 1
+    AND b.reference_date = sr.reference_date
+    AND DATEDIFF(b.reference_date, b.discovery_date) >= 21
+    AND (
+      COALESCE(chick_captures.n_chick_captures, 0) = 0
+      OR COALESCE(chick_captures.n_unringed_chick_captures, 0) > 0
+      OR GREATEST(
+           COALESCE(b.brood_size, 0),
+           COALESCE(chick_captures.n_captured_chick_rings, 0)
+         ) > COALESCE(chick_captures.n_flagged_chick_rings, 0)
+    )
 ),
 todo_hiding_spot_photos AS (
   SELECT
@@ -7729,6 +7892,8 @@ FROM (
   UNION ALL
   SELECT * FROM todo_untrapped_brood
   UNION ALL
+  SELECT * FROM todo_broods_to_recapture_for_flagging
+  UNION ALL
   SELECT * FROM todo_hiding_spot_photos
   UNION ALL
   SELECT * FROM todo_nota_nest_check
@@ -7847,6 +8012,8 @@ CREATE TABLE FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT_BUILD (
   current_clutch_size DECIMAL(10, 0) NULL,
   current_clutch_datetime DATETIME NULL,
   current_clutch_start_datetime DATETIME NULL,
+  capture_gate_clutch_size DECIMAL(10, 0) NULL,
+  capture_gate_clutch_start_datetime DATETIME NULL,
   hatch_date DATE NULL,
   INDEX idx_todo_nest_context_nest (nest_id),
   INDEX idx_todo_nest_context_reference (reference_date),
@@ -7898,6 +8065,8 @@ INSERT INTO FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT_BUILD (
   current_clutch_size,
   current_clutch_datetime,
   current_clutch_start_datetime,
+  capture_gate_clutch_size,
+  capture_gate_clutch_start_datetime,
   hatch_date
 )
 SELECT
@@ -7942,6 +8111,8 @@ SELECT
   current_clutch_size,
   current_clutch_datetime,
   current_clutch_start_datetime,
+  capture_gate_clutch_size,
+  capture_gate_clutch_start_datetime,
   hatch_date
 FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT;
 
@@ -8092,7 +8263,7 @@ SELECT 'TODO_REFRESH_STAGE|task_rows' AS refresh_stage;
 CREATE TABLE FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_BUILD (
   nest_id VARCHAR(6) NULL,
   reference_date DATE NULL,
-  todo VARCHAR(25) NOT NULL,
+  todo VARCHAR(64) NOT NULL,
   notes LONGTEXT NULL,
   days_overdue BIGINT NULL,
   priority BIGINT NULL,
