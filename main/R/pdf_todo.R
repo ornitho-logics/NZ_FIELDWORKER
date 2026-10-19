@@ -383,7 +383,8 @@ todo_pdf_prepare_nest_summary <- function(
   nests <- data.table(nests_latest)
   if ("species" %in% names(nests)) {
     nests <- nests[
-      toupper(trimws(as.character(species))) != "WRYB"
+      is.na(species) |
+        toupper(trimws(as.character(species))) != "WRYB"
     ]
   }
   todo_dt <- data.table(todo)

@@ -221,7 +221,8 @@
   latest <- data.table(nests_latest)
   if ("species" %in% names(latest)) {
     latest <- latest[
-      toupper(trimws(as.character(species))) != "WRYB"
+      is.na(species) |
+        toupper(trimws(as.character(species))) != "WRYB"
     ]
   }
   latest_columns <- c("nest_id", "lat", "lon")
