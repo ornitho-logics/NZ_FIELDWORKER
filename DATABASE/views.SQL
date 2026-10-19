@@ -5311,6 +5311,37 @@ current_clutch AS (
   FROM latest_clutch_ranked
   WHERE row_num = 1
 ),
+/* Compute the maximum clutch and its first recorded date in one history pass. */
+historical_clutch_ranked AS (
+  SELECT
+    history.nest_id,
+    history.clutch_size,
+    CAST(
+      CONCAT(
+        history.date,
+        ' ',
+        COALESCE(history.time_visit, '00:00:00')
+      ) AS DATETIME
+    ) AS clutch_datetime,
+    MAX(history.clutch_size) OVER (
+      PARTITION BY history.nest_id
+    ) AS historical_max_clutch_size
+  FROM history
+  WHERE history.clutch_size > 0
+),
+historical_max_clutch AS (
+  SELECT
+    nest_id,
+    MAX(historical_max_clutch_size) AS historical_max_clutch_size,
+    MIN(
+      CASE
+        WHEN clutch_size = historical_max_clutch_size
+        THEN clutch_datetime
+      END
+    ) AS historical_max_clutch_start_datetime
+  FROM historical_clutch_ranked
+  GROUP BY nest_id
+),
 last_other_clutch AS (
   SELECT
     current_clutch.nest_id,
@@ -5431,6 +5462,18 @@ SELECT
   current_clutch.current_clutch_size,
   current_clutch.current_clutch_datetime,
   current_clutch_start.current_clutch_start_datetime,
+  CASE
+    WHEN current_clutch.current_clutch_size
+         < historical_max_clutch.historical_max_clutch_size
+    THEN historical_max_clutch.historical_max_clutch_size
+    ELSE current_clutch.current_clutch_size
+  END AS capture_gate_clutch_size,
+  CASE
+    WHEN current_clutch.current_clutch_size
+         < historical_max_clutch.historical_max_clutch_size
+    THEN historical_max_clutch.historical_max_clutch_start_datetime
+    ELSE current_clutch_start.current_clutch_start_datetime
+  END AS capture_gate_clutch_start_datetime,
   hatched_nests.hatch_date
 FROM FIELD_2026_BADOatNZ.NESTS_LATEST n
 LEFT JOIN latest_float_status
@@ -5458,6 +5501,8 @@ LEFT JOIN current_clutch
   ON n.nest_id = current_clutch.nest_id
 LEFT JOIN current_clutch_start
   ON n.nest_id = current_clutch_start.nest_id
+LEFT JOIN historical_max_clutch
+  ON n.nest_id = historical_max_clutch.nest_id
 LEFT JOIN hatched_nests
   ON n.nest_id = hatched_nests.nest_id;
 
@@ -5952,12 +5997,12 @@ adult_capture_interval_status AS (
 adult_capture_current_clutch_start AS (
   SELECT
     context.nest_id,
-    context.current_clutch_size,
+    context.capture_gate_clutch_size AS current_clutch_size,
     context.current_clutch_datetime,
-    context.current_clutch_start_datetime,
+    context.capture_gate_clutch_start_datetime AS current_clutch_start_datetime,
     context.last_float_datetime
   FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT context
-  WHERE context.current_clutch_size IS NOT NULL
+  WHERE context.capture_gate_clutch_size IS NOT NULL
 ),
 adult_capture_age_status AS (
   SELECT
@@ -7967,6 +8012,8 @@ CREATE TABLE FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT_BUILD (
   current_clutch_size DECIMAL(10, 0) NULL,
   current_clutch_datetime DATETIME NULL,
   current_clutch_start_datetime DATETIME NULL,
+  capture_gate_clutch_size DECIMAL(10, 0) NULL,
+  capture_gate_clutch_start_datetime DATETIME NULL,
   hatch_date DATE NULL,
   INDEX idx_todo_nest_context_nest (nest_id),
   INDEX idx_todo_nest_context_reference (reference_date),
@@ -8018,6 +8065,8 @@ INSERT INTO FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT_BUILD (
   current_clutch_size,
   current_clutch_datetime,
   current_clutch_start_datetime,
+  capture_gate_clutch_size,
+  capture_gate_clutch_start_datetime,
   hatch_date
 )
 SELECT
@@ -8062,6 +8111,8 @@ SELECT
   current_clutch_size,
   current_clutch_datetime,
   current_clutch_start_datetime,
+  capture_gate_clutch_size,
+  capture_gate_clutch_start_datetime,
   hatch_date
 FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT;
 

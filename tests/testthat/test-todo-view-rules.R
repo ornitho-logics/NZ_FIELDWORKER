@@ -936,6 +936,64 @@ test_that("two-egg parent capture waits seven days after inferred completion", {
 })
 
 
+test_that("a lower latest clutch does not reset the parent capture gate", {
+  sql <- views_source_sql()
+
+  expect_match(sql, "historical_max_clutch", fixed = TRUE)
+  expect_match(sql, "capture_gate_clutch_size", fixed = TRUE)
+  expect_match(sql, "capture_gate_clutch_start_datetime", fixed = TRUE)
+  expect_match(
+    sql,
+    paste(
+      "current_clutch.current_clutch_size",
+      "< historical_max_clutch.historical_max_clutch_size",
+      sep = "\n         "
+    ),
+    fixed = TRUE
+  )
+
+  capture_gate_inputs <- function(
+      current_clutch_size,
+      current_clutch_start_date,
+      historical_max_clutch_size,
+      historical_max_clutch_start_date
+  ) {
+    if (
+      !is.na(historical_max_clutch_size) &&
+        current_clutch_size < historical_max_clutch_size
+    ) {
+      return(list(
+        clutch_size = historical_max_clutch_size,
+        start_date = as.Date(historical_max_clutch_start_date)
+      ))
+    }
+    list(
+      clutch_size = current_clutch_size,
+      start_date = as.Date(current_clutch_start_date)
+    )
+  }
+
+  reduced_clutch <- capture_gate_inputs(
+    current_clutch_size = 2L,
+    current_clutch_start_date = "2026-10-15",
+    historical_max_clutch_size = 3L,
+    historical_max_clutch_start_date = "2026-10-10"
+  )
+  expect_identical(reduced_clutch$clutch_size, 3L)
+  expect_identical(reduced_clutch$start_date, as.Date("2026-10-10"))
+  expect_true(as.Date("2026-10-17") - reduced_clutch$start_date >= 7L)
+
+  unchanged_clutch <- capture_gate_inputs(
+    current_clutch_size = 2L,
+    current_clutch_start_date = "2026-10-15",
+    historical_max_clutch_size = 2L,
+    historical_max_clutch_start_date = "2026-10-15"
+  )
+  expect_identical(unchanged_clutch$clutch_size, 2L)
+  expect_identical(unchanged_clutch$start_date, as.Date("2026-10-15"))
+})
+
+
 test_that("partial hatch signs retain the unhatched-egg instruction", {
   sql <- todo_list_view_sql()
 
