@@ -2326,6 +2326,77 @@ overview_band_combo_data <- function(
 }
 
 
+overview_band_combo_summary_counts <- function(summary) {
+  summary <- data.table::as.data.table(summary)
+  empty <- data.table::data.table(
+    sex = character(),
+    total = integer(),
+    captured = integer(),
+    resighted_only = integer(),
+    capture_only = integer(),
+    capture_and_resighting = integer()
+  )
+
+  if (!nrow(summary)) {
+    return(empty)
+  }
+
+  summary <- summary[
+    sex %in% c("Female", "Male") &
+      !is.na(identity_key)
+  ]
+
+  if (!nrow(summary)) {
+    return(empty)
+  }
+
+  summary[, .(
+    total = .N,
+    # `captured` includes identities seen again in RESIGHTINGS. The
+    # resighting-only category explicitly excludes every captured identity.
+    captured = as.integer(sum(has_capture == 1L, na.rm = TRUE)),
+    resighted_only = as.integer(sum(
+      has_capture == 0L & has_resighting == 1L,
+      na.rm = TRUE
+    )),
+    capture_only = as.integer(sum(
+      has_capture == 1L & has_resighting == 0L,
+      na.rm = TRUE
+    )),
+    capture_and_resighting = as.integer(sum(
+      has_capture == 1L & has_resighting == 1L,
+      na.rm = TRUE
+    ))
+  ), by = sex][]
+}
+
+
+overview_band_combo_summary_label <- function(summary) {
+  counts <- overview_band_combo_summary_counts(summary)
+
+  format_line <- function(sex_value, label) {
+    row <- counts[sex == sex_value]
+    if (!nrow(row)) {
+      return(glue(
+        "N {label} = 0 (0 captured this year, 0 resighted only)"
+      ))
+    }
+
+    glue(
+      "N {label} = {row$total} (",
+      "{row$captured} captured this year, ",
+      "{row$resighted_only} resighted only)"
+    )
+  }
+
+  paste(
+    format_line("Female", "females"),
+    format_line("Male", "males"),
+    sep = "\n"
+  )
+}
+
+
 overview_band_combos_graph <- function(
   refdate = get_reference_date(),
   date_limits = NULL,
@@ -2335,9 +2406,12 @@ overview_band_combos_graph <- function(
     refdate = refdate,
     start_date = start_date
   )
-  x <- data$summary[
+  summary <- data$summary[
     sex %in% c("Female", "Male") &
       !is.na(first_date),
+  ]
+  x <- summary[
+    ,
     .(
       mark = identity_key,
       sex,
@@ -2352,12 +2426,7 @@ overview_band_combos_graph <- function(
     ylab = "Cumulative number of\nunique band combinations",
     sex_split = TRUE,
     date_limits = date_limits,
-    summary_label = glue(
-      "N females = ",
-      "{overview_cumulative_total(plot_data, 'Female')}\n",
-      "N males = ",
-      "{overview_cumulative_total(plot_data, 'Male')}"
-    )
+    summary_label = overview_band_combo_summary_label(summary)
   )
 }
 
@@ -2702,15 +2771,14 @@ overview_chick_growth_plot <- function(
     age_limits[2] <- age_limits[1] + 1
   }
 
-  base_theme <- theme_bw(base_size = 14) +
+  base_theme <- theme_bw(base_size = 22) +
     theme(
       panel.grid.minor = element_blank(),
       panel.border = element_rect(
         colour = "grey40",
         linewidth = 0.5
       ),
-      axis.title = element_text(size = 11),
-      axis.text = element_text(size = 9)
+      axis.text.x = element_text(angle = 30, hjust = 1)
     )
 
   make_panel <- function(measure_name, ylab) {
@@ -2796,7 +2864,7 @@ overview_chick_growth_plot <- function(
       )
     ) &
     theme(
-      plot.caption = element_text(size = 9, hjust = 0)
+      plot.caption = element_text(hjust = 0)
     )
 }
 

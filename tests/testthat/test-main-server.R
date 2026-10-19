@@ -322,6 +322,27 @@ test_that("band-combo overview reconciles adult identities and exposes safe diag
   summary <- reconciled$summary
 
   expect_equal(nrow(summary), 5L)
+  summary_counts <- app$env$overview_band_combo_summary_counts(summary)
+  female_counts <- summary_counts[summary_counts$sex == "Female", ]
+  male_counts <- summary_counts[summary_counts$sex == "Male", ]
+  expect_equal(female_counts$total, 4L)
+  expect_equal(female_counts$captured, 3L)
+  expect_equal(female_counts$resighted_only, 1L)
+  expect_equal(
+    female_counts$captured + female_counts$resighted_only,
+    female_counts$total
+  )
+  expect_equal(male_counts$total, 1L)
+  expect_equal(male_counts$captured, 1L)
+  expect_equal(male_counts$resighted_only, 0L)
+  expect_equal(
+    app$env$overview_band_combo_summary_label(summary),
+    paste(
+      "N females = 4 (3 captured this year, 1 resighted only)",
+      "N males = 1 (1 captured this year, 0 resighted only)",
+      sep = "\n"
+    )
+  )
   expect_equal(
     sum(summary$has_capture == 1L & summary$has_resighting == 1L),
     4L
