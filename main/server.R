@@ -27,6 +27,17 @@ function(input, output, session) {
     overview_date_limits(active_refdate())
   })
 
+  overview_chick_growth_data_version <- reactivePoll(
+    5000,
+    session = session,
+    checkFunc = function() {
+      dbtable_is_updated(c("CAPTURES", "NESTS"))
+    },
+    valueFunc = function() {
+      Sys.time()
+    }
+  )
+
   observeEvent(
     reference_date(),
     {
@@ -352,6 +363,18 @@ function(input, output, session) {
         overview_hatching_forecast_graph(active_refdate()),
         fallback_ggplot,
         fail = 'overview_hatching_forecast_graph() failed!'
+      )
+    }
+  )
+
+  output$overview_chick_growth_show <- renderPlot(
+    {
+      overview_chick_growth_data_version()
+
+      try_else(
+        overview_chick_growth_graph(active_refdate()),
+        fallback_ggplot,
+        fail = 'overview_chick_growth_graph() failed!'
       )
     }
   )

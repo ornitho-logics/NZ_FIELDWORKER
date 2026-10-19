@@ -2532,6 +2532,330 @@ overview_hatching_forecast_graph <- function(
 }
 
 
+overview_chick_growth_plot <- function(
+  x,
+  refdate = NULL
+) {
+  measure_specs <- data.table(
+    measure = c("weight", "culmen", "tarsus"),
+    ylab = c("weight (g)", "culmen (mm)", "tarsus (mm)")
+  )
+  x <- data.table(x)
+
+  for (column in c("ring", "nest_id", "age_days")) {
+    if (!column %in% names(x)) {
+      x[, (column) := NA_character_]
+    }
+  }
+
+  for (column in measure_specs$measure) {
+    if (!column %in% names(x)) {
+      x[, (column) := NA_real_]
+    }
+  }
+
+  x[, `:=`(
+    ring = trimws(as.character(ring)),
+    nest_id = trimws(as.character(nest_id)),
+    age_days = suppressWarnings(as.numeric(age_days))
+  )]
+
+  plot_data <- melt(
+    x,
+    id.vars = c("ring", "nest_id", "age_days"),
+    measure.vars = measure_specs$measure,
+    variable.name = "measure",
+    value.name = "value",
+    na.rm = TRUE
+  )
+  plot_data[, value := suppressWarnings(as.numeric(as.character(value)))]
+  plot_data <- plot_data[
+    is.finite(value) &
+      is.finite(age_days) &
+      age_days >= 0 &
+      nzchar(ring) &
+      nzchar(nest_id)
+  ]
+
+  plot_data[, measure := factor(
+    measure,
+    levels = measure_specs$measure,
+    labels = measure_specs$ylab
+  )]
+
+  repeat_ids <- plot_data[
+    , .N,
+    by = .(measure, ring)
+  ][N > 1]
+  line_data <- plot_data[
+    repeat_ids,
+    on = .(measure, ring),
+    nomatch = 0
+  ]
+
+  fit_population_trend <- function(measure_name) {
+    model_data <- copy(plot_data[measure == measure_name])
+
+    if (
+      nrow(model_data) < 8L ||
+        uniqueN(model_data$age_days) < 3L
+    ) {
+      return(NULL)
+    }
+
+    model_data[, individual_re := factor(ring)]
+    model_data[, brood_re := factor(nest_id)]
+
+    k_age <- min(6L, uniqueN(model_data$age_days))
+    model_terms <- sprintf(
+      "s(age_days, k = %d, bs = 'tp')",
+      k_age
+    )
+    excluded_terms <- character()
+
+    if (uniqueN(model_data$individual_re) > 1L) {
+      model_terms <- c(model_terms, "s(individual_re, bs = 're')")
+      excluded_terms <- c(excluded_terms, "s(individual_re)")
+    }
+
+    if (uniqueN(model_data$brood_re) > 1L) {
+      model_terms <- c(model_terms, "s(brood_re, bs = 're')")
+      excluded_terms <- c(excluded_terms, "s(brood_re)")
+    }
+
+    fit <- tryCatch(
+      mgcv::gam(
+        stats::as.formula(
+          paste("value ~", paste(model_terms, collapse = " + "))
+        ),
+        data = model_data,
+        method = "REML"
+      ),
+      error = function(e) NULL
+    )
+
+    if (is.null(fit)) {
+      return(NULL)
+    }
+
+    prediction_data <- data.table(
+      age_days = seq(
+        min(model_data$age_days),
+        max(model_data$age_days),
+        length.out = 100L
+      )
+    )
+
+    if ("s(individual_re)" %in% excluded_terms) {
+      prediction_data[, individual_re := factor(
+        levels(model_data$individual_re)[1L],
+        levels = levels(model_data$individual_re)
+      )]
+    }
+
+    if ("s(brood_re)" %in% excluded_terms) {
+      prediction_data[, brood_re := factor(
+        levels(model_data$brood_re)[1L],
+        levels = levels(model_data$brood_re)
+      )]
+    }
+
+    prediction <- predict(
+      fit,
+      newdata = prediction_data,
+      type = "response",
+      se.fit = TRUE,
+      exclude = excluded_terms
+    )
+
+    prediction_data[, `:=`(
+      measure = measure_name,
+      fit = as.numeric(prediction$fit),
+      lower = as.numeric(prediction$fit - 1.96 * prediction$se.fit),
+      upper = as.numeric(prediction$fit + 1.96 * prediction$se.fit)
+    )]
+    prediction_data[]
+  }
+
+  trend_data <- rbindlist(
+    lapply(levels(plot_data$measure), fit_population_trend),
+    fill = TRUE
+  )
+
+  if (!"measure" %in% names(trend_data)) {
+    trend_data <- data.table(
+      measure = character(),
+      age_days = numeric(),
+      fit = numeric(),
+      lower = numeric(),
+      upper = numeric()
+    )
+  }
+
+  age_limits <- if (nrow(plot_data)) {
+    c(0, max(plot_data$age_days, na.rm = TRUE))
+  } else {
+    c(0, 1)
+  }
+
+  if (diff(age_limits) == 0) {
+    age_limits[2] <- age_limits[1] + 1
+  }
+
+  base_theme <- theme_bw(base_size = 14) +
+    theme(
+      panel.grid.minor = element_blank(),
+      panel.border = element_rect(
+        colour = "grey40",
+        linewidth = 0.5
+      ),
+      axis.title = element_text(size = 11),
+      axis.text = element_text(size = 9)
+    )
+
+  make_panel <- function(measure_name, ylab) {
+    panel_data <- plot_data[measure == measure_name]
+    panel_lines <- line_data[measure == measure_name]
+    panel_trend <- trend_data[measure == measure_name]
+
+    panel <- ggplot(
+      panel_data,
+      aes(x = age_days, y = value)
+    )
+
+    if (nrow(panel_trend)) {
+      panel <- panel +
+        geom_ribbon(
+          data = panel_trend,
+          aes(
+            x = age_days,
+            ymin = lower,
+            ymax = upper
+          ),
+          inherit.aes = FALSE,
+          fill = "#4b5254",
+          alpha = 0.22
+        ) +
+        geom_line(
+          data = panel_trend,
+          aes(x = age_days, y = fit),
+          inherit.aes = FALSE,
+          colour = "#4b5254",
+          alpha = 0.55,
+          linewidth = 0.8
+        )
+    }
+
+    panel +
+      geom_line(
+        data = panel_lines,
+        aes(group = ring),
+        colour = "#4b5254",
+        alpha = 0.55,
+        linewidth = 0.45
+      ) +
+      geom_point(
+        colour = "#2878b5",
+        alpha = 0.8,
+        size = 1.8
+      ) +
+      scale_x_continuous(
+        name = "age (days)",
+        limits = age_limits,
+        breaks = scales::breaks_pretty(n = 8),
+        expand = expansion(mult = c(0.02, 0.04))
+      ) +
+      scale_y_continuous(name = ylab) +
+      base_theme
+  }
+
+  panels <- lapply(
+    seq_len(nrow(measure_specs)),
+    function(i) {
+      make_panel(
+        measure_name = measure_specs$ylab[i],
+        ylab = measure_specs$ylab[i]
+      )
+    }
+  )
+
+  refdate_label <- if (length(refdate) && !is.na(refdate)) {
+    glue(" Data through reference date {as.Date(refdate)}.")
+  } else {
+    ""
+  }
+
+  patchwork::wrap_plots(panels, nrow = 1) +
+    patchwork::plot_annotation(
+      caption = paste0(
+        "Age-C captures from known nests with recorded hatch dates; ",
+        "lines connect repeated measurements only when the same ring was ",
+        "recorded. Faint curves and ribbons show marginal GAMM trends and ",
+        "95% CIs.",
+        refdate_label
+      )
+    ) &
+    theme(
+      plot.caption = element_text(size = 9, hjust = 0)
+    )
+}
+
+
+overview_chick_growth_graph <- function(
+  refdate = get_reference_date()
+) {
+  refdate <- as.Date(refdate)
+
+  x <- db_get(
+    "
+    WITH sr AS (
+      SELECT CAST(? AS DATE) AS reference_date
+    ),
+    hatch_dates AS (
+      SELECT
+        TRIM(n.nest_id) AS nest_id,
+        MIN(n.date) AS hatch_date
+      FROM NESTS n
+      CROSS JOIN sr
+      WHERE NULLIF(TRIM(n.nest_id), '') IS NOT NULL
+        AND UPPER(TRIM(COALESCE(n.nest_state, ''))) = 'H'
+        AND n.date IS NOT NULL
+        AND n.date <= sr.reference_date
+      GROUP BY TRIM(n.nest_id)
+    )
+    SELECT
+      TRIM(c.ring) AS ring,
+      TRIM(c.nest_id) AS nest_id,
+      h.hatch_date,
+      c.date AS capture_date,
+      DATEDIFF(c.date, h.hatch_date) AS age_days,
+      c.weight,
+      c.culmen,
+      c.tarsus
+    FROM CAPTURES c
+    INNER JOIN hatch_dates h
+      ON TRIM(c.nest_id) = h.nest_id
+    CROSS JOIN sr
+    WHERE UPPER(TRIM(COALESCE(c.age, ''))) = 'C'
+      AND NULLIF(TRIM(c.ring), '') IS NOT NULL
+      AND UPPER(TRIM(c.ring)) NOT IN ('NA', 'N/A', 'NULL', 'X', 'XX', 'M')
+      AND c.date IS NOT NULL
+      AND c.date <= sr.reference_date
+      AND DATEDIFF(c.date, h.hatch_date) >= 0
+      AND (
+        c.weight IS NOT NULL
+        OR c.culmen IS NOT NULL
+        OR c.tarsus IS NOT NULL
+      )
+    ORDER BY c.date, c.pk
+    ",
+    params = list(as.character(refdate))
+  )
+
+  overview_chick_growth_plot(x, refdate = refdate)
+}
+
+
 overview_quota_pie_plot <- function(title, value, quota, fill = "#6d7577") {
   value <- as.integer(value %||% 0)
   quota <- as.integer(quota)
