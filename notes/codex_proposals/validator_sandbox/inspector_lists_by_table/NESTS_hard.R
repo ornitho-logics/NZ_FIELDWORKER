@@ -135,6 +135,61 @@ list({
     out <- try_validator({
         z <- data.table::copy(x)
         z[, `:=`(rowid, .I)]
+        parse_hatch_total <- function(v) {
+            raw <- trimws(as.character(v))
+            if (is.na(v) || !nzchar(raw) || toupper(raw) == "NA") {
+                return(NA_integer_)
+            }
+            m <- gregexpr("([1-4])(CC|C|S|N)", raw, perl = TRUE)
+            tokens <- regmatches(raw, m)[[1]]
+            if (length(tokens) == 0 || paste0(tokens, collapse = "") != raw) {
+                return(NA_integer_)
+            }
+            sum(as.integer(sub("(\\d).*", "\\1", tokens)))
+        }
+        clutch_num <- suppressWarnings(as.numeric(as.character(z$clutch_size)))
+        hatch_total <- vapply(z$hatch_state, parse_hatch_total, integer(1))
+        bad_idx <- which(
+            !is.na(hatch_total) &
+                !is.na(clutch_num) &
+                clutch_num >= 0 &
+                hatch_total > clutch_num
+        )
+        if (length(bad_idx) == 0) {
+            data.table::data.table(rowid = integer(), variable = character(), reason = character())
+        } else {
+            data.table::data.table(
+                rowid = z$rowid[bad_idx],
+                variable = "hatch_state",
+                reason = paste0(
+                    "hatch_state describes ", hatch_total[bad_idx],
+                    " egg(s), but clutch_size is ", clutch_num[bad_idx],
+                    ". Remember that C means a cracked egg; chicks belong in brood_size. Check hatch_state and clutch_size."
+                )
+            )
+        }
+    }, nam = "hatch state clutch count")
+    out <- data.table::as.data.table(out)
+    if ("reason" %in% names(out)) {
+        out[, `:=`(reason, {
+            cleaned <- sub("^(ERROR|WARNING):\\s*", "", as.character(reason))
+            cleaned[is.na(reason)] <- NA_character_
+            ok_idx <- !is.na(cleaned) & nzchar(cleaned)
+            cleaned[ok_idx] <- paste0(
+                cleaned[ok_idx],
+                " Please double-check this entry. If it is correct, add a validator bypass comment to the event."
+            )
+            cleaned
+        })]
+    }
+    if ("type" %in% names(out)) {
+        out[, `:=`(type, NULL)]
+    }
+    out
+}, {
+    out <- try_validator({
+        z <- data.table::copy(x)
+        z[, `:=`(rowid, .I)]
         empty <- data.table::data.table(rowid = integer(), variable = character(), reason = character())
         raw_id <- trimws(as.character(z$gps_id))
         raw_point <- trimws(as.character(z$gps_point))
