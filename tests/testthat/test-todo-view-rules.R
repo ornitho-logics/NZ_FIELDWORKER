@@ -858,6 +858,85 @@ test_that("hatch-stage parent work bypasses the clutch-age gate", {
 })
 
 
+test_that("two-egg parent capture waits seven days after inferred completion", {
+  sql <- todo_list_view_sql()
+  timing_start <- regexpr("adult_capture_age_status AS", sql, fixed = TRUE)[[1L]]
+  expect_gt(timing_start, 0L)
+
+  timing_sql <- substring(sql, timing_start)
+  timing_end <- regexpr("geo_parent_targets AS", timing_sql, fixed = TRUE)[[1L]]
+  expect_gt(timing_end, 0L)
+  timing_sql <- substring(timing_sql, 1L, timing_end - 1L)
+
+  expect_match(timing_sql, "clutch_start.last_float_datetime", fixed = TRUE)
+  expect_match(timing_sql, "current_clutch_size = 2", fixed = TRUE)
+  expect_match(timing_sql, "INTERVAL 3 DAY", fixed = TRUE)
+  expect_match(
+    timing_sql,
+    paste(
+      "DATEDIFF(",
+      "             x.reference_date,",
+      "             x.clutch_completion_basis_date",
+      "           ) >= 7",
+      sep = "\n"
+    ),
+    fixed = TRUE
+  )
+  expect_no_match(timing_sql, "average_ref_date_days_since_laid", fixed = TRUE)
+  expect_no_match(timing_sql, "uses_inferred_lay_interval", fixed = TRUE)
+
+  completion_basis <- function(
+      clutch_size,
+      current_start,
+      current_datetime,
+      last_float_datetime = NA_character_
+  ) {
+    current_start <- as.Date(current_start)
+    current_datetime <- as.Date(current_datetime)
+    last_float_datetime <- as.Date(last_float_datetime)
+
+    if (clutch_size >= 3L) {
+      return(current_start)
+    }
+    if (
+      clutch_size == 2L &&
+        !is.na(last_float_datetime) &&
+        last_float_datetime >= current_start
+    ) {
+      return(last_float_datetime + 3L)
+    }
+    if (current_datetime - current_start >= 3L) {
+      return(current_start)
+    }
+    current_datetime + 2L * max(0L, 3L - clutch_size)
+  }
+
+  capture_allowed <- function(reference_date, completion_date) {
+    as.integer(as.Date(reference_date) - completion_date >= 7L)
+  }
+
+  c0909_completion <- completion_basis(
+    clutch_size = 2L,
+    current_start = "2026-10-17",
+    current_datetime = "2026-10-17",
+    last_float_datetime = "2026-10-17"
+  )
+  expect_identical(c0909_completion, as.Date("2026-10-20"))
+  expect_identical(capture_allowed("2026-10-26", c0909_completion), 0L)
+  expect_identical(capture_allowed("2026-10-27", c0909_completion), 1L)
+
+  third_egg_completion <- completion_basis(
+    clutch_size = 3L,
+    current_start = "2026-10-19",
+    current_datetime = "2026-10-19",
+    last_float_datetime = "2026-10-17"
+  )
+  expect_identical(third_egg_completion, as.Date("2026-10-19"))
+  expect_identical(capture_allowed("2026-10-25", third_egg_completion), 0L)
+  expect_identical(capture_allowed("2026-10-26", third_egg_completion), 1L)
+})
+
+
 test_that("partial hatch signs retain the unhatched-egg instruction", {
   sql <- todo_list_view_sql()
 

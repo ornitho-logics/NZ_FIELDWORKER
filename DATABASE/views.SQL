@@ -5933,7 +5933,8 @@ adult_capture_current_clutch_start AS (
     context.nest_id,
     context.current_clutch_size,
     context.current_clutch_datetime,
-    context.current_clutch_start_datetime
+    context.current_clutch_start_datetime,
+    context.last_float_datetime
   FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT context
   WHERE context.current_clutch_size IS NOT NULL
 ),
@@ -5941,16 +5942,7 @@ adult_capture_age_status AS (
   SELECT
     x.nest_id,
     x.clutch_completion_basis_date,
-    CASE
-      WHEN x.clutch_completion_confirmed = 1 THEN 1
-      WHEN x.current_clutch_size = 2
-       AND DATEDIFF(
-             sr.reference_date,
-             DATE(x.current_clutch_datetime)
-           ) >= 4
-      THEN 1
-      ELSE 0
-    END AS clutch_completion_confirmed,
+    x.clutch_completion_confirmed,
     CASE
       -- Hatch signs without a flotation date mean the nest is already in
       -- the hatching window, so do not block parent capture on the missing
@@ -5958,35 +5950,35 @@ adult_capture_age_status AS (
       WHEN latest_nests.hatch_signs_present = 1
        AND latest_nests.latest_float_date IS NULL
       THEN 1
-      WHEN CASE
-             WHEN x.uses_inferred_lay_interval = 1
-             THEN DATEDIFF(
-                    sr.reference_date,
-                    x.clutch_completion_basis_date
-                  )
-             WHEN latest_nests.latest_float_date
-                    >= DATE(x.current_clutch_start_datetime)
-              AND latest_nests.average_ref_date_days_since_laid IS NOT NULL
-             THEN latest_nests.average_ref_date_days_since_laid
-             ELSE DATEDIFF(
-                    sr.reference_date,
-                    x.clutch_completion_basis_date
-                  )
-           END >= 7
+      WHEN DATEDIFF(
+             x.reference_date,
+             x.clutch_completion_basis_date
+           ) >= 7
       THEN 1
       ELSE 0
     END AS capture_allowed_after_completion
   FROM (
     SELECT
       clutch_start.nest_id,
-      clutch_start.current_clutch_size,
-      clutch_start.current_clutch_datetime,
-      clutch_start.current_clutch_start_datetime,
+      sr.reference_date,
       CASE
-      WHEN initial_clutch_status.found_as_incomplete = 1
+        WHEN initial_clutch_status.found_as_incomplete = 1
         THEN initial_clutch_status.inferred_clutch_completion_date
         WHEN clutch_start.current_clutch_size >= 3
-          OR DATEDIFF(
+        THEN DATE(clutch_start.current_clutch_start_datetime)
+        /* A two-egg clutch needs three full days of stability after the
+           current clutch's float before it becomes a completion candidate.
+           A later third egg changes current_clutch_size and therefore starts
+           a new completion calculation. */
+        WHEN clutch_start.current_clutch_size = 2
+         AND clutch_start.last_float_datetime IS NOT NULL
+         AND clutch_start.last_float_datetime
+             >= clutch_start.current_clutch_start_datetime
+        THEN DATE_ADD(
+          DATE(clutch_start.last_float_datetime),
+          INTERVAL 3 DAY
+        )
+        WHEN DATEDIFF(
                DATE(clutch_start.current_clutch_datetime),
                DATE(clutch_start.current_clutch_start_datetime)
              ) >= 3
@@ -5999,11 +5991,16 @@ adult_capture_age_status AS (
         )
       END AS clutch_completion_basis_date,
       CASE
-        WHEN initial_clutch_status.found_as_incomplete = 1 THEN 1
-        ELSE 0
-      END AS uses_inferred_lay_interval,
-      CASE
         WHEN clutch_start.current_clutch_size >= 3 THEN 1
+        WHEN clutch_start.current_clutch_size = 2
+         AND clutch_start.last_float_datetime IS NOT NULL
+         AND clutch_start.last_float_datetime
+             >= clutch_start.current_clutch_start_datetime
+         AND DATEDIFF(
+               sr.reference_date,
+               DATE(clutch_start.last_float_datetime)
+             ) >= 3
+        THEN 1
         WHEN DATEDIFF(
                DATE(clutch_start.current_clutch_datetime),
                DATE(clutch_start.current_clutch_start_datetime)
@@ -6014,10 +6011,10 @@ adult_capture_age_status AS (
     FROM adult_capture_current_clutch_start clutch_start
     LEFT JOIN initial_clutch_status
       ON clutch_start.nest_id = initial_clutch_status.nest_id
+    CROSS JOIN sr
   ) x
   JOIN latest_nests
     ON x.nest_id = latest_nests.nest_id
-  CROSS JOIN sr
   UNION ALL
   SELECT
     b.nest_id,
