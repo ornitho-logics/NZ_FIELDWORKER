@@ -167,6 +167,37 @@ test_that("all PDF task entry points use the bounded TODO_LIST query", {
 })
 
 
+test_that("PDF generation rejects a failed BROODS_LATEST query", {
+  app <- load_main_app()
+  save_pdf <- app$env$todo_pdf_save
+  query_env <- environment(save_pdf)
+  original_dbq <- get("DBq", envir = query_env)
+  on.exit(assign("DBq", original_dbq, envir = query_env), add = TRUE)
+
+  calls <- list()
+  assign(
+    "DBq",
+    function(x, params = NULL, derived_merge_off = FALSE) {
+      calls[[length(calls) + 1L]] <<- list(
+        sql = x,
+        derived_merge_off = derived_merge_off
+      )
+      data.frame(error = "mock BROODS_LATEST failure")
+    },
+    envir = query_env
+  )
+
+  expect_error(
+    save_pdf(tempfile(), todo = data.frame()),
+    "BROODS_LATEST could not be loaded",
+    fixed = TRUE
+  )
+  expect_length(calls, 1L)
+  expect_true(calls[[1L]]$derived_merge_off)
+  expect_match(calls[[1L]]$sql, "FROM BROODS_LATEST", fixed = TRUE)
+})
+
+
 test_that("parent-resighting PDF notes retain rules and identity counts", {
   app <- load_main_app()
   extract_rule_note <- app$env$todo_pdf_parent_resighting_rule_note
