@@ -5703,6 +5703,10 @@ task_context AS (
   SELECT *
   FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT
 ),
+brood_context AS (
+  SELECT *
+  FROM FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_INPUT
+),
 latest_nests AS (
   SELECT
     context.nest_id,
@@ -5847,7 +5851,7 @@ brood_followup_nests AS (
     n.*,
     b.hatch_evidence_date AS hatch_date
   FROM latest_nests n
-  JOIN FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_INPUT b
+  JOIN brood_context b
     ON n.nest_id = b.nest_id
    AND b.reference_date = n.reference_date
   WHERE b.is_negative_brood = 0
@@ -5946,7 +5950,7 @@ todo_parent_source AS (
     b.nest_id,
     CAST(NULL AS CHAR(50)) AS M_mark,
     CAST(NULL AS CHAR(50)) AS F_mark
-  FROM FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_INPUT b
+  FROM brood_context b
   CROSS JOIN sr
   WHERE b.is_negative_brood = 1
     AND b.reference_date = sr.reference_date
@@ -6126,7 +6130,7 @@ adult_capture_age_status AS (
     CAST(NULL AS DATE) AS clutch_completion_basis_date,
     1 AS clutch_completion_confirmed,
     1 AS capture_allowed_after_completion
-  FROM FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_INPUT b
+  FROM brood_context b
   CROSS JOIN sr
   WHERE b.is_negative_brood = 1
     AND b.reference_date = sr.reference_date
@@ -6179,7 +6183,7 @@ geo_parent_targets AS (
     WHERE UPPER(TRIM(COALESCE(n.nest_state, ''))) = 'NOTA'
     UNION
     SELECT b.nest_id, b.reference_date
-    FROM FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_INPUT b
+    FROM brood_context b
     CROSS JOIN sr
     WHERE b.is_negative_brood = 1
       AND b.reference_date = sr.reference_date
@@ -6600,7 +6604,7 @@ todo_untrapped_parent_candidate AS (
       b.reference_date,
       b.discovery_date,
       1
-    FROM FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_INPUT b
+    FROM brood_context b
     CROSS JOIN sr
     WHERE b.is_negative_brood = 1
       AND b.reference_date = sr.reference_date
@@ -7056,7 +7060,7 @@ parent_units AS (
     b.lat,
     b.lon,
     b.discovery_date AS first_found_date
-  FROM FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_INPUT b
+  FROM brood_context b
   CROSS JOIN sr
   WHERE b.is_negative_brood = 1
     AND b.reference_date = sr.reference_date
@@ -7574,7 +7578,7 @@ todo_nest_check AS (
     -- redundant even if the nest visit still carries a partial hatch sign.
     AND NOT EXISTS (
       SELECT 1
-      FROM FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_INPUT brood_evidence
+      FROM brood_context brood_evidence
       WHERE brood_evidence.nest_id = active_nests.nest_id
         AND brood_evidence.reference_date = active_nests.reference_date
         AND brood_evidence.is_negative_brood = 0
@@ -7634,7 +7638,7 @@ todo_untrapped_brood AS (
     adult_parent_status.F_parent_mark AS F_mark,
     b.lat,
     b.lon
-  FROM FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_INPUT b
+  FROM brood_context b
   CROSS JOIN sr
   LEFT JOIN chick_captures
     ON b.nest_id = chick_captures.nest_id
@@ -7730,7 +7734,7 @@ todo_broods_to_recapture_for_flagging AS (
     adult_parent_status.F_parent_mark AS F_mark,
     b.lat,
     b.lon
-  FROM FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_INPUT b
+  FROM brood_context b
   CROSS JOIN sr
   LEFT JOIN chick_captures
     ON b.nest_id = chick_captures.nest_id
@@ -7823,7 +7827,7 @@ todo_hiding_spot_photos AS (
     adult_parent_status.F_parent_mark AS F_mark,
     b.lat,
     b.lon
-  FROM FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_INPUT b
+  FROM brood_context b
   CROSS JOIN sr
   LEFT JOIN hiding_spot_photos
     ON b.nest_id = hiding_spot_photos.nest_id

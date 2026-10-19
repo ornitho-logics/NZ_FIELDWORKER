@@ -41,10 +41,23 @@ test_that("TODO task assembly consumes the bounded context input", {
   expect_match(task_sql, "TODO_BROOD_CONTEXT_INPUT", fixed = TRUE)
   expect_no_match(task_sql, "BROODS_LATEST b", fixed = TRUE)
   expect_no_match(task_sql, "BROODS_LATEST brood_evidence", fixed = TRUE)
+  expect_match(task_sql, "brood_context AS (", fixed = TRUE)
+  expect_match(
+    task_sql,
+    "FROM FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_INPUT\n),\nlatest_nests AS",
+    fixed = TRUE
+  )
+  expect_false(
+    grepl(
+      "FROM FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_INPUT b",
+      task_sql,
+      fixed = TRUE
+    )
+  )
   expect_match(task_sql, "task_context AS (", fixed = TRUE)
   expect_match(
     task_sql,
-    "FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT\n),\nlatest_nests AS",
+    "FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT\n),\nbrood_context AS",
     fixed = TRUE
   )
   expect_false(
