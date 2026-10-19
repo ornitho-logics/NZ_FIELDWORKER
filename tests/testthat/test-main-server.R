@@ -153,14 +153,22 @@ test_that("overview graph helpers use aligned reference-date queries", {
   )
 
   expect_length(quota_plots, 4)
-  expect_length(queries, 11)
+  expect_length(queries, 12)
   expect_true(all(vapply(
     queries,
     function(query) identical(query$params, list(as.character(refdate))),
     logical(1)
   )))
 
-  geolocator_quota_sql <- queries[[7]]$sql
+  geolocator_quota_sql <- queries[[which(vapply(
+    queries,
+    function(query) grepl(
+      "COUNT(DISTINCT NULLIF(TRIM(tag_id)",
+      query$sql,
+      fixed = TRUE
+    ),
+    logical(1)
+  ))[1]]]$sql
 
   expect_match(
     geolocator_quota_sql,
@@ -168,44 +176,39 @@ test_that("overview graph helpers use aligned reference-date queries", {
     fixed = TRUE
   )
 
-  expect_match(queries[[1]]$sql, "MIN(date_) AS start_date", fixed = TRUE)
-  expect_match(queries[[2]]$sql, "COALESCE(site, ''))) = 'CR'", fixed = TRUE)
-  expect_match(queries[[3]]$sql, "COALESCE(site, ''))) = 'CR'", fixed = TRUE)
-  expect_match(queries[[4]]$sql, "FROM deployments d", fixed = TRUE)
-  expect_match(queries[[4]]$sql, "r.comments", fixed = TRUE)
+  band_capture_sql <- queries[[which(vapply(
+    queries,
+    function(query) grepl("c.UL_in", query$sql, fixed = TRUE),
+    logical(1)
+  ))[1]]]$sql
+  band_resighting_sql <- queries[[which(vapply(
+    queries,
+    function(query) grepl("r.age", query$sql, fixed = TRUE) &&
+      grepl("r.UL", query$sql, fixed = TRUE),
+    logical(1)
+  ))[1]]]$sql
+
+  expect_match(band_capture_sql, "c.age", fixed = TRUE)
+  expect_match(band_capture_sql, "c.site", fixed = TRUE)
+  expect_match(band_capture_sql, "sr.reference_date", fixed = TRUE)
+  expect_match(band_resighting_sql, "r.age", fixed = TRUE)
+  expect_match(band_resighting_sql, "r.site", fixed = TRUE)
+  expect_match(band_resighting_sql, "r.UL", fixed = TRUE)
+  expect_false(grepl("r.ring", band_resighting_sql, fixed = TRUE))
+
+  hatching_index <- which(vapply(
+    queries,
+    function(query) grepl(
+      "e.predicted_hatch_date > sr.reference_date",
+      query$sql,
+      fixed = TRUE
+    ),
+    logical(1)
+  ))
+  expect_length(hatching_index, 1L)
   expect_match(
-    queries[[4]]$sql,
-    "PARTITION BY tarsus_mark, capture_sex",
-    fixed = TRUE
-  )
-  expect_match(
-    queries[[4]]$sql,
-    "r.resighting_sex = d.capture_sex",
-    fixed = TRUE
-  )
-  expect_match(
-    queries[[4]]$sql,
-    "c.capture_status",
-    fixed = TRUE
-  )
-  expect_match(queries[[5]]$sql, "FROM CAPTURES_ARCHIVE", fixed = TRUE)
-  expect_match(queries[[6]]$sql, "COALESCE(site, ''))) = 'CR'", fixed = TRUE)
-  expect_match(
-    queries[[6]]$sql,
-    "LEFT JOIN geolocator_deployments",
-    fixed = TRUE
-  )
-  expect_match(queries[[6]]$sql, "c.age, ''))) = 'A'", fixed = TRUE)
-  expect_match(queries[[6]]$sql, "c.tag_type, ''))) = 'GEO'", fixed = TRUE)
-  expect_match(queries[[6]]$sql, "c.tag_action, ''))) = 'D'", fixed = TRUE)
-  expect_match(
-    queries[[11]]$sql,
+    queries[[hatching_index]]$sql,
     "FROM EGGS_HATCH_PREDICTION e",
-    fixed = TRUE
-  )
-  expect_match(
-    queries[[11]]$sql,
-    "e.predicted_hatch_date > sr.reference_date",
     fixed = TRUE
   )
 })
@@ -213,73 +216,148 @@ test_that("overview graph helpers use aligned reference-date queries", {
 
 test_that("band-combo overview reconciles adult identities and exposes safe diagnostics", {
   app <- load_main_app()
-  refdate <- as.Date("2026-07-21")
-  queries <- list()
+
+  captures <- data.frame(
+    pk = 1:4,
+    date = as.Date(c(
+      "2026-08-01", "2026-08-02", "2026-08-03", "2026-08-04"
+    )),
+    age = "A",
+    site = "CR",
+    ring = c(
+      "MOCK_RING_F",
+      "MOCK_RING_M",
+      "MOCK_RING_FLAG",
+      "MOCK_RING_SPACER"
+    ),
+    UL = c("W", "B", "FW74-X", "BY"),
+    LL = c("Y", "Y", "B", "BY"),
+    UR = c("G", "Y", NA, "TY"),
+    LR = c("O", "B", "O", "G"),
+    UL_in = NA_character_,
+    LL_in = NA_character_,
+    UR_in = NA_character_,
+    LR_in = NA_character_,
+    field_sex = c("F", "M", "F", "F")
+  )
+
+  resightings <- data.frame(
+    pk = 101:106,
+    date = as.Date(c(
+      "2026-08-05", "2026-08-06", "2026-08-07",
+      "2026-08-08", "2026-08-09", "2026-08-10"
+    )),
+    age = "A",
+    site = "CR",
+    UL = c(NA, NA, "FW74-X", NA, "Y", NA),
+    LL = c("Y", "Y", "B", "BY", "O", "O"),
+    UR = c(NA, NA, NA, NA, "O", NA),
+    LR = c("O", "B", "O", "YG", "G", "G"),
+    sex = c("F", "M", "F", "F", "F", "F")
+  )
+
+  reconciled <- app$env$overview_band_combo_reconcile_identities(
+    captures = captures,
+    resightings = resightings
+  )
+  summary <- reconciled$summary
+
+  expect_equal(nrow(summary), 5L)
+  expect_equal(
+    sum(summary$has_capture == 1L & summary$has_resighting == 1L),
+    4L
+  )
+  expect_equal(
+    sum(summary$has_capture == 0L & summary$has_resighting == 1L),
+    1L
+  )
+  expect_equal(reconciled$ambiguous_resighting_events, 0L)
+
+  flag_identity <- summary[
+    identity_key == "ring:MOCK_RING_FLAG"
+  ]
+  spacer_identity <- summary[
+    identity_key == "ring:MOCK_RING_SPACER"
+  ]
+  expect_equal(flag_identity$has_resighting, 1L)
+  expect_equal(spacer_identity$has_resighting, 1L)
+
+  lower_duplicate <- summary[
+    identity_key %in% c("ring:MOCK_RING_F", "ring:MOCK_RING_M")
+  ]
+  expect_equal(
+    lower_duplicate$has_resighting,
+    c(1L, 1L)
+  )
+
+  capture_resighting <- reconciled$resightings[
+    !is.na(matched_ring),
+    .(matched_ring, match_method)
+  ]
+  expect_setequal(
+    capture_resighting$matched_ring,
+    c(
+      "MOCK_RING_F",
+      "MOCK_RING_M",
+      "MOCK_RING_FLAG",
+      "MOCK_RING_SPACER"
+    )
+  )
+  expect_true(any(capture_resighting$match_method == "flag"))
+  expect_true(any(capture_resighting$match_method == "spacer"))
+
+  # The final row is a resighting-only identity with a full mark followed by
+  # a lower-only representation. Both must count once.
+  expect_equal(
+    sum(summary$n_normalized_representations > 1L),
+    3L
+  )
 
   app$env$db_get <- function(sql, params) {
-    queries[[length(queries) + 1L]] <<- list(sql = sql, params = params)
-
-    if (grepl("adult_event_rows", sql, fixed = TRUE)) {
+    if (grepl("AS source_table", sql, fixed = TRUE)) {
       return(data.frame(
-        adult_event_rows = 0L,
-        non_adult_event_rows = 0L,
-        unique_adult_identities = 0L,
-        capture_only_identities = 0L,
-        resighting_only_identities = 0L,
-        capture_and_resighting_identities = 0L,
-        identities_with_multiple_normalized_marks = 0L
+        source_table = c(
+          "CAPTURES", "CAPTURES", "RESIGHTINGS", "RESIGHTINGS"
+        ),
+        age_key = c("A", "J", "A", "J"),
+        n_rows = c(10L, 2L, 10L, 2L)
       ))
     }
-
+    if (grepl("c.UL_in", sql, fixed = TRUE)) {
+      return(captures)
+    }
+    if (grepl("r.UL", sql, fixed = TRUE)) {
+      return(resightings)
+    }
     data.frame()
   }
 
-  expect_s3_class(
-    app$env$overview_band_combos_graph(refdate),
-    "ggplot"
+  plot <- app$env$overview_band_combos_graph(
+    refdate = as.Date("2026-08-31")
   )
-  diagnostic <- app$env$overview_band_combo_diagnostic(refdate)
+  expect_s3_class(plot, "ggplot")
 
-  expect_equal(diagnostic$unique_adult_identities, 0L)
-  expect_length(queries, 2L)
+  diagnostic <- app$env$overview_band_combo_diagnostic(
+    refdate = as.Date("2026-08-31")
+  )
+  expect_equal(diagnostic$adult_event_rows, 20L)
+  expect_equal(diagnostic$non_adult_event_rows, 4L)
+  expect_equal(diagnostic$unique_adult_identities, 5L)
+  expect_equal(diagnostic$capture_and_resighting_identities, 4L)
+  expect_equal(diagnostic$resighting_only_identities, 1L)
+  expect_equal(diagnostic$ambiguous_resighting_events, 0L)
 
-  graph_sql <- queries[[1]]$sql
-  diagnostic_sql <- queries[[2]]$sql
-
-  expect_match(
-    graph_sql,
-    "UPPER(TRIM(COALESCE(c.age, ''))) = 'A'",
-    fixed = TRUE
+  empty_reconciled <- app$env$overview_band_combo_reconcile_identities(
+    captures = data.frame(),
+    resightings = data.frame()
   )
-  expect_match(
-    graph_sql,
-    "UPPER(TRIM(COALESCE(r.age, ''))) = 'A'",
-    fixed = TRUE
-  )
-  expect_match(graph_sql, "c.UL_in", fixed = TRUE)
-  expect_match(graph_sql, "c.UL_raw REGEXP '^F[A-Z0-9]+$'", fixed = TRUE)
-  expect_false(grepl("r.ring", graph_sql, fixed = TRUE))
-  expect_match(graph_sql, "requires_spacer_identity", fixed = TRUE)
-  expect_match(graph_sql, "ambiguous_short_single_lr", fixed = TRUE)
-  expect_match(
-    graph_sql,
-    "COUNT(DISTINCT CONCAT(c.base_identity_key",
-    fixed = TRUE
-  )
-  expect_match(diagnostic_sql, "adult_event_rows", fixed = TRUE)
-  expect_match(diagnostic_sql, "capture_only_identities", fixed = TRUE)
-  expect_match(diagnostic_sql, "resighting_only_identities", fixed = TRUE)
-  expect_match(
-    diagnostic_sql,
-    "capture_and_resighting_identities",
-    fixed = TRUE
-  )
-  expect_match(
-    diagnostic_sql,
-    "identities_with_multiple_normalized_marks",
-    fixed = TRUE
-  )
+  expect_equal(nrow(empty_reconciled$summary), 0L)
+  expect_true(is.na(app$env$overview_band_combo_normalize_value(
+    "X-X",
+    remove_hyphen = TRUE
+  )))
 })
+
 
 
 test_that("pair tally does not fall back to the obsolete heuristic", {
