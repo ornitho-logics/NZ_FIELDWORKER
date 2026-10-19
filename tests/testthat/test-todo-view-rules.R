@@ -288,7 +288,7 @@ test_that("AVAILABLE_COMBOS keeps all eligible OY marks in CR", {
 
 
 test_that("TODO_LIST contains the bounded operational rules", {
-  sql <- todo_list_view_sql()
+  sql <- views_source_sql()
 
   expect_match(
     sql,
@@ -399,7 +399,7 @@ test_that("H hiding-photo association is shared by BROODS_LATEST and TODO_LIST",
   expect_match(sql, "'ambiguous_capture_history'", fixed = TRUE)
   expect_match(
     sql,
-    "h.association_method IN (\n      'direct',\n      'same_occasion_adult',\n      'ring_capture'",
+    "h.association_method IN (\n    'direct',\n    'same_occasion_adult',\n    'ring_capture'",
     fixed = TRUE
   )
 })

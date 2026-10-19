@@ -40,6 +40,7 @@ test_that("TODO task assembly consumes the bounded context input", {
   expect_no_match(task_sql, "nest_history AS (", fixed = TRUE)
   expect_match(task_sql, "TODO_BROOD_CONTEXT_INPUT", fixed = TRUE)
   expect_match(task_sql, "TODO_CHICK_CAPTURE_CONTEXT_INPUT", fixed = TRUE)
+  expect_match(task_sql, "TODO_HIDING_SPOT_PHOTO_CONTEXT_INPUT", fixed = TRUE)
   expect_no_match(task_sql, "BROODS_LATEST b", fixed = TRUE)
   expect_no_match(task_sql, "BROODS_LATEST brood_evidence", fixed = TRUE)
   expect_match(task_sql, "brood_context AS (", fixed = TRUE)
@@ -64,6 +65,11 @@ test_that("TODO task assembly consumes the bounded context input", {
   expect_match(
     task_sql,
     "FROM FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_INPUT\n),",
+    fixed = TRUE
+  )
+  expect_match(
+    task_sql,
+    "FROM FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_INPUT\n),",
     fixed = TRUE
   )
   expect_false(
@@ -151,6 +157,7 @@ test_that("TODO task assembly consumes the bounded context input", {
     "nest_context",
     "brood_context",
     "chick_capture_context",
+    "hiding_spot_photos",
     "chick_gps_links",
     "parent_status",
     "task_rows",
@@ -200,10 +207,17 @@ test_that("TODO task assembly consumes the bounded context input", {
     refresh_sql,
     fixed = TRUE
   )[[1L]]
+  hiding_photo_build <- regexpr(
+    "INSERT INTO FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_SNAPSHOT_BUILD",
+    refresh_sql,
+    fixed = TRUE
+  )[[1L]]
   expect_gt(link_build, context_build)
   expect_gt(brood_build, context_build)
   expect_gt(chick_capture_build, brood_build)
+  expect_gt(hiding_photo_build, chick_capture_build)
   expect_gt(link_build, brood_build)
+  expect_gt(link_build, hiding_photo_build)
   expect_gt(link_build, chick_capture_build)
   expect_gt(parent_build, link_build)
   expect_gt(task_build, parent_build)
@@ -242,6 +256,11 @@ test_that("TODO task assembly consumes the bounded context input", {
   expect_match(
     refresh_sql,
     "TODO_CHICK_CAPTURE_CONTEXT_SNAPSHOT_BUILD\n    TO FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_SNAPSHOT",
+    fixed = TRUE
+  )
+  expect_match(
+    refresh_sql,
+    "TODO_HIDING_SPOT_PHOTO_CONTEXT_SNAPSHOT_BUILD\n    TO FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_SNAPSHOT",
     fixed = TRUE
   )
 })
@@ -288,6 +307,11 @@ test_that("downloads UI exposes the asynchronous snapshot action", {
   expect_match(
     system_utils,
     "TODO_REFRESH_STAGE|chick_capture_context",
+    fixed = TRUE
+  )
+  expect_match(
+    system_utils,
+    "TODO_REFRESH_STAGE|hiding_spot_photos",
     fixed = TRUE
   )
 })
