@@ -1610,327 +1610,719 @@ overview_tagged_resightings_graph <- function(
 }
 
 
+overview_band_combo_normalize_value <- function(x, remove_hyphen = FALSE) {
+  x <- toupper(trimws(as.character(x)))
+  x[is.na(x) | !nzchar(x) | x %in% c(
+    "NA", "N/A", "NULL", "X", "XX", "X-X", "XX-XX", "M"
+  )] <- NA_character_
+  if (remove_hyphen) {
+    x <- gsub("-", "", x, fixed = TRUE)
+    x[x %in% c("X", "XX", "M")] <- NA_character_
+  }
+  x
+}
+
+
+overview_band_combo_normalize_sex <- function(x) {
+  x <- toupper(trimws(as.character(x)))
+  out <- rep(NA_character_, length(x))
+  out[x %in% c("M", "MU")] <- "Male"
+  out[x %in% c("F", "FU")] <- "Female"
+  out
+}
+
+
+overview_band_combo_spacer_key <- function(ul, ll, ur, lr) {
+  out <- rep(NA_character_, length(ul))
+
+  for (i in seq_along(out)) {
+    if (
+      !is.na(ur[i]) &&
+        grepl("^T[A-Z]$", ur[i]) &&
+        (!is.na(ll[i]) || !is.na(lr[i]))
+    ) {
+      out[i] <- paste(
+        c(ll[i], sub("^T", "", ur[i]), lr[i]),
+        collapse = "|"
+      )
+    } else if (
+      is.na(ur[i]) &&
+        !is.na(ll[i]) &&
+        !is.na(lr[i]) &&
+        nchar(lr[i]) == 2L
+    ) {
+      # A single LR entry can encode the observed spacer colour followed by
+      # the lower-right colour for the known single-LR identities.
+      out[i] <- paste(
+        c(ll[i], substr(lr[i], 1L, 1L), substr(lr[i], 2L, 2L)),
+        collapse = "|"
+      )
+    }
+  }
+
+  out
+}
+
+
+overview_band_combo_observation_features <- function(
+  x,
+  source = c("captures", "resightings")
+) {
+  source <- match.arg(source)
+  x <- data.table::as.data.table(x)
+
+  required <- c("pk", "date", "UL", "LL", "UR", "LR")
+  if (source == "captures") {
+    required <- c(
+      required,
+      "ring",
+      "UL_in",
+      "LL_in",
+      "UR_in",
+      "LR_in",
+      "field_sex"
+    )
+  } else {
+    required <- c(required, "sex")
+  }
+
+  for (column in setdiff(required, names(x))) {
+    x[, (column) := vector("character", .N)]
+  }
+
+  x[, event_id := seq_len(.N)]
+  x[, event_date := as.Date(substr(trimws(as.character(date)), 1L, 10L))]
+
+  band_value <- function(primary, fallback = NULL) {
+    primary <- as.character(primary)
+    if (is.null(fallback)) {
+      return(primary)
+    }
+
+    fallback <- as.character(fallback)
+    use_fallback <- is.na(primary) | !nzchar(trimws(primary))
+    primary[use_fallback] <- fallback[use_fallback]
+    primary
+  }
+
+  x[, UL_raw := overview_band_combo_normalize_value(
+    band_value(UL, if (source == "captures") UL_in else NULL)
+  )]
+  x[, LL_raw := overview_band_combo_normalize_value(
+    band_value(LL, if (source == "captures") LL_in else NULL)
+  )]
+  x[, UR_raw := overview_band_combo_normalize_value(
+    band_value(UR, if (source == "captures") UR_in else NULL)
+  )]
+  x[, LR_raw := overview_band_combo_normalize_value(
+    band_value(LR, if (source == "captures") LR_in else NULL)
+  )]
+
+  x[, sex := overview_band_combo_normalize_sex(
+    if (source == "captures") field_sex else sex
+  )]
+
+  if (source == "captures") {
+    x[, ring := overview_band_combo_normalize_value(
+      ring,
+      remove_hyphen = TRUE
+    )]
+  } else {
+    x[, ring := NA_character_]
+  }
+
+  x[, has_upper := !is.na(UL_raw) | !is.na(UR_raw)]
+  x[, has_informative_band := !is.na(UL_raw) |
+    !is.na(LL_raw) |
+    !is.na(UR_raw) |
+    !is.na(LR_raw)]
+
+  x[, full_key := ifelse(
+    has_informative_band,
+    paste(
+      ifelse(is.na(UL_raw), "X", UL_raw),
+      ifelse(is.na(LL_raw), "X", LL_raw),
+      ifelse(is.na(UR_raw), "X", UR_raw),
+      ifelse(is.na(LR_raw), "X", LR_raw),
+      sep = "|"
+    ),
+    NA_character_
+  )]
+  x[, lower_key := ifelse(
+    !is.na(LL_raw) | !is.na(LR_raw),
+    paste(
+      ifelse(is.na(LL_raw), "X", LL_raw),
+      ifelse(is.na(LR_raw), "X", LR_raw),
+      sep = "|"
+    ),
+    NA_character_
+  )]
+
+  x[, flag_code := mapply(
+    function(ul, ur) {
+      values <- c(ul, ur)
+      values <- values[
+        !is.na(values) &
+          grepl("^F[A-Z0-9-]+$", values)
+      ]
+      if (!length(values)) {
+        return(NA_character_)
+      }
+      paste(sort(unique(values)), collapse = "|")
+    },
+    UL_raw,
+    UR_raw,
+    USE.NAMES = FALSE
+  )]
+
+  x[, spacer_key := overview_band_combo_spacer_key(
+    UL_raw,
+    LL_raw,
+    UR_raw,
+    LR_raw
+  )]
+
+  x[, strong_key := fifelse(
+    !is.na(flag_code),
+    paste0("flag:", flag_code),
+    fifelse(
+      !is.na(spacer_key),
+      paste0("spacer:", spacer_key),
+      fifelse(
+        has_upper & !is.na(full_key),
+        paste0("full:", full_key),
+        NA_character_
+      )
+    )
+  )]
+
+  x[, representation_key := fifelse(
+    !is.na(strong_key),
+    strong_key,
+    fifelse(
+      !is.na(lower_key),
+      paste0("lower:", lower_key),
+      NA_character_
+    )
+  )]
+
+  x[]
+}
+
+
+overview_band_combo_capture_anchors <- function(captures) {
+  captures <- data.table::as.data.table(captures)
+  captures <- captures[!is.na(ring)]
+
+  if (!nrow(captures)) {
+    return(data.table::data.table(
+      ring = character(),
+      identity_key = character(),
+      sex = character(),
+      first_date = as.Date(character()),
+      full_keys = list(),
+      lower_keys = list(),
+      flag_keys = list(),
+      spacer_keys = list()
+    ))
+  }
+
+  known_sex <- function(values) {
+    values <- values[values %in% c("Female", "Male")]
+    if (!length(values)) {
+      return(NA_character_)
+    }
+    values[1L]
+  }
+
+  first_date <- function(values) {
+    values <- values[!is.na(values)]
+    if (!length(values)) {
+      return(as.Date(NA))
+    }
+    min(values)
+  }
+
+  captures[, identity_key := paste0("ring:", ring)]
+
+  captures[, .(
+    identity_key = identity_key[1L],
+    sex = known_sex(sex),
+    first_date = first_date(event_date),
+    full_keys = list(unique(full_key[!is.na(full_key)])),
+    lower_keys = list(unique(lower_key[!is.na(lower_key)])),
+    flag_keys = list(unique(flag_code[!is.na(flag_code)])),
+    spacer_keys = list(unique(spacer_key[!is.na(spacer_key)]))
+  ), by = ring]
+}
+
+
+overview_band_combo_filter_candidates <- function(
+  candidates,
+  anchors,
+  observed_sex
+) {
+  if (!length(candidates) || is.na(observed_sex)) {
+    return(candidates)
+  }
+
+  candidates[
+    anchors$sex[match(candidates, anchors$ring)] %in%
+      c(observed_sex, NA_character_)
+  ]
+}
+
+
+overview_band_combo_match_resightings <- function(
+  resightings,
+  anchors
+) {
+  resightings <- data.table::copy(resightings)
+
+  if (!nrow(resightings) || !nrow(anchors)) {
+    resightings[, c("matched_ring", "match_method") := list(
+      NA_character_,
+      NA_character_
+    )]
+    return(resightings)
+  }
+
+  candidates_for <- function(column, key) {
+    if (is.na(key)) {
+      return(character())
+    }
+
+    hit <- vapply(
+      anchors[[column]],
+      function(values) key %in% values,
+      logical(1)
+    )
+    anchors$ring[hit]
+  }
+
+  matched_ring <- rep(NA_character_, nrow(resightings))
+  match_method <- rep(NA_character_, nrow(resightings))
+  priority <- c(
+    flag_keys = "flag_code",
+    full_keys = "full_key",
+    spacer_keys = "spacer_key",
+    lower_keys = "lower_key"
+  )
+
+  for (i in seq_len(nrow(resightings))) {
+    candidate_rings <- character()
+    method <- NA_character_
+
+    for (column in names(priority)) {
+      key_column <- priority[[column]]
+      candidates <- candidates_for(
+        column,
+        resightings[[key_column]][i]
+      )
+      candidates <- overview_band_combo_filter_candidates(
+        candidates,
+        anchors,
+        resightings$sex[i]
+      )
+
+      if (length(candidates)) {
+        candidate_rings <- unique(candidates)
+        method <- switch(
+          key_column,
+          flag_code = "flag",
+          full_key = "full",
+          spacer_key = "spacer",
+          lower_key = "lower",
+          key_column
+        )
+        break
+      }
+    }
+
+    if (length(candidate_rings) == 1L) {
+      matched_ring[i] <- candidate_rings
+      match_method[i] <- method
+    } else if (length(candidate_rings) > 1L) {
+      match_method[i] <- "ambiguous"
+    }
+  }
+
+  resightings[, c("matched_ring", "match_method") := list(
+    matched_ring,
+    match_method
+  )]
+  resightings[]
+}
+
+
+overview_band_combo_reconcile_identities <- function(
+  captures,
+  resightings
+) {
+  captures <- overview_band_combo_observation_features(
+    captures,
+    source = "captures"
+  )
+  resightings <- overview_band_combo_observation_features(
+    resightings,
+    source = "resightings"
+  )
+
+  anchors <- overview_band_combo_capture_anchors(captures)
+  resightings <- overview_band_combo_match_resightings(
+    resightings,
+    anchors
+  )
+
+  captures[, c("identity_key", "sex_resolved", "source") := list(
+    rep(NA_character_, .N),
+    rep(NA_character_, .N),
+    rep(NA_character_, .N)
+  )]
+  resightings[, c("identity_key", "sex_resolved", "source") := list(
+    rep(NA_character_, .N),
+    rep(NA_character_, .N),
+    rep(NA_character_, .N)
+  )]
+
+  if (nrow(captures)) {
+    sex_by_ring <- stats::setNames(anchors$sex, anchors$ring)
+    captures[, c("identity_key", "sex_resolved", "source") := list(
+      paste0("ring:", ring),
+      unname(sex_by_ring[ring]),
+      "capture"
+    )]
+  }
+
+  if (nrow(resightings)) {
+    sex_by_ring <- stats::setNames(anchors$sex, anchors$ring)
+    resightings[, c("identity_key", "sex_resolved", "source") := list(
+      ifelse(
+        !is.na(matched_ring),
+        paste0("ring:", matched_ring),
+        NA_character_
+      ),
+      ifelse(
+        !is.na(matched_ring),
+        unname(sex_by_ring[matched_ring]),
+        sex
+      ),
+      "resighting"
+    )]
+  }
+
+  unmatched <- resightings[
+    is.na(identity_key) &
+      !is.na(strong_key)
+  ]
+
+  strong_groups <- data.table::data.table()
+  if (nrow(unmatched)) {
+    strong_groups <- unmatched[, .(
+      sex = {
+        values <- sex[sex %in% c("Female", "Male")]
+        if (length(values)) values[1L] else NA_character_
+      },
+      lower_keys = list(unique(lower_key[!is.na(lower_key)]))
+    ), by = .(strong_key, sex)]
+
+    strong_groups[, group_key := paste0(
+      "resight:",
+      strong_key,
+      ":",
+      fifelse(is.na(sex), "Unknown", sex)
+    )]
+
+    strong_group_key <- stats::setNames(
+      strong_groups$group_key,
+      paste(strong_groups$strong_key, strong_groups$sex, sep = "\r")
+    )
+
+    strong_row_key <- paste(
+      unmatched$strong_key,
+      unmatched$sex,
+      sep = "\r"
+    )
+    unmatched_identity <- unname(strong_group_key[strong_row_key])
+
+    resightings[
+      match(unmatched$event_id, event_id),
+      identity_key := unmatched_identity
+    ]
+    resightings[
+      match(unmatched$event_id, event_id),
+      sex_resolved := unmatched$sex
+    ]
+  }
+
+  lower_only <- resightings[
+    is.na(identity_key) &
+      !is.na(lower_key)
+  ]
+
+  if (nrow(lower_only)) {
+    for (i in seq_len(nrow(lower_only))) {
+      candidates <- strong_groups[
+        vapply(
+          lower_keys,
+          function(values) lower_only$lower_key[i] %in% values,
+          logical(1)
+        )
+      ]
+
+      if (!is.na(lower_only$sex[i])) {
+        candidates <- candidates[
+          is.na(sex) | sex == lower_only$sex[i]
+        ]
+      }
+
+      if (nrow(candidates) == 1L) {
+        lower_identity <- candidates$group_key[1L]
+        lower_sex <- candidates$sex[1L]
+      } else {
+        lower_identity <- paste0(
+          "resight:lower:",
+          fifelse(
+            is.na(lower_only$sex[i]),
+            "Unknown",
+            lower_only$sex[i]
+          ),
+          ":",
+          lower_only$lower_key[i]
+        )
+        lower_sex <- lower_only$sex[i]
+      }
+
+      row_index <- match(lower_only$event_id[i], resightings$event_id)
+      resightings[
+        row_index,
+        c("identity_key", "sex_resolved") := list(
+          lower_identity,
+          fifelse(!is.na(lower_sex), lower_sex, sex)
+        )
+      ]
+    }
+  }
+
+  event_rows <- data.table::rbindlist(
+    list(
+      captures[
+        !is.na(identity_key),
+        .(
+          identity_key,
+          sex = sex_resolved,
+          event_date,
+          source,
+          representation_key
+        )
+      ],
+      resightings[
+        !is.na(identity_key),
+        .(
+          identity_key,
+          sex = sex_resolved,
+          event_date,
+          source,
+          representation_key
+        )
+      ]
+    ),
+    fill = TRUE
+  )
+
+  if (!nrow(event_rows)) {
+    summary <- data.table::data.table(
+      identity_key = character(),
+      sex = character(),
+      first_date = as.Date(character()),
+      has_capture = integer(),
+      has_resighting = integer(),
+      n_normalized_representations = integer()
+    )
+  } else {
+    summary <- event_rows[, .(
+      sex = {
+        values <- sex[sex %in% c("Female", "Male")]
+        if (length(values)) values[1L] else NA_character_
+      },
+      first_date = {
+        values <- event_date[!is.na(event_date)]
+        if (length(values)) min(values) else as.Date(NA)
+      },
+      has_capture = as.integer(any(source == "capture")),
+      has_resighting = as.integer(any(source == "resighting")),
+      n_normalized_representations = data.table::uniqueN(
+        representation_key[!is.na(representation_key)]
+      )
+    ), by = identity_key]
+  }
+
+  list(
+    summary = summary[],
+    captures = captures[],
+    resightings = resightings[],
+    anchors = anchors[],
+    ambiguous_resighting_events = sum(
+      resightings$match_method == "ambiguous",
+      na.rm = TRUE
+    )
+  )
+}
+
+
 overview_band_combo_query <- function(
   refdate,
-  start_date = NULL,
-  result_sql
+  start_date = NULL
 ) {
   refdate <- as.Date(refdate)
-  start_placeholder <- if (is.null(start_date)) {
+  start_sql <- if (is.null(start_date)) {
     "CAST(NULL AS DATE)"
   } else {
     "CAST(? AS DATE)"
   }
-
-  sql <- paste(
-    c(
-      "WITH sr AS (",
-      paste0(
-        "  SELECT CAST(? AS DATE) AS reference_date, ",
-        start_placeholder,
-        " AS start_date"
-      ),
-      "),",
-      "all_age_events AS (",
-      "  SELECT UPPER(TRIM(COALESCE(c.age, ''))) AS age_key",
-      "  FROM CAPTURES c CROSS JOIN sr",
-      "  WHERE UPPER(TRIM(COALESCE(c.site, ''))) = 'CR'",
-      "    AND c.date IS NOT NULL",
-      "    AND c.date <= sr.reference_date",
-      "    AND (sr.start_date IS NULL OR c.date >= sr.start_date)",
-      "  UNION ALL",
-      "  SELECT UPPER(TRIM(COALESCE(r.age, ''))) AS age_key",
-      "  FROM RESIGHTINGS r CROSS JOIN sr",
-      "  WHERE UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'",
-      "    AND r.date IS NOT NULL",
-      "    AND r.date <= sr.reference_date",
-      "    AND (sr.start_date IS NULL OR r.date >= sr.start_date)",
-      "),",
-      "archive_sex AS (",
-      "  SELECT",
-      "    UPPER(TRIM(ca.mark)) AS mark,",
-      "    CASE",
-      "      WHEN COUNT(DISTINCT CASE",
-      "        WHEN LEFT(UPPER(TRIM(ca.gen_sex)), 1) IN ('M', 'F')",
-      "        THEN LEFT(UPPER(TRIM(ca.gen_sex)), 1)",
-      "      END) = 1",
-      "      THEN MAX(CASE",
-      "        WHEN LEFT(UPPER(TRIM(ca.gen_sex)), 1) = 'M' THEN 'Male'",
-      "        WHEN LEFT(UPPER(TRIM(ca.gen_sex)), 1) = 'F' THEN 'Female'",
-      "      END)",
-      "    END AS genetic_sex",
-      "  FROM CAPTURES_ARCHIVE ca",
-      "  GROUP BY UPPER(TRIM(ca.mark))",
-      "),",
-      "capture_source AS (",
-      "  SELECT",
-      "    c.pk AS event_pk, c.date AS event_date,",
-      "    CASE",
-      "      WHEN UPPER(TRIM(COALESCE(c.field_sex, ''))) IN ('M', 'MU') THEN 'Male'",
-      "      WHEN UPPER(TRIM(COALESCE(c.field_sex, ''))) IN ('F', 'FU') THEN 'Female'",
-      "    END AS observed_sex,",
-      "    CASE",
-      "      WHEN UPPER(TRIM(COALESCE(c.ring, ''))) IN ('', 'X', 'XX', 'NA', 'N/A') THEN NULL",
-      "      ELSE REPLACE(UPPER(TRIM(c.ring)), '-', '')",
-      "    END AS metal_ring,",
-      "    UPPER(NULLIF(TRIM(COALESCE(NULLIF(TRIM(c.UL), ''), NULLIF(TRIM(c.UL_in), ''))), '')) AS UL_raw,",
-      "    UPPER(NULLIF(TRIM(COALESCE(NULLIF(TRIM(c.LL), ''), NULLIF(TRIM(c.LL_in), ''))), '')) AS LL_raw,",
-      "    UPPER(NULLIF(TRIM(COALESCE(NULLIF(TRIM(c.UR), ''), NULLIF(TRIM(c.UR_in), ''))), '')) AS UR_raw,",
-      "    UPPER(NULLIF(TRIM(COALESCE(NULLIF(TRIM(c.LR), ''), NULLIF(TRIM(c.LR_in), ''))), '')) AS LR_raw",
-      "  FROM CAPTURES c CROSS JOIN sr",
-      "  WHERE UPPER(TRIM(COALESCE(c.site, ''))) = 'CR'",
-      "    AND UPPER(TRIM(COALESCE(c.age, ''))) = 'A'",
-      "    AND c.date IS NOT NULL",
-      "    AND c.date <= sr.reference_date",
-      "    AND (sr.start_date IS NULL OR c.date >= sr.start_date)",
-      "),",
-      "resighting_source AS (",
-      "  SELECT",
-      "    r.pk AS event_pk, r.date AS event_date,",
-      "    CASE",
-      "      WHEN UPPER(TRIM(COALESCE(r.sex, ''))) IN ('M', 'MU') THEN 'Male'",
-      "      WHEN UPPER(TRIM(COALESCE(r.sex, ''))) IN ('F', 'FU') THEN 'Female'",
-      "    END AS observed_sex,",
-      # Adult identity matching uses observed bands; the RESIGHTINGS ring
-      # field is reserved for chick hiding-spot records and is not required.
-      "    CAST(NULL AS CHAR(50)) AS metal_ring,",
-      "    UPPER(NULLIF(TRIM(r.UL), '')) AS UL_raw,",
-      "    UPPER(NULLIF(TRIM(r.LL), '')) AS LL_raw,",
-      "    UPPER(NULLIF(TRIM(r.UR), '')) AS UR_raw,",
-      "    UPPER(NULLIF(TRIM(r.LR), '')) AS LR_raw",
-      "  FROM RESIGHTINGS r CROSS JOIN sr",
-      "  WHERE UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'",
-      "    AND UPPER(TRIM(COALESCE(r.age, ''))) = 'A'",
-      "    AND r.date IS NOT NULL",
-      "    AND r.date <= sr.reference_date",
-      "    AND (sr.start_date IS NULL OR r.date >= sr.start_date)",
-      "),",
-      "capture_normalized AS (",
-      "  SELECT c.*,",
-      "    CASE WHEN c.UL_raw IS NULL OR c.UL_raw IN ('X', 'XX', 'M') THEN 'X' ELSE c.UL_raw END AS UL_norm,",
-      "    CASE WHEN c.LL_raw IS NULL OR c.LL_raw IN ('X', 'XX', 'M') THEN 'X' ELSE c.LL_raw END AS LL_norm,",
-      "    CASE WHEN c.UR_raw IS NULL OR c.UR_raw IN ('X', 'XX', 'M') THEN 'X' ELSE c.UR_raw END AS UR_norm,",
-      "    CASE WHEN c.LR_raw IS NULL OR c.LR_raw IN ('X', 'XX', 'M') THEN 'X' ELSE c.LR_raw END AS LR_norm",
-      "  FROM capture_source c",
-      "),",
-      "capture_keyed AS (",
-      "  SELECT c.*,",
-      "    CASE",
-      "      WHEN c.UL_raw REGEXP '^F[A-Z0-9]+$' THEN c.UL_raw",
-      "      WHEN c.UR_raw REGEXP '^F[A-Z0-9]+$' THEN c.UR_raw",
-      "      ELSE NULL",
-      "    END AS flag_code,",
-      "    CASE",
-      "      WHEN c.LL_raw IS NOT NULL AND c.LR_raw IS NOT NULL",
-      "       AND (c.LL_norm <> 'X' OR c.LR_norm <> 'X')",
-      "      THEN CONCAT(c.LL_norm, '|', c.LR_norm)",
-      "    END AS lower_key,",
-      "    CASE",
-      "      WHEN c.UR_raw REGEXP '^T[A-Z]$'",
-      "       AND c.LL_norm <> 'X' AND c.LR_norm REGEXP '^[A-Z]$'",
-      "      THEN CONCAT(c.LL_norm, '|', RIGHT(c.UR_raw, 1), '|', c.LR_norm)",
-      "    END AS spacer_key,",
-      "    CONCAT_WS('|', c.UL_norm, c.LL_norm, c.UR_norm, c.LR_norm) AS full_key,",
-      "    CASE",
-      "      WHEN c.UL_raw IS NOT NULL AND c.UL_norm <> 'X' THEN 1",
-      "      WHEN c.LL_raw IS NOT NULL AND c.LL_norm <> 'X' THEN 1",
-      "      WHEN c.UR_raw IS NOT NULL AND c.UR_norm <> 'X' THEN 1",
-      "      WHEN c.LR_raw IS NOT NULL AND c.LR_norm <> 'X' THEN 1",
-      "      ELSE 0",
-      "    END AS has_informative_band,",
-      "    CASE WHEN c.metal_ring IN ('CP19738', 'CP19739', 'CP19693', 'CP19848')",
-      "      THEN 1 ELSE 0 END AS requires_spacer_identity",
-      "  FROM capture_normalized c",
-      "),",
-      "capture_labeled AS (",
-      "  SELECT c.*,",
-      "    CASE",
-      "      WHEN c.flag_code IS NOT NULL THEN CONCAT(c.flag_code, '-X')",
-      "      WHEN c.has_informative_band = 1",
-      "      THEN FIELD_2026_BADOatNZ.format_mark(c.UL_norm, c.LL_norm, c.UR_norm, c.LR_norm)",
-      "    END AS display_mark,",
-      "    CASE",
-      "      WHEN c.metal_ring IS NOT NULL THEN CONCAT('ring:', c.metal_ring)",
-      "      WHEN c.flag_code IS NOT NULL THEN CONCAT('flag:', c.flag_code)",
-      "      WHEN c.requires_spacer_identity = 1 AND c.spacer_key IS NOT NULL",
-      "        THEN CONCAT('spacer:', c.spacer_key)",
-      "      WHEN c.lower_key IS NOT NULL THEN CONCAT('lower:', c.lower_key)",
-      "      WHEN c.has_informative_band = 1 THEN CONCAT('full:', c.full_key)",
-      "    END AS base_identity_key",
-      "  FROM capture_keyed c",
-      "),",
-      "capture_events AS (",
-      "  SELECT c.*, COALESCE(a.genetic_sex, c.observed_sex) AS capture_sex",
-      "  FROM capture_labeled c",
-      "  LEFT JOIN archive_sex a",
-      "    ON UPPER(TRIM(a.mark)) = UPPER(TRIM(c.display_mark))",
-      "),",
-      "resighting_normalized AS (",
-      "  SELECT r.*,",
-      "    CASE WHEN r.UL_raw IS NULL OR r.UL_raw IN ('X', 'XX', 'M') THEN 'X' ELSE r.UL_raw END AS UL_norm,",
-      "    CASE WHEN r.LL_raw IS NULL OR r.LL_raw IN ('X', 'XX', 'M') THEN 'X' ELSE r.LL_raw END AS LL_norm,",
-      "    CASE WHEN r.UR_raw IS NULL OR r.UR_raw IN ('X', 'XX', 'M') THEN 'X' ELSE r.UR_raw END AS UR_norm,",
-      "    CASE WHEN r.LR_raw IS NULL OR r.LR_raw IN ('X', 'XX', 'M') THEN 'X' ELSE r.LR_raw END AS LR_norm",
-      "  FROM resighting_source r",
-      "),",
-      "resighting_keyed AS (",
-      "  SELECT r.*,",
-      "    CASE",
-      "      WHEN r.UL_raw REGEXP '^F[A-Z0-9]+$' THEN r.UL_raw",
-      "      WHEN r.UR_raw REGEXP '^F[A-Z0-9]+$' THEN r.UR_raw",
-      "      ELSE NULL",
-      "    END AS flag_code,",
-      "    CASE",
-      "      WHEN r.LL_raw IS NOT NULL AND r.LR_raw IS NOT NULL",
-      "       AND (r.LL_norm <> 'X' OR r.LR_norm <> 'X')",
-      "      THEN CONCAT(r.LL_norm, '|', r.LR_norm)",
-      "    END AS lower_key,",
-      "    CASE",
-      "      WHEN r.UR_raw REGEXP '^T[A-Z]$'",
-      "       AND r.LL_norm <> 'X' AND r.LR_norm REGEXP '^[A-Z]$'",
-      "      THEN CONCAT(r.LL_norm, '|', RIGHT(r.UR_raw, 1), '|', r.LR_norm)",
-      "      WHEN r.UR_raw IS NULL AND r.LR_raw REGEXP '^[A-Z]{2}$'",
-      "       AND r.LL_norm <> 'X'",
-      "      THEN CONCAT(r.LL_norm, '|', LEFT(r.LR_raw, 1), '|', RIGHT(r.LR_raw, 1))",
-      "    END AS spacer_key,",
-      "    CONCAT_WS('|', r.UL_norm, r.LL_norm, r.UR_norm, r.LR_norm) AS full_key,",
-      "    CASE",
-      "      WHEN r.UL_raw IS NOT NULL AND r.UL_norm <> 'X' THEN 1",
-      "      WHEN r.LL_raw IS NOT NULL AND r.LL_norm <> 'X' THEN 1",
-      "      WHEN r.UR_raw IS NOT NULL AND r.UR_norm <> 'X' THEN 1",
-      "      WHEN r.LR_raw IS NOT NULL AND r.LR_norm <> 'X' THEN 1",
-      "      ELSE 0",
-      "    END AS has_informative_band",
-      "  FROM resighting_normalized r",
-      "),",
-      "resighting_labeled AS (",
-      "  SELECT r.*,",
-      "    CASE",
-      "      WHEN r.flag_code IS NOT NULL THEN CONCAT(r.flag_code, '-X')",
-      "      WHEN r.has_informative_band = 1",
-      "      THEN FIELD_2026_BADOatNZ.format_mark(r.UL_norm, r.LL_norm, r.UR_norm, r.LR_norm)",
-      "    END AS display_mark,",
-      "    CASE",
-      "      WHEN r.metal_ring IS NOT NULL THEN CONCAT('ring:', r.metal_ring)",
-      "      WHEN r.flag_code IS NOT NULL THEN CONCAT('flag:', r.flag_code)",
-      "      WHEN r.spacer_key IS NOT NULL THEN CONCAT('spacer:', r.spacer_key)",
-      "      WHEN r.lower_key IS NOT NULL THEN CONCAT('lower:', r.lower_key)",
-      "      WHEN r.has_informative_band = 1 THEN CONCAT('full:', r.full_key)",
-      "    END AS raw_identity_key",
-      "  FROM resighting_keyed r",
-      "),",
-      "resighting_events AS (",
-      "  SELECT r.*, COALESCE(a.genetic_sex, r.observed_sex) AS resighting_sex",
-      "  FROM resighting_labeled r",
-      "  LEFT JOIN archive_sex a",
-      "    ON UPPER(TRIM(a.mark)) = UPPER(TRIM(r.display_mark))",
-      "),",
-      "ambiguous_short_single_lr AS (",
-      "  SELECT DISTINCT r.event_pk",
-      "  FROM resighting_events r",
-      "  INNER JOIN capture_events c",
-      "    ON c.requires_spacer_identity = 1",
-      "   AND c.lower_key IS NOT NULL AND c.lower_key = r.lower_key",
-      "  WHERE r.spacer_key IS NULL",
-      "),",
-      "candidate_rows AS (",
-      "  SELECT r.event_pk, c.base_identity_key, c.capture_sex, 1 AS match_priority,",
-      "    CASE WHEN r.resighting_sex IS NOT NULL AND c.capture_sex = r.resighting_sex THEN 1 ELSE 0 END AS sex_match",
-      "  FROM resighting_events r INNER JOIN capture_events c",
-      "    ON c.metal_ring = r.metal_ring AND r.metal_ring IS NOT NULL",
-      "   AND (r.resighting_sex IS NULL OR c.capture_sex = r.resighting_sex)",
-      "  WHERE NOT EXISTS (SELECT 1 FROM ambiguous_short_single_lr a WHERE a.event_pk = r.event_pk)",
-      "  UNION ALL",
-      "  SELECT r.event_pk, c.base_identity_key, c.capture_sex, 2,",
-      "    CASE WHEN r.resighting_sex IS NOT NULL AND c.capture_sex = r.resighting_sex THEN 1 ELSE 0 END",
-      "  FROM resighting_events r INNER JOIN capture_events c",
-      "    ON c.flag_code = r.flag_code AND r.flag_code IS NOT NULL",
-      "   AND (r.resighting_sex IS NULL OR c.capture_sex = r.resighting_sex)",
-      "  WHERE NOT EXISTS (SELECT 1 FROM ambiguous_short_single_lr a WHERE a.event_pk = r.event_pk)",
-      "  UNION ALL",
-      "  SELECT r.event_pk, c.base_identity_key, c.capture_sex, 3,",
-      "    CASE WHEN r.resighting_sex IS NOT NULL AND c.capture_sex = r.resighting_sex THEN 1 ELSE 0 END",
-      "  FROM resighting_events r INNER JOIN capture_events c",
-      "    ON c.spacer_key = r.spacer_key AND c.requires_spacer_identity = 1",
-      "   AND r.spacer_key IS NOT NULL",
-      "   AND (r.resighting_sex IS NULL OR c.capture_sex = r.resighting_sex)",
-      "  WHERE NOT EXISTS (SELECT 1 FROM ambiguous_short_single_lr a WHERE a.event_pk = r.event_pk)",
-      "  UNION ALL",
-      "  SELECT r.event_pk, c.base_identity_key, c.capture_sex, 4,",
-      "    CASE WHEN r.resighting_sex IS NOT NULL AND c.capture_sex = r.resighting_sex THEN 1 ELSE 0 END",
-      "  FROM resighting_events r INNER JOIN capture_events c",
-      "    ON c.lower_key = r.lower_key AND c.lower_key IS NOT NULL",
-      "   AND c.requires_spacer_identity = 0",
-      "   AND (r.resighting_sex IS NULL OR c.capture_sex = r.resighting_sex)",
-      "  WHERE NOT EXISTS (SELECT 1 FROM ambiguous_short_single_lr a WHERE a.event_pk = r.event_pk)",
-      "  UNION ALL",
-      "  SELECT r.event_pk, c.base_identity_key, c.capture_sex, 5,",
-      "    CASE WHEN r.resighting_sex IS NOT NULL AND c.capture_sex = r.resighting_sex THEN 1 ELSE 0 END",
-      "  FROM resighting_events r INNER JOIN capture_events c",
-      "    ON c.full_key = r.full_key AND c.has_informative_band = 1",
-      "   AND r.has_informative_band = 1",
-      "   AND (r.resighting_sex IS NULL OR c.capture_sex = r.resighting_sex)",
-      "  WHERE NOT EXISTS (SELECT 1 FROM ambiguous_short_single_lr a WHERE a.event_pk = r.event_pk)",
-      "),",
-      "candidate_priority AS (",
-      "  SELECT event_pk, MIN(match_priority) AS match_priority",
-      "  FROM candidate_rows GROUP BY event_pk",
-      "),",
-      "candidate_sex AS (",
-      "  SELECT c.event_pk, c.match_priority, MAX(c.sex_match) AS sex_match",
-      "  FROM candidate_rows c INNER JOIN candidate_priority p",
-      "    ON p.event_pk = c.event_pk AND p.match_priority = c.match_priority",
-      "  GROUP BY c.event_pk, c.match_priority",
-      "),",
-      "candidate_counts AS (",
-      "  SELECT c.event_pk, COUNT(DISTINCT CONCAT(c.base_identity_key, '|', c.capture_sex)) AS n_candidate_identities",
-      "  FROM candidate_rows c INNER JOIN candidate_priority p",
-      "    ON p.event_pk = c.event_pk AND p.match_priority = c.match_priority",
-      "  INNER JOIN candidate_sex s",
-      "    ON s.event_pk = c.event_pk AND s.match_priority = c.match_priority AND s.sex_match = c.sex_match",
-      "  GROUP BY c.event_pk",
-      "),",
-      "matched_resightings AS (",
-      "  SELECT DISTINCT c.event_pk, c.base_identity_key, c.capture_sex",
-      "  FROM candidate_rows c INNER JOIN candidate_priority p",
-      "    ON p.event_pk = c.event_pk AND p.match_priority = c.match_priority",
-      "  INNER JOIN candidate_sex s",
-      "    ON s.event_pk = c.event_pk AND s.match_priority = c.match_priority AND s.sex_match = c.sex_match",
-      "  INNER JOIN candidate_counts n ON n.event_pk = c.event_pk AND n.n_candidate_identities = 1",
-      "),",
-      "identity_events AS (",
-      "  SELECT c.base_identity_key AS identity_key, c.capture_sex AS sex, c.event_date,",
-      "    'capture' AS source, c.full_key AS normalized_representation_key",
-      "  FROM capture_events c",
-      "  WHERE c.base_identity_key IS NOT NULL AND c.capture_sex IN ('Female', 'Male')",
-      "  UNION ALL",
-      "  SELECT m.base_identity_key, m.capture_sex, r.event_date, 'resighting', r.full_key",
-      "  FROM matched_resightings m INNER JOIN resighting_events r ON r.event_pk = m.event_pk",
-      "  UNION ALL",
-      "  SELECT r.raw_identity_key, r.resighting_sex, r.event_date, 'resighting', r.full_key",
-      "  FROM resighting_events r",
-      "  WHERE r.raw_identity_key IS NOT NULL AND r.resighting_sex IN ('Female', 'Male')",
-      "    AND NOT EXISTS (SELECT 1 FROM candidate_rows c WHERE c.event_pk = r.event_pk)",
-      "    AND NOT EXISTS (SELECT 1 FROM ambiguous_short_single_lr a WHERE a.event_pk = r.event_pk)",
-      "),",
-      "identity_summary AS (",
-      "  SELECT identity_key, sex, MIN(event_date) AS first_date,",
-      "    MAX(CASE WHEN source = 'capture' THEN 1 ELSE 0 END) AS has_capture,",
-      "    MAX(CASE WHEN source = 'resighting' THEN 1 ELSE 0 END) AS has_resighting,",
-      "    COUNT(DISTINCT normalized_representation_key) AS n_normalized_representations",
-      "  FROM identity_events GROUP BY identity_key, sex",
-      "),",
-      result_sql
-    ),
-    collapse = "\n"
-  )
 
   params <- list(as.character(refdate))
   if (!is.null(start_date)) {
     params <- c(params, list(as.character(as.Date(start_date))))
   }
 
-  list(sql = sql, params = params)
+  source_sql <- function(table, sex_column, include_capture_fields = FALSE) {
+    capture_fields <- if (include_capture_fields) {
+      ", c.ring, c.UL_in, c.LL_in, c.UR_in, c.LR_in"
+    } else {
+      ""
+    }
+
+    paste(
+      c(
+        "WITH sr AS (",
+        paste0(
+          "  SELECT CAST(? AS DATE) AS reference_date, ",
+          start_sql,
+          " AS start_date"
+        ),
+        ")",
+        "SELECT",
+        "  ", if (include_capture_fields) "c.pk" else "r.pk",
+        " AS pk,",
+        "  ", if (include_capture_fields) "c.date" else "r.date",
+        " AS date,",
+        "  ", if (include_capture_fields) "c.UL" else "r.UL",
+        " AS UL,",
+        "  ", if (include_capture_fields) "c.LL" else "r.LL",
+        " AS LL,",
+        "  ", if (include_capture_fields) "c.UR" else "r.UR",
+        " AS UR,",
+        "  ", if (include_capture_fields) "c.LR" else "r.LR",
+        " AS LR,",
+        "  ", if (include_capture_fields) "c.field_sex" else "r.sex",
+        " AS ", sex_column,
+        capture_fields,
+        "FROM ", table, " ",
+        if (include_capture_fields) "c" else "r",
+        " CROSS JOIN sr",
+        "WHERE UPPER(TRIM(COALESCE(",
+        if (include_capture_fields) "c.age" else "r.age",
+        ", ''))) = 'A'",
+        "  AND UPPER(TRIM(COALESCE(",
+        if (include_capture_fields) "c.site" else "r.site",
+        ", ''))) = 'CR'",
+        "  AND ",
+        if (include_capture_fields) "c.date" else "r.date",
+        " IS NOT NULL",
+        "  AND ",
+        if (include_capture_fields) "c.date" else "r.date",
+        " <= sr.reference_date",
+        "  AND (sr.start_date IS NULL OR ",
+        if (include_capture_fields) "c.date" else "r.date",
+        " >= sr.start_date)"
+      ),
+      collapse = "\n"
+    )
+  }
+
+  age_sql <- paste(
+    c(
+      "WITH sr AS (",
+      paste0(
+        "  SELECT CAST(? AS DATE) AS reference_date, ",
+        start_sql,
+        " AS start_date"
+      ),
+      ")",
+      "SELECT 'CAPTURES' AS source_table,",
+      "  UPPER(TRIM(COALESCE(c.age, ''))) AS age_key,",
+      "  COUNT(*) AS n_rows",
+      "FROM CAPTURES c CROSS JOIN sr",
+      "WHERE UPPER(TRIM(COALESCE(c.site, ''))) = 'CR'",
+      "  AND c.date IS NOT NULL",
+      "  AND c.date <= sr.reference_date",
+      "  AND (sr.start_date IS NULL OR c.date >= sr.start_date)",
+      "GROUP BY age_key",
+      "UNION ALL",
+      "SELECT 'RESIGHTINGS' AS source_table,",
+      "  UPPER(TRIM(COALESCE(r.age, ''))) AS age_key,",
+      "  COUNT(*) AS n_rows",
+      "FROM RESIGHTINGS r CROSS JOIN sr",
+      "WHERE UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'",
+      "  AND r.date IS NOT NULL",
+      "  AND r.date <= sr.reference_date",
+      "  AND (sr.start_date IS NULL OR r.date >= sr.start_date)",
+      "GROUP BY age_key"
+    ),
+    collapse = "\n"
+  )
+
+  list(
+    captures = list(sql = source_sql(
+      "CAPTURES",
+      "field_sex",
+      include_capture_fields = TRUE
+    ), params = params),
+    resightings = list(sql = source_sql(
+      "RESIGHTINGS",
+      "sex",
+      include_capture_fields = FALSE
+    ), params = params),
+    ages = list(sql = age_sql, params = params)
+  )
+}
+
+
+overview_band_combo_data <- function(
+  refdate,
+  start_date = NULL,
+  include_ages = FALSE
+) {
+  query <- overview_band_combo_query(
+    refdate = refdate,
+    start_date = start_date
+  )
+
+  captures <- db_get(
+    query$captures$sql,
+    params = query$captures$params
+  )
+  resightings <- db_get(
+    query$resightings$sql,
+    params = query$resightings$params
+  )
+
+  reconciled <- overview_band_combo_reconcile_identities(
+    captures = captures,
+    resightings = resightings
+  )
+
+  if (include_ages) {
+    reconciled$ages <- db_get(
+      query$ages$sql,
+      params = query$ages$params
+    )
+  } else {
+    reconciled$ages <- data.table::data.table()
+  }
+
+  reconciled
 }
 
 
@@ -1939,22 +2331,20 @@ overview_band_combos_graph <- function(
   date_limits = NULL,
   start_date = NULL
 ) {
-  query <- overview_band_combo_query(
+  data <- overview_band_combo_data(
     refdate = refdate,
-    start_date = start_date,
-    result_sql = paste(
-      c(
-        "SELECT identity_key AS mark, sex,",
-        "  CAST(CONCAT(first_date, ' 00:00:00') AS DATETIME) AS datetime",
-        "FROM identity_summary",
-        "WHERE sex IN ('Female', 'Male')",
-        "ORDER BY datetime, mark"
-      ),
-      collapse = "\n"
-    )
+    start_date = start_date
   )
+  x <- data$summary[
+    sex %in% c("Female", "Male") &
+      !is.na(first_date),
+    .(
+      mark = identity_key,
+      sex,
+      datetime = as.POSIXct(first_date)
+    )
+  ]
 
-  x <- db_get(query$sql, params = query$params)
   plot_data <- overview_cumulative_counts(x, group_col = "sex")
 
   overview_cumulative_plot(
@@ -1976,26 +2366,54 @@ overview_band_combo_diagnostic <- function(
   refdate = get_reference_date(),
   start_date = NULL
 ) {
-  query <- overview_band_combo_query(
+  data <- overview_band_combo_data(
     refdate = refdate,
     start_date = start_date,
-    result_sql = paste(
-      c(
-        "SELECT",
-        "  (SELECT COUNT(*) FROM all_age_events WHERE age_key = 'A') AS adult_event_rows,",
-        "  (SELECT COUNT(*) FROM all_age_events WHERE age_key <> 'A' OR age_key = '') AS non_adult_event_rows,",
-        "  COUNT(*) AS unique_adult_identities,",
-        "  COALESCE(SUM(CASE WHEN has_capture = 1 AND has_resighting = 0 THEN 1 ELSE 0 END), 0) AS capture_only_identities,",
-        "  COALESCE(SUM(CASE WHEN has_capture = 0 AND has_resighting = 1 THEN 1 ELSE 0 END), 0) AS resighting_only_identities,",
-        "  COALESCE(SUM(CASE WHEN has_capture = 1 AND has_resighting = 1 THEN 1 ELSE 0 END), 0) AS capture_and_resighting_identities,",
-        "  COALESCE(SUM(CASE WHEN n_normalized_representations > 1 THEN 1 ELSE 0 END), 0) AS identities_with_multiple_normalized_marks",
-        "FROM identity_summary"
-      ),
-      collapse = "\n"
-    )
+    include_ages = TRUE
+  )
+  summary <- data$summary
+  ages <- data.table::as.data.table(data$ages)
+
+  adult_event_rows <- sum(
+    ages[
+      toupper(trimws(as.character(age_key))) == "A",
+      as.numeric(n_rows)
+    ],
+    na.rm = TRUE
+  )
+  non_adult_event_rows <- sum(
+    ages[
+      toupper(trimws(as.character(age_key))) != "A",
+      as.numeric(n_rows)
+    ],
+    na.rm = TRUE
   )
 
-  db_get(query$sql, params = query$params)
+  data.table::data.table(
+    adult_event_rows = adult_event_rows,
+    non_adult_event_rows = non_adult_event_rows,
+    unique_adult_identities = nrow(summary),
+    capture_only_identities = sum(
+      summary$has_capture == 1L &
+        summary$has_resighting == 0L,
+      na.rm = TRUE
+    ),
+    resighting_only_identities = sum(
+      summary$has_capture == 0L &
+        summary$has_resighting == 1L,
+      na.rm = TRUE
+    ),
+    capture_and_resighting_identities = sum(
+      summary$has_capture == 1L &
+        summary$has_resighting == 1L,
+      na.rm = TRUE
+    ),
+    identities_with_multiple_normalized_marks = sum(
+      summary$n_normalized_representations > 1L,
+      na.rm = TRUE
+    ),
+    ambiguous_resighting_events = data$ambiguous_resighting_events
+  )
 }
 
 
