@@ -119,7 +119,11 @@ list({
                 cand[, `:=`(exact_match, data.table::fifelse(float_angle_num == row$float_angle_num & ((is.na(float_surface_num) & is.na(row$float_surface_num)) | (!is.na(float_surface_num) & !is.na(row$float_surface_num) & float_surface_num == row$float_surface_num)), 0, 1))]
                 cand[, `:=`(angle_diff, abs(float_angle_num - row$float_angle_num))]
                 cand[, `:=`(surface_diff, data.table::fifelse(is.na(float_surface_num) & is.na(row$float_surface_num), 0, data.table::fifelse(is.na(float_surface_num) | is.na(row$float_surface_num), 9999, abs(float_surface_num - row$float_surface_num))))]
-                data.table::setorder(cand, exact_match, angle_diff, surface_diff, -n_calibration, float_angle_num, float_surface_num)
+                # Preserve the measured float surface before minimizing the
+                # angle difference. The current calibration has no exact
+                # 80/3 or 90/3 rows, so matching 90/3 to 90/0 would create a
+                # false stage spread when same-surface calibration exists.
+                data.table::setorder(cand, exact_match, surface_diff, angle_diff, -n_calibration, float_angle_num, float_surface_num)
                 data.table::data.table(rowid = row$rowid, predicted_days_since_laying = cand$predicted_days_since_laying[1])
             }), use.names = TRUE, fill = TRUE)
             merge(dt, scored, by = "rowid", all.x = TRUE, sort = FALSE)

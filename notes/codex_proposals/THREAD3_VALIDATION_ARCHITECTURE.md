@@ -164,6 +164,33 @@ missing/unusual float data, float-development spread, and event context.
 The former live expectation that floating must occur on discovery day or within two
 days is mock-generation-only (`EGG_M002`), not a save blocker.
 
+#### EGGS floatation stage-spread matching
+
+The `EGG_W004 stage spread` warning compares calibration-derived developmental
+stages for eggs floated in the same EGGS event (same `nest_id`, date,
+`time_visit`, and observer). The `predict_hatching` calibration is based on
+Kentish plover data and is not a Banded Dotterel-specific incubation curve.
+
+When an exact `(float_angle, float_surface, float_location)` calibration row is
+unavailable, the inspector prioritizes the same `float_surface` before the
+nearest angle. This prevents a `90°/surface/3` observation from being matched
+to `90°/surface/0` merely because the angle is exact; it instead uses the
+nearest available same-surface calibration, such as `75°/surface/3`.
+
+The current calibration has no direct `80°/surface/3` or `90°/surface/3`
+entries. This inspector does not invent those values or modify the
+`predict_hatching` table. With the current table, both readings therefore use
+the same-surface `75°/surface/3` calibration rather than creating an artificial
+developmental-stage difference from the `90°/surface/0` rows.
+
+For Banded Dotterels, the operational timing is approximately a two-day laying
+interval plus 26 days after clutch completion, or about 28 days from the first
+egg for a complete clutch. The Kentish calibration's `75°/surface/3` endpoint
+is about 30 days, so it should not be interpreted as a literal Banded Dotterel
+hatch date. The warning is a relative consistency check; it must not use an
+unmatched surface-height calibration to manufacture a difference greater than
+seven days.
+
 ### NESTS
 
 Hard checks cover required fields, species/site/state codes, positive Cass and
