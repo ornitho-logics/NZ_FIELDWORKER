@@ -5512,6 +5512,36 @@ FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT;
 
 
 /*
+  TODO_BROOD_CONTEXT_INPUT is the task-facing projection of BROODS_LATEST.
+  The task calculator needs only this compact set of fields, but several task
+  branches use it. During a staged refresh the boundary is repointed to an
+  indexed snapshot, so those branches do not expand BROODS_LATEST repeatedly.
+  The fallback keeps a clean view installation functional before the first
+  snapshot refresh.
+*/
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_INPUT AS
+SELECT
+  nest_id,
+  species,
+  is_negative_brood,
+  discovery_date,
+  latest_encounter_date,
+  latest_encounter_datetime,
+  hatch_evidence_date,
+  has_hatch_evidence,
+  nest_state,
+  hatch_state,
+  clutch_size,
+  brood_size,
+  lat,
+  lon,
+  nest_photo,
+  tent_photo,
+  reference_date
+FROM FIELD_2026_BADOatNZ.BROODS_LATEST;
+
+
+/*
   TODO_PARENT_STATUS is the task-facing materialization boundary for the
   authoritative four-gate parent pipeline. Keeping this as a separate
   TEMPTABLE view prevents each parent-task branch from expanding
@@ -5808,7 +5838,7 @@ brood_followup_nests AS (
     n.*,
     b.hatch_evidence_date AS hatch_date
   FROM latest_nests n
-  JOIN FIELD_2026_BADOatNZ.BROODS_LATEST b
+  JOIN FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_INPUT b
     ON n.nest_id = b.nest_id
    AND b.reference_date = n.reference_date
   WHERE b.is_negative_brood = 0
@@ -5907,7 +5937,7 @@ todo_parent_source AS (
     b.nest_id,
     CAST(NULL AS CHAR(50)) AS M_mark,
     CAST(NULL AS CHAR(50)) AS F_mark
-  FROM FIELD_2026_BADOatNZ.BROODS_LATEST b
+  FROM FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_INPUT b
   CROSS JOIN sr
   WHERE b.is_negative_brood = 1
     AND b.reference_date = sr.reference_date
@@ -6087,7 +6117,7 @@ adult_capture_age_status AS (
     CAST(NULL AS DATE) AS clutch_completion_basis_date,
     1 AS clutch_completion_confirmed,
     1 AS capture_allowed_after_completion
-  FROM FIELD_2026_BADOatNZ.BROODS_LATEST b
+  FROM FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_INPUT b
   CROSS JOIN sr
   WHERE b.is_negative_brood = 1
     AND b.reference_date = sr.reference_date
@@ -6140,7 +6170,7 @@ geo_parent_targets AS (
     WHERE UPPER(TRIM(COALESCE(n.nest_state, ''))) = 'NOTA'
     UNION
     SELECT b.nest_id, b.reference_date
-    FROM FIELD_2026_BADOatNZ.BROODS_LATEST b
+    FROM FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_INPUT b
     CROSS JOIN sr
     WHERE b.is_negative_brood = 1
       AND b.reference_date = sr.reference_date
@@ -6561,7 +6591,7 @@ todo_untrapped_parent_candidate AS (
       b.reference_date,
       b.discovery_date,
       1
-    FROM FIELD_2026_BADOatNZ.BROODS_LATEST b
+    FROM FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_INPUT b
     CROSS JOIN sr
     WHERE b.is_negative_brood = 1
       AND b.reference_date = sr.reference_date
@@ -7017,7 +7047,7 @@ parent_units AS (
     b.lat,
     b.lon,
     b.discovery_date AS first_found_date
-  FROM FIELD_2026_BADOatNZ.BROODS_LATEST b
+  FROM FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_INPUT b
   CROSS JOIN sr
   WHERE b.is_negative_brood = 1
     AND b.reference_date = sr.reference_date
@@ -7537,7 +7567,7 @@ todo_nest_check AS (
     -- redundant even if the nest visit still carries a partial hatch sign.
     AND NOT EXISTS (
       SELECT 1
-      FROM FIELD_2026_BADOatNZ.BROODS_LATEST brood_evidence
+      FROM FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_INPUT brood_evidence
       WHERE brood_evidence.nest_id = active_nests.nest_id
         AND brood_evidence.reference_date = active_nests.reference_date
         AND brood_evidence.is_negative_brood = 0
@@ -7597,7 +7627,7 @@ todo_untrapped_brood AS (
     adult_parent_status.F_parent_mark AS F_mark,
     b.lat,
     b.lon
-  FROM FIELD_2026_BADOatNZ.BROODS_LATEST b
+  FROM FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_INPUT b
   CROSS JOIN sr
   LEFT JOIN chick_captures
     ON b.nest_id = chick_captures.nest_id
@@ -7693,7 +7723,7 @@ todo_broods_to_recapture_for_flagging AS (
     adult_parent_status.F_parent_mark AS F_mark,
     b.lat,
     b.lon
-  FROM FIELD_2026_BADOatNZ.BROODS_LATEST b
+  FROM FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_INPUT b
   CROSS JOIN sr
   LEFT JOIN chick_captures
     ON b.nest_id = chick_captures.nest_id
@@ -7786,7 +7816,7 @@ todo_hiding_spot_photos AS (
     adult_parent_status.F_parent_mark AS F_mark,
     b.lat,
     b.lon
-  FROM FIELD_2026_BADOatNZ.BROODS_LATEST b
+  FROM FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_INPUT b
   CROSS JOIN sr
   LEFT JOIN hiding_spot_photos
     ON b.nest_id = hiding_spot_photos.nest_id
@@ -7938,6 +7968,10 @@ WHERE NOT EXISTS (
   the expensive GPS matching graph out of repeated parent-status expansions
   while preserving the same definitive evidence gate.
 
+  The compact brood input is staged before GPS links. This keeps repeated
+  brood-task branches from independently expanding BROODS_LATEST while
+  preserving the same source fields and eligibility predicates.
+
   Rebuilding views creates an initial snapshot for the current settings date.
   After new field rows are loaded, or after reference_date changes, rerun
   DATABASE/refresh_todo_list_snapshot.SQL. The refresh is server-side and
@@ -7955,12 +7989,35 @@ CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_NEST_CONTE
 SELECT *
 FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT;
 
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_INPUT AS
+SELECT
+  nest_id,
+  species,
+  is_negative_brood,
+  discovery_date,
+  latest_encounter_date,
+  latest_encounter_datetime,
+  hatch_evidence_date,
+  has_hatch_evidence,
+  nest_state,
+  hatch_state,
+  clutch_size,
+  brood_size,
+  lat,
+  lon,
+  nest_photo,
+  tent_photo,
+  reference_date
+FROM FIELD_2026_BADOatNZ.BROODS_LATEST;
+
 CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.ADULT_CHICK_GPS_PARENT_LINKS_INPUT AS
 SELECT *
 FROM FIELD_2026_BADOatNZ.ADULT_CHICK_GPS_PARENT_LINKS;
 
 DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT_BUILD;
 DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT_PREVIOUS;
+DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_SNAPSHOT_BUILD;
+DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_SNAPSHOT_PREVIOUS;
 DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_PARENT_CHICK_GPS_LINKS_SNAPSHOT_BUILD;
 DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_PARENT_CHICK_GPS_LINKS_SNAPSHOT_PREVIOUS;
 DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_BUILD;
@@ -8119,6 +8176,80 @@ FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT;
 CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT AS
 SELECT *
 FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT_BUILD;
+
+SELECT 'TODO_REFRESH_STAGE|brood_context' AS refresh_stage;
+
+CREATE TABLE FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_SNAPSHOT_BUILD (
+  nest_id VARCHAR(6) NULL,
+  species VARCHAR(20) NULL,
+  is_negative_brood TINYINT NULL,
+  discovery_date DATE NULL,
+  latest_encounter_date DATE NULL,
+  latest_encounter_datetime DATETIME NULL,
+  hatch_evidence_date DATE NULL,
+  has_hatch_evidence TINYINT NULL,
+  nest_state VARCHAR(10) NULL,
+  hatch_state VARCHAR(50) NULL,
+  clutch_size DECIMAL(10, 0) NULL,
+  brood_size DECIMAL(10, 0) NULL,
+  lat DOUBLE NULL,
+  lon DOUBLE NULL,
+  nest_photo VARCHAR(5) NULL,
+  tent_photo VARCHAR(5) NULL,
+  reference_date DATE NULL,
+  INDEX idx_todo_brood_context_nest_reference (nest_id, reference_date),
+  INDEX idx_todo_brood_context_kind_reference (
+    is_negative_brood,
+    reference_date,
+    nest_id
+  )
+);
+
+CREATE TABLE IF NOT EXISTS FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_SNAPSHOT
+LIKE FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_SNAPSHOT_BUILD;
+
+INSERT INTO FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_SNAPSHOT_BUILD (
+  nest_id,
+  species,
+  is_negative_brood,
+  discovery_date,
+  latest_encounter_date,
+  latest_encounter_datetime,
+  hatch_evidence_date,
+  has_hatch_evidence,
+  nest_state,
+  hatch_state,
+  clutch_size,
+  brood_size,
+  lat,
+  lon,
+  nest_photo,
+  tent_photo,
+  reference_date
+)
+SELECT
+  nest_id,
+  species,
+  is_negative_brood,
+  discovery_date,
+  latest_encounter_date,
+  latest_encounter_datetime,
+  hatch_evidence_date,
+  has_hatch_evidence,
+  nest_state,
+  hatch_state,
+  clutch_size,
+  brood_size,
+  lat,
+  lon,
+  nest_photo,
+  tent_photo,
+  reference_date
+FROM FIELD_2026_BADOatNZ.BROODS_LATEST;
+
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_INPUT AS
+SELECT *
+FROM FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_SNAPSHOT_BUILD;
 
 SELECT 'TODO_REFRESH_STAGE|chick_gps_links' AS refresh_stage;
 
@@ -8327,6 +8458,7 @@ DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.TODO_PARENT_TASKS;
 DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.TODO_NONPARENT_TASKS;
 DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.TODO_PARENT_STATUS;
 DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT;
+DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_INPUT;
 DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.ADULT_CHICK_GPS_PARENT_LINKS_INPUT;
 
 RENAME TABLE
@@ -8334,6 +8466,10 @@ RENAME TABLE
     TO FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT_PREVIOUS,
   FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT_BUILD
     TO FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT,
+  FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_SNAPSHOT
+    TO FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_SNAPSHOT_PREVIOUS,
+  FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_SNAPSHOT_BUILD
+    TO FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_SNAPSHOT,
   FIELD_2026_BADOatNZ.TODO_PARENT_CHICK_GPS_LINKS_SNAPSHOT
     TO FIELD_2026_BADOatNZ.TODO_PARENT_CHICK_GPS_LINKS_SNAPSHOT_PREVIOUS,
   FIELD_2026_BADOatNZ.TODO_PARENT_CHICK_GPS_LINKS_SNAPSHOT_BUILD
@@ -8350,6 +8486,10 @@ RENAME TABLE
 CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT AS
 SELECT *
 FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT;
+
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_INPUT AS
+SELECT *
+FROM FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_SNAPSHOT;
 
 CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.ADULT_CHICK_GPS_PARENT_LINKS_INPUT AS
 SELECT *
@@ -8401,6 +8541,7 @@ JOIN sr
 DROP TABLE FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_PREVIOUS;
 DROP TABLE FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_PREVIOUS;
 DROP TABLE FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT_PREVIOUS;
+DROP TABLE FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_SNAPSHOT_PREVIOUS;
 
 /*
   VIEW_1 is the tagged-bird follow-up view used by the PDF resight table.

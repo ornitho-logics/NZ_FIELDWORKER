@@ -424,7 +424,7 @@ test_that("brood photo follow-up uses the unified brood evidence source", {
 
   expect_match(
     sql,
-    "JOIN FIELD_2026_BADOatNZ.BROODS_LATEST b\n    ON n.nest_id = b.nest_id",
+    "JOIN FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_INPUT b\n    ON n.nest_id = b.nest_id",
     fixed = TRUE
   )
   expect_match(sql, "b.has_hatch_evidence = 1", fixed = TRUE)
