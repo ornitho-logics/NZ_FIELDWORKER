@@ -12,6 +12,7 @@ sapply(
     "stringr",
     "glue",
     "ggplot2",
+    "mgcv",
     "ggrepel",
     "htmltools",
     "htmlwidgets",

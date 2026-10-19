@@ -44,6 +44,9 @@ test_that("main server initializes and updates the reference date", {
   app$env$overview_hatching_forecast_graph <- overview_plot_stub(
     "hatching_forecast"
   )
+  app$env$overview_chick_growth_graph <- overview_plot_stub(
+    "chick_growth"
+  )
   app$env$overview_quota_graph <- overview_plot_stub("quota")
 
   shiny::testServer(app$server, {
@@ -55,6 +58,7 @@ test_that("main server initializes and updates the reference date", {
     output$overview_cr_combos_show
     output$overview_lay_date_show
     output$overview_hatching_forecast_show
+    output$overview_chick_growth_show
     output$overview_quota_show
 
     expect_identical(as.Date(reference_date()), today)
@@ -65,6 +69,7 @@ test_that("main server initializes and updates the reference date", {
     expect_identical(overview_calls$band_combos, today)
     expect_identical(overview_calls$lay_date, today)
     expect_identical(overview_calls$hatching_forecast, today)
+    expect_identical(overview_calls$chick_growth, today)
     expect_identical(overview_calls$quota, today)
     expect_match(output$ref_date_text$html, as.character(today), fixed = TRUE)
     expect_match(output$open_gps$html, "../gpxui/", fixed = TRUE)
@@ -88,6 +93,7 @@ test_that("main server initializes and updates the reference date", {
       tail(overview_calls$hatching_forecast, 1),
       next_date
     )
+    expect_identical(tail(overview_calls$chick_growth, 1), next_date)
     expect_identical(tail(overview_calls$quota, 1), next_date)
     expect_true(any(grepl(
       as.character(next_date),
@@ -143,6 +149,10 @@ test_that("overview graph helpers use aligned reference-date queries", {
     app$env$overview_lay_date_graph(refdate, date_limits),
     "ggplot"
   )
+  expect_s3_class(
+    app$env$overview_chick_growth_graph(refdate),
+    "patchwork"
+  )
 
   grDevices::pdf(NULL)
   on.exit(grDevices::dev.off(), add = TRUE)
@@ -153,14 +163,14 @@ test_that("overview graph helpers use aligned reference-date queries", {
   )
 
   expect_length(quota_plots, 4)
-  expect_length(queries, 11)
+  expect_length(queries, 12)
   expect_true(all(vapply(
     queries,
     function(query) identical(query$params, list(as.character(refdate))),
     logical(1)
   )))
 
-  geolocator_quota_sql <- queries[[7]]$sql
+  geolocator_quota_sql <- queries[[8]]$sql
 
   expect_match(
     geolocator_quota_sql,
@@ -199,15 +209,64 @@ test_that("overview graph helpers use aligned reference-date queries", {
   expect_match(queries[[6]]$sql, "c.tag_type, ''))) = 'GEO'", fixed = TRUE)
   expect_match(queries[[6]]$sql, "c.tag_action, ''))) = 'D'", fixed = TRUE)
   expect_match(
-    queries[[11]]$sql,
+    queries[[12]]$sql,
     "FROM EGGS_HATCH_PREDICTION e",
     fixed = TRUE
   )
   expect_match(
-    queries[[11]]$sql,
+    queries[[12]]$sql,
     "e.predicted_hatch_date > sr.reference_date",
     fixed = TRUE
   )
+})
+
+
+test_that("chick growth plot uses ring-only identity and has three panels", {
+  app <- load_main_app()
+  x <- data.frame(
+    ring = c(
+      "MOCK_RING_A", "MOCK_RING_A", "MOCK_RING_B", "MOCK_RING_B",
+      "MOCK_RING_C", "MOCK_RING_C"
+    ),
+    nest_id = c(
+      "MOCK_NEST_1", "MOCK_NEST_1", "MOCK_NEST_1", "MOCK_NEST_1",
+      "MOCK_NEST_2", "MOCK_NEST_2"
+    ),
+    age_days = c(0, 5, 0, 5, 0, 5),
+    weight = c(8, 12, 7, 11, 9, 13),
+    culmen = c(7, 10, 7.2, 10.2, 7.5, 10.5),
+    tarsus = c(19, 22, 19.2, 22.2, 19.5, 22.5)
+  )
+
+  plot <- app$env$overview_chick_growth_plot(
+    x,
+    refdate = as.Date("2026-10-19")
+  )
+
+  expect_s3_class(plot, "patchwork")
+})
+
+
+test_that("chick growth query is reference-date bounded and ring filtered", {
+  app <- load_main_app()
+  refdate <- as.Date("2026-07-21")
+  query <- NULL
+
+  app$env$db_get <- function(sql, params) {
+    query <<- list(sql = sql, params = params)
+    data.frame()
+  }
+
+  expect_s3_class(
+    app$env$overview_chick_growth_graph(refdate),
+    "patchwork"
+  )
+  expect_equal(query$params, list(as.character(refdate)))
+  expect_match(query$sql, "COALESCE(c.age, '')", fixed = TRUE)
+  expect_match(query$sql, ") = 'C'", fixed = TRUE)
+  expect_match(query$sql, "TRIM(c.ring)", fixed = TRUE)
+  expect_match(query$sql, "c.date <= sr.reference_date", fixed = TRUE)
+  expect_match(query$sql, "FROM NESTS n", fixed = TRUE)
 })
 
 

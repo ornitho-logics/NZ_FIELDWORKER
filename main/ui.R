@@ -336,6 +336,20 @@ dashboardPage(
           )
         ),
         bs4Dash::box(
+          title = "Seasonal progression in chick growth",
+          width = 12,
+          collapsible = TRUE,
+          collapsed = FALSE,
+          height = "55vh",
+          style = "overflow: hidden;",
+          spinner(
+            plotOutput(
+              "overview_chick_growth_show",
+              height = "47vh"
+            )
+          )
+        ),
+        bs4Dash::box(
           title = "Current quotas for manipulations (Cass and elsewhere in NZ).",
           width = 12,
           collapsible = TRUE,
