@@ -322,6 +322,26 @@ resolve_git_version <- function(app_dir = getwd()) {
   # checkout has been updated.
   local_head <- git_local_head_id(app_dir)
 
+  # A copied deployment may not contain .git. In that case an inherited
+  # FIELDWORKER_GIT_ID can be stale even when the copied app files are current.
+  # Prefer the live public main ref when it is reachable; retain the
+  # deployment variable only as an offline fallback.
+  remote_main_id <- if (is.null(local_head)) {
+    git_remote_main_id()
+  } else {
+    NULL
+  }
+
+  if (is.null(local_head) && !is.null(remote_main_id)) {
+    return(list(
+      id = remote_main_id,
+      source = "remote:origin/main",
+      commit_time = NULL,
+      local = FALSE,
+      dirty = FALSE
+    ))
+  }
+
   for (name in environment_names) {
     id <- normalize_git_id(Sys.getenv(name, unset = NA_character_))
 
@@ -378,7 +398,11 @@ resolve_git_version <- function(app_dir = getwd()) {
     ))
   }
 
-  id <- git_remote_main_id()
+  id <- remote_main_id
+
+  if (is.null(id)) {
+    id <- git_remote_main_id()
+  }
 
   if (!is.null(id)) {
     return(list(
