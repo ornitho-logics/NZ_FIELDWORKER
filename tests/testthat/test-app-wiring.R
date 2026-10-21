@@ -89,14 +89,17 @@ test_that("main app UI and entrypoint load", {
   )
 
   expect_match(html, "FIELDWORKER", fixed = TRUE)
-  expect_match(html, app$env$git_id, fixed = TRUE)
-  expect_match(
-    html,
-    paste0(
-      "https://github.com/ornitho-logics/NZ_FIELDWORKER/commit/",
-      app$env$git_id
-    ),
-    fixed = TRUE
+  expect_match(html, 'id="git_version_label"', fixed = TRUE)
+  expect_equal(
+    app$env$git_version_label_text(list(
+      id = "abcdef1",
+      local = TRUE
+    )),
+    "local-abcdef1"
+  )
+  expect_equal(
+    app$env$git_commit_url_for_version(list(id = "abcdef1")),
+    "https://github.com/ornitho-logics/NZ_FIELDWORKER/commit/abcdef1"
   )
   expect_match(html, 'data-value="downloads"', fixed = TRUE)
   expect_match(html, 'data-value="enter_data"', fixed = TRUE)
@@ -209,6 +212,28 @@ test_that("git version falls back to local HEAD when remote lookup is unavailabl
 })
 
 
+test_that("clean main checkout prefers the current remote main", {
+  app <- load_main_app()
+
+  withr::local_envvar(c(
+    FIELDWORKER_GIT_ID = NA,
+    GITHUB_SHA = NA,
+    SOURCE_VERSION = NA,
+    RENDER_GIT_COMMIT = NA
+  ))
+  app$env$git_local_head_id <- function(...) "oldmain1"
+  app$env$git_branch_name <- function(...) "main"
+  app$env$git_worktree_dirty <- function(...) FALSE
+  app$env$git_remote_main_id <- function(...) "newmain1"
+
+  observed <- app$env$resolve_git_version(app_file("main"))
+
+  expect_identical(observed$id, "newmain1")
+  expect_identical(observed$source, "remote:origin/main")
+  expect_false(observed$local)
+})
+
+
 test_that("stale deployment version does not override the app checkout", {
   app <- load_main_app()
 
@@ -219,8 +244,16 @@ test_that("stale deployment version does not override the app checkout", {
     RENDER_GIT_COMMIT = NA
   ))
   app$env$git_local_head_id <- function(...) "dc0c1a9"
+  app$env$git_remote_main_id <- function(...) NULL
+  app$env$git_worktree_dirty <- function(...) FALSE
   app$env$git_ref_matches_app <- function(app_dir, ref) {
     identical(ref, "HEAD")
+  }
+  app$env$git_output <- function(app_dir, args) {
+    if (identical(args[[1L]], "rev-parse")) {
+      return("dc0c1a9")
+    }
+    character()
   }
   app$env$git_branch_name <- function(...) "main"
 
@@ -242,6 +275,9 @@ test_that("matching deployment version remains authoritative", {
     RENDER_GIT_COMMIT = NA
   ))
   app$env$git_local_head_id <- function(...) "dc0c1a9"
+  app$env$git_remote_main_id <- function(...) NULL
+  app$env$git_branch_name <- function(...) "main"
+  app$env$git_worktree_dirty <- function(...) FALSE
   app$env$git_ref_matches_app <- function(app_dir, ref) {
     identical(ref, "dc0c1a9")
   }

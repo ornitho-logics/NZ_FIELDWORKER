@@ -1,6 +1,14 @@
 test_that("main server initializes and updates the reference date", {
   app <- load_main_app()
   today <- as.Date(Sys.time(), tz = app$env$preferred_timezone)
+  app$env$resolve_git_version <- function(...) {
+    list(
+      id = "67c8485",
+      source = "remote:origin/main",
+      local = FALSE,
+      dirty = FALSE
+    )
+  }
   saved <- new.env(parent = emptyenv())
   saved$date <- as.Date(NA)
   saved$notices <- character()
@@ -74,6 +82,12 @@ test_that("main server initializes and updates the reference date", {
     expect_match(output$ref_date_text$html, as.character(today), fixed = TRUE)
     expect_match(output$open_gps$html, "../gpxui/", fixed = TRUE)
     expect_match(output$open_db$html, "db_ui/field_db.php", fixed = TRUE)
+    expect_match(output$git_version_label$html, "67c8485", fixed = TRUE)
+    expect_match(
+      output$git_version_label$html,
+      "https://github.com/ornitho-logics/NZ_FIELDWORKER/commit/67c8485",
+      fixed = TRUE
+    )
 
     next_date <- today + 1
     session$setInputs(refdate = as.character(next_date), set_refdate = 1)

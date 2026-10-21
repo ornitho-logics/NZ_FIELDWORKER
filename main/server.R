@@ -1,4 +1,36 @@
 function(input, output, session) {
+  # Re-resolve the version for each session and poll periodically. This lets a
+  # long-lived Shiny process notice a newer public main merge without relying
+  # on the value captured when global.R was first sourced.
+  git_version_poll <- reactivePoll(
+    60000,
+    session = session,
+    checkFunc = function() {
+      version <- resolve_git_version()
+      paste(
+        version$id,
+        version$source,
+        isTRUE(version$local),
+        isTRUE(version$dirty),
+        sep = "|"
+      )
+    },
+    valueFunc = resolve_git_version
+  )
+
+  output$git_version_label <- renderUI({
+    version <- git_version_poll()
+
+    tags$a(
+      id = "git_version_label",
+      href = git_commit_url_for_version(version),
+      target = "_blank",
+      rel = "noopener noreferrer",
+      title = paste("Version source:", version$source),
+      git_version_label_text(version)
+    )
+  })
+
   reference_date <- reactiveVal(get_reference_date())
   pending_refdate <- reactiveVal(NULL)
   todo_refresh_job <- reactiveVal(NULL)

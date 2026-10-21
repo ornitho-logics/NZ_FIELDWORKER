@@ -20,7 +20,9 @@ dashboardPage(
     color = "#f8fafc"
   ),
 
-  title = glue('FIELDWORKER {git_id}'),
+  # The sidebar version label is resolved per Shiny session. Keep the browser
+  # title stable so a process-start value cannot make the app look stale.
+  title = "FIELDWORKER",
 
   header = dashboardHeader(
     title = dashboardBrand(
@@ -62,9 +64,8 @@ dashboardPage(
       hr(),
 
       menuItem(
-        text = git_id,
-        icon = icon("code-branch", style = "color: gray;"),
-        href = git_commit_url
+        text = uiOutput("git_version_label", inline = TRUE),
+        icon = icon("code-branch", style = "color: gray;")
       ),
       menuItem(
         text = app_test_status$text,
