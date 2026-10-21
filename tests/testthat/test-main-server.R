@@ -352,8 +352,8 @@ test_that("band-combo overview reconciles adult identities and exposes safe diag
   expect_equal(
     app$env$overview_band_combo_summary_label(summary),
     paste(
-      "N females = 4 (3 captured this year, 1 resighted only)",
-      "N males = 1 (1 captured this year, 0 resighted only)",
+      "N females = 4 (3 caps, 1 res)",
+      "N males = 1 (1 caps, 0 res)",
       sep = "\n"
     )
   )
@@ -551,6 +551,24 @@ test_that("lay-date bins tally geolocators by associated nest", {
 
   expect_s3_class(plot, "ggplot")
   expect_silent(ggplot2::ggplot_build(plot))
+  label_index <- which(vapply(
+    plot$layers,
+    function(layer) inherits(layer$geom, "GeomLabel"),
+    logical(1)
+  ))
+  expect_length(label_index, 1L)
+  label_layer <- plot$layers[[label_index]]
+  expect_equal(label_layer$aes_params$hjust, 0)
+  expect_equal(label_layer$aes_params$vjust, 1.05)
+  expect_equal(
+    label_layer$aes_params$label,
+    paste(
+      "Numbers above bars = geolocators deployed",
+      "on parents associated with nests",
+      "in each 4-day lay-date bin",
+      sep = "\n"
+    )
+  )
 })
 
 
