@@ -315,10 +315,18 @@ resolve_git_version <- function(app_dir = getwd()) {
     "RENDER_GIT_COMMIT"
   )
 
+  # Deployment variables are useful when the app is copied without its Git
+  # metadata.  When a checkout is available, however, a stale variable must
+  # not mask the commit that actually supplies the app files.  This can happen
+  # when a long-lived Shiny process retains an old FIELDWORKER_GIT_ID after a
+  # checkout has been updated.
+  local_head <- git_local_head_id(app_dir)
+
   for (name in environment_names) {
     id <- normalize_git_id(Sys.getenv(name, unset = NA_character_))
 
-    if (!is.null(id)) {
+    if (!is.null(id) &&
+        (is.null(local_head) || git_ref_matches_app(app_dir, id))) {
       return(list(
         id = id,
         source = paste0("env:", name),
@@ -355,7 +363,6 @@ resolve_git_version <- function(app_dir = getwd()) {
   # A local feature branch or dirty checkout must be labelled as local before
   # consulting the network. Otherwise a reachable origin/main can make a
   # sandbox render look like a deployed main-origin render.
-  local_head <- git_local_head_id(app_dir)
   branch <- git_branch_name(app_dir)
   local <- !is.null(local_head) && (
     git_worktree_dirty(app_dir) ||

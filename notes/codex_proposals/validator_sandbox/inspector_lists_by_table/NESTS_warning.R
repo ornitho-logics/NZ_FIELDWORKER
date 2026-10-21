@@ -49,6 +49,123 @@ list({
     out <- try_validator({
         empty <- data.table::data.table(rowid = integer(), variable = character(), reason = character())
         norm_chr <- function(v) {
+            out <- trimws(as.character(v))
+            out[is.na(v) | !nzchar(out) | out == "NA"] <- NA_character_
+            out
+        }
+        norm_time_chr <- function(v) {
+            if (inherits(v, "difftime")) {
+                secs <- suppressWarnings(as.numeric(v, units = "secs"))
+                out <- rep(NA_character_, length(secs))
+                ok <- !is.na(secs)
+                secs <- secs %% (24 * 60 * 60)
+                out[ok] <- sprintf(
+                    "%02d:%02d:%02d",
+                    floor(secs[ok] / 3600),
+                    floor((secs[ok] %% 3600) / 60),
+                    floor(secs[ok] %% 60)
+                )
+                return(substr(out, 1, 5))
+            }
+            out <- norm_chr(v)
+            out[!is.na(out) & nzchar(out)] <- substr(out[!is.na(out) & nzchar(out)], 1, 5)
+            out
+        }
+        z <- data.table::copy(x)
+        z[, `:=`(rowid, .I)]
+        z[, `:=`(
+            nest_key = norm_chr(nest_id),
+            event_date = suppressWarnings(as.Date(as.character(date))),
+            event_time = norm_time_chr(time_visit),
+            state_key = norm_chr(nest_state),
+            source = "current",
+            source_ord = 1L
+        )]
+        ids <- unique(z$nest_key[!is.na(z$nest_key) & nzchar(z$nest_key)])
+        hist <- data.table::data.table(
+            nest_key = character(),
+            event_date = as.Date(character()),
+            event_time = character(),
+            state_key = character(),
+            rowid = integer(),
+            source = character(),
+            source_ord = integer()
+        )
+        if (length(ids) > 0) {
+            quoted <- paste(sprintf("'%s'", gsub("'", "''", ids)), collapse = ", ")
+            hist0 <- tryCatch(
+                db_get(sprintf(
+                    "SELECT nest_id, date, time_visit, nest_state FROM NESTS WHERE nest_id IN (%s)",
+                    quoted
+                )),
+                error = function(e) NULL
+            )
+            if (!is.null(hist0) && nrow(hist0) > 0) {
+                hist <- data.table::as.data.table(hist0)
+                hist[, `:=`(
+                    nest_key = norm_chr(nest_id),
+                    event_date = suppressWarnings(as.Date(as.character(date))),
+                    event_time = norm_time_chr(time_visit),
+                    state_key = norm_chr(nest_state),
+                    rowid = NA_integer_,
+                    source = "db",
+                    source_ord = 0L
+                )]
+                hist <- hist[, .(nest_key, event_date, event_time, state_key, rowid, source, source_ord)]
+            }
+        }
+        all_nests <- data.table::rbindlist(
+            list(
+                hist,
+                z[, .(nest_key, event_date, event_time, state_key, rowid, source, source_ord)]
+            ),
+            use.names = TRUE,
+            fill = TRUE
+        )
+        all_nests <- all_nests[
+            !is.na(nest_key) & nzchar(nest_key) &
+                !is.na(event_date) & !is.na(event_time) & nzchar(event_time) &
+                !is.na(state_key) & nzchar(state_key)
+        ]
+        if (nrow(all_nests) == 0) {
+            empty
+        } else {
+            data.table::setorder(all_nests, nest_key, event_date, event_time, source_ord, rowid)
+            all_nests[, previous_state := data.table::shift(state_key), by = nest_key]
+            bad <- all_nests[
+                source == "current" &
+                    state_key == "D" &
+                    previous_state %in% c("pP", "P"),
+                .(
+                    rowid,
+                    variable = "nest_state",
+                    reason = "This nest changed from pP/P to D. That is allowed, but unusual; please confirm the nest was truly deserted and continue follow-up checks as needed before recording the final notA visit."
+                )
+            ]
+            if (nrow(bad) == 0) empty else unique(bad)
+        }
+    }, nam = "pP/P to D review")
+    out <- data.table::as.data.table(out)
+    if ("reason" %in% names(out)) {
+        out[, `:=`(reason, {
+            cleaned <- sub("^(ERROR|WARNING):\\s*", "", as.character(reason))
+            cleaned[is.na(reason)] <- NA_character_
+            ok_idx <- !is.na(cleaned) & nzchar(cleaned)
+            cleaned[ok_idx] <- paste0(
+                cleaned[ok_idx],
+                " Please double-check this entry. If it is correct, add a validator bypass comment to the event."
+            )
+            cleaned
+        })]
+    }
+    if ("type" %in% names(out)) {
+        out[, `:=`(type, NULL)]
+    }
+    out
+}, {
+    out <- try_validator({
+        empty <- data.table::data.table(rowid = integer(), variable = character(), reason = character())
+        norm_chr <- function(v) {
             raw <- trimws(as.character(v))
             raw[is.na(v) | !nzchar(raw) | toupper(raw) == "NA"] <- NA_character_
             raw
@@ -433,7 +550,10 @@ list({
                   }
                 }
             }
-            if (nrow(dt) >= 2 && !states[2] %in% c("pD", "D", "pP", "P", "notA") && !is.na(dt$clutch_size[1]) && dt$clutch_size[1] %in% c(1, 2) && !is.na(dt$clutch_size[2]) && dt$clutch_size[2] < dt$clutch_size[1]) {
+            # This heuristic is only for the pre-hatch laying phase. Once the
+            # nest is H, eggs can move into brood_size, so a clutch reduction
+            # can be correct even when clutch_size + brood_size stays constant.
+            if (nrow(dt) >= 2 && !states[2] %in% c("H", "pD", "D", "pP", "P", "notA") && !is.na(dt$clutch_size[1]) && dt$clutch_size[1] %in% c(1, 2) && !is.na(dt$clutch_size[2]) && dt$clutch_size[2] < dt$clutch_size[1]) {
                 probs[[length(probs) + 1L]] <- data.table::data.table(rowid = dt$rowid[2], variable = "clutch_size", reason = "This nest started below a full clutch, but the next visit did not show an increase. Please check the clutch counts and add a note if the smaller clutch is expected.")
             }
             probs <- Filter(function(x) !is.null(x) && nrow(x) > 0, probs)
