@@ -3217,15 +3217,26 @@ todo_nest_check AS (
         AND active_nests.days_ago >= 2
       )
     )
-    -- Once age-C evidence has established a brood, the nest-check task is
-    -- redundant even if the nest visit still carries a partial hatch sign.
-    AND NOT EXISTS (
-      SELECT 1
-      FROM brood_context brood_evidence
-      WHERE brood_evidence.nest_id = active_nests.nest_id
-        AND brood_evidence.reference_date = active_nests.reference_date
-        AND brood_evidence.is_negative_brood = 0
-        AND brood_evidence.has_hatch_evidence = 1
+    -- Once age-C evidence has established an ordinary brood, the nest-check
+    -- task is redundant even if the nest visit still carries a partial hatch
+    -- sign. Keep the explicit H-state/positive-clutch/positive-brood case in
+    -- the nest-check output: it is the field reminder for unhatched eggs
+    -- remaining after chicks have been recorded. This exception does not
+    -- alter the independent brood-photo task, which remains published below.
+    AND (
+      (
+        UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) = 'H'
+        AND COALESCE(active_nests.clutch_size, 0) > 0
+        AND COALESCE(active_nests.brood_size, 0) > 0
+      )
+      OR NOT EXISTS (
+        SELECT 1
+        FROM brood_context brood_evidence
+        WHERE brood_evidence.nest_id = active_nests.nest_id
+          AND brood_evidence.reference_date = active_nests.reference_date
+          AND brood_evidence.is_negative_brood = 0
+          AND brood_evidence.has_hatch_evidence = 1
+      )
     )
 ),
 todo_untrapped_brood AS (
