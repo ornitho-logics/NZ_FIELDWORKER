@@ -321,18 +321,32 @@ resolve_git_version <- function(app_dir = getwd()) {
   # when a long-lived Shiny process retains an old FIELDWORKER_GIT_ID after a
   # checkout has been updated.
   local_head <- git_local_head_id(app_dir)
+  branch <- git_branch_name(app_dir)
+  dirty <- !is.null(local_head) && git_worktree_dirty(app_dir)
 
-  # A copied deployment may not contain .git. In that case an inherited
-  # FIELDWORKER_GIT_ID can be stale even when the copied app files are current.
-  # Prefer the live public main ref when it is reachable; retain the
-  # deployment variable only as an offline fallback.
-  remote_main_id <- if (is.null(local_head)) {
-    git_remote_main_id()
-  } else {
-    NULL
+  # A local feature branch or dirty checkout is intentionally labelled from
+  # its own HEAD.  This keeps local PDF/app renders traceable and prevents a
+  # reachable public main ref from making development work look deployed.
+  local <- !is.null(local_head) && (
+    dirty ||
+      !is.null(branch) && !branch %in% c("main", "master", "HEAD")
+  )
+  if (isTRUE(local)) {
+    return(list(
+      id = local_head,
+      source = "git:HEAD-working-tree",
+      commit_time = git_commit_time(app_dir, "HEAD"),
+      local = TRUE,
+      dirty = dirty
+    ))
   }
 
-  if (is.null(local_head) && !is.null(remote_main_id)) {
+  # A clean main checkout or a copied deployment may lag behind the public
+  # repository. Prefer the live public main ref whenever it is reachable so a
+  # new merge is reflected without relying on a stale process environment.
+  remote_main_id <- git_remote_main_id()
+
+  if (!is.null(remote_main_id)) {
     return(list(
       id = remote_main_id,
       source = "remote:origin/main",
@@ -380,40 +394,6 @@ resolve_git_version <- function(app_dir = getwd()) {
     }
   }
 
-  # A local feature branch or dirty checkout must be labelled as local before
-  # consulting the network. Otherwise a reachable origin/main can make a
-  # sandbox render look like a deployed main-origin render.
-  branch <- git_branch_name(app_dir)
-  local <- !is.null(local_head) && (
-    git_worktree_dirty(app_dir) ||
-      !is.null(branch) && !branch %in% c("main", "master", "HEAD")
-  )
-  if (isTRUE(local)) {
-    return(list(
-      id = local_head,
-      source = "git:HEAD-working-tree",
-      commit_time = git_commit_time(app_dir, "HEAD"),
-      local = TRUE,
-      dirty = git_worktree_dirty(app_dir)
-    ))
-  }
-
-  id <- remote_main_id
-
-  if (is.null(id)) {
-    id <- git_remote_main_id()
-  }
-
-  if (!is.null(id)) {
-    return(list(
-      id = id,
-      source = "remote:origin/main",
-      commit_time = git_commit_time(app_dir, id),
-      local = FALSE,
-      dirty = FALSE
-    ))
-  }
-
   # A deployed checkout may be dirty or unable to reach GitHub. In that case
   # its local HEAD is still more useful than reporting an unknown version.
   id <- local_head
@@ -438,16 +418,48 @@ resolve_git_version <- function(app_dir = getwd()) {
 }
 
 
-git_version <- resolve_git_version()
-git_id <- git_version$id
-git_commit_url <- if (git_id == "unknown") {
-  "https://github.com/ornitho-logics/NZ_FIELDWORKER"
-} else {
+git_commit_url_for_version <- function(version) {
+  commit_id <- version$id
+  if (
+    is.null(commit_id) ||
+      !length(commit_id) ||
+      is.na(commit_id[[1L]]) ||
+      identical(commit_id[[1L]], "unknown")
+  ) {
+    return("https://github.com/ornitho-logics/NZ_FIELDWORKER")
+  }
+
   paste0(
     "https://github.com/ornitho-logics/NZ_FIELDWORKER/commit/",
-    git_id
+    commit_id[[1L]]
   )
 }
+
+
+git_version_label_text <- function(version) {
+  commit_id <- version$id
+  if (
+    is.null(commit_id) ||
+      !length(commit_id) ||
+      is.na(commit_id[[1L]]) ||
+      !nzchar(as.character(commit_id[[1L]]))
+  ) {
+    commit_id <- "unknown"
+  } else {
+    commit_id <- as.character(commit_id[[1L]])
+  }
+
+  if (isTRUE(version$local) && commit_id != "unknown") {
+    return(paste0("local-", commit_id))
+  }
+
+  commit_id
+}
+
+
+git_version <- resolve_git_version()
+git_id <- git_version$id
+git_commit_url <- git_commit_url_for_version(git_version)
 
 message(
   "FIELDWORKER commit: ",
