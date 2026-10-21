@@ -188,27 +188,27 @@ test_that("main app UI and entrypoint load", {
 })
 
 
-test_that("git version falls back to local HEAD when remote lookup is unavailable", {
+test_that("git version is unknown when no trusted source is available", {
   app <- load_main_app()
 
   withr::local_envvar(c(
     FIELDWORKER_GIT_ID = NA,
     GITHUB_SHA = NA,
     SOURCE_VERSION = NA,
-    RENDER_GIT_COMMIT = NA
+    RENDER_GIT_COMMIT = NA,
+    FIELDWORKER_LOCAL_PREVIEW = NA
   ))
+  app$env$git_local_head_id <- function(...) "abcdef1"
+  app$env$git_branch_name <- function(...) "codex/stale-branch"
+  app$env$git_worktree_dirty <- function(...) TRUE
   app$env$git_ref_matches_app <- function(...) FALSE
   app$env$git_remote_main_id <- function(...) NULL
 
-  expected_id <- app$env$git_local_head_id(app_file("main"))
   observed <- app$env$resolve_git_version(app_file("main"))
 
-  expect_identical(observed$id, expected_id)
-  expect_identical(observed$source, "git:HEAD-working-tree")
-  expect_identical(
-    observed$commit_time,
-    app$env$git_commit_time(app_file("main"), "HEAD")
-  )
+  expect_identical(observed$id, "unknown")
+  expect_identical(observed$source, "unavailable")
+  expect_false(observed$local)
 })
 
 
@@ -219,7 +219,8 @@ test_that("clean main checkout prefers the current remote main", {
     FIELDWORKER_GIT_ID = NA,
     GITHUB_SHA = NA,
     SOURCE_VERSION = NA,
-    RENDER_GIT_COMMIT = NA
+    RENDER_GIT_COMMIT = NA,
+    FIELDWORKER_LOCAL_PREVIEW = NA
   ))
   app$env$git_local_head_id <- function(...) "oldmain1"
   app$env$git_branch_name <- function(...) "main"
@@ -241,7 +242,8 @@ test_that("stale deployment version does not override the app checkout", {
     FIELDWORKER_GIT_ID = "34cc549",
     GITHUB_SHA = NA,
     SOURCE_VERSION = NA,
-    RENDER_GIT_COMMIT = NA
+    RENDER_GIT_COMMIT = NA,
+    FIELDWORKER_LOCAL_PREVIEW = NA
   ))
   app$env$git_local_head_id <- function(...) "dc0c1a9"
   app$env$git_remote_main_id <- function(...) NULL
@@ -270,9 +272,10 @@ test_that("matching deployment version remains authoritative", {
 
   withr::local_envvar(c(
     FIELDWORKER_GIT_ID = "DC0C1A9abcdef",
-    GITHUB_SHA = NA,
+    GITHUB_SHA = "DC0C1A9abcdef",
     SOURCE_VERSION = NA,
-    RENDER_GIT_COMMIT = NA
+    RENDER_GIT_COMMIT = NA,
+    FIELDWORKER_LOCAL_PREVIEW = NA
   ))
   app$env$git_local_head_id <- function(...) "dc0c1a9"
   app$env$git_remote_main_id <- function(...) NULL
@@ -285,7 +288,7 @@ test_that("matching deployment version remains authoritative", {
   observed <- app$env$resolve_git_version(app_file("main"))
 
   expect_identical(observed$id, "dc0c1a9")
-  expect_identical(observed$source, "env:FIELDWORKER_GIT_ID")
+  expect_identical(observed$source, "env:GITHUB_SHA")
   expect_false(observed$local)
 })
 
@@ -297,7 +300,8 @@ test_that("no-Git deployment prefers current remote main over stale metadata", {
     FIELDWORKER_GIT_ID = "34cc549",
     GITHUB_SHA = NA,
     SOURCE_VERSION = NA,
-    RENDER_GIT_COMMIT = NA
+    RENDER_GIT_COMMIT = NA,
+    FIELDWORKER_LOCAL_PREVIEW = NA
   ))
   app$env$git_local_head_id <- function(...) NULL
   app$env$git_remote_main_id <- function(...) "aee720c"
@@ -310,40 +314,67 @@ test_that("no-Git deployment prefers current remote main over stale metadata", {
 })
 
 
-test_that("no-Git deployment retains metadata when remote lookup is unavailable", {
+test_that("stale legacy metadata is not used when remote lookup is unavailable", {
   app <- load_main_app()
 
   withr::local_envvar(c(
     FIELDWORKER_GIT_ID = "34cc549",
     GITHUB_SHA = NA,
     SOURCE_VERSION = NA,
-    RENDER_GIT_COMMIT = NA
+    RENDER_GIT_COMMIT = NA,
+    FIELDWORKER_LOCAL_PREVIEW = NA
   ))
   app$env$git_local_head_id <- function(...) NULL
   app$env$git_remote_main_id <- function(...) NULL
 
   observed <- app$env$resolve_git_version(tempdir())
 
-  expect_identical(observed$id, "34cc549")
-  expect_identical(observed$source, "env:FIELDWORKER_GIT_ID")
+  expect_identical(observed$id, "unknown")
+  expect_identical(observed$source, "unavailable")
   expect_false(observed$local)
 })
 
 
-test_that("local feature worktree wins over remote main fallback", {
+test_that("production prefers remote main even from a feature worktree", {
   app <- load_main_app()
 
   withr::local_envvar(c(
     FIELDWORKER_GIT_ID = NA,
     GITHUB_SHA = NA,
     SOURCE_VERSION = NA,
-    RENDER_GIT_COMMIT = NA
+    RENDER_GIT_COMMIT = NA,
+    FIELDWORKER_LOCAL_PREVIEW = NA
   ))
   app$env$git_ref_matches_app <- function(...) FALSE
   app$env$git_local_head_id <- function(...) "abcdef1"
   app$env$git_branch_name <- function(...) "codex/local-test"
   app$env$git_worktree_dirty <- function(...) TRUE
-  app$env$git_remote_main_id <- function(...) "1234567890abcdef1234567890abcdef12345678"
+  app$env$git_remote_main_id <- function(...) "1234567"
+
+  observed <- app$env$resolve_git_version(app_file("main"))
+
+  expect_identical(observed$id, "1234567")
+  expect_identical(observed$source, "remote:origin/main")
+  expect_false(observed$local)
+  expect_false(observed$dirty)
+})
+
+
+test_that("local preview mode opts into a local working-tree label", {
+  app <- load_main_app()
+
+  withr::local_envvar(c(
+    FIELDWORKER_GIT_ID = NA,
+    GITHUB_SHA = NA,
+    SOURCE_VERSION = NA,
+    RENDER_GIT_COMMIT = NA,
+    FIELDWORKER_LOCAL_PREVIEW = "1"
+  ))
+  app$env$git_ref_matches_app <- function(...) FALSE
+  app$env$git_local_head_id <- function(...) "abcdef1"
+  app$env$git_branch_name <- function(...) "codex/local-test"
+  app$env$git_worktree_dirty <- function(...) TRUE
+  app$env$git_remote_main_id <- function(...) "1234567"
 
   observed <- app$env$resolve_git_version(app_file("main"))
 

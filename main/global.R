@@ -305,11 +305,31 @@ git_branch_name <- function(app_dir) {
 }
 
 
-resolve_git_version <- function(app_dir = getwd()) {
+git_local_preview_enabled <- function() {
+  value <- tolower(trimws(
+    Sys.getenv("FIELDWORKER_LOCAL_PREVIEW", unset = "")
+  ))
+
+  value %in% c("1", "true", "yes", "on")
+}
+
+
+resolve_git_version <- function(
+  app_dir = getwd(),
+  local_preview = NULL
+) {
   app_dir <- normalizePath(app_dir, mustWork = FALSE)
 
+  if (is.null(local_preview)) {
+    local_preview <- git_local_preview_enabled()
+  }
+
+  # FIELDWORKER_GIT_ID was used by an older deployment and can survive a
+  # checkout update in a long-lived Shiny process. It is deliberately not a
+  # production fallback: a stale identifier is worse than an explicit
+  # "unknown" label. CI/deployment identifiers below are only used when they
+  # are provided by a trusted build environment.
   environment_names <- c(
-    "FIELDWORKER_GIT_ID",
     "GITHUB_SHA",
     "SOURCE_VERSION",
     "RENDER_GIT_COMMIT"
@@ -324,14 +344,11 @@ resolve_git_version <- function(app_dir = getwd()) {
   branch <- git_branch_name(app_dir)
   dirty <- !is.null(local_head) && git_worktree_dirty(app_dir)
 
-  # A local feature branch or dirty checkout is intentionally labelled from
-  # its own HEAD.  This keeps local PDF/app renders traceable and prevents a
-  # reachable public main ref from making development work look deployed.
-  local <- !is.null(local_head) && (
-    dirty ||
-      !is.null(branch) && !branch %in% c("main", "master", "HEAD")
-  )
-  if (isTRUE(local)) {
+  # Local traceability is opt-in. It must never be inferred from the branch or
+  # dirty state because production may run from a copied checkout or a
+  # deployment branch. The local PDF harness can set FIELDWORKER_LOCAL_PREVIEW
+  # when it intentionally wants a local-<commit> identifier.
+  if (isTRUE(local_preview) && !is.null(local_head)) {
     return(list(
       id = local_head,
       source = "git:HEAD-working-tree",
@@ -341,9 +358,9 @@ resolve_git_version <- function(app_dir = getwd()) {
     ))
   }
 
-  # A clean main checkout or a copied deployment may lag behind the public
-  # repository. Prefer the live public main ref whenever it is reachable so a
-  # new merge is reflected without relying on a stale process environment.
+  # Production always asks the public repository for the current main ref
+  # first. This makes a merged main commit visible without restarting a
+  # process merely to refresh a value captured at startup.
   remote_main_id <- git_remote_main_id()
 
   if (!is.null(remote_main_id)) {
@@ -356,6 +373,9 @@ resolve_git_version <- function(app_dir = getwd()) {
     ))
   }
 
+  # Trusted build-system metadata is useful for deployments that do not carry
+  # a Git checkout and cannot reach GitHub. The legacy FIELDWORKER_GIT_ID is
+  # intentionally excluded because it is known to become stale.
   for (name in environment_names) {
     id <- normalize_git_id(Sys.getenv(name, unset = NA_character_))
 
@@ -371,40 +391,19 @@ resolve_git_version <- function(app_dir = getwd()) {
     }
   }
 
-  for (ref in c("HEAD", "origin/main", "main")) {
-    if (!git_ref_matches_app(app_dir, ref)) {
-      next
-    }
-
-    id <- normalize_git_id(
-      git_output(app_dir, c("rev-parse", "--short=7", ref))
-    )
-
-    if (!is.null(id)) {
-      branch <- git_branch_name(app_dir)
-      local <- identical(ref, "HEAD") &&
-        (is.null(branch) || !branch %in% c("main", "master"))
-      return(list(
-        id = id,
-        source = paste0("git:", ref),
-        commit_time = git_commit_time(app_dir, ref),
-        local = local,
-        dirty = isTRUE(local) && git_worktree_dirty(app_dir)
-      ))
-    }
-  }
-
-  # A deployed checkout may be dirty or unable to reach GitHub. In that case
-  # its local HEAD is still more useful than reporting an unknown version.
-  id <- local_head
-
-  if (!is.null(id)) {
+  # A clean main checkout remains a truthful offline fallback. Never expose a
+  # feature-branch or dirty HEAD as the production version: that was the cause
+  # of the misleading local-34cc549 label.
+  if (!is.null(local_head) &&
+      !isTRUE(dirty) &&
+      !is.null(branch) &&
+      branch %in% c("main", "master", "HEAD")) {
     return(list(
-      id = id,
-      source = "git:HEAD-working-tree",
+      id = local_head,
+      source = "git:HEAD",
       commit_time = git_commit_time(app_dir, "HEAD"),
-      local = TRUE,
-      dirty = git_worktree_dirty(app_dir)
+      local = FALSE,
+      dirty = FALSE
     ))
   }
 
