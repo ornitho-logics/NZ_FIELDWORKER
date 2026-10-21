@@ -6,6 +6,25 @@
   schema dependency must therefore be checked during deployment rather than
   folded into TODO_LIST.
 */
+
+/*
+  The refresh-status table is a small operational health boundary, not a
+  biological data source. A new row is written when a snapshot build starts
+  and marked succeeded only after publication and cleanup complete. If an
+  Adminer/client connection dies mid-refresh, the last row remains running,
+  allowing the app to warn that the published task rows may be stale.
+*/
+CREATE TABLE IF NOT EXISTS FIELD_2026_BADOatNZ.TODO_REFRESH_STATUS (
+  refresh_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  reference_date DATE NOT NULL,
+  state VARCHAR(16) NOT NULL,
+  started_at DATETIME NOT NULL,
+  completed_at DATETIME NULL,
+  task_row_count BIGINT NULL,
+  PRIMARY KEY (refresh_id),
+  INDEX idx_todo_refresh_status_date (reference_date, refresh_id)
+);
+
 CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.CAPTURES_ARCHIVE AS
 
 SELECT

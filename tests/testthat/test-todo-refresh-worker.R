@@ -270,6 +270,27 @@ test_that("snapshot readiness fails closed when the published table is unavailab
 })
 
 
+test_that("snapshot health reports an incomplete refresh without exposing data", {
+  env <- new.env(parent = globalenv())
+  source_app_file(app_file("main", "R", "system_utils.R"), env)
+  env$DBq <- function(...) {
+    data.frame(
+      state = "running",
+      reference_date = as.Date("2026-10-16"),
+      started_at = "2026-10-16 09:00:00",
+      completed_at = NA_character_,
+      task_row_count = NA_integer_
+    )
+  }
+
+  health <- env$todo_snapshot_refresh_health(as.Date("2026-10-16"))
+
+  expect_identical(health$state, "running")
+  expect_identical(health$reference_date, as.Date("2026-10-16"))
+  expect_true(is.na(health$task_row_count))
+})
+
+
 test_that("downloads UI exposes the asynchronous snapshot action", {
   app <- load_main_app()
   html <- as.character(app$ui)
@@ -299,4 +320,7 @@ test_that("downloads UI exposes the asynchronous snapshot action", {
     "TODO_REFRESH_STAGE|hiding_spot_photos",
     fixed = TRUE
   )
+  expect_match(system_utils, "todo_snapshot_refresh_health", fixed = TRUE)
+  expect_match(server, "this PDF may contain stale task rows", fixed = TRUE)
+  expect_match(system_utils, "TODO_REFRESH_STATUS", fixed = TRUE)
 })

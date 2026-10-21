@@ -43,6 +43,37 @@
    available instead of allowing an Adminer request to wait indefinitely. */
 SET SESSION lock_wait_timeout = 30;
 
+/* Keep a durable, low-volume health record for app/download warnings. A
+   failed client leaves the row in 'running', while a successful refresh marks
+   it 'succeeded' only after the public snapshot has been promoted and all
+   PREVIOUS tables have been removed. */
+CREATE TABLE IF NOT EXISTS FIELD_2026_BADOatNZ.TODO_REFRESH_STATUS (
+  refresh_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  reference_date DATE NOT NULL,
+  state VARCHAR(16) NOT NULL,
+  started_at DATETIME NOT NULL,
+  completed_at DATETIME NULL,
+  task_row_count BIGINT NULL,
+  PRIMARY KEY (refresh_id),
+  INDEX idx_todo_refresh_status_date (reference_date, refresh_id)
+);
+
+INSERT INTO FIELD_2026_BADOatNZ.TODO_REFRESH_STATUS (
+  reference_date,
+  state,
+  started_at
+)
+SELECT
+  CAST(value AS DATE),
+  'running',
+  CURRENT_TIMESTAMP
+FROM FIELD_2026_BADOatNZ.settings
+WHERE variable = 'reference_date'
+  AND value IS NOT NULL
+LIMIT 1;
+
+SET @todo_refresh_id := LAST_INSERT_ID();
+
 /* Repair all internal input boundaries before removing stale BUILD tables. */
 CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT AS
 SELECT *
@@ -3030,7 +3061,6 @@ CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_PARENT_TAS
 SELECT *
 FROM FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT
 WHERE todo IN (
-  'Untrapped parent',
   'Parent capture',
   'Parent resighting'
 );
@@ -3039,10 +3069,10 @@ CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_NONPARENT_
 SELECT *
 FROM FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT
 WHERE todo NOT IN (
-  'Untrapped parent',
   'Parent capture',
   'Parent resighting'
-);
+)
+  AND todo <> 'Untrapped parent';
 
 CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_LIST AS
 WITH sr AS (
@@ -3067,3 +3097,14 @@ DROP TABLE FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT_PREVIOUS;
 DROP TABLE FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_SNAPSHOT_PREVIOUS;
 DROP TABLE FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_SNAPSHOT_PREVIOUS;
 DROP TABLE FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_SNAPSHOT_PREVIOUS;
+DROP TABLE FIELD_2026_BADOatNZ.TODO_PARENT_CHICK_GPS_LINKS_SNAPSHOT_PREVIOUS;
+
+UPDATE FIELD_2026_BADOatNZ.TODO_REFRESH_STATUS
+SET
+  state = 'succeeded',
+  completed_at = CURRENT_TIMESTAMP,
+  task_row_count = (
+    SELECT COUNT(*)
+    FROM FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT
+  )
+WHERE refresh_id = @todo_refresh_id;

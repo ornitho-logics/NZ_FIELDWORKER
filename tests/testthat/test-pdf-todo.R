@@ -117,6 +117,16 @@ test_that("to-do headings use the current operational subtitles", {
     "Association resolves after 3 nest-linked resightings or 1 confirming behav (“IN”, “NM”, “BW”, “BC”, “FC”, “AC”). “MM, n” shows an MM capture and n non-confirming resightings."
   )
   expect_identical(
+    heading("Re-process nest")$title,
+    "Nests to process"
+  )
+
+  expect_error(
+    heading("Unexpected stale task"),
+    "Unexpected TODO task value in PDF renderer: Unexpected stale task",
+    fixed = TRUE
+  )
+  expect_identical(
     heading("nest check")$subtitle,
     "egg floatation data estimates that these nests are within 7 days of hatching"
   )
@@ -124,6 +134,34 @@ test_that("to-do headings use the current operational subtitles", {
     heading("notA nest-check")$subtitle,
     "these nests have finished and can be closed; nest_ids with state \"H\" may still be active mobile broods that require monitoring"
   )
+})
+
+
+test_that("re-process nests share the Nests to process PDF table", {
+  app <- load_main_app()
+  body <- app$env$todo_pdf_body(
+    rows = data.table::data.table(
+      Todo = c("Unprocessed nest", "Re-process nest"),
+      Nest = c("MOCK-1", "MOCK-2"),
+      State = c("S", "S"),
+      `Clutch–Brood` = c("1–0", "2–0"),
+      Hatch = c("", ""),
+      `Last Visit` = c("1", "2"),
+      Male = c("", ""),
+      Female = c("", ""),
+      Notes = c("egg photos needed", "new clutch evidence; refloat")
+    )
+  )
+  body_text <- paste(body, collapse = "\n")
+
+  expect_identical(
+    sum(grepl("## Nests to process", body, fixed = TRUE)),
+    1L
+  )
+  expect_false(grepl("## Re-process nest", body_text, fixed = TRUE))
+  expect_true(grepl("MOCK-1", body_text, fixed = TRUE))
+  expect_true(grepl("MOCK-2", body_text, fixed = TRUE))
+  expect_true(grepl("new clutch evidence; refloat", body_text, fixed = TRUE))
 })
 
 

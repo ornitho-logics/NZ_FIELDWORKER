@@ -262,7 +262,7 @@ todo_pdf_parent_task_marks <- function(todo) {
   }
 
   todo_dt <- data.table(todo)
-  parent_todos <- c("Untrapped parent", "Parent capture", "Parent resighting")
+  parent_todos <- c("Parent capture", "Parent resighting")
   parent_mark_columns <- c("M_mark", "F_mark")
   if (
     !nrow(todo_dt)
@@ -719,7 +719,12 @@ todo_pdf_prepare_nest_summary <- function(
     gsub("[\r\n]+", " ", x)
   }), .SDcols = c("Male", "Female")]
 
-  check_todos <- c("Clutch check", "Unprocessed nest", "nest check")
+  check_todos <- c(
+    "Clutch check",
+    "Unprocessed nest",
+    "Re-process nest",
+    "nest check"
+  )
   tagged_resight_nests <- .todo_pdf_map_prepare_tagged_resight_nests(
     unseen_tagged_birds
   )
@@ -1309,7 +1314,10 @@ todo_pdf_prepare <- function(
   # A processing task that still requires flotation should not display a
   # hatch interval. The hatch prediction remains available upstream for
   # other consumers; this is only the fieldworker-facing PDF value.
-  processing_without_float <- todo_dt$todo == "Unprocessed nest" &
+  processing_without_float <- todo_dt$todo %chin% c(
+    "Unprocessed nest",
+    "Re-process nest"
+  ) &
     !is.na(todo_dt$notes) &
     grepl("float", tolower(as.character(todo_dt$notes)), fixed = TRUE)
   hatch_display <- todo_dt$min_days_to_hatch
@@ -1409,9 +1417,9 @@ todo_pdf_heading <- function(todo_name) {
       title = "Nests to process",
       subtitle = "egg photos and/or floatation needed"
     ),
-    "Untrapped parent" = list(
-      title = "Nests with parents to capture or resight",
-      subtitle = "band unmarked parents or determine identity with resighting"
+    "Re-process nest" = list(
+      title = "Nests to process",
+      subtitle = "egg photos and/or floatation needed"
     ),
     "Parent capture" = list(
       title = "Parents to capture",
@@ -1441,9 +1449,9 @@ todo_pdf_heading <- function(todo_name) {
       title = "Nests requiring a 'notA' closure visit",
       subtitle = "these nests have finished and can be closed; nest_ids with state \"H\" may still be active mobile broods that require monitoring"
     ),
-    list(
-      title = todo_name,
-      subtitle = NULL
+    stop(
+      glue("Unexpected TODO task value in PDF renderer: {todo_name}"),
+      call. = FALSE
     )
   )
 }
@@ -1934,6 +1942,19 @@ todo_pdf_body <- function(
   nest_summary = NULL,
   unseen_tagged_birds = NULL
 ) {
+  # Re-process nest and Unprocessed nest are distinct SQL evidence branches,
+  # but they have the same fieldworker action and belong in one PDF table.
+  # Keep the underlying task value intact everywhere else; normalize only the
+  # local rendering copy so notes and SQL diagnostics remain available to
+  # other consumers.
+  rows <- data.table::copy(rows)
+  if ("Todo" %in% names(rows)) {
+    rows[
+      Todo == "Re-process nest",
+      Todo := "Unprocessed nest"
+    ]
+  }
+
   out <- todo_pdf_note_key(rows$Notes)
   if (!nrow(rows)) {
     out <- c(out, "No to-do items.", "")

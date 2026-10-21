@@ -256,6 +256,25 @@ function(input, output, session) {
       error = function(error) FALSE
     )
 
+    health <- tryCatch(
+      todo_snapshot_refresh_health(reference_date()),
+      error = function(error) list(state = "unavailable")
+    )
+
+    if (health$state == "failed") {
+      return(tags$p(
+        class = "small text-danger mt-2",
+        "The last To-do snapshot refresh failed; the PDF may show stale tasks. Build a fresh snapshot before relying on it."
+      ))
+    }
+
+    if (health$state == "running") {
+      return(tags$p(
+        class = "small text-warning mt-2",
+        "A To-do snapshot build is running or did not report success; the PDF may use the last published task snapshot."
+      ))
+    }
+
     if (isTRUE(ready)) {
       tags$p(
         class = "small text-success mt-2",
@@ -550,8 +569,33 @@ function(input, output, session) {
         session,
         "todo_pdf",
         {
-          req(active_refdate())
-          req(todo_snapshot_is_current(active_refdate()))
+          refdate <- active_refdate()
+          if (!isTRUE(todo_snapshot_is_current(refdate))) {
+            ErrToast(
+              paste(
+                "The To-do snapshot is missing or stale for the active",
+                "reference date. Build it before downloading the PDF."
+              )
+            )
+            validate(need(
+              FALSE,
+              "The To-do snapshot is missing or stale for the active reference date."
+            ))
+          }
+
+          health <- tryCatch(
+            todo_snapshot_refresh_health(refdate),
+            error = function(error) list(state = "unavailable")
+          )
+          if (health$state %in% c("running", "failed")) {
+            WarnToast(
+              paste(
+                "The last To-do snapshot refresh did not complete successfully;",
+                "this PDF may contain stale task rows. Build a fresh snapshot",
+                "before relying on the task tables."
+              )
+            )
+          }
 
           todo_pdf_save(file)
         }

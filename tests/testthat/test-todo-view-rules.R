@@ -136,6 +136,67 @@ test_that("public TODO_LIST is a small snapshot-backed read boundary", {
     "DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.TODO_LIST;",
     fixed = TRUE
   )
+  expect_match(
+    sql,
+    "DROP TABLE FIELD_2026_BADOatNZ.TODO_PARENT_CHICK_GPS_LINKS_SNAPSHOT_PREVIOUS;",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "CREATE TABLE IF NOT EXISTS FIELD_2026_BADOatNZ.TODO_REFRESH_STATUS (",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "UPDATE FIELD_2026_BADOatNZ.TODO_REFRESH_STATUS",
+    fixed = TRUE
+  )
+})
+
+
+test_that("the obsolete monolithic TODO calculator is removed, not recreated", {
+  sql <- views_source_sql()
+
+  expect_match(
+    sql,
+    "DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.TODO_LIST_CALCULATE;",
+    fixed = TRUE
+  )
+  expect_false(grepl(
+    "CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.TODO_LIST_CALCULATE",
+    sql,
+    fixed = TRUE
+  ))
+
+  refresh_sql <- refresh_source_sql()
+  expect_false(grepl(
+    "FROM FIELD_2026_BADOatNZ.TODO_LIST_CALCULATE",
+    refresh_sql,
+    fixed = TRUE
+  ))
+})
+
+
+test_that("Untrapped parent remains internal and cannot become a public task", {
+  refresh_sql <- refresh_source_sql()
+  task_sql <- todo_list_view_sql()
+
+  expect_match(task_sql, "todo_parent_resighting_existing", fixed = TRUE)
+  expect_no_match(
+    refresh_sql,
+    "WHERE todo IN (\n  'Untrapped parent',",
+    fixed = TRUE
+  )
+  expect_no_match(
+    refresh_sql,
+    "WHERE todo NOT IN (\n  'Untrapped parent',",
+    fixed = TRUE
+  )
+  expect_match(
+    refresh_sql,
+    "AND todo <> 'Untrapped parent';",
+    fixed = TRUE
+  )
 })
 
 
