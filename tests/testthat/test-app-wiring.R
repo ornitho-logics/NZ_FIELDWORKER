@@ -254,6 +254,46 @@ test_that("matching deployment version remains authoritative", {
 })
 
 
+test_that("no-Git deployment prefers current remote main over stale metadata", {
+  app <- load_main_app()
+
+  withr::local_envvar(c(
+    FIELDWORKER_GIT_ID = "34cc549",
+    GITHUB_SHA = NA,
+    SOURCE_VERSION = NA,
+    RENDER_GIT_COMMIT = NA
+  ))
+  app$env$git_local_head_id <- function(...) NULL
+  app$env$git_remote_main_id <- function(...) "aee720c"
+
+  observed <- app$env$resolve_git_version(tempdir())
+
+  expect_identical(observed$id, "aee720c")
+  expect_identical(observed$source, "remote:origin/main")
+  expect_false(observed$local)
+})
+
+
+test_that("no-Git deployment retains metadata when remote lookup is unavailable", {
+  app <- load_main_app()
+
+  withr::local_envvar(c(
+    FIELDWORKER_GIT_ID = "34cc549",
+    GITHUB_SHA = NA,
+    SOURCE_VERSION = NA,
+    RENDER_GIT_COMMIT = NA
+  ))
+  app$env$git_local_head_id <- function(...) NULL
+  app$env$git_remote_main_id <- function(...) NULL
+
+  observed <- app$env$resolve_git_version(tempdir())
+
+  expect_identical(observed$id, "34cc549")
+  expect_identical(observed$source, "env:FIELDWORKER_GIT_ID")
+  expect_false(observed$local)
+})
+
+
 test_that("local feature worktree wins over remote main fallback", {
   app <- load_main_app()
 
