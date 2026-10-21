@@ -58,6 +58,59 @@ CREATE TABLE IF NOT EXISTS FIELD_2026_BADOatNZ.TODO_REFRESH_STATUS (
   INDEX idx_todo_refresh_status_date (reference_date, refresh_id)
 );
 
+/*
+  Upgrade a legacy status table in place when this refresh script is run
+  without a preceding views.SQL import.  Preserve existing history and make
+  the operation idempotent for already-upgraded databases.
+*/
+SET @todo_status_next_id := (
+  SELECT COALESCE(MAX(refresh_id), 0)
+  FROM FIELD_2026_BADOatNZ.TODO_REFRESH_STATUS
+);
+
+UPDATE FIELD_2026_BADOatNZ.TODO_REFRESH_STATUS
+SET refresh_id = (@todo_status_next_id := @todo_status_next_id + 1)
+WHERE refresh_id IS NULL
+ORDER BY started_at, completed_at, reference_date;
+
+ALTER TABLE FIELD_2026_BADOatNZ.TODO_REFRESH_STATUS
+  MODIFY refresh_id BIGINT UNSIGNED NOT NULL;
+
+SET @todo_status_primary_key_exists := (
+  SELECT COUNT(*)
+  FROM information_schema.table_constraints
+  WHERE constraint_schema = 'FIELD_2026_BADOatNZ'
+    AND table_name = 'TODO_REFRESH_STATUS'
+    AND constraint_type = 'PRIMARY KEY'
+);
+SET @todo_status_primary_key_sql := IF(
+  @todo_status_primary_key_exists = 0,
+  'ALTER TABLE FIELD_2026_BADOatNZ.TODO_REFRESH_STATUS ADD PRIMARY KEY (refresh_id)',
+  'SELECT 1'
+);
+PREPARE todo_status_primary_key_stmt FROM @todo_status_primary_key_sql;
+EXECUTE todo_status_primary_key_stmt;
+DEALLOCATE PREPARE todo_status_primary_key_stmt;
+
+ALTER TABLE FIELD_2026_BADOatNZ.TODO_REFRESH_STATUS
+  MODIFY refresh_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT;
+
+SET @todo_status_index_exists := (
+  SELECT COUNT(*)
+  FROM information_schema.statistics
+  WHERE table_schema = 'FIELD_2026_BADOatNZ'
+    AND table_name = 'TODO_REFRESH_STATUS'
+    AND index_name = 'idx_todo_refresh_status_date'
+);
+SET @todo_status_index_sql := IF(
+  @todo_status_index_exists = 0,
+  'ALTER TABLE FIELD_2026_BADOatNZ.TODO_REFRESH_STATUS ADD INDEX idx_todo_refresh_status_date (reference_date, refresh_id)',
+  'SELECT 1'
+);
+PREPARE todo_status_index_stmt FROM @todo_status_index_sql;
+EXECUTE todo_status_index_stmt;
+DEALLOCATE PREPARE todo_status_index_stmt;
+
 INSERT INTO FIELD_2026_BADOatNZ.TODO_REFRESH_STATUS (
   reference_date,
   state,
@@ -165,8 +218,10 @@ DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_PARENT_CHICK_GPS_LINKS_SNAPSHOT_BU
 DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_PARENT_CHICK_GPS_LINKS_SNAPSHOT_PREVIOUS;
 DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_BUILD;
 DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_BUILD;
+DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_BROOD_CLOSURE_STATUS_SNAPSHOT_BUILD;
 DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_PREVIOUS;
 DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_PREVIOUS;
+DROP TABLE IF EXISTS FIELD_2026_BADOatNZ.TODO_BROOD_CLOSURE_STATUS_SNAPSHOT_PREVIOUS;
 
 SELECT 'TODO_REFRESH_STAGE|nest_context' AS refresh_stage;
 
@@ -628,6 +683,558 @@ FROM FIELD_2026_BADOatNZ.ADULT_PARENT_STATUS;
 CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_INPUT AS
 SELECT *
 FROM FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_BUILD;
+
+SELECT 'TODO_REFRESH_STAGE|brood_closure' AS refresh_stage;
+
+/*
+  Build the compact published brood-closure status after the authoritative
+  parent layer is available and before task rows are materialized.  This is
+  the production form of the audit protocol: it keeps the expensive identity,
+  history, and nest-GPS work inside one refresh session, then publishes only
+  one small status row per anchored brood.
+
+  The spatial check is deliberately restricted to a later nest already linked
+  to a former parent by the corrected parent-evidence hierarchy.  A nearby
+  nest belonging to another pair cannot suppress a brood by itself.
+*/
+DROP TEMPORARY TABLE IF EXISTS tmp_todo_closure_broods;
+DROP TEMPORARY TABLE IF EXISTS tmp_todo_closure_identities_raw;
+DROP TEMPORARY TABLE IF EXISTS tmp_todo_closure_identities;
+DROP TEMPORARY TABLE IF EXISTS tmp_todo_closure_events;
+DROP TEMPORARY TABLE IF EXISTS tmp_todo_closure_parent_summary;
+DROP TEMPORARY TABLE IF EXISTS tmp_todo_closure_later_raw;
+DROP TEMPORARY TABLE IF EXISTS tmp_todo_closure_nest_locations;
+DROP TEMPORARY TABLE IF EXISTS tmp_todo_closure_later_summary;
+DROP TEMPORARY TABLE IF EXISTS tmp_todo_closure_later_best;
+DROP TEMPORARY TABLE IF EXISTS tmp_todo_closure_candidates;
+DROP TEMPORARY TABLE IF EXISTS tmp_todo_closure_reactivation;
+
+CREATE TEMPORARY TABLE tmp_todo_closure_broods AS
+SELECT
+  b.nest_id AS brood_id,
+  b.is_negative_brood,
+  b.discovery_date,
+  b.hatch_evidence_date,
+  COALESCE(b.hatch_evidence_date, b.discovery_date) AS anchor_date,
+  b.reference_date,
+  DATEDIFF(
+    b.reference_date,
+    COALESCE(b.hatch_evidence_date, b.discovery_date)
+  ) AS age_days
+FROM FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_SNAPSHOT_BUILD b
+WHERE b.reference_date = (
+    SELECT value
+    FROM FIELD_2026_BADOatNZ.settings
+    WHERE variable = 'reference_date'
+      AND value IS NOT NULL
+    LIMIT 1
+  )
+  AND (b.is_negative_brood = 1 OR b.has_hatch_evidence = 1)
+  AND COALESCE(b.hatch_evidence_date, b.discovery_date) IS NOT NULL;
+
+ALTER TABLE tmp_todo_closure_broods
+  ADD PRIMARY KEY (brood_id),
+  ADD INDEX idx_todo_closure_brood_anchor (anchor_date);
+
+CREATE TEMPORARY TABLE tmp_todo_closure_identities_raw AS
+SELECT
+  b.brood_id,
+  a.sex,
+  a.identity_key,
+  'high' AS identity_confidence,
+  3 AS confidence_rank
+FROM tmp_todo_closure_broods b
+JOIN FIELD_2026_BADOatNZ.ADULT_PARENT_NEST_ASSOCIATIONS a
+  ON a.nest_id = b.brood_id
+ AND a.association_selected = 1
+ AND a.association_ambiguous = 0
+ AND a.sex IN ('M', 'F')
+ AND a.identity_key IS NOT NULL
+ AND a.identity_key NOT LIKE 'xx:%'
+UNION
+SELECT DISTINCT
+  b.brood_id,
+  m.sex,
+  m.identity_key,
+  'medium' AS identity_confidence,
+  2 AS confidence_rank
+FROM tmp_todo_closure_broods b
+JOIN FIELD_2026_BADOatNZ.ADULT_IDENTITY_MATCHES m
+  ON m.nest_id = b.brood_id
+ AND m.sex IN ('M', 'F')
+ AND m.is_ambiguous_match = 0
+ AND COALESCE(m.n_candidate_identities, 0) = 1
+ AND m.identity_key IS NOT NULL
+ AND m.identity_key NOT LIKE 'xx:%';
+
+CREATE TEMPORARY TABLE tmp_todo_closure_identities AS
+SELECT DISTINCT raw.*
+FROM tmp_todo_closure_identities_raw raw
+WHERE (
+    raw.confidence_rank = 3
+    AND EXISTS (
+      SELECT 1
+      FROM tmp_todo_closure_identities_raw high
+      WHERE high.brood_id = raw.brood_id
+        AND high.sex = raw.sex
+        AND high.confidence_rank = 3
+    )
+  )
+  OR (
+    raw.confidence_rank = 2
+    AND NOT EXISTS (
+      SELECT 1
+      FROM tmp_todo_closure_identities_raw high
+      WHERE high.brood_id = raw.brood_id
+        AND high.sex = raw.sex
+        AND high.confidence_rank = 3
+    )
+  );
+
+ALTER TABLE tmp_todo_closure_identities
+  ADD INDEX idx_todo_closure_identity_brood_sex (brood_id, sex),
+  ADD INDEX idx_todo_closure_identity_key (identity_key);
+
+CREATE TEMPORARY TABLE tmp_todo_closure_events AS
+SELECT
+  b.brood_id,
+  i.sex,
+  i.identity_key,
+  i.identity_confidence,
+  m.resighting_pk,
+  m.observation_date,
+  m.nest_id AS observed_nest_id,
+  CASE WHEN UPPER(TRIM(COALESCE(m.behav, ''))) REGEXP
+    '(^|[,[:space:]])(BC|FC|AC)([,[:space:]]|$)'
+    THEN 1 ELSE 0 END AS has_positive_brood_behaviour,
+  CASE WHEN UPPER(TRIM(COALESCE(m.behav, ''))) REGEXP
+    '(^|[,[:space:]])(IN|NM|SC)([,[:space:]]|$)'
+    THEN 1 ELSE 0 END AS has_nest_restart_behaviour,
+  CASE WHEN UPPER(TRIM(COALESCE(m.behav, ''))) REGEXP
+    '(^|[,[:space:]])(FA|FM|FF|RS|LF|AT|FT|OB)([,[:space:]]|$)'
+    THEN 1 ELSE 0 END AS has_strong_negative_behaviour,
+  CASE WHEN UPPER(TRIM(COALESCE(m.behav, ''))) REGEXP
+    '(^|[,[:space:]])BW([,[:space:]]|$)'
+    THEN 1 ELSE 0 END AS has_bw_behaviour
+FROM tmp_todo_closure_broods b
+JOIN tmp_todo_closure_identities i
+  ON i.brood_id = b.brood_id
+JOIN FIELD_2026_BADOatNZ.ADULT_IDENTITY_MATCHES m
+  ON m.identity_key = i.identity_key
+ AND m.sex = i.sex
+ AND m.is_ambiguous_match = 0
+ AND m.identity_key NOT LIKE 'xx:%'
+ AND m.observation_date > b.anchor_date
+ AND m.observation_date <= b.reference_date;
+
+ALTER TABLE tmp_todo_closure_events
+  ADD INDEX idx_todo_closure_event_brood (brood_id),
+  ADD INDEX idx_todo_closure_event_brood_date (brood_id, observation_date);
+
+CREATE TEMPORARY TABLE tmp_todo_closure_parent_summary AS
+SELECT
+  e.brood_id,
+  MAX(CASE WHEN e.sex = 'M' AND e.identity_confidence = 'high'
+    THEN 1 ELSE 0 END) AS M_identity_high,
+  MAX(CASE WHEN e.sex = 'F' AND e.identity_confidence = 'high'
+    THEN 1 ELSE 0 END) AS F_identity_high,
+  COUNT(DISTINCT CASE
+    WHEN e.sex = 'M'
+     AND e.observed_nest_id = e.brood_id
+     AND e.has_positive_brood_behaviour = 0
+     AND e.has_nest_restart_behaviour = 0
+     AND (e.has_strong_negative_behaviour = 1 OR e.has_bw_behaviour = 1)
+    THEN e.observation_date END
+  ) AS M_negative_observation_dates,
+  COUNT(DISTINCT CASE
+    WHEN e.sex = 'F'
+     AND e.observed_nest_id = e.brood_id
+     AND e.has_positive_brood_behaviour = 0
+     AND e.has_nest_restart_behaviour = 0
+     AND (e.has_strong_negative_behaviour = 1 OR e.has_bw_behaviour = 1)
+    THEN e.observation_date END
+  ) AS F_negative_observation_dates,
+  SUM(CASE
+    WHEN e.sex = 'M'
+     AND e.observed_nest_id = e.brood_id
+     AND e.has_positive_brood_behaviour = 0
+     AND e.has_nest_restart_behaviour = 0
+     AND e.has_strong_negative_behaviour = 1
+    THEN 1 ELSE 0 END
+  ) AS M_strong_negative_count,
+  SUM(CASE
+    WHEN e.sex = 'F'
+     AND e.observed_nest_id = e.brood_id
+     AND e.has_positive_brood_behaviour = 0
+     AND e.has_nest_restart_behaviour = 0
+     AND e.has_strong_negative_behaviour = 1
+    THEN 1 ELSE 0 END
+  ) AS F_strong_negative_count,
+  MAX(CASE
+    WHEN e.observed_nest_id = e.brood_id
+     AND e.has_positive_brood_behaviour = 1
+    THEN e.observation_date END
+  ) AS latest_positive_brood_date,
+  MAX(CASE
+    WHEN e.sex = 'M'
+     AND e.observed_nest_id = e.brood_id
+     AND e.has_positive_brood_behaviour = 0
+     AND e.has_nest_restart_behaviour = 0
+     AND (e.has_strong_negative_behaviour = 1 OR e.has_bw_behaviour = 1)
+    THEN e.observation_date END
+  ) AS M_last_negative_date,
+  MAX(CASE
+    WHEN e.sex = 'F'
+     AND e.observed_nest_id = e.brood_id
+     AND e.has_positive_brood_behaviour = 0
+     AND e.has_nest_restart_behaviour = 0
+     AND (e.has_strong_negative_behaviour = 1 OR e.has_bw_behaviour = 1)
+    THEN e.observation_date END
+  ) AS F_last_negative_date
+FROM tmp_todo_closure_events e
+GROUP BY e.brood_id;
+
+CREATE TEMPORARY TABLE tmp_todo_closure_later_raw AS
+SELECT
+  b.brood_id,
+  a.sex AS later_parent_sex,
+  a.identity_key AS later_parent_identity,
+  a.nest_id AS later_nest_id,
+  MIN(n.date) AS later_nest_date,
+  'authoritative_selected' AS evidence_type
+FROM tmp_todo_closure_broods b
+JOIN tmp_todo_closure_identities prior
+  ON prior.brood_id = b.brood_id
+ AND prior.identity_confidence = 'high'
+JOIN FIELD_2026_BADOatNZ.ADULT_PARENT_NEST_ASSOCIATIONS a
+  ON a.identity_key = prior.identity_key
+ AND a.sex = prior.sex
+ AND a.association_selected = 1
+ AND a.association_ambiguous = 0
+ AND a.identity_key NOT LIKE 'xx:%'
+ AND a.nest_id IS NOT NULL
+ AND TRIM(a.nest_id) <> ''
+ AND UPPER(TRIM(a.nest_id)) <> 'NO_NEST'
+ AND LEFT(TRIM(a.nest_id), 1) <> '-'
+ AND a.nest_id <> b.brood_id
+JOIN FIELD_2026_BADOatNZ.NESTS n
+  ON n.nest_id = a.nest_id
+ AND UPPER(TRIM(COALESCE(n.site, ''))) = 'CR'
+ AND n.date > b.anchor_date
+ AND n.date <= b.reference_date
+GROUP BY b.brood_id, a.sex, a.identity_key, a.nest_id
+UNION
+SELECT
+  b.brood_id,
+  m.sex AS later_parent_sex,
+  m.identity_key AS later_parent_identity,
+  m.nest_id AS later_nest_id,
+  MIN(n.date) AS later_nest_date,
+  'identity_match' AS evidence_type
+FROM tmp_todo_closure_broods b
+JOIN tmp_todo_closure_identities prior
+  ON prior.brood_id = b.brood_id
+JOIN FIELD_2026_BADOatNZ.ADULT_IDENTITY_MATCHES m
+  ON m.identity_key = prior.identity_key
+ AND m.sex = prior.sex
+ AND m.is_ambiguous_match = 0
+ AND COALESCE(m.n_candidate_identities, 0) = 1
+ AND m.identity_key NOT LIKE 'xx:%'
+ AND m.nest_id IS NOT NULL
+ AND TRIM(m.nest_id) <> ''
+ AND UPPER(TRIM(m.nest_id)) <> 'NO_NEST'
+ AND LEFT(TRIM(m.nest_id), 1) <> '-'
+ AND m.nest_id <> b.brood_id
+ AND m.observation_date > b.anchor_date
+ AND m.observation_date <= b.reference_date
+JOIN FIELD_2026_BADOatNZ.NESTS n
+  ON n.nest_id = m.nest_id
+ AND UPPER(TRIM(COALESCE(n.site, ''))) = 'CR'
+ AND n.date > b.anchor_date
+ AND n.date <= b.reference_date
+GROUP BY b.brood_id, m.sex, m.identity_key, m.nest_id;
+
+CREATE TEMPORARY TABLE tmp_todo_closure_nest_locations AS
+SELECT nest_id, lat, lon
+FROM (
+  SELECT
+    n.nest_id,
+    g.lat,
+    g.lon,
+    ROW_NUMBER() OVER (
+      PARTITION BY n.nest_id
+      ORDER BY
+        CASE
+          WHEN n.nest_state = 'S' THEN 1
+          WHEN n.nest_state = 'F' THEN 2
+          ELSE 3
+        END,
+        n.date,
+        n.time_visit,
+        n.pk,
+        g.datetime_,
+        g.pk
+    ) AS row_num
+  FROM FIELD_2026_BADOatNZ.NESTS n
+  JOIN FIELD_2026_BADOatNZ.GPS_POINTS g
+    ON g.gps_id = n.gps_id
+   AND g.gps_point = n.gps_point
+  JOIN (
+    SELECT CONVERT(brood_id USING utf8mb4) COLLATE utf8mb4_general_ci
+      AS nest_id
+    FROM tmp_todo_closure_broods
+    UNION
+    SELECT CONVERT(later_nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+    FROM tmp_todo_closure_later_raw
+  ) relevant
+    ON relevant.nest_id = CONVERT(n.nest_id USING utf8mb4)
+      COLLATE utf8mb4_general_ci
+  WHERE UPPER(TRIM(COALESCE(n.site, ''))) = 'CR'
+    AND n.nest_id IS NOT NULL
+    AND LEFT(TRIM(n.nest_id), 1) <> '-'
+    AND g.lat IS NOT NULL
+    AND g.lon IS NOT NULL
+) locations
+WHERE row_num = 1;
+
+CREATE TEMPORARY TABLE tmp_todo_closure_later_summary AS
+SELECT
+  raw.brood_id,
+  raw.later_nest_id,
+  MIN(raw.later_nest_date) AS later_nest_date,
+  COUNT(DISTINCT CONCAT(raw.later_parent_sex, ':', raw.later_parent_identity))
+    AS later_nest_parent_count,
+  COUNT(DISTINCT CASE
+    WHEN raw.evidence_type = 'authoritative_selected'
+    THEN CONCAT(raw.later_parent_sex, ':', raw.later_parent_identity)
+  END) AS later_nest_authoritative_parent_count,
+  MIN(CASE
+    WHEN origin.lat BETWEEN -90 AND 90
+     AND origin.lon BETWEEN -180 AND 180
+     AND later_location.lat BETWEEN -90 AND 90
+     AND later_location.lon BETWEEN -180 AND 180
+    THEN ROUND(
+      6371000 * 2 * ASIN(
+        SQRT(
+          POW(SIN(RADIANS(later_location.lat - origin.lat) / 2), 2)
+          + COS(RADIANS(origin.lat))
+            * COS(RADIANS(later_location.lat))
+            * POW(SIN(RADIANS(later_location.lon - origin.lon) / 2), 2)
+        )
+      ),
+      1
+    )
+  END) AS nest_distance_m
+FROM tmp_todo_closure_later_raw raw
+LEFT JOIN tmp_todo_closure_nest_locations origin
+  ON CONVERT(origin.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+     = CONVERT(raw.brood_id USING utf8mb4) COLLATE utf8mb4_general_ci
+LEFT JOIN tmp_todo_closure_nest_locations later_location
+  ON CONVERT(later_location.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+     = CONVERT(raw.later_nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+GROUP BY raw.brood_id, raw.later_nest_id;
+
+CREATE TEMPORARY TABLE tmp_todo_closure_later_best AS
+SELECT *
+FROM (
+  SELECT
+    later.*,
+    CASE WHEN later.later_nest_authoritative_parent_count >= 1
+       OR later.later_nest_parent_count >= 2
+      THEN 1 ELSE 0 END AS later_nest_trigger,
+    CASE WHEN later.nest_distance_m <= 100 THEN 1 ELSE 0 END
+      AS spatial_support_100m,
+    ROW_NUMBER() OVER (
+      PARTITION BY later.brood_id
+      ORDER BY
+        CASE WHEN later.later_nest_authoritative_parent_count >= 1
+          OR later.later_nest_parent_count >= 2 THEN 0 ELSE 1 END,
+        later.later_nest_date,
+        later.later_nest_parent_count DESC,
+        later.later_nest_id
+    ) AS row_num
+  FROM tmp_todo_closure_later_summary later
+) ranked
+WHERE ranked.row_num = 1;
+
+CREATE TEMPORARY TABLE tmp_todo_closure_candidates AS
+SELECT
+  b.brood_id,
+  b.reference_date,
+  CASE
+    WHEN later.later_nest_trigger = 1 THEN later.later_nest_date
+    ELSE GREATEST(parent.M_last_negative_date, parent.F_last_negative_date)
+  END AS closure_candidate_date,
+  CASE
+    WHEN later.later_nest_trigger = 1
+     AND later.later_nest_parent_count >= 2
+     AND later.spatial_support_100m = 1
+    THEN 'dual-parent renesting + spatial proximity'
+    WHEN later.later_nest_trigger = 1
+     AND later.later_nest_parent_count >= 2
+    THEN 'dual-parent renesting trigger'
+    WHEN later.later_nest_trigger = 1
+     AND later.spatial_support_100m = 1
+    THEN 'later nest trigger + spatial proximity'
+    WHEN later.later_nest_trigger = 1
+    THEN 'later nest trigger'
+    ELSE 'two-by-two post-hatch non-brood evidence'
+  END AS closure_reason,
+  COALESCE(later.later_nest_id, NULL) AS later_nest_id,
+  later.later_nest_date,
+  later.later_nest_parent_count,
+  later.later_nest_authoritative_parent_count,
+  later.nest_distance_m,
+  COALESCE(later.spatial_support_100m, 0) AS spatial_support_100m,
+  CASE
+    WHEN later.later_nest_trigger = 1 THEN 0
+    WHEN b.age_days >= 21
+     AND COALESCE(parent.M_identity_high, 0) = 1
+     AND COALESCE(parent.F_identity_high, 0) = 1
+     AND COALESCE(parent.M_negative_observation_dates, 0) >= 2
+     AND COALESCE(parent.F_negative_observation_dates, 0) >= 2
+     AND COALESCE(parent.M_strong_negative_count, 0) >= 1
+     AND COALESCE(parent.F_strong_negative_count, 0) >= 1
+     AND (
+       parent.latest_positive_brood_date IS NULL
+       OR parent.latest_positive_brood_date < LEAST(
+         parent.M_last_negative_date,
+         parent.F_last_negative_date
+       )
+     )
+    THEN 1 ELSE 0
+  END AS two_by_two_trigger
+FROM tmp_todo_closure_broods b
+LEFT JOIN tmp_todo_closure_parent_summary parent
+  ON parent.brood_id = b.brood_id
+LEFT JOIN tmp_todo_closure_later_best later
+  ON later.brood_id = b.brood_id
+WHERE later.later_nest_trigger = 1
+   OR (
+     b.age_days >= 21
+     AND COALESCE(parent.M_identity_high, 0) = 1
+     AND COALESCE(parent.F_identity_high, 0) = 1
+     AND COALESCE(parent.M_negative_observation_dates, 0) >= 2
+     AND COALESCE(parent.F_negative_observation_dates, 0) >= 2
+     AND COALESCE(parent.M_strong_negative_count, 0) >= 1
+     AND COALESCE(parent.F_strong_negative_count, 0) >= 1
+     AND (
+       parent.latest_positive_brood_date IS NULL
+       OR parent.latest_positive_brood_date < LEAST(
+         parent.M_last_negative_date,
+         parent.F_last_negative_date
+       )
+     )
+   );
+
+CREATE TEMPORARY TABLE tmp_todo_closure_reactivation AS
+SELECT c.brood_id, COUNT(*) AS reactivation_evidence_count
+FROM tmp_todo_closure_candidates c
+JOIN FIELD_2026_BADOatNZ.CAPTURES x
+  ON x.nest_id = c.brood_id
+ AND x.age = 'C'
+ AND UPPER(TRIM(COALESCE(x.site, ''))) = 'CR'
+ AND x.date > c.closure_candidate_date
+ AND x.date <= c.reference_date
+GROUP BY c.brood_id
+UNION ALL
+SELECT c.brood_id, COUNT(*)
+FROM tmp_todo_closure_candidates c
+JOIN FIELD_2026_BADOatNZ.RESIGHTINGS x
+  ON x.nest_id = c.brood_id
+ AND x.age = 'C'
+ AND UPPER(TRIM(COALESCE(x.site, ''))) = 'CR'
+ AND x.date > c.closure_candidate_date
+ AND x.date <= c.reference_date
+GROUP BY c.brood_id
+UNION ALL
+SELECT c.brood_id, COUNT(*)
+FROM tmp_todo_closure_candidates c
+JOIN tmp_todo_closure_events x
+  ON x.brood_id = c.brood_id
+ AND x.identity_confidence = 'high'
+ AND x.observed_nest_id = c.brood_id
+ AND x.has_positive_brood_behaviour = 1
+ AND x.observation_date > c.closure_candidate_date
+ AND x.observation_date <= c.reference_date
+GROUP BY c.brood_id;
+
+CREATE TABLE FIELD_2026_BADOatNZ.TODO_BROOD_CLOSURE_STATUS_SNAPSHOT_BUILD (
+  brood_id VARCHAR(6) NOT NULL,
+  reference_date DATE NOT NULL,
+  is_presumed_dead TINYINT NOT NULL DEFAULT 0,
+  closure_reason VARCHAR(255) NULL,
+  later_nest_id VARCHAR(6) NULL,
+  later_nest_date DATE NULL,
+  later_nest_parent_count BIGINT NULL,
+  later_nest_authoritative_parent_count BIGINT NULL,
+  nest_distance_m DECIMAL(10, 1) NULL,
+  spatial_support_100m TINYINT NOT NULL DEFAULT 0,
+  closure_candidate_date DATE NULL,
+  reactivation_evidence_count BIGINT NOT NULL DEFAULT 0,
+  would_reactivate TINYINT NOT NULL DEFAULT 0,
+  PRIMARY KEY (reference_date, brood_id),
+  INDEX idx_todo_brood_closure_build_brood (brood_id),
+  INDEX idx_todo_brood_closure_build_dead (reference_date, is_presumed_dead)
+);
+
+CREATE TABLE IF NOT EXISTS FIELD_2026_BADOatNZ.TODO_BROOD_CLOSURE_STATUS_SNAPSHOT
+LIKE FIELD_2026_BADOatNZ.TODO_BROOD_CLOSURE_STATUS_SNAPSHOT_BUILD;
+
+INSERT INTO FIELD_2026_BADOatNZ.TODO_BROOD_CLOSURE_STATUS_SNAPSHOT_BUILD (
+  brood_id,
+  reference_date,
+  is_presumed_dead,
+  closure_reason,
+  later_nest_id,
+  later_nest_date,
+  later_nest_parent_count,
+  later_nest_authoritative_parent_count,
+  nest_distance_m,
+  spatial_support_100m,
+  closure_candidate_date,
+  reactivation_evidence_count,
+  would_reactivate
+)
+SELECT
+  b.brood_id,
+  b.reference_date,
+  CASE WHEN c.brood_id IS NOT NULL
+      AND COALESCE(r.reactivation_evidence_count, 0) = 0
+    THEN 1 ELSE 0 END AS is_presumed_dead,
+  c.closure_reason,
+  c.later_nest_id,
+  c.later_nest_date,
+  c.later_nest_parent_count,
+  c.later_nest_authoritative_parent_count,
+  c.nest_distance_m,
+  COALESCE(c.spatial_support_100m, 0),
+  c.closure_candidate_date,
+  COALESCE(r.reactivation_evidence_count, 0),
+  CASE WHEN COALESCE(r.reactivation_evidence_count, 0) > 0
+    THEN 1 ELSE 0 END
+FROM tmp_todo_closure_broods b
+LEFT JOIN tmp_todo_closure_candidates c
+  ON c.brood_id = b.brood_id
+LEFT JOIN (
+  SELECT brood_id, SUM(reactivation_evidence_count)
+    AS reactivation_evidence_count
+  FROM tmp_todo_closure_reactivation
+  GROUP BY brood_id
+) r
+  ON r.brood_id = b.brood_id;
+
+DROP TEMPORARY TABLE tmp_todo_closure_reactivation;
+DROP TEMPORARY TABLE tmp_todo_closure_candidates;
+DROP TEMPORARY TABLE tmp_todo_closure_later_best;
+DROP TEMPORARY TABLE tmp_todo_closure_later_summary;
+DROP TEMPORARY TABLE tmp_todo_closure_nest_locations;
+DROP TEMPORARY TABLE tmp_todo_closure_later_raw;
+DROP TEMPORARY TABLE tmp_todo_closure_parent_summary;
+DROP TEMPORARY TABLE tmp_todo_closure_events;
+DROP TEMPORARY TABLE tmp_todo_closure_identities;
+DROP TEMPORARY TABLE tmp_todo_closure_identities_raw;
+DROP TEMPORARY TABLE tmp_todo_closure_broods;
 
 SELECT 'TODO_REFRESH_STAGE|task_rows' AS refresh_stage;
 
@@ -2987,6 +3594,13 @@ WHERE NOT EXISTS (
   FROM FIELD_2026_BADOatNZ.NESTS_LATEST wryb_nest
   WHERE wryb_nest.nest_id = t.nest_id
     AND UPPER(TRIM(COALESCE(wryb_nest.species, ''))) = 'WRYB'
+)
+AND NOT EXISTS (
+  SELECT 1
+  FROM FIELD_2026_BADOatNZ.TODO_BROOD_CLOSURE_STATUS_SNAPSHOT_BUILD closure
+  WHERE closure.brood_id = t.nest_id
+    AND closure.reference_date = t.reference_date
+    AND closure.is_presumed_dead = 1
 );;
 
 SELECT 'TODO_REFRESH_STAGE|publishing' AS refresh_stage;
@@ -3024,6 +3638,10 @@ RENAME TABLE
     TO FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_PREVIOUS,
   FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_BUILD
     TO FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT,
+  FIELD_2026_BADOatNZ.TODO_BROOD_CLOSURE_STATUS_SNAPSHOT
+    TO FIELD_2026_BADOatNZ.TODO_BROOD_CLOSURE_STATUS_SNAPSHOT_PREVIOUS,
+  FIELD_2026_BADOatNZ.TODO_BROOD_CLOSURE_STATUS_SNAPSHOT_BUILD
+    TO FIELD_2026_BADOatNZ.TODO_BROOD_CLOSURE_STATUS_SNAPSHOT,
   FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT
     TO FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_PREVIOUS,
   FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_BUILD
@@ -3056,6 +3674,10 @@ FROM FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT;
 CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_PARENT_STATUS AS
 SELECT *
 FROM FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT;
+
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_BROOD_CLOSURE_STATUS AS
+SELECT *
+FROM FIELD_2026_BADOatNZ.TODO_BROOD_CLOSURE_STATUS_SNAPSHOT;
 
 CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_PARENT_TASKS AS
 SELECT *
@@ -3098,6 +3720,7 @@ DROP TABLE FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_SNAPSHOT_PREVIOUS;
 DROP TABLE FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_SNAPSHOT_PREVIOUS;
 DROP TABLE FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_SNAPSHOT_PREVIOUS;
 DROP TABLE FIELD_2026_BADOatNZ.TODO_PARENT_CHICK_GPS_LINKS_SNAPSHOT_PREVIOUS;
+DROP TABLE FIELD_2026_BADOatNZ.TODO_BROOD_CLOSURE_STATUS_SNAPSHOT_PREVIOUS;
 
 UPDATE FIELD_2026_BADOatNZ.TODO_REFRESH_STATUS
 SET
