@@ -275,6 +275,13 @@ function(input, output, session) {
       ))
     }
 
+    if (health$state == "unavailable") {
+      return(tags$p(
+        class = "small text-warning mt-2",
+        "To-do snapshot refresh status is unavailable; build and verify a fresh snapshot before relying on the PDF task tables."
+      ))
+    }
+
     if (isTRUE(ready)) {
       tags$p(
         class = "small text-success mt-2",
@@ -587,7 +594,15 @@ function(input, output, session) {
             todo_snapshot_refresh_health(refdate),
             error = function(error) list(state = "unavailable")
           )
-          if (health$state %in% c("running", "failed")) {
+          if (health$state == "unavailable") {
+            WarnToast(
+              paste(
+                "To-do snapshot refresh status could not be verified;",
+                "this PDF may contain stale task rows. Build and verify a",
+                "fresh snapshot before relying on the task tables."
+              )
+            )
+          } else if (health$state %in% c("running", "failed")) {
             WarnToast(
               paste(
                 "The last To-do snapshot refresh did not complete successfully;",
