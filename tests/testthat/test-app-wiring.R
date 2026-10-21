@@ -44,7 +44,12 @@ for (app_name in names(dataentry_app_specs)) {
 
 
 test_that("main app UI and entrypoint load", {
-  withr::local_envvar(FIELDWORKER_GIT_ID = "ABCDEF1234567890")
+  withr::local_envvar(c(
+    FIELDWORKER_GIT_ID = NA,
+    GITHUB_SHA = NA,
+    SOURCE_VERSION = NA,
+    RENDER_GIT_COMMIT = NA
+  ))
   app <- load_main_app()
   html <- htmltools::renderTags(app$ui)$html
 
@@ -53,13 +58,18 @@ test_that("main app UI and entrypoint load", {
   expect_identical(names(formals(app$server)), c("input", "output", "session"))
   expect_identical(app$env$group, "nz_fieldworker")
   expect_identical(app$env$preferred_timezone, "Pacific/Auckland")
-  expect_identical(app$env$git_id, "abcdef1")
-  expect_identical(
-    app$env$git_version$source,
-    "env:FIELDWORKER_GIT_ID"
+  expect_identical(app$env$git_id, app$env$git_version$id)
+  expect_true(nzchar(app$env$git_id))
+  expect_true(
+    app$env$git_version$source %in% c(
+      "git:HEAD",
+      "git:HEAD-working-tree",
+      "git:origin/main",
+      "git:main",
+      "remote:origin/main",
+      "unavailable"
+    )
   )
-  expect_false(app$env$git_version$local)
-  expect_false(app$env$git_version$dirty)
   expect_identical(
     app$env$parse_git_ls_remote(
       "ABCDEF1234567890ABCDEF1234567890ABCDEF12\trefs/heads/main"
@@ -79,12 +89,12 @@ test_that("main app UI and entrypoint load", {
   )
 
   expect_match(html, "FIELDWORKER", fixed = TRUE)
-  expect_match(html, "abcdef1", fixed = TRUE)
+  expect_match(html, app$env$git_id, fixed = TRUE)
   expect_match(
     html,
     paste0(
       "https://github.com/ornitho-logics/NZ_FIELDWORKER/commit/",
-      "abcdef1"
+      app$env$git_id
     ),
     fixed = TRUE
   )
@@ -176,7 +186,6 @@ test_that("main app UI and entrypoint load", {
 
 
 test_that("git version falls back to local HEAD when remote lookup is unavailable", {
-  withr::local_envvar(FIELDWORKER_GIT_ID = "ABCDEF1234567890")
   app <- load_main_app()
 
   withr::local_envvar(c(
@@ -197,6 +206,51 @@ test_that("git version falls back to local HEAD when remote lookup is unavailabl
     observed$commit_time,
     app$env$git_commit_time(app_file("main"), "HEAD")
   )
+})
+
+
+test_that("stale deployment version does not override the app checkout", {
+  app <- load_main_app()
+
+  withr::local_envvar(c(
+    FIELDWORKER_GIT_ID = "34cc549",
+    GITHUB_SHA = NA,
+    SOURCE_VERSION = NA,
+    RENDER_GIT_COMMIT = NA
+  ))
+  app$env$git_local_head_id <- function(...) "dc0c1a9"
+  app$env$git_ref_matches_app <- function(app_dir, ref) {
+    identical(ref, "HEAD")
+  }
+  app$env$git_branch_name <- function(...) "main"
+
+  observed <- app$env$resolve_git_version(app_file("main"))
+
+  expect_identical(observed$id, "dc0c1a9")
+  expect_identical(observed$source, "git:HEAD")
+  expect_false(observed$local)
+})
+
+
+test_that("matching deployment version remains authoritative", {
+  app <- load_main_app()
+
+  withr::local_envvar(c(
+    FIELDWORKER_GIT_ID = "DC0C1A9abcdef",
+    GITHUB_SHA = NA,
+    SOURCE_VERSION = NA,
+    RENDER_GIT_COMMIT = NA
+  ))
+  app$env$git_local_head_id <- function(...) "dc0c1a9"
+  app$env$git_ref_matches_app <- function(app_dir, ref) {
+    identical(ref, "dc0c1a9")
+  }
+
+  observed <- app$env$resolve_git_version(app_file("main"))
+
+  expect_identical(observed$id, "dc0c1a9")
+  expect_identical(observed$source, "env:FIELDWORKER_GIT_ID")
+  expect_false(observed$local)
 })
 
 

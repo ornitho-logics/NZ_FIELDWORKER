@@ -1162,7 +1162,12 @@ list({
             terminal_h <- st == "H" &
                 !is.na(dt$clutch_num) & dt$clutch_num == 0 &
                 !is.na(dt$brood_num) & dt$brood_num > 0
-            terminal_idx <- which(st %in% c("pP", "P", "D") | terminal_h)
+            # pP, P, and D are review states rather than hard terminal
+            # barriers. Fieldworkers may revisit a suspected/confirmed
+            # predation or deserted nest for several days before recording
+            # the final notA closure. Only an H visit with no eggs and a
+            # positive brood remains a terminal brood state here.
+            terminal_idx <- which(terminal_h)
             nota_idx <- which(st == "notA")
             if (length(nota_idx) > 0) {
                 bad_nota <- nota_idx[nota_idx != nrow(dt) | nota_idx == 1L | !st[pmax(nota_idx - 1L, 1L)] %in% c("S", "F", "H", "pD", "pP", "P", "D")]
@@ -1193,7 +1198,7 @@ list({
                   probs[[length(probs) + 1L]] <- data.table::data.table(
                     rowid = dt$rowid[allowed_after],
                     variable = "nest_state",
-                    reason = "Only a final notA visit may follow a terminal H visit with clutch_size 0 and brood_size greater than 0, or a pP, P, or D visit."
+                    reason = "Only a final notA visit may follow a terminal H visit with clutch_size 0 and brood_size greater than 0. Follow-up pP, P, D, and pD visits are allowed while the nest is being checked before closure."
                   )
                 }
             }
