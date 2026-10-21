@@ -161,7 +161,79 @@ test_that("re-process nests share the Nests to process PDF table", {
   expect_false(grepl("## Re-process nest", body_text, fixed = TRUE))
   expect_true(grepl("MOCK-1", body_text, fixed = TRUE))
   expect_true(grepl("MOCK-2", body_text, fixed = TRUE))
-  expect_true(grepl("new clutch evidence; refloat", body_text, fixed = TRUE))
+  expect_true(
+    grepl("new clutch evidence; refloat; re-process", body_text, fixed = TRUE)
+  )
+})
+
+
+test_that("PDF task tables use the authoritative fieldworker order", {
+  app <- load_main_app()
+  body <- app$env$todo_pdf_body(
+    rows = data.table::data.table(
+      Todo = c(
+        "Parent resighting",
+        "take scrape photos",
+        "Untrapped brood",
+        "Re-process nest",
+        "Hiding spot photos needed",
+        "Clutch check",
+        "nest check",
+        "Parent capture",
+        "Unprocessed nest",
+        "Broods to recapture for flagging",
+        "notA nest-check"
+      ),
+      Nest = paste0("MOCK-", seq_len(11)),
+      State = c("I", "S", "H", "S", "H", "I", "I", "I", "S", "H", "notA"),
+      `Clutch–Brood` = rep("1–0", 11),
+      Hatch = rep("", 11),
+      `Last Visit` = as.character(seq_len(11)),
+      Male = rep("", 11),
+      Female = rep("", 11),
+      Notes = c(
+        "resight",
+        "scrape photos needed",
+        "band",
+        "float + photos",
+        "photo",
+        "check",
+        "hatch",
+        "capture",
+        "float",
+        "flag",
+        "closure"
+      )
+    ),
+    team_marks = data.table::data.table(
+      Team = "Team 1",
+      `1` = "MOCK-MARK"
+    )
+  )
+
+  headings <- body[grepl("^## ", body)]
+  expect_identical(
+    headings,
+    c(
+      "## Broods to band",
+      "## Broods to photograph",
+      "## Broods to recapture for flagging",
+      "## Nests to check for potential hatch",
+      "## Nests to check for additional eggs",
+      "## Nests to process",
+      "## Nests requiring a 'notA' closure visit",
+      "## Parents to capture",
+      "## Parents to resight for nest association",
+      "## Team marks"
+    )
+  )
+  body_text <- paste(body, collapse = "\n")
+  expect_true(
+    grepl("float + nest/tent photos; re-process", body_text, fixed = TRUE)
+  )
+  expect_true(grepl("scrape photos", body_text, fixed = TRUE))
+  expect_true(grepl("[S]", body_text, fixed = TRUE))
+  expect_false(grepl("## Take scrape photos", body_text, fixed = TRUE))
 })
 
 

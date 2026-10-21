@@ -723,6 +723,7 @@ todo_pdf_prepare_nest_summary <- function(
     "Clutch check",
     "Unprocessed nest",
     "Re-process nest",
+    "take scrape photos",
     "nest check"
   )
   tagged_resight_nests <- .todo_pdf_map_prepare_tagged_resight_nests(
@@ -1415,11 +1416,11 @@ todo_pdf_heading <- function(todo_name) {
     ),
     "Unprocessed nest" = list(
       title = "Nests to process",
-      subtitle = "egg photos and/or floatation needed"
+      subtitle = "egg, nest/tent, or scrape photos and/or floatation needed"
     ),
     "Re-process nest" = list(
       title = "Nests to process",
-      subtitle = "egg photos and/or floatation needed"
+      subtitle = "egg, nest/tent, or scrape photos and/or floatation needed"
     ),
     "Parent capture" = list(
       title = "Parents to capture",
@@ -1455,6 +1456,32 @@ todo_pdf_heading <- function(todo_name) {
     )
   )
 }
+
+todo_pdf_reprocess_note <- function(note) {
+  note <- trimws(as.character(note))
+  if (is.na(note) || !nzchar(note)) {
+    return("re-process")
+  }
+
+  switch(
+    note,
+    "float + photos" = "float + nest/tent photos; re-process",
+    "photos only" = "nest/tent photos only; re-process",
+    paste0(note, "; re-process")
+  )
+}
+
+todo_pdf_table_task_order <- c(
+  "Untrapped brood",
+  "Hiding spot photos needed",
+  "Broods to recapture for flagging",
+  "nest check",
+  "Clutch check",
+  "Unprocessed nest",
+  "notA nest-check",
+  "Parent capture",
+  "Parent resighting"
+)
 
 todo_pdf_note_key <- function(notes = character()) {
   definitions <- list(
@@ -1942,17 +1969,31 @@ todo_pdf_body <- function(
   nest_summary = NULL,
   unseen_tagged_birds = NULL
 ) {
-  # Re-process nest and Unprocessed nest are distinct SQL evidence branches,
-  # but they have the same fieldworker action and belong in one PDF table.
-  # Keep the underlying task value intact everywhere else; normalize only the
-  # local rendering copy so notes and SQL diagnostics remain available to
-  # other consumers.
+  # Re-process nest, take scrape photos, and Unprocessed nest are distinct SQL
+  # evidence branches, but they share the Nests to process field action. Keep
+  # this normalization local to the rendering copy so TODO_LIST remains the
+  # stable source for other consumers.
   rows <- data.table::copy(rows)
   if ("Todo" %in% names(rows)) {
-    rows[
-      Todo == "Re-process nest",
-      Todo := "Unprocessed nest"
-    ]
+    task_values <- as.character(rows$Todo)
+    reprocess <- !is.na(task_values) & task_values == "Re-process nest"
+    scrape <- !is.na(task_values) & task_values == "take scrape photos"
+
+    if ("Notes" %in% names(rows)) {
+      if (any(reprocess)) {
+        reprocess_notes <- vapply(
+          rows$Notes[reprocess],
+          todo_pdf_reprocess_note,
+          character(1)
+        )
+        rows[reprocess, Notes := reprocess_notes]
+      }
+      if (any(scrape)) {
+        rows[scrape, Notes := "scrape photos"]
+      }
+    }
+
+    rows[reprocess | scrape, Todo := "Unprocessed nest"]
   }
 
   out <- todo_pdf_note_key(rows$Notes)
@@ -1960,8 +2001,18 @@ todo_pdf_body <- function(
     out <- c(out, "No to-do items.", "")
   } else {
     table_cols <- setdiff(names(rows), "Todo")
+    task_values <- unique(as.character(rows$Todo))
+    unexpected <- setdiff(task_values, todo_pdf_table_task_order)
+    if (length(unexpected)) {
+      # Preserve the existing fail-fast behavior for stale or mixed task
+      # values rather than silently dropping them from the PDF.
+      todo_pdf_heading(unexpected[[1L]])
+    }
 
-    for (todo in unique(rows$Todo)) {
+    for (todo in todo_pdf_table_task_order) {
+      if (!any(rows$Todo == todo, na.rm = TRUE)) {
+        next
+      }
       todo_rows <- as.data.frame(rows[Todo == todo, ..table_cols])
       heading <- todo_pdf_heading(todo)
 

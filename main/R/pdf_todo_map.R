@@ -149,7 +149,13 @@
   if (!"notes" %in% names(todo)) {
     todo[, notes := NA_character_]
   }
-  check_todos <- c("Clutch check", "Unprocessed nest", "nest check")
+  check_todos <- c(
+    "Clutch check",
+    "Unprocessed nest",
+    "Re-process nest",
+    "take scrape photos",
+    "nest check"
+  )
   brood_todos <- c(
     "Hiding spot photos needed",
     "Broods to recapture for flagging",
