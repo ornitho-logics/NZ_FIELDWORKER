@@ -2090,10 +2090,79 @@ todo_pdf_qmd <- function(
 }
 
 
+todo_pdf_page_count_fallback <- function(file) {
+  if (!file.exists(file)) {
+    return(NA_integer_)
+  }
+
+  file_size <- file.info(file)$size
+  if (is.na(file_size) || file_size <= 0 || file_size > 128 * 1024^2) {
+    return(NA_integer_)
+  }
+
+  raw_pdf <- tryCatch(
+    readBin(file, what = "raw", n = file_size),
+    error = function(e) raw()
+  )
+  if (!length(raw_pdf)) {
+    return(NA_integer_)
+  }
+
+  # PDF page-tree dictionaries are ASCII even when the rest of the file
+  # contains compressed or binary streams. Strip non-ASCII bytes so base R
+  # can inspect the dictionaries without requiring a PDF package.
+  raw_values <- as.integer(raw_pdf)
+  ascii_pdf <- raw_pdf[raw_values > 0L & raw_values < 128L]
+  pdf_text <- rawToChar(ascii_pdf)
+  page_nodes <- gregexpr(
+    "/Type[[:space:]]*/Pages\\b",
+    pdf_text,
+    perl = TRUE,
+    useBytes = TRUE
+  )[[1L]]
+  if (identical(page_nodes, -1L)) {
+    return(NA_integer_)
+  }
+
+  counts <- vapply(
+    page_nodes,
+    function(position) {
+      node <- substr(
+        pdf_text,
+        position,
+        min(nchar(pdf_text, type = "bytes"), position + 4096L)
+      )
+      object_end <- regexpr(">>", node, fixed = TRUE, useBytes = TRUE)[[1L]]
+      if (object_end > 0L) {
+        node <- substr(node, 1L, object_end + 1L)
+      }
+      count_match <- regexec(
+        "/Count[[:space:]]+([0-9]+)",
+        node,
+        perl = TRUE,
+        useBytes = TRUE
+      )
+      count_parts <- regmatches(node, count_match)[[1L]]
+      if (length(count_parts) < 2L) {
+        return(NA_integer_)
+      }
+      suppressWarnings(as.integer(count_parts[[2L]]))
+    },
+    integer(1)
+  )
+  counts <- counts[!is.na(counts)]
+  if (!length(counts)) {
+    return(NA_integer_)
+  }
+
+  max(counts)
+}
+
+
 todo_pdf_page_count <- function(file) {
   pdfinfo <- Sys.which("pdfinfo")
   if (!nzchar(pdfinfo) || !file.exists(file)) {
-    return(NA_integer_)
+    return(todo_pdf_page_count_fallback(file))
   }
 
   info <- tryCatch(
@@ -2102,12 +2171,12 @@ todo_pdf_page_count <- function(file) {
   )
   page_line <- info[grepl("^Pages:", trimws(info))]
   if (!length(page_line)) {
-    return(NA_integer_)
+    return(todo_pdf_page_count_fallback(file))
   }
 
   pages <- suppressWarnings(as.integer(sub("^Pages:\\s*", "", trimws(page_line[[1L]]))))
   if (is.na(pages)) {
-    return(NA_integer_)
+    return(todo_pdf_page_count_fallback(file))
   }
   pages
 }

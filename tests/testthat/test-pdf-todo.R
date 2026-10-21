@@ -264,6 +264,26 @@ test_that("bounded PDF layout keeps task sections together", {
 })
 
 
+test_that("PDF page count has a dependency-free fallback", {
+  app <- load_main_app()
+  page_count <- app$env$todo_pdf_page_count_fallback
+  pdf_file <- tempfile(fileext = ".pdf")
+  on.exit(unlink(pdf_file), add = TRUE)
+  writeBin(
+    charToRaw(
+      paste0(
+        "%PDF-1.7\n",
+        "1 0 obj << /Type /Pages /Count 4 /Kids [] >> endobj\n",
+        "trailer << /Root 1 0 R >>\n"
+      )
+    ),
+    pdf_file
+  )
+
+  expect_identical(page_count(pdf_file), 4L)
+})
+
+
 test_that("all PDF task entry points use the bounded TODO_LIST query", {
   app <- load_main_app()
   query_tasks <- app$env$todo_pdf_query_tasks
