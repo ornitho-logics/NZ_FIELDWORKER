@@ -1184,6 +1184,16 @@ test_that("unhatched-egg instruction requires both clutch and brood evidence", {
     "AND COALESCE(active_nests.clutch_size, 0) > 0\n         AND COALESCE(active_nests.brood_size, 0) > 0\n        THEN '; unhatched egg(s)'",
     fixed = TRUE
   )
+  expect_match(
+    sql,
+    "UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) = 'H'\n        AND COALESCE(active_nests.clutch_size, 0) > 0\n        AND COALESCE(active_nests.brood_size, 0) > 0",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "OR NOT EXISTS (\n        SELECT 1\n        FROM brood_context brood_evidence",
+    fixed = TRUE
+  )
 
   asynchronous_hatch_check <- function(
     nest_state,
