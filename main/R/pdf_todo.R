@@ -91,6 +91,77 @@ todo_pdf_as_numeric <- function(x) {
 }
 
 
+todo_pdf_latest_chick_encounter_counts <- function(
+  chick_encounters,
+  reference_date = NULL
+) {
+  empty_output <- data.table(
+    nest_id = character(),
+    latest_encounter_date = as.Date(character()),
+    latest_chick_count = integer()
+  )
+  if (
+    is.null(chick_encounters)
+      || !nrow(chick_encounters)
+      || !all(c("nest_id", "date") %in% names(chick_encounters))
+  ) {
+    return(empty_output)
+  }
+
+  encounters <- data.table(chick_encounters)
+  encounters[, nest_id := trimws(as.character(nest_id))]
+  encounters[, encounter_date := suppressWarnings(as.Date(as.character(date)))]
+  encounters <- encounters[
+    !is.na(nest_id)
+      & nzchar(nest_id)
+      & !is.na(encounter_date)
+  ]
+  if (!is.null(reference_date) && !is.na(reference_date)) {
+    encounters <- encounters[encounter_date <= as.Date(reference_date)]
+  }
+  if (!nrow(encounters)) {
+    return(empty_output)
+  }
+
+  # A ring is the stable chick identity across captures and resightings.  A
+  # ringless row is still one observed chick encounter, so retain its source
+  # and event id rather than silently treating all ringless rows as duplicates.
+  if (!"ring" %in% names(encounters)) {
+    encounters[, ring := NA_character_]
+  }
+  encounters[, ring_key := toupper(trimws(as.character(ring)))]
+  encounters[
+    is.na(ring_key)
+      | !nzchar(ring_key)
+      | ring_key %chin% c("NA", "NULL", "N/A"),
+    ring_key := NA_character_
+  ]
+  if (!"source" %in% names(encounters)) {
+    encounters[, source := "encounter"]
+  }
+  encounters[, source := tolower(trimws(as.character(source)))]
+  if (!"event_id" %in% names(encounters)) {
+    encounters[, event_id := seq_len(.N)]
+  }
+  encounters[, event_key := fifelse(
+    !is.na(ring_key),
+    paste0("ring:", ring_key),
+    paste0(source, ":", as.character(event_id))
+  )]
+
+  encounters[, latest_encounter_date := max(encounter_date), by = nest_id]
+  latest <- encounters[
+    encounter_date == latest_encounter_date,
+    .(
+      latest_encounter_date = latest_encounter_date[1L],
+      latest_chick_count = uniqueN(event_key)
+    ),
+    by = nest_id
+  ]
+  latest[]
+}
+
+
 todo_pdf_hatch_prediction_status <- function(hatch_prediction) {
   empty_output <- data.table(
     nest_id = character(),
@@ -893,7 +964,8 @@ todo_pdf_prepare <- function(
   nests_latest = NULL,
   chick_captures = NULL,
   hatch_prediction = NULL,
-  parent_status = NULL
+  parent_status = NULL,
+  chick_encounters = NULL
 ) {
   if (is.null(todo)) {
     todo <- todo_pdf_query_tasks()
@@ -1170,6 +1242,38 @@ todo_pdf_prepare <- function(
           pdf_brood_size := as.character(chick_counts$N[i])
         ]
       }
+    }
+  }
+
+  # Brood-work tables should describe the latest linked chick encounter, not
+  # the original hatch/brood estimate.  This can reduce a three-chick brood
+  # to one when the latest adult-linked encounter records only one chick.
+  # Keep this PDF-only: SQL task eligibility and biological source fields stay
+  # unchanged for other application consumers.
+  latest_chick_counts <- todo_pdf_latest_chick_encounter_counts(
+    chick_encounters,
+    refdate
+  )
+  if (nrow(latest_chick_counts)) {
+    for (i in seq_len(nrow(latest_chick_counts))) {
+      brood_id <- latest_chick_counts$nest_id[[i]]
+      latest_count <- latest_chick_counts$latest_chick_count[[i]]
+      if (is.na(latest_count)) {
+        next
+      }
+      todo_dt[
+        nest_id == brood_id,
+        pdf_brood_size := as.character(latest_count)
+      ]
+      todo_dt[
+        todo == "Broods to recapture for flagging"
+          & nest_id == brood_id,
+        notes := paste0(
+          "recapture chicks; assign flags (",
+          latest_count,
+          " pending)"
+        )
+      ]
     }
   }
 
@@ -1923,7 +2027,21 @@ todo_pdf_body <- function(
         "Hiding spot photos needed",
         "Broods to recapture for flagging"
       )) {
-        names(todo_rows)[names(todo_rows) == "Nest"] <- "Brood"
+        names(todo_rows)[names(todo_rows) == "Nest"] <- if (
+          todo == "Broods to recapture for flagging"
+        ) {
+          "Brood ID"
+        } else {
+          "Brood"
+        }
+        if (todo == "Broods to recapture for flagging") {
+          todo_rows[["Clutch–Brood"]] <- sub(
+            "^.*–",
+            "",
+            as.character(todo_rows[["Clutch–Brood"]])
+          )
+          names(todo_rows)[names(todo_rows) == "Clutch–Brood"] <- "N chicks"
+        }
       } else if (todo %in% c(
         "Parent capture",
         "Parent resighting",
@@ -2189,7 +2307,8 @@ todo_pdf_save <- function(
   nests_latest = NULL,
   chick_captures = NULL,
   broods_latest = NULL,
-  hatch_prediction = NULL
+  hatch_prediction = NULL,
+  chick_encounters = NULL
 ) {
   if (is.null(todo)) {
     todo <- todo_pdf_query_tasks()
@@ -2197,17 +2316,17 @@ todo_pdf_save <- function(
 
   if (is.null(broods_latest)) {
     if (is.null(nests_latest)) {
-      # BROODS_LATEST is a complex derived view. Keep the same optimizer
-      # safeguard used by the task query so a failed expansion cannot be
-      # silently converted into an incomplete PDF.
+      # TODO_BROODS_FOR_PDF applies the published presumed-dead brood status
+      # to the map and summary source while leaving BROODS_LATEST unchanged
+      # for other application consumers.
       broods_latest <- DBq(
-        "SELECT * FROM BROODS_LATEST",
+        "SELECT * FROM TODO_BROODS_FOR_PDF",
         derived_merge_off = TRUE
       )
       if ("error" %in% names(broods_latest)) {
         stop(
           paste0(
-            "BROODS_LATEST could not be loaded for the to-do PDF: ",
+            "TODO_BROODS_FOR_PDF could not be loaded for the to-do PDF: ",
             as.character(broods_latest$error[[1L]])
           ),
           call. = FALSE
@@ -2244,6 +2363,55 @@ todo_pdf_save <- function(
         AND TRIM(nest_id) NOT IN ('', 'NO_NEST')
     ")
   }
+  if (is.null(chick_encounters)) {
+    chick_encounters <- DBq(
+      "
+      SELECT
+        CAST(nest_id AS CHAR(64)) AS nest_id,
+        date,
+        'capture' AS source,
+        CAST(pk AS CHAR(64)) AS event_id,
+        ring
+      FROM CAPTURES
+      WHERE age = 'C'
+        AND site = 'CR'
+        AND nest_id IS NOT NULL
+        AND TRIM(nest_id) NOT IN ('', 'NO_NEST')
+
+      UNION ALL
+
+      SELECT
+        CAST(chick.nest_id AS CHAR(64)) AS nest_id,
+        chick.date,
+        'resighting' AS source,
+        CAST(chick.pk AS CHAR(64)) AS event_id,
+        chick.ring
+      FROM RESIGHTINGS chick
+      WHERE chick.age = 'C'
+        AND chick.site = 'CR'
+        AND chick.nest_id IS NOT NULL
+        AND TRIM(chick.nest_id) NOT IN ('', 'NO_NEST')
+        AND EXISTS (
+          SELECT 1
+          FROM RESIGHTINGS adult
+          WHERE adult.age = 'A'
+            AND adult.site = chick.site
+            AND adult.nest_id = chick.nest_id
+            AND adult.date = chick.date
+        )
+      ",
+      derived_merge_off = TRUE
+    )
+    if ("error" %in% names(chick_encounters)) {
+      stop(
+        paste0(
+          "Could not load linked chick encounters for the to-do PDF: ",
+          as.character(chick_encounters$error[[1L]])
+        ),
+        call. = FALSE
+      )
+    }
+  }
   if (is.null(hatch_prediction)) {
     hatch_prediction <- DBq(
       "SELECT * FROM EGGS_HATCH_PREDICTION"
@@ -2264,7 +2432,8 @@ todo_pdf_save <- function(
     broods_latest,
     chick_captures,
     hatch_prediction,
-    parent_status
+    parent_status,
+    chick_encounters
   )
 
   todo_pdf_map_save(

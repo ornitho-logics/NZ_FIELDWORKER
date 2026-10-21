@@ -332,7 +332,7 @@ test_that("all PDF task entry points use the bounded TODO_LIST query", {
 })
 
 
-test_that("PDF generation rejects a failed BROODS_LATEST query", {
+test_that("PDF generation rejects a failed TODO_BROODS_FOR_PDF query", {
   app <- load_main_app()
   save_pdf <- app$env$todo_pdf_save
   query_env <- environment(save_pdf)
@@ -347,19 +347,19 @@ test_that("PDF generation rejects a failed BROODS_LATEST query", {
         sql = x,
         derived_merge_off = derived_merge_off
       )
-      data.frame(error = "mock BROODS_LATEST failure")
+      data.frame(error = "mock TODO_BROODS_FOR_PDF failure")
     },
     envir = query_env
   )
 
   expect_error(
     save_pdf(tempfile(), todo = data.frame()),
-    "BROODS_LATEST could not be loaded",
+    "TODO_BROODS_FOR_PDF could not be loaded",
     fixed = TRUE
   )
   expect_length(calls, 1L)
   expect_true(calls[[1L]]$derived_merge_off)
-  expect_match(calls[[1L]]$sql, "FROM BROODS_LATEST", fixed = TRUE)
+  expect_match(calls[[1L]]$sql, "FROM TODO_BROODS_FOR_PDF", fixed = TRUE)
 })
 
 

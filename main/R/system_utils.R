@@ -232,6 +232,7 @@ todo_snapshot_refresh_start <- function(
     "    *'TODO_REFRESH_STAGE|hiding_spot_photos'*) detail='Counting hiding-spot photos' ;;",
     "    *'TODO_REFRESH_STAGE|chick_gps_links'*) detail='Linking chicks to parents' ;;",
     "    *'TODO_REFRESH_STAGE|parent_status'*) detail='Building parent status' ;;",
+    "    *'TODO_REFRESH_STAGE|brood_closure'*) detail='Checking presumed-dead broods' ;;",
     "    *'TODO_REFRESH_STAGE|task_rows'*) detail='Building task rows' ;;",
     "    *'TODO_REFRESH_STAGE|publishing'*) detail='Publishing snapshot' ;;",
     "    *) detail='Preparing snapshot' ;;",
@@ -318,10 +319,33 @@ todo_snapshot_is_current <- function(refdate = get_reference_date()) {
   x <- DBq(
     paste(
       "SELECT COUNT(*) AS n",
-      "FROM TODO_PARENT_STATUS_SNAPSHOT",
-      "WHERE reference_date = ?"
+      "FROM (",
+      "  SELECT state, completed_at, task_row_count",
+      "  FROM TODO_REFRESH_STATUS",
+      "  WHERE reference_date = ?",
+      "  ORDER BY started_at DESC, refresh_id DESC",
+      "  LIMIT 1",
+      ") health",
+      "WHERE health.state = 'succeeded'",
+      "  AND health.completed_at IS NOT NULL",
+      "  AND health.task_row_count IS NOT NULL",
+      "  AND health.task_row_count = (",
+      "    SELECT COUNT(*)",
+      "    FROM TODO_LIST_SNAPSHOT snapshot_rows",
+      "    WHERE snapshot_rows.reference_date = ?",
+      "  )",
+      "  AND EXISTS (",
+      "    SELECT 1",
+      "    FROM TODO_PARENT_STATUS_SNAPSHOT parent_snapshot",
+      "    WHERE parent_snapshot.reference_date = ?",
+      "  )",
+      "  AND EXISTS (",
+      "    SELECT 1",
+      "    FROM TODO_BROOD_CLOSURE_STATUS_SNAPSHOT closure_snapshot",
+      "    WHERE closure_snapshot.reference_date = ?",
+      "  )"
     ),
-    params = list(as.character(refdate)),
+    params = rep(as.character(refdate), 4L),
     derived_merge_off = TRUE
   )
 
@@ -352,7 +376,7 @@ todo_snapshot_refresh_health <- function(refdate = get_reference_date()) {
       "task_row_count",
       "FROM TODO_REFRESH_STATUS",
       "WHERE reference_date = ?",
-      "ORDER BY refresh_id DESC",
+      "ORDER BY started_at DESC, refresh_id DESC",
       "LIMIT 1"
     ),
     params = list(as.character(refdate)),

@@ -270,6 +270,31 @@ test_that("snapshot readiness fails closed when the published table is unavailab
 })
 
 
+test_that("snapshot readiness requires current health and published task rows", {
+  env <- new.env(parent = globalenv())
+  source_app_file(app_file("main", "R", "system_utils.R"), env)
+
+  captured_sql <- NULL
+  env$DBq <- function(sql, ...) {
+    captured_sql <<- sql
+    data.frame(n = 1L)
+  }
+
+  expect_true(env$todo_snapshot_is_current(as.Date("2026-10-16")))
+  expect_match(captured_sql, "TODO_REFRESH_STATUS", fixed = TRUE)
+  expect_match(captured_sql, "TODO_LIST_SNAPSHOT", fixed = TRUE)
+  expect_match(captured_sql, "task_row_count", fixed = TRUE)
+  expect_match(
+    captured_sql,
+    "ORDER BY started_at DESC, refresh_id DESC",
+    fixed = TRUE
+  )
+
+  env$DBq <- function(...) data.frame(n = 0L)
+  expect_false(env$todo_snapshot_is_current(as.Date("2026-10-16")))
+})
+
+
 test_that("snapshot health reports an incomplete refresh without exposing data", {
   env <- new.env(parent = globalenv())
   source_app_file(app_file("main", "R", "system_utils.R"), env)

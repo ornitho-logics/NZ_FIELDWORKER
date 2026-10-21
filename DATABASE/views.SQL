@@ -7,6 +7,10 @@
   folded into TODO_LIST.
 */
 
+/* Bound metadata-lock waits for the complete views installation.  This is a
+   session setting, so it does not alter the server-wide timeout. */
+SET SESSION lock_wait_timeout = 30;
+
 /*
   The refresh-status table is a small operational health boundary, not a
   biological data source. A new row is written when a snapshot build starts
@@ -24,6 +28,61 @@ CREATE TABLE IF NOT EXISTS FIELD_2026_BADOatNZ.TODO_REFRESH_STATUS (
   PRIMARY KEY (refresh_id),
   INDEX idx_todo_refresh_status_date (reference_date, refresh_id)
 );
+
+/*
+  CREATE TABLE IF NOT EXISTS does not upgrade a legacy status table already
+  present in the database.  Preserve its history, assign deterministic IDs to
+  legacy rows that predate the primary key, then add the key and lookup index
+  only when they are absent.  The prepared statements make this block safe to
+  re-run after a successful installation.
+*/
+SET @todo_status_next_id := (
+  SELECT COALESCE(MAX(refresh_id), 0)
+  FROM FIELD_2026_BADOatNZ.TODO_REFRESH_STATUS
+);
+
+UPDATE FIELD_2026_BADOatNZ.TODO_REFRESH_STATUS
+SET refresh_id = (@todo_status_next_id := @todo_status_next_id + 1)
+WHERE refresh_id IS NULL
+ORDER BY started_at, completed_at, reference_date;
+
+ALTER TABLE FIELD_2026_BADOatNZ.TODO_REFRESH_STATUS
+  MODIFY refresh_id BIGINT UNSIGNED NOT NULL;
+
+SET @todo_status_primary_key_exists := (
+  SELECT COUNT(*)
+  FROM information_schema.table_constraints
+  WHERE constraint_schema = 'FIELD_2026_BADOatNZ'
+    AND table_name = 'TODO_REFRESH_STATUS'
+    AND constraint_type = 'PRIMARY KEY'
+);
+SET @todo_status_primary_key_sql := IF(
+  @todo_status_primary_key_exists = 0,
+  'ALTER TABLE FIELD_2026_BADOatNZ.TODO_REFRESH_STATUS ADD PRIMARY KEY (refresh_id)',
+  'SELECT 1'
+);
+PREPARE todo_status_primary_key_stmt FROM @todo_status_primary_key_sql;
+EXECUTE todo_status_primary_key_stmt;
+DEALLOCATE PREPARE todo_status_primary_key_stmt;
+
+ALTER TABLE FIELD_2026_BADOatNZ.TODO_REFRESH_STATUS
+  MODIFY refresh_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT;
+
+SET @todo_status_index_exists := (
+  SELECT COUNT(*)
+  FROM information_schema.statistics
+  WHERE table_schema = 'FIELD_2026_BADOatNZ'
+    AND table_name = 'TODO_REFRESH_STATUS'
+    AND index_name = 'idx_todo_refresh_status_date'
+);
+SET @todo_status_index_sql := IF(
+  @todo_status_index_exists = 0,
+  'ALTER TABLE FIELD_2026_BADOatNZ.TODO_REFRESH_STATUS ADD INDEX idx_todo_refresh_status_date (reference_date, refresh_id)',
+  'SELECT 1'
+);
+PREPARE todo_status_index_stmt FROM @todo_status_index_sql;
+EXECUTE todo_status_index_stmt;
+DEALLOCATE PREPARE todo_status_index_stmt;
 
 CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.CAPTURES_ARCHIVE AS
 
@@ -3414,6 +3473,19 @@ WITH xx_supersession_evidence AS (
    AND counts.sex = evidence.sex
    AND counts.xx_identity_key = evidence.xx_identity_key
    AND counts.n_captured_candidates = 1
+), mm_capture_identities AS (
+  /*
+    MM is a nest-specific association annotation.  A bird that was caught
+    with a mobile mist net at one nest must not carry the MM label into a
+    later nest where it was only resighted.  Keep the identity key here so
+    the resighting branch below can test the capture at the same nest.
+  */
+  SELECT DISTINCT
+    captured.nest_id,
+    captured.capture_sex AS sex,
+    captured.identity_key
+  FROM FIELD_2026_BADOatNZ.ADULT_CAPTURE_IDENTITIES captured
+  WHERE captured.has_mm_capture = 1
 ), event_union AS (
   SELECT
     c.nest_id,
@@ -3490,7 +3562,20 @@ WITH xx_supersession_evidence AS (
     0 AS definitive_capture,
     r.association_confirming AS confirming_resighting,
     r.association_nonconfirming AS nonconfirming_resighting,
-    r.has_mm_capture,
+    CASE
+      WHEN EXISTS (
+        SELECT 1
+        FROM mm_capture_identities mm
+        WHERE mm.nest_id = r.nest_id
+          AND mm.sex = r.sex
+          AND mm.identity_key = COALESCE(
+            superseded.captured_identity_key,
+            r.identity_key
+          )
+      )
+      THEN 1
+      ELSE 0
+    END AS has_mm_capture,
     r.is_ambiguous_match AS ambiguous_match,
     0 AS chick_gps_parent_link
   FROM FIELD_2026_BADOatNZ.ADULT_IDENTITY_MATCHES r
@@ -5684,6 +5769,56 @@ FROM FIELD_2026_BADOatNZ.ADULT_PARENT_STATUS status;
 CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_INPUT AS
 SELECT *
 FROM FIELD_2026_BADOatNZ.ADULT_PARENT_STATUS;
+
+
+/*
+  TODO_BROOD_CLOSURE_STATUS is the published, reference-date-bounded result
+  of the audit-only brood-presumed-dead protocol.  The expensive calculation
+  is performed during DATABASE/refresh_todo_list_snapshot.SQL and published
+  with the other TODO snapshots.  Keeping this as a small status boundary
+  prevents the audit's identity and GPS graph from being expanded during
+  every PDF, map, or task query.
+
+  A missing status row means "not suppressed" only during the installation
+  or before the first successful refresh.  The app's snapshot-health check
+  must require a current closure snapshot before a field PDF is relied on.
+*/
+CREATE TABLE IF NOT EXISTS FIELD_2026_BADOatNZ.TODO_BROOD_CLOSURE_STATUS_SNAPSHOT (
+  brood_id VARCHAR(6) NOT NULL,
+  reference_date DATE NOT NULL,
+  is_presumed_dead TINYINT NOT NULL DEFAULT 0,
+  closure_reason VARCHAR(255) NULL,
+  later_nest_id VARCHAR(6) NULL,
+  later_nest_date DATE NULL,
+  later_nest_parent_count BIGINT NULL,
+  later_nest_authoritative_parent_count BIGINT NULL,
+  nest_distance_m DECIMAL(10, 1) NULL,
+  spatial_support_100m TINYINT NOT NULL DEFAULT 0,
+  closure_candidate_date DATE NULL,
+  reactivation_evidence_count BIGINT NOT NULL DEFAULT 0,
+  would_reactivate TINYINT NOT NULL DEFAULT 0,
+  PRIMARY KEY (reference_date, brood_id),
+  INDEX idx_todo_brood_closure_brood (brood_id),
+  INDEX idx_todo_brood_closure_dead (reference_date, is_presumed_dead)
+);
+
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_BROOD_CLOSURE_STATUS AS
+SELECT *
+FROM FIELD_2026_BADOatNZ.TODO_BROOD_CLOSURE_STATUS_SNAPSHOT;
+
+/*
+  PDF-facing brood source.  BROODS_LATEST remains the general operational
+  brood view; only the TODO PDF/map/summary path applies presumed-dead
+  suppression.  This keeps unrelated app consumers and biological records
+  unchanged.
+*/
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_BROODS_FOR_PDF AS
+SELECT b.*
+FROM FIELD_2026_BADOatNZ.BROODS_LATEST b
+LEFT JOIN FIELD_2026_BADOatNZ.TODO_BROOD_CLOSURE_STATUS s
+  ON s.brood_id = b.nest_id
+ AND s.reference_date = b.reference_date
+WHERE COALESCE(s.is_presumed_dead, 0) = 0;
 
 
 /*

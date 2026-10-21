@@ -146,6 +146,22 @@ test_that("public TODO_LIST is a small snapshot-backed read boundary", {
     "CREATE TABLE IF NOT EXISTS FIELD_2026_BADOatNZ.TODO_REFRESH_STATUS (",
     fixed = TRUE
   )
+  expect_match(sql, "SET SESSION lock_wait_timeout = 30;", fixed = TRUE)
+  expect_match(
+    sql,
+    "MODIFY refresh_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "ADD PRIMARY KEY (refresh_id)",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "ADD INDEX idx_todo_refresh_status_date (reference_date, refresh_id)",
+    fixed = TRUE
+  )
   expect_match(
     sql,
     "UPDATE FIELD_2026_BADOatNZ.TODO_REFRESH_STATUS",
@@ -174,6 +190,24 @@ test_that("the obsolete monolithic TODO calculator is removed, not recreated", {
     refresh_sql,
     fixed = TRUE
   ))
+})
+
+
+test_that("views installation bounds locks and upgrades refresh status", {
+  sql <- views_source_sql()
+
+  expect_match(sql, "SET SESSION lock_wait_timeout = 30;", fixed = TRUE)
+  expect_match(
+    sql,
+    "MODIFY refresh_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT",
+    fixed = TRUE
+  )
+  expect_match(sql, "ADD PRIMARY KEY (refresh_id)", fixed = TRUE)
+  expect_match(
+    sql,
+    "ADD INDEX idx_todo_refresh_status_date (reference_date, refresh_id)",
+    fixed = TRUE
+  )
 })
 
 
