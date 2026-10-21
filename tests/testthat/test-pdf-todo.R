@@ -231,6 +231,39 @@ test_that("PDF task tables use the authoritative fieldworker order", {
 })
 
 
+test_that("bounded PDF layout keeps task sections together", {
+  app <- load_main_app()
+  body <- app$env$todo_pdf_body(
+    rows = data.table::data.table(
+      Todo = "Parent capture",
+      Nest = "MOCK-NEST",
+      State = "I",
+      `Clutch–Brood` = "1–0",
+      Hatch = "5",
+      `Last Visit` = "1",
+      Male = "MOCK-M",
+      Female = "MOCK-F",
+      Notes = "band"
+    ),
+    team_marks = data.table::data.table(
+      Team = "Team 1",
+      `1` = "MOCK-MARK"
+    ),
+    keep_tables_together = TRUE
+  )
+  body_text <- paste(body, collapse = "\n")
+
+  expect_true(grepl("#block(breakable: false)[", body_text, fixed = TRUE))
+  expect_true(
+    grepl("#heading(level: 2)[Parents to capture]", body_text, fixed = TRUE)
+  )
+  expect_true(
+    grepl("#heading(level: 2)[Team marks]", body_text, fixed = TRUE)
+  )
+  expect_false(grepl("## Parents to capture", body_text, fixed = TRUE))
+})
+
+
 test_that("all PDF task entry points use the bounded TODO_LIST query", {
   app <- load_main_app()
   query_tasks <- app$env$todo_pdf_query_tasks

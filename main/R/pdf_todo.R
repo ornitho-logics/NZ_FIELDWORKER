@@ -1642,7 +1642,8 @@ todo_pdf_task_table <- function(
   todo_rows,
   nest_summary = NULL,
   column_widths = NULL,
-  align = NULL
+  align = NULL,
+  raw = FALSE
 ) {
   todo_rows <- as.data.frame(todo_rows, stringsAsFactors = FALSE)
   if (!nrow(todo_rows) || !ncol(todo_rows)) {
@@ -1760,8 +1761,7 @@ todo_pdf_task_table <- function(
   columns <- paste0(column_widths, "fr", collapse = ", ")
   align_text <- paste(align, collapse = ", ")
 
-  c(
-    "```{=typst}",
+  table_body <- c(
     "#set text(size: 8.5pt)",
     "#table(",
     glue("  columns: ({columns}),"),
@@ -1770,14 +1770,22 @@ todo_pdf_task_table <- function(
     "  stroke: none,",
     paste0("  ", paste(cells, collapse = ",\n  "), ","),
     ")",
-    "#set text(size: 9pt)",
-    "```",
-    ""
+    "#set text(size: 9pt)"
   )
+
+  if (isTRUE(raw)) {
+    return(table_body)
+  }
+
+  c("```{=typst}", table_body, "```", "")
 }
 
 
-todo_pdf_simple_table <- function(table_data, column_widths = NULL) {
+todo_pdf_simple_table <- function(
+  table_data,
+  column_widths = NULL,
+  raw = FALSE
+) {
   table_data <- as.data.frame(table_data, stringsAsFactors = FALSE)
   if (!nrow(table_data) || !ncol(table_data)) {
     return(character())
@@ -1837,8 +1845,7 @@ todo_pdf_simple_table <- function(table_data, column_widths = NULL) {
   }
   columns <- paste0(column_widths, "fr", collapse = ", ")
 
-  c(
-    "```{=typst}",
+  table_body <- c(
     "#set text(size: 8.5pt)",
     "#table(",
     glue("  columns: ({columns}),"),
@@ -1847,10 +1854,14 @@ todo_pdf_simple_table <- function(table_data, column_widths = NULL) {
     "  stroke: none,",
     paste0("  ", paste(cells, collapse = ",\n  "), ","),
     ")",
-    "#set text(size: 9pt)",
-    "```",
-    ""
+    "#set text(size: 9pt)"
   )
+
+  if (isTRUE(raw)) {
+    return(table_body)
+  }
+
+  c("```{=typst}", table_body, "```", "")
 }
 
 
@@ -1858,7 +1869,8 @@ todo_pdf_body <- function(
   rows,
   team_marks = NULL,
   map_file = NULL,
-  nest_summary = NULL
+  nest_summary = NULL,
+  keep_tables_together = FALSE
 ) {
   # Re-process nest, take scrape photos, and Unprocessed nest are distinct SQL
   # evidence branches, but they share the Nests to process field action. Keep
@@ -1930,20 +1942,6 @@ todo_pdf_body <- function(
         names(todo_rows)[names(todo_rows) == "Hatch"] <- "Est. Hatch"
       }
 
-      out <- c(
-        out,
-        glue("## {heading$title}"),
-        ""
-      )
-
-      if (!is.null(heading$subtitle)) {
-        out <- c(
-          out,
-          glue("*{heading$subtitle}*"),
-          ""
-        )
-      }
-
       # Use one borderless, striped renderer for every operational task table.
       # This keeps label-aware and ordinary task tables visually consistent.
       task_table <- todo_pdf_task_table(
@@ -1957,26 +1955,71 @@ todo_pdf_body <- function(
             "center", "center", "center", "center", "center",
             "center", "center", "left"
           )
-        }
+        },
+        raw = isTRUE(keep_tables_together)
       )
 
-      out <- c(out, task_table)
+      # Keep the heading, subtitle, and table as one visual unit when the
+      # three-page task-table budget can accommodate it.
+      if (isTRUE(keep_tables_together)) {
+        out <- c(
+          out,
+          "```{=typst}",
+          "#block(breakable: false)[",
+          glue("#heading(level: 2)[{heading$title}]"),
+          if (!is.null(heading$subtitle)) {
+            glue("#emph[{heading$subtitle}]")
+          },
+          task_table,
+          "]",
+          "```",
+          ""
+        )
+      } else {
+        out <- c(
+          out,
+          glue("## {heading$title}"),
+          "",
+          if (!is.null(heading$subtitle)) {
+            c(glue("*{heading$subtitle}*"), "")
+          },
+          task_table
+        )
+      }
     }
   }
 
   if (!is.null(team_marks) && nrow(team_marks)) {
-    out <- c(
-      out,
-      "## Team marks",
-      "",
-      "*Use non-Lime 1.5x bands for the geolocator spacer on the tibia; use 2x bands on the tarsi.*",
-      "",
-      todo_pdf_simple_table(
-        team_marks,
-        column_widths = c(12, rep(8, ncol(team_marks) - 1L))
-      ),
-      ""
-    )
+    if (isTRUE(keep_tables_together)) {
+      out <- c(
+        out,
+        "```{=typst}",
+        "#block(breakable: false)[",
+        "#heading(level: 2)[Team marks]",
+        "#emph[Use non-Lime 1.5x bands for the geolocator spacer on the tibia; use 2x bands on the tarsi.]",
+        todo_pdf_simple_table(
+          team_marks,
+          column_widths = c(12, rep(8, ncol(team_marks) - 1L)),
+          raw = TRUE
+        ),
+        "]",
+        "```",
+        ""
+      )
+    } else {
+      out <- c(
+        out,
+        "## Team marks",
+        "",
+        "*Use non-Lime 1.5x bands for the geolocator spacer on the tibia; use 2x bands on the tarsi.*",
+        "",
+        todo_pdf_simple_table(
+          team_marks,
+          column_widths = c(12, rep(8, ncol(team_marks) - 1L))
+        ),
+        ""
+      )
+    }
   }
 
   if (!is.null(map_file)) {
@@ -2008,13 +2051,15 @@ todo_pdf_body <- function(
 todo_pdf_qmd <- function(
   pdf,
   map_file = NULL,
-  template = file.path("templates", "todo_pdf.qmd")
+  template = file.path("templates", "todo_pdf.qmd"),
+  keep_tables_together = FALSE
 ) {
   body <- todo_pdf_body(
     pdf$rows,
     pdf$team_marks,
     map_file,
-    pdf$nest_summary
+    pdf$nest_summary,
+    keep_tables_together = keep_tables_together
   )
   out <- character()
 
@@ -2042,6 +2087,29 @@ todo_pdf_qmd <- function(
   }
 
   out
+}
+
+
+todo_pdf_page_count <- function(file) {
+  pdfinfo <- Sys.which("pdfinfo")
+  if (!nzchar(pdfinfo) || !file.exists(file)) {
+    return(NA_integer_)
+  }
+
+  info <- tryCatch(
+    suppressWarnings(system2(pdfinfo, file, stdout = TRUE, stderr = TRUE)),
+    error = function(e) character()
+  )
+  page_line <- info[grepl("^Pages:", trimws(info))]
+  if (!length(page_line)) {
+    return(NA_integer_)
+  }
+
+  pages <- suppressWarnings(as.integer(sub("^Pages:\\s*", "", trimws(page_line[[1L]]))))
+  if (is.na(pages)) {
+    return(NA_integer_)
+  }
+  pages
 }
 
 todo_pdf_save <- function(
@@ -2088,6 +2156,8 @@ todo_pdf_save <- function(
 
   qmd <- file.path(workdir, "todo.qmd")
   output <- file.path(workdir, "todo.pdf")
+  keep_qmd <- file.path(workdir, "todo_keep_tables.qmd")
+  keep_output <- file.path(workdir, "todo_keep_tables.pdf")
   map_file <- file.path(workdir, "todo_map.png")
 
   if (is.null(spatial_objects)) {
@@ -2136,16 +2206,65 @@ todo_pdf_save <- function(
     nests_latest = broods_latest
   )
 
-  writeLines(todo_pdf_qmd(pdf, basename(map_file)), qmd)
-  quarto_render(
-    input = qmd,
-    output_format = "typst",
-    output_file = basename(output),
-    quarto_args = c("--output-dir", workdir),
-    execute = TRUE,
-    quiet = FALSE
-  )
+  render_pdf <- function(qmd_file, output_file, keep_tables) {
+    writeLines(
+      todo_pdf_qmd(
+        pdf,
+        basename(map_file),
+        keep_tables_together = keep_tables
+      ),
+      qmd_file
+    )
+    quarto_render(
+      input = qmd_file,
+      output_format = "typst",
+      output_file = basename(output_file),
+      quarto_args = c("--output-dir", workdir),
+      execute = TRUE,
+      quiet = FALSE
+    )
+    if (!file.exists(output_file)) {
+      stop("Quarto did not produce the requested to-do PDF.", call. = FALSE)
+    }
+    invisible(output_file)
+  }
 
-  file.copy(output, file, overwrite = TRUE)
+  keep_rendered <- tryCatch(
+    {
+      render_pdf(keep_qmd, keep_output, keep_tables = TRUE)
+      TRUE
+    },
+    error = function(e) {
+      message(
+        "Could not render the keep-together PDF; using the compact layout."
+      )
+      FALSE
+    }
+  )
+  keep_pages <- if (keep_rendered) {
+    todo_pdf_page_count(keep_output)
+  } else {
+    NA_integer_
+  }
+
+  # The map and active-summary page is deliberately last. Accept the
+  # keep-together render only when it leaves the task content within three
+  # pages; otherwise retain the compact layout rather than creating page 5.
+  if (isTRUE(keep_rendered) && !is.na(keep_pages) && keep_pages <= 4L) {
+    selected_output <- keep_output
+  } else {
+    if (isTRUE(keep_rendered) && !is.na(keep_pages)) {
+      message(
+        glue(
+          "Keeping tables together would produce {keep_pages} pages; " ,
+          "using the compact three-page task layout."
+        )
+      )
+    }
+    render_pdf(qmd, output, keep_tables = FALSE)
+    selected_output <- output
+  }
+
+  file.copy(selected_output, file, overwrite = TRUE)
   invisible(file)
 }
