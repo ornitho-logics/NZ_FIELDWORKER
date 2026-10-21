@@ -185,71 +185,15 @@ todo_pdf_version_footer <- function(version = NULL) {
   } else {
     commit_id <- as.character(commit_id[[1L]])
   }
+
+  if (isTRUE(version$local)) {
+    dirty_suffix <- if (isTRUE(version$dirty)) "-dirty" else ""
+    return(glue("version local-{commit_id}{dirty_suffix}"))
+  }
+
   glue("version {commit_id}")
 }
 
-
-todo_pdf_prepare_unseen_tagged_birds <- function(view_1) {
-  output_columns <- c("Mark", "Sex", "Nest", "Days Since Cap")
-  empty_output <- function() {
-    as.data.table(setNames(
-      rep(list(character()), length(output_columns)),
-      output_columns
-    ))
-  }
-
-  if (is.null(view_1)) {
-    return(empty_output())
-  }
-
-  birds <- data.table(view_1)
-  required_columns <- c(
-    "mark",
-    "sex",
-    "nest_id",
-    "days_since_cap",
-    "days_since_last_seen"
-  )
-
-  if (!all(required_columns %in% names(birds))) {
-    missing_columns <- setdiff(required_columns, names(birds))
-    stop(
-      sprintf(
-        "VIEW_1 is missing fields required for tagged-bird follow-up: %s.",
-        paste(missing_columns, collapse = ", ")
-      ),
-      call. = FALSE
-    )
-  }
-
-  birds[, let(
-    days_since_cap = todo_pdf_as_numeric(days_since_cap),
-    days_since_last_seen = todo_pdf_as_numeric(days_since_last_seen)
-  )]
-  birds <- birds[
-    !is.na(days_since_cap)
-      & days_since_cap > 7
-      & is.na(days_since_last_seen)
-  ]
-
-  if (!nrow(birds)) {
-    return(empty_output())
-  }
-
-  birds[, let(
-    mark = trimws(as.character(mark)),
-    sex = trimws(as.character(sex)),
-    nest_id = trimws(as.character(nest_id))
-  )]
-  birds <- birds[order(-days_since_cap, mark, nest_id, na.last = TRUE)]
-
-  birds[, .(
-    Mark = fifelse(is.na(mark), "", mark),
-    Sex = fifelse(is.na(sex), "", sex),
-    Nest = fifelse(is.na(nest_id), "", nest_id),
-    `Days Since Cap` = as.character(days_since_cap)
-  )]
-}
 
 todo_pdf_parent_task_marks <- function(todo) {
   output_columns <- c("Nest", "M_todo_mark", "F_todo_mark")
@@ -262,7 +206,7 @@ todo_pdf_parent_task_marks <- function(todo) {
   }
 
   todo_dt <- data.table(todo)
-  parent_todos <- c("Untrapped parent", "Parent capture", "Parent resighting")
+  parent_todos <- c("Parent capture", "Parent resighting")
   parent_mark_columns <- c("M_mark", "F_mark")
   if (
     !nrow(todo_dt)
@@ -376,7 +320,6 @@ todo_pdf_prepare_nest_summary <- function(
   reference_date,
   todo = NULL,
   chick_captures = NULL,
-  unseen_tagged_birds = NULL,
   hatch_prediction = NULL,
   parent_status = NULL
 ) {
@@ -719,84 +662,42 @@ todo_pdf_prepare_nest_summary <- function(
     gsub("[\r\n]+", " ", x)
   }), .SDcols = c("Male", "Female")]
 
-  check_todos <- c("Clutch check", "Unprocessed nest", "nest check")
-  tagged_resight_nests <- .todo_pdf_map_prepare_tagged_resight_nests(
-    unseen_tagged_birds
+  check_todos <- c(
+    "Clutch check",
+    "Unprocessed nest",
+    "Re-process nest",
+    "take scrape photos",
+    "nest check"
   )
-  if (
-    (nrow(todo_dt) && all(c("nest_id", "todo") %in% names(todo_dt)))
-      || nrow(tagged_resight_nests)
-  ) {
-    if (nrow(todo_dt) && all(c("nest_id", "todo") %in% names(todo_dt))) {
-      parent_marks <- todo_pdf_parent_task_marks(todo_dt)
-      if (nrow(parent_marks)) {
-        summary <- merge(summary, parent_marks, by = "Nest", all.x = TRUE, sort = FALSE)
-        if ("M_todo_mark" %in% names(summary)) {
-          summary[!is.na(M_todo_mark), Male := M_todo_mark]
-          summary[, M_todo_mark := NULL]
-        }
-        if ("F_todo_mark" %in% names(summary)) {
-          summary[!is.na(F_todo_mark), Female := F_todo_mark]
-          summary[, F_todo_mark := NULL]
-        }
+  if (nrow(todo_dt) && all(c("nest_id", "todo") %in% names(todo_dt))) {
+    parent_marks <- todo_pdf_parent_task_marks(todo_dt)
+    if (nrow(parent_marks)) {
+      summary <- merge(summary, parent_marks, by = "Nest", all.x = TRUE, sort = FALSE)
+      if ("M_todo_mark" %in% names(summary)) {
+        summary[!is.na(M_todo_mark), Male := M_todo_mark]
+        summary[, M_todo_mark := NULL]
       }
+      if ("F_todo_mark" %in% names(summary)) {
+        summary[!is.na(F_todo_mark), Female := F_todo_mark]
+        summary[, F_todo_mark := NULL]
+      }
+    }
 
-      task_symbols <- todo_dt[,
-        .(
-          Symbol = if (any(todo == "notA nest-check")) {
-            "notA"
-          } else if (any(todo %chin% check_todos)) {
-            "triangle"
-          } else {
-            "circle"
-          },
-          SymbolColor = fcase(
-            any(todo == "notA nest-check"), "#7b858b",
-            any(todo == "Parent capture"), "#d32f2f",
-            any(todo == "Parent resighting"), "#1976d2",
-            default = "#7b858b"
-          ),
-          tagged_resight = FALSE
-        ),
-        by = nest_id
-      ]
-    } else {
-      task_symbols <- data.table(
-        nest_id = character(),
-        Symbol = character(),
-        SymbolColor = character(),
-        tagged_resight = logical()
-      )
-    }
-    if (nrow(tagged_resight_nests)) {
-      tagged_symbols <- copy(tagged_resight_nests)
-      tagged_symbols[, `:=`(
-        Symbol = "circle",
-        SymbolColor = "#1976d2",
-        tagged_resight = TRUE
-      )]
-      task_symbols <- rbind(task_symbols, tagged_symbols, fill = TRUE)
-    }
-    task_symbols <- task_symbols[
-      , .(
-        Symbol = if (any(Symbol == "notA")) {
+    task_symbols <- todo_dt[,
+      .(
+        Symbol = if (any(todo == "notA nest-check")) {
           "notA"
-        } else if (any(Symbol == "triangle")) {
+        } else if (any(todo %chin% check_todos)) {
           "triangle"
         } else {
           "circle"
         },
-        SymbolColor = if (any(tagged_resight)) {
-          "#1976d2"
-        } else if (any(Symbol == "notA")) {
-          "#7b858b"
-        } else if (any(SymbolColor == "#d32f2f")) {
-          "#d32f2f"
-        } else if (any(SymbolColor == "#1976d2")) {
-          "#1976d2"
-        } else {
-          "#7b858b"
-        }
+        SymbolColor = fcase(
+          any(todo == "notA nest-check"), "#7b858b",
+          any(todo == "Parent capture"), "#d32f2f",
+          any(todo == "Parent resighting"), "#1976d2",
+          default = "#7b858b"
+        )
       ),
       by = nest_id
     ]
@@ -991,7 +892,6 @@ todo_pdf_prepare <- function(
   available_combos = NULL,
   nests_latest = NULL,
   chick_captures = NULL,
-  unseen_tagged_birds = NULL,
   hatch_prediction = NULL,
   parent_status = NULL
 ) {
@@ -1309,7 +1209,10 @@ todo_pdf_prepare <- function(
   # A processing task that still requires flotation should not display a
   # hatch interval. The hatch prediction remains available upstream for
   # other consumers; this is only the fieldworker-facing PDF value.
-  processing_without_float <- todo_dt$todo == "Unprocessed nest" &
+  processing_without_float <- todo_dt$todo %chin% c(
+    "Unprocessed nest",
+    "Re-process nest"
+  ) &
     !is.na(todo_dt$notes) &
     grepl("float", tolower(as.character(todo_dt$notes)), fixed = TRUE)
   hatch_display <- todo_dt$min_days_to_hatch
@@ -1379,15 +1282,11 @@ todo_pdf_prepare <- function(
     title = glue("Cass To-Dos for {refdate}"),
     rows = rows,
     team_marks = todo_pdf_prepare_team_marks(available_combos),
-    unseen_tagged_birds = todo_pdf_prepare_unseen_tagged_birds(
-      unseen_tagged_birds
-    ),
     nest_summary = todo_pdf_prepare_nest_summary(
       nests_latest,
       refdate,
       todo_dt,
       chick_captures,
-      unseen_tagged_birds,
       hatch_prediction,
       parent_status
     )
@@ -1399,35 +1298,35 @@ todo_pdf_heading <- function(todo_name) {
     todo_name,
     "Hiding spot photos needed" = list(
       title = "Broods to photograph",
-      subtitle = "find these broods and take in-situ and tent photos before the chicks are 7 days old"
+      subtitle = "Find each brood; take in-situ and tent photos before chicks are 7 days old."
     ),
     "Broods to recapture for flagging" = list(
       title = "Broods to recapture for flagging",
-      subtitle = "recapture chicks aged 21 days or more and assign unique engraved UL flags (e.g., FW73)"
+      subtitle = "Recapture chicks aged 21 days or more; assign unique engraved UL flags."
     ),
     "Unprocessed nest" = list(
       title = "Nests to process",
-      subtitle = "egg photos and/or floatation needed"
+      subtitle = "Complete required egg, nest/tent, or scrape photos; float where needed."
     ),
-    "Untrapped parent" = list(
-      title = "Nests with parents to capture or resight",
-      subtitle = "band unmarked parents or determine identity with resighting"
+    "Re-process nest" = list(
+      title = "Nests to process",
+      subtitle = "Complete required egg, nest/tent, or scrape photos; float where needed."
     ),
     "Parent capture" = list(
       title = "Parents to capture",
-      subtitle = "follow notes for tag deployment or band-only instructions"
+      subtitle = "Follow the row notes: deploy a geolocator or band only."
     ),
     "Parent resighting" = list(
       title = "Parents to resight for nest association",
-      subtitle = "Association resolves after 3 nest-linked resightings or 1 confirming behav (“IN”, “NM”, “BW”, “BC”, “FC”, “AC”). “MM, n” shows an MM capture and n non-confirming resightings."
+      subtitle = "Association resolves after 3 nest-linked resightings or 1 confirming behaviour (IN, NM, BW, BC, FC, AC). MM, n = MM capture plus n non-confirming resightings."
     ),
     "Untrapped brood" = list(
       title = "Broods to band",
-      subtitle = NULL
+      subtitle = "Band chicks at hatched nests/broods with no chick captures."
     ),
     "nest check" = list(
       title = "Nests to check for potential hatch",
-      subtitle = "egg floatation data estimates that these nests are within 7 days of hatching"
+      subtitle = "Revisit to check hatch status and update the nest record."
     ),
     "take scrape photos" = list(
       title = "Take scrape photos",
@@ -1435,18 +1334,44 @@ todo_pdf_heading <- function(todo_name) {
     ),
     "Clutch check" = list(
       title = "Nests to check for additional eggs",
-      subtitle = "revisit to confirm whether the clutch has increased"
+      subtitle = "Revisit to check for additional eggs."
     ),
     "notA nest-check" = list(
       title = "Nests requiring a 'notA' closure visit",
-      subtitle = "these nests have finished and can be closed; nest_ids with state \"H\" may still be active mobile broods that require monitoring"
+      subtitle = "Confirm closure and enter notA; H-state nests may still be active mobile broods."
     ),
-    list(
-      title = todo_name,
-      subtitle = NULL
+    stop(
+      glue("Unexpected TODO task value in PDF renderer: {todo_name}"),
+      call. = FALSE
     )
   )
 }
+
+todo_pdf_reprocess_note <- function(note) {
+  note <- trimws(as.character(note))
+  if (is.na(note) || !nzchar(note)) {
+    return("re-process")
+  }
+
+  switch(
+    note,
+    "float + photos" = "float + nest/tent photos; re-process",
+    "photos only" = "nest/tent photos only; re-process",
+    paste0(note, "; re-process")
+  )
+}
+
+todo_pdf_table_task_order <- c(
+  "Untrapped brood",
+  "Hiding spot photos needed",
+  "Broods to recapture for flagging",
+  "nest check",
+  "Clutch check",
+  "Unprocessed nest",
+  "Parent capture",
+  "Parent resighting",
+  "notA nest-check"
+)
 
 todo_pdf_note_key <- function(notes = character()) {
   definitions <- list(
@@ -1482,7 +1407,9 @@ todo_pdf_note_key <- function(notes = character()) {
     ),
     list(
       label = "Band only",
-      pattern = "band",
+      # Avoid treating the generic brood-band task note ("band") as a
+      # parent-specific band-only instruction.
+      pattern = "band ",
       text = "Capture and fully colour-band the stated parent; do not deploy a GEO."
     ),
     list(
@@ -1931,16 +1858,52 @@ todo_pdf_body <- function(
   rows,
   team_marks = NULL,
   map_file = NULL,
-  nest_summary = NULL,
-  unseen_tagged_birds = NULL
+  nest_summary = NULL
 ) {
+  # Re-process nest, take scrape photos, and Unprocessed nest are distinct SQL
+  # evidence branches, but they share the Nests to process field action. Keep
+  # this normalization local to the rendering copy so TODO_LIST remains the
+  # stable source for other consumers.
+  rows <- data.table::copy(rows)
+  if ("Todo" %in% names(rows)) {
+    task_values <- as.character(rows$Todo)
+    reprocess <- !is.na(task_values) & task_values == "Re-process nest"
+    scrape <- !is.na(task_values) & task_values == "take scrape photos"
+
+    if ("Notes" %in% names(rows)) {
+      if (any(reprocess)) {
+        reprocess_notes <- vapply(
+          rows$Notes[reprocess],
+          todo_pdf_reprocess_note,
+          character(1)
+        )
+        rows[reprocess, Notes := reprocess_notes]
+      }
+      if (any(scrape)) {
+        rows[scrape, Notes := "scrape photos"]
+      }
+    }
+
+    rows[reprocess | scrape, Todo := "Unprocessed nest"]
+  }
+
   out <- todo_pdf_note_key(rows$Notes)
   if (!nrow(rows)) {
     out <- c(out, "No to-do items.", "")
   } else {
     table_cols <- setdiff(names(rows), "Todo")
+    task_values <- unique(as.character(rows$Todo))
+    unexpected <- setdiff(task_values, todo_pdf_table_task_order)
+    if (length(unexpected)) {
+      # Preserve the existing fail-fast behavior for stale or mixed task
+      # values rather than silently dropping them from the PDF.
+      todo_pdf_heading(unexpected[[1L]])
+    }
 
-    for (todo in unique(rows$Todo)) {
+    for (todo in todo_pdf_table_task_order) {
+      if (!any(rows$Todo == todo, na.rm = TRUE)) {
+        next
+      }
       todo_rows <- as.data.frame(rows[Todo == todo, ..table_cols])
       heading <- todo_pdf_heading(todo)
 
@@ -2001,27 +1964,12 @@ todo_pdf_body <- function(
     }
   }
 
-  if (!is.null(unseen_tagged_birds) && nrow(unseen_tagged_birds)) {
-    out <- c(
-      out,
-      "## Tagged birds to resight",
-      "",
-      "*These birds have not been in seen in over 7 days since tag deployment, please resight and comment either \"no limp\", \"slight limp\", or \"severe limp\".*",
-      "",
-      todo_pdf_simple_table(
-        unseen_tagged_birds,
-        column_widths = c(28, 12, 24, 20)
-      ),
-      ""
-    )
-  }
-
   if (!is.null(team_marks) && nrow(team_marks)) {
     out <- c(
       out,
       "## Team marks",
       "",
-      "*Use non-Lime 1.5x bands for the geolocator spacer on the tibia, and 2x bands on the tarsi*",
+      "*Use non-Lime 1.5x bands for the geolocator spacer on the tibia; use 2x bands on the tarsi.*",
       "",
       todo_pdf_simple_table(
         team_marks,
@@ -2037,8 +1985,9 @@ todo_pdf_body <- function(
       "```{=typst}",
       "#set page(margin: (x: 1cm, y: 1cm))",
       "#pagebreak()",
-      "#align(left)[#emph[#text(size: 8.5pt)[All active nests and broods are shown. Nests are labelled in black, broods are labelled according to the band colour assigned to chicks. Nest points are stationary, brood points show the latest recorded location. Symbols highlighted in white require tag deployment (see notes in the 'Parents to capture' table above).]]]",
-      "#v(0.1em)",
+      "#align(left)[#text(size: 10pt, weight: \"bold\")[Map of tasks needed on active nests and broods]]",
+      "#align(left)[#emph[#text(size: 8.5pt)[All active nests and broods are shown. Black labels are nests; coloured labels are broods (chick band colour). Nest points are stationary; brood points show the latest location. White point outline = parent tag deployment; white label outline + italic text = brood photo, flagging, or banding work.]]]",
+      "#v(-0.2em)",
       glue('#align(center)[#image("{map_file}", width: 100%)]'),
       "#v(-0.4em)",
       "```",
@@ -2046,7 +1995,7 @@ todo_pdf_body <- function(
       "```{=typst}",
       "#v(-0.35em)",
       "#align(left)[#text(size: 10pt, weight: \"bold\")[Summary of currently active nests and broods]]",
-      "#align(left)[#emph[#text(size: 8pt)[Broods are labelled according to the band colour assigned to chicks. Symbols match the task shown on the map. Number in \"Est. Hatch\" is the days until the estimated hatch date for active nests; negative values show days overdue, while negative values for broods show days since hatch.]]]",
+      "#align(left)[#emph[#text(size: 8pt)[Brood labels use chick band colour; symbols match the map. For active nests, \"Est. Hatch\" is days until hatch (negative = overdue); for broods, negative values are days since hatch.]]]",
       "```",
       "",
       todo_pdf_nest_summary_table(nest_summary)
@@ -2065,8 +2014,7 @@ todo_pdf_qmd <- function(
     pdf$rows,
     pdf$team_marks,
     map_file,
-    pdf$nest_summary,
-    pdf$unseen_tagged_birds
+    pdf$nest_summary
   )
   out <- character()
 
@@ -2103,7 +2051,6 @@ todo_pdf_save <- function(
   spatial_objects = NULL,
   nests_latest = NULL,
   chick_captures = NULL,
-  unseen_tagged_birds = NULL,
   broods_latest = NULL,
   hatch_prediction = NULL
 ) {
@@ -2158,15 +2105,6 @@ todo_pdf_save <- function(
         AND TRIM(nest_id) NOT IN ('', 'NO_NEST')
     ")
   }
-  if (is.null(unseen_tagged_birds)) {
-    unseen_tagged_birds <- DBq("
-      SELECT mark, sex, nest_id, days_since_cap, days_since_last_seen
-      FROM VIEW_1
-      WHERE days_since_cap > 7
-        AND days_since_last_seen IS NULL
-      ORDER BY days_since_cap DESC, mark, nest_id
-    ")
-  }
   if (is.null(hatch_prediction)) {
     hatch_prediction <- DBq(
       "SELECT * FROM EGGS_HATCH_PREDICTION"
@@ -2186,7 +2124,6 @@ todo_pdf_save <- function(
     available_combos,
     broods_latest,
     chick_captures,
-    unseen_tagged_birds,
     hatch_prediction,
     parent_status
   )
@@ -2196,8 +2133,7 @@ todo_pdf_save <- function(
     todo = todo,
     spatial_objects = spatial_objects,
     chick_captures = chick_captures,
-    nests_latest = broods_latest,
-    unseen_tagged_birds = unseen_tagged_birds
+    nests_latest = broods_latest
   )
 
   writeLines(todo_pdf_qmd(pdf, basename(map_file)), qmd)

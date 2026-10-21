@@ -1,20 +1,24 @@
 todo_list_view_sql <- function() {
   sql <- paste(
-    readLines(app_file("DATABASE", "views.SQL"), warn = FALSE),
+    readLines(
+      app_file("DATABASE", "refresh_todo_list_snapshot.SQL"),
+      warn = FALSE
+    ),
     collapse = "\n"
   )
-  start_marker <-
-    "CREATE OR REPLACE( ALGORITHM = [A-Z]+)? VIEW FIELD_2026_BADOatNZ.TODO_LIST_CALCULATE AS"
-  end_marker <- paste(
-    "/*",
-    "  Refreshable task snapshot",
-    sep = "\n"
-  )
-  start <- regexpr(start_marker, sql, perl = TRUE)[[1]]
+  start <- regexpr(
+    "INSERT INTO FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_BUILD (",
+    sql,
+    fixed = TRUE
+  )[[1]]
   expect_gt(start, 0L)
 
   remainder <- substring(sql, start)
-  finish <- regexpr(end_marker, remainder, fixed = TRUE)[[1]]
+  finish <- regexpr(
+    "SELECT 'TODO_REFRESH_STAGE|publishing'",
+    remainder,
+    fixed = TRUE
+  )[[1]]
   expect_gt(finish, 0L)
 
   substring(remainder, 1L, finish - 1L)
@@ -29,15 +33,36 @@ views_source_sql <- function() {
 }
 
 
+refresh_source_sql <- function() {
+  paste(
+    readLines(
+      app_file("DATABASE", "refresh_todo_list_snapshot.SQL"),
+      warn = FALSE
+    ),
+    collapse = "\n"
+  )
+}
+
+
+all_todo_sql <- function() {
+  paste(views_source_sql(), refresh_source_sql(), sep = "\n")
+}
+
+
 test_that("public TODO_LIST is a small snapshot-backed read boundary", {
-  sql <- views_source_sql()
+  sql <- paste(
+    readLines(
+      app_file("DATABASE", "refresh_todo_list_snapshot.SQL"),
+      warn = FALSE
+    ),
+    collapse = "\n"
+  )
   start_marker <- paste(
     "CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW",
     "FIELD_2026_BADOatNZ.TODO_LIST AS"
   )
   end_marker <- paste(
-    "CREATE OR REPLACE VIEW",
-    "FIELD_2026_BADOatNZ.VIEW_1 AS"
+    "DROP TABLE FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_PREVIOUS;"
   )
   start <- regexpr(start_marker, sql, fixed = TRUE)[[1]]
   expect_gt(start, 0L)
@@ -101,15 +126,93 @@ test_that("public TODO_LIST is a small snapshot-backed read boundary", {
     sql,
     fixed = TRUE
   )[[1L]]
-  public_drop <- regexpr(
-    "DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.TODO_LIST;",
-    sql,
-    fixed = TRUE
-  )[[1L]]
+  public_view <- regexpr(start_marker, sql, fixed = TRUE)[[1L]]
   expect_gt(parent_build_insert, 0L)
   expect_gt(task_build_insert, 0L)
-  expect_gt(public_drop, parent_build_insert)
-  expect_gt(public_drop, task_build_insert)
+  expect_gt(public_view, parent_build_insert)
+  expect_gt(public_view, task_build_insert)
+  expect_no_match(
+    sql,
+    "DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.TODO_LIST;",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "DROP TABLE FIELD_2026_BADOatNZ.TODO_PARENT_CHICK_GPS_LINKS_SNAPSHOT_PREVIOUS;",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "CREATE TABLE IF NOT EXISTS FIELD_2026_BADOatNZ.TODO_REFRESH_STATUS (",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "UPDATE FIELD_2026_BADOatNZ.TODO_REFRESH_STATUS",
+    fixed = TRUE
+  )
+})
+
+
+test_that("the obsolete monolithic TODO calculator is removed, not recreated", {
+  sql <- views_source_sql()
+
+  expect_match(
+    sql,
+    "DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.TODO_LIST_CALCULATE;",
+    fixed = TRUE
+  )
+  expect_false(grepl(
+    "CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.TODO_LIST_CALCULATE",
+    sql,
+    fixed = TRUE
+  ))
+
+  refresh_sql <- refresh_source_sql()
+  expect_false(grepl(
+    "FROM FIELD_2026_BADOatNZ.TODO_LIST_CALCULATE",
+    refresh_sql,
+    fixed = TRUE
+  ))
+})
+
+
+test_that("the obsolete VIEW_1 tagged-bird follow-up view is removed", {
+  sql <- views_source_sql()
+
+  expect_match(
+    sql,
+    "DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.VIEW_1;",
+    fixed = TRUE
+  )
+  expect_false(grepl(
+    "CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.VIEW_1 AS",
+    sql,
+    fixed = TRUE
+  ))
+})
+
+
+test_that("Untrapped parent remains internal and cannot become a public task", {
+  refresh_sql <- refresh_source_sql()
+  task_sql <- todo_list_view_sql()
+
+  expect_match(task_sql, "todo_parent_resighting_existing", fixed = TRUE)
+  expect_no_match(
+    refresh_sql,
+    "WHERE todo IN (\n  'Untrapped parent',",
+    fixed = TRUE
+  )
+  expect_no_match(
+    refresh_sql,
+    "WHERE todo NOT IN (\n  'Untrapped parent',",
+    fixed = TRUE
+  )
+  expect_match(
+    refresh_sql,
+    "AND todo <> 'Untrapped parent';",
+    fixed = TRUE
+  )
 })
 
 
@@ -168,7 +271,12 @@ test_that("TODO snapshot refresh is explicit and uses live SQL sources", {
     )
   )
   expect_match(refresh_sql, "RENAME TABLE", fixed = TRUE)
-  expect_match(refresh_sql, "SELECT *\nFROM FIELD_2026_BADOatNZ.TODO_LIST_CALCULATE", fixed = TRUE)
+  expect_match(refresh_sql, "WITH sr AS (", fixed = TRUE)
+  expect_no_match(
+    refresh_sql,
+    "FROM FIELD_2026_BADOatNZ.TODO_LIST_CALCULATE;",
+    fixed = TRUE
+  )
   expect_false(grepl("\\.rds", refresh_sql, ignore.case = TRUE))
 
   parent_build_insert <- regexpr(
@@ -181,15 +289,8 @@ test_that("TODO snapshot refresh is explicit and uses live SQL sources", {
     refresh_sql,
     fixed = TRUE
   )[[1L]]
-  public_drop <- regexpr(
-    "DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.TODO_LIST;",
-    refresh_sql,
-    fixed = TRUE
-  )[[1L]]
   expect_gt(parent_build_insert, 0L)
   expect_gt(task_build_insert, 0L)
-  expect_gt(public_drop, parent_build_insert)
-  expect_gt(public_drop, task_build_insert)
 
   parent_input_build <- regexpr(
     paste(
@@ -288,11 +389,18 @@ test_that("AVAILABLE_COMBOS keeps all eligible OY marks in CR", {
 
 
 test_that("TODO_LIST contains the bounded operational rules", {
-  sql <- views_source_sql()
+  sql <- todo_list_view_sql()
+  refresh_sql <- paste(
+    readLines(
+      app_file("DATABASE", "refresh_todo_list_snapshot.SQL"),
+      warn = FALSE
+    ),
+    collapse = "\n"
+  )
 
   expect_match(
     sql,
-    "CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_LIST_CALCULATE AS",
+    "WITH sr AS (",
     fixed = TRUE
   )
   expect_match(
@@ -322,7 +430,7 @@ test_that("TODO_LIST contains the bounded operational rules", {
   )
   expect_match(sql, "WHERE NOT EXISTS", fixed = TRUE)
   expect_match(
-    sql,
+    refresh_sql,
     "FROM FIELD_2026_BADOatNZ.RESIGHTINGS_H_BROOD_ASSOCIATIONS h",
     fixed = TRUE
   )
@@ -480,9 +588,9 @@ test_that("parent-status view projections remain deployable", {
   expect_gt(parent_start, 0L)
   parent_sql <- substring(sql, parent_start)
   parent_end <- regexpr(
-    "CREATE OR REPLACE( ALGORITHM = [A-Z]+)? VIEW FIELD_2026_BADOatNZ.TODO_LIST_CALCULATE AS",
+    "/*\n  The TODO task engine remains",
     parent_sql,
-    perl = TRUE
+    fixed = TRUE
   )[[1]]
   expect_gt(parent_end, 0L)
   parent_sql <- substring(parent_sql, 1L, parent_end - 1L)
@@ -514,7 +622,13 @@ test_that("parent-status view projections remain deployable", {
 
 
 test_that("hiding-photo TODO counts distinct captured and photographed rings", {
-  sql <- views_source_sql()
+  sql <- paste(
+    readLines(
+      app_file("DATABASE", "refresh_todo_list_snapshot.SQL"),
+      warn = FALSE
+    ),
+    collapse = "\n"
+  )
 
   expect_match(
     sql,
@@ -546,7 +660,7 @@ test_that("hiding-photo TODO counts distinct captured and photographed rings", {
 
 
 test_that("hatch prediction includes complete-clutch and stable one-egg fallbacks", {
-  sql <- views_source_sql()
+  sql <- all_todo_sql()
 
   expect_match(sql, "latest_clutch_ranked AS", fixed = TRUE)
   expect_match(sql, "first_one_egg_ranked AS", fixed = TRUE)
@@ -715,7 +829,7 @@ test_that("four-gate identity matching owns short LL/LR and spacer aliases", {
 
 
 test_that("hatched brood task Hatch values use the recorded H date", {
-  sql <- views_source_sql()
+  sql <- all_todo_sql()
 
   expect_match(sql, "TODO_NEST_CONTEXT AS", fixed = TRUE)
   expect_match(sql, "MIN(date) AS hatch_date", fixed = TRUE)
@@ -806,6 +920,17 @@ test_that("brood flagging tasks use the 21-day age gate and avoid duplicate band
   )
   expect_match(sql, "n_flagged_chick_rings", fixed = TRUE)
   expect_match(sql, "n_unringed_chick_captures", fixed = TRUE)
+  expect_match(sql, "'recapture chicks; assign flags ('", fixed = TRUE)
+  expect_no_match(
+    sql,
+    "'recapture chicks; assign unique engraved UL flags ('",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    ") - COALESCE(chick_captures.n_flagged_chick_rings, 0),",
+    fixed = TRUE
+  )
   expect_match(
     sql,
     "DATEDIFF(\n          brood_followup_nests.reference_date,\n          brood_followup_nests.hatch_date\n        ) < 21",
@@ -819,6 +944,23 @@ test_that("brood flagging tasks use the 21-day age gate and avoid duplicate band
   expect_no_match(
     sql,
     "'no chick captures; chicks old enough for leg flags'",
+    fixed = TRUE
+  )
+})
+
+
+test_that("negative broods only enter Broods to band without chick captures", {
+  sql <- todo_list_view_sql()
+
+  expect_match(
+    sql,
+    paste(
+      "WHERE b.is_negative_brood = 1",
+      "    AND b.reference_date = sr.reference_date",
+      "    AND COALESCE(chick_captures.n_chick_captures, 0) = 0",
+      "    AND DATEDIFF(b.reference_date, b.discovery_date) < 21",
+      sep = "\n"
+    ),
     fixed = TRUE
   )
 })
@@ -937,7 +1079,7 @@ test_that("two-egg parent capture waits seven days after inferred completion", {
 
 
 test_that("a lower latest clutch does not reset the parent capture gate", {
-  sql <- views_source_sql()
+  sql <- all_todo_sql()
 
   expect_match(sql, "historical_max_clutch", fixed = TRUE)
   expect_match(sql, "capture_gate_clutch_size", fixed = TRUE)
@@ -994,7 +1136,7 @@ test_that("a lower latest clutch does not reset the parent capture gate", {
 })
 
 
-test_that("partial hatch signs retain the unhatched-egg instruction", {
+test_that("unhatched-egg instruction requires both clutch and brood evidence", {
   sql <- todo_list_view_sql()
 
   expect_match(
@@ -1003,6 +1145,11 @@ test_that("partial hatch signs retain the unhatched-egg instruction", {
     fixed = TRUE
   )
   expect_match(sql, "'; unhatched egg(s)'", fixed = TRUE)
+  expect_match(
+    sql,
+    "AND COALESCE(active_nests.clutch_size, 0) > 0\n         AND COALESCE(active_nests.brood_size, 0) > 0\n        THEN '; unhatched egg(s)'",
+    fixed = TRUE
+  )
 
   asynchronous_hatch_check <- function(
     nest_state,
@@ -1019,6 +1166,21 @@ test_that("partial hatch signs retain the unhatched-egg instruction", {
   expect_false(asynchronous_hatch_check("H", 0, 1))
   expect_false(asynchronous_hatch_check("H", 1, 0))
   expect_true(asynchronous_hatch_check("I", 1, 1, hatch_signs_present = 1L))
+
+  unhatched_note <- function(
+    nest_state,
+    clutch_size,
+    brood_size,
+    hatch_signs_present = 0L
+  ) {
+    (hatch_signs_present == 1L || toupper(trimws(nest_state)) == "H") &&
+      !is.na(clutch_size) && clutch_size > 0 &&
+      !is.na(brood_size) && brood_size > 0
+  }
+
+  expect_true(unhatched_note("I", 3, 1, hatch_signs_present = 1L))
+  expect_false(unhatched_note("I", 3, 0, hatch_signs_present = 1L))
+  expect_false(unhatched_note("I", 0, 1, hatch_signs_present = 1L))
 })
 
 
@@ -1069,6 +1231,13 @@ test_that("negative broods use discovery age in shared task hatch fields", {
 
 test_that("deployment SQL handles archive collation and negative brood aliases", {
   sql <- views_source_sql()
+  refresh_sql <- paste(
+    readLines(
+      app_file("DATABASE", "refresh_todo_list_snapshot.SQL"),
+      warn = FALSE
+    ),
+    collapse = "\n"
+  )
 
   expect_match(
     sql,
@@ -1644,7 +1813,7 @@ test_that("flags and ambiguous matches cannot collapse into pure X-X", {
 
 test_that("generic banded-parent association follows the resighting threshold", {
   sql <- todo_list_view_sql()
-  full_sql <- views_source_sql()
+  full_sql <- all_todo_sql()
 
   expect_match(full_sql, "ADULT_SCRAPE_RESIGHTING_STATUS AS", fixed = TRUE)
   expect_match(sql, "ADULT_SCRAPE_RESIGHTING_STATUS", fixed = TRUE)
@@ -1725,7 +1894,7 @@ test_that("generic banded-parent association follows the resighting threshold", 
 
 
 test_that("pending known-banded associations bypass GEO candidate selection", {
-  sql <- views_source_sql()
+  sql <- todo_list_view_sql()
 
   # The direct pending-association branch must remain separate from the GEO
   # capture candidate path. Otherwise a known-banded bird with only AT
@@ -1759,7 +1928,7 @@ test_that("pending known-banded associations bypass GEO candidate selection", {
 
 
 test_that("four-gate parent-resighting identities are canonicalized and counted per pending bird", {
-  sql <- views_source_sql()
+  sql <- all_todo_sql()
 
   expect_match(
     sql,

@@ -79,7 +79,6 @@ dbtabs_show_views <- c(
   "CAPTURES_ARCHIVE",
   "EGGS_HATCH_PREDICTION",
   "OVERVIEW",
-  "VIEW_1",
   "VIEW_2"
 )
 
@@ -137,9 +136,7 @@ dbtabs_show_view_sources <- list(
     "NESTS",
     "EGGS",
     "predict_hatching"
-  ),
-
-  VIEW_1 = c("settings", "CAPTURES", "RESIGHTINGS")
+  )
 )
 
 
@@ -287,6 +284,27 @@ git_local_head_id <- function(app_dir) {
 }
 
 
+git_worktree_dirty <- function(app_dir) {
+  status <- git_output(
+    app_dir,
+    c("status", "--porcelain", "--untracked-files=no")
+  )
+  length(status) > 0L && any(nzchar(trimws(status)))
+}
+
+
+git_branch_name <- function(app_dir) {
+  branch <- git_output(
+    app_dir,
+    c("rev-parse", "--abbrev-ref", "HEAD")
+  )
+  if (length(branch) == 0L || !nzchar(trimws(branch[[1L]]))) {
+    return(NULL)
+  }
+  trimws(branch[[1L]])
+}
+
+
 resolve_git_version <- function(app_dir = getwd()) {
   app_dir <- normalizePath(app_dir, mustWork = FALSE)
 
@@ -304,7 +322,9 @@ resolve_git_version <- function(app_dir = getwd()) {
       return(list(
         id = id,
         source = paste0("env:", name),
-        commit_time = git_commit_time(app_dir, id)
+        commit_time = git_commit_time(app_dir, id),
+        local = FALSE,
+        dirty = FALSE
       ))
     }
   }
@@ -319,12 +339,36 @@ resolve_git_version <- function(app_dir = getwd()) {
     )
 
     if (!is.null(id)) {
+      branch <- git_branch_name(app_dir)
+      local <- identical(ref, "HEAD") &&
+        (is.null(branch) || !branch %in% c("main", "master"))
       return(list(
         id = id,
         source = paste0("git:", ref),
-        commit_time = git_commit_time(app_dir, ref)
+        commit_time = git_commit_time(app_dir, ref),
+        local = local,
+        dirty = isTRUE(local) && git_worktree_dirty(app_dir)
       ))
     }
+  }
+
+  # A local feature branch or dirty checkout must be labelled as local before
+  # consulting the network. Otherwise a reachable origin/main can make a
+  # sandbox render look like a deployed main-origin render.
+  local_head <- git_local_head_id(app_dir)
+  branch <- git_branch_name(app_dir)
+  local <- !is.null(local_head) && (
+    git_worktree_dirty(app_dir) ||
+      !is.null(branch) && !branch %in% c("main", "master", "HEAD")
+  )
+  if (isTRUE(local)) {
+    return(list(
+      id = local_head,
+      source = "git:HEAD-working-tree",
+      commit_time = git_commit_time(app_dir, "HEAD"),
+      local = TRUE,
+      dirty = git_worktree_dirty(app_dir)
+    ))
   }
 
   id <- git_remote_main_id()
@@ -333,23 +377,33 @@ resolve_git_version <- function(app_dir = getwd()) {
     return(list(
       id = id,
       source = "remote:origin/main",
-      commit_time = git_commit_time(app_dir, id)
+      commit_time = git_commit_time(app_dir, id),
+      local = FALSE,
+      dirty = FALSE
     ))
   }
 
   # A deployed checkout may be dirty or unable to reach GitHub. In that case
   # its local HEAD is still more useful than reporting an unknown version.
-  id <- git_local_head_id(app_dir)
+  id <- local_head
 
   if (!is.null(id)) {
     return(list(
       id = id,
       source = "git:HEAD-working-tree",
-      commit_time = git_commit_time(app_dir, "HEAD")
+      commit_time = git_commit_time(app_dir, "HEAD"),
+      local = TRUE,
+      dirty = git_worktree_dirty(app_dir)
     ))
   }
 
-  list(id = "unknown", source = "unavailable", commit_time = NULL)
+  list(
+    id = "unknown",
+    source = "unavailable",
+    commit_time = NULL,
+    local = FALSE,
+    dirty = FALSE
+  )
 }
 
 

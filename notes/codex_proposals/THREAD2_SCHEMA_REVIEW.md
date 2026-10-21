@@ -625,10 +625,11 @@ to roll back or recreate the current database schema.
 4. `AVAILABLE_COMBOS` is browser-visible but has no explicit source-watch mapping.
    It depends on `settings`, current CAPTURES, the historic archive, and ultimately
    historic SEX.
-5. `VIEW_1` is now defined in tracked `views.SQL` and its current source watch is
-   `settings`, `CAPTURES`, and `RESIGHTINGS`. `main/global.R` still advertises
-   `VIEW_2`, but tracked `views.SQL` has no `VIEW_2` definition; this remains a
-   browser-contract mismatch.
+5. The obsolete tagged-bird PDF follow-up view has been removed from tracked
+   `views.SQL` and the app. The Overview geolocator-history figure is
+   independent and continues to query the underlying capture/resighting tables.
+   `main/global.R` still advertises `VIEW_2`, but tracked `views.SQL` has no
+   `VIEW_2` definition; this remains a browser-contract mismatch.
 6. `TODO_LIST` is a large window-function/CTE view. `showTable()` requests
    `derived_merge=off`, but other direct callers may still need performance and
    query-plan checks on the target MariaDB version.

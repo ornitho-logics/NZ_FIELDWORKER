@@ -112,7 +112,7 @@ The same SQL commit added source-of-truth comments at the major view
 boundaries. They identify the fieldwork purpose and CTE roles for the
 compatibility/archive layer, `NESTS_LATEST`, H-event association,
 `BROODS_LATEST`, `EGGS_HATCH_PREDICTION`, GEO rollout planning, `TODO_LIST`,
-`VIEW_1`, and `OVERVIEW`. These comments are explanatory documentation inside
+and `OVERVIEW`. These comments are explanatory documentation inside
 `DATABASE/views.SQL`; they do not create additional views, alter table data, or
 replace the protocol documentation here.
 
@@ -262,8 +262,8 @@ PDF uses clearer fieldworker-facing headings in several cases.
 
 The SQL may also build compatibility or intermediate rows such as
 `Untrapped parent`, but the current final task union is the authority for what
-the PDF displays. `Tagged birds to resight` is a separate PDF table sourced
-from `VIEW_1`, not a `TODO_LIST` task class.
+the PDF displays. The retired tagged-bird follow-up table is not part of the
+current PDF workflow.
 
 Negative/mobile broods can generate parent work, `Broods to band`, and hiding
 photo work. They must not generate `Nests to process`, scrape photos,
@@ -681,16 +681,26 @@ Current PDF presentation includes:
 - `Parents to capture` and `Parents to resight for nest association`, with
   `Nest/Brood` columns;
 - `Broods to photograph`, with a `Brood` column;
-- `Broods to band`, nest-processing, clutch-check, potential-hatch, scrape,
-  closure, and tagged-bird follow-up sections when nonempty;
+- `Broods to band`, nest-processing, clutch-check, potential-hatch, scrape, and
+  closure sections when nonempty;
 - compact two-line headings, alternating row shading, and reduced table
   borders for the parent/brood task tables;
 - the note key, which should contain only note types present in the PDF;
 - the version/footer and header styling currently present in the checked-out
   R source.
 
+The fieldworker-facing table order is: broods to band; broods to photograph;
+broods to recapture for flagging; potential-hatch checks; additional-egg
+checks; the combined nest-processing table; parent capture; parent resighting;
+notA closure visits; and Team marks. The map and active nest/brood summary are
+reserved for the final page. `Unprocessed nest`, `Re-process nest`, and `take
+scrape photos` remain distinct SQL task branches but are rendered together as
+`Nests to process`.
+
 `todo_pdf_version_footer()` now uses the shared `git_version` object from
-`main/global.R` and displays the resolved commit ID only. `resolve_git_version()`
+`main/global.R`. Local feature-branch or dirty-worktree renders are labelled
+`version local-<short-commit>[-dirty]`; deployment/environment identifiers and
+main-origin renders remain `version <short-commit>`. `resolve_git_version()`
 prefers deployment/environment identifiers, then matching local Git refs, then
 remote/local fallbacks; the app sidebar and PDF therefore share the same
 resolution path in the checked-out source. A deployed checkout must still be

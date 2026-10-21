@@ -333,6 +333,52 @@ todo_snapshot_is_current <- function(refdate = get_reference_date()) {
 }
 
 
+todo_snapshot_refresh_health <- function(refdate = get_reference_date()) {
+  refdate <- as.Date(refdate)
+
+  if (is.na(refdate)) {
+    return(list(
+      state = "unavailable",
+      reference_date = refdate,
+      started_at = NA,
+      completed_at = NA,
+      task_row_count = NA_real_
+    ))
+  }
+
+  x <- DBq(
+    paste(
+      "SELECT state, reference_date, started_at, completed_at,",
+      "task_row_count",
+      "FROM TODO_REFRESH_STATUS",
+      "WHERE reference_date = ?",
+      "ORDER BY refresh_id DESC",
+      "LIMIT 1"
+    ),
+    params = list(as.character(refdate)),
+    derived_merge_off = TRUE
+  )
+
+  if ("error" %in% names(x) || nrow(x) == 0L) {
+    return(list(
+      state = "unavailable",
+      reference_date = refdate,
+      started_at = NA,
+      completed_at = NA,
+      task_row_count = NA_real_
+    ))
+  }
+
+  list(
+    state = as.character(x$state[[1L]]),
+    reference_date = as.Date(x$reference_date[[1L]]),
+    started_at = x$started_at[[1L]],
+    completed_at = x$completed_at[[1L]],
+    task_row_count = as.numeric(x$task_row_count[[1L]])
+  )
+}
+
+
 dbtable_is_updated <- function(tab) {
   tab <- as.character(tab)
   tab <- unique(tab[!is.na(tab) & nzchar(tab)])

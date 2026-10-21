@@ -120,36 +120,27 @@
   captures[, .(nest_id, chick_band, label_fill, label_text)]
 }
 
-.todo_pdf_map_prepare_tagged_resight_nests <- function(unseen_tagged_birds) {
-  empty <- data.table(nest_id = character())
-  if (is.null(unseen_tagged_birds)) {
-    return(empty)
-  }
-
-  tagged <- data.table(unseen_tagged_birds)
-  if (!nrow(tagged) || !"nest_id" %in% names(tagged)) {
-    return(empty)
-  }
-
-  tagged[, nest_id := trimws(as.character(nest_id))]
-  tagged <- tagged[
-    !is.na(nest_id) & nzchar(nest_id)
-  ]
-  unique(tagged[, .(nest_id)])
-}
-
-
 .todo_pdf_map_prepare_nests <- function(
   todo,
   chick_captures = NULL,
-  nests_latest = NULL,
-  unseen_tagged_birds = NULL
+  nests_latest = NULL
 ) {
   todo <- data.table(todo)
   if (!"notes" %in% names(todo)) {
     todo[, notes := NA_character_]
   }
-  check_todos <- c("Clutch check", "Unprocessed nest", "nest check")
+  check_todos <- c(
+    "Clutch check",
+    "Unprocessed nest",
+    "Re-process nest",
+    "take scrape photos",
+    "nest check"
+  )
+  brood_todos <- c(
+    "Hiding spot photos needed",
+    "Broods to recapture for flagging",
+    "Untrapped brood"
+  )
 
   task_status <- todo[,
     .(
@@ -179,35 +170,11 @@
           !is.na(notes) &
           grepl("tag", as.character(notes), ignore.case = TRUE),
         na.rm = TRUE
-      )
+      ),
+      brood_work = any(todo %chin% brood_todos)
     ),
     by = nest_id
   ]
-
-  tagged_resight_nests <- .todo_pdf_map_prepare_tagged_resight_nests(
-    unseen_tagged_birds
-  )
-  if (nrow(tagged_resight_nests)) {
-    tagged_resight_status <- copy(tagged_resight_nests)
-    tagged_resight_status[, tagged_resight := TRUE]
-    task_status <- merge(
-      task_status,
-      tagged_resight_status,
-      by = "nest_id",
-      all = TRUE,
-      sort = FALSE
-    )
-    task_status[is.na(tagged_resight), tagged_resight := FALSE]
-    task_status[
-      tagged_resight == TRUE,
-      parent_work := fcase(
-        as.character(parent_work) == "Capture",
-        "Capture",
-        default = "Resight"
-      )
-    ]
-    task_status[, tagged_resight := NULL]
-  }
 
   reference_date <- if ("reference_date" %in% names(todo)) {
     as.Date(todo$reference_date[1])
@@ -277,7 +244,8 @@
       check_type = fcoalesce(check_type, "Other task"),
       parent_work = fcoalesce(parent_work, "No capture/resight"),
       notA_visit = fcoalesce(notA_visit, FALSE),
-      tag_capture = fcoalesce(tag_capture, FALSE)
+      tag_capture = fcoalesce(tag_capture, FALSE),
+      brood_work = fcoalesce(brood_work, FALSE)
     )]
     nest_tasks[, c("task_lat", "task_lon") := NULL]
   } else {
@@ -293,6 +261,9 @@
   )
   nest_tasks[is.na(label_fill), label_fill := "#111111"]
   nest_tasks[is.na(label_text), label_text := "#ffffff"]
+  nest_tasks[, label_outline := fifelse(brood_work, "#ffffff", label_text)]
+  nest_tasks[, label_outline_width := fifelse(brood_work, 1.4, 0)]
+  nest_tasks[, label_fontface := fifelse(brood_work, "italic", "plain")]
 
   missing_coordinate_count <- nest_tasks[
     is.na(lat) | is.na(lon),
@@ -330,7 +301,9 @@
   landmark = NULL,
   rotation_deg = 0,
   min_x = 180,
-  min_y = 180
+  min_y = 180,
+  trim_west_to_points = FALSE,
+  trim_padding_m = 150
 ) {
   geometry <- c(st_geometry(boundary), st_geometry(points))
   if (!is.null(landmark) && nrow(landmark)) {
@@ -338,6 +311,17 @@
   }
 
   raw_bounds <- st_bbox(geometry)
+  if (isTRUE(trim_west_to_points) && nrow(points)) {
+    anchor_geometry <- st_geometry(points)
+    if (!is.null(landmark) && nrow(landmark)) {
+      anchor_geometry <- c(anchor_geometry, st_geometry(landmark))
+    }
+    anchor_bounds <- st_bbox(anchor_geometry)
+    raw_bounds[["xmin"]] <- max(
+      raw_bounds[["xmin"]],
+      anchor_bounds[["xmin"]] - trim_padding_m
+    )
+  }
   centre <- c(
     mean(raw_bounds[c("xmin", "xmax")]),
     mean(raw_bounds[c("ymin", "ymax")])
@@ -356,6 +340,17 @@
   }
 
   bounds <- st_bbox(geometry)
+  if (isTRUE(trim_west_to_points) && nrow(points)) {
+    anchor_geometry <- st_geometry(points)
+    if (!is.null(landmark) && nrow(landmark)) {
+      anchor_geometry <- c(anchor_geometry, st_geometry(landmark))
+    }
+    anchor_bounds <- st_bbox(anchor_geometry)
+    bounds[["xmin"]] <- max(
+      bounds[["xmin"]],
+      anchor_bounds[["xmin"]] - trim_padding_m
+    )
+  }
   x_span <- max(bounds[["xmax"]] - bounds[["xmin"]], min_x)
   y_span <- max(bounds[["ymax"]] - bounds[["ymin"]], min_y)
 
@@ -501,7 +496,11 @@
   angle <- spec$rotation_deg * pi / 180
   north_vector <- c(-sin(angle), cos(angle))
   north_length <- 0.25 * x_span
-  north_end <- c(xlim[2] - 0.07 * x_span, ylim[1] + 0.20 * y_span)
+  north_base_fraction <- if (identical(plot_id, "C")) 0.25 else 0.20
+  north_end <- c(
+    xlim[2] - 0.07 * x_span,
+    ylim[1] + north_base_fraction * y_span
+  )
   north_start <- north_end - north_vector * north_length
   north_label <- north_end + north_vector * (0.035 * x_span)
   north <- data.frame(
@@ -583,6 +582,35 @@
       colour = "#ffffff",
       fill = NA
     ) +
+    # ggrepel uses the same colour for label text and its border. Draw a
+    # transparent, synchronized label layer first so brood-work labels can
+    # have a white border without changing their existing text colour.
+    ggrepel::geom_label_repel(
+      data = point_xy,
+      aes(
+        X,
+        Y,
+        label = nest_id,
+        colour = label_outline,
+        linewidth = label_outline_width,
+        fontface = label_fontface
+      ),
+      seed = 20260916,
+      size = 2.75,
+      fill = NA,
+      label.size = 0.15,
+      label.padding = grid::unit(0.1, "lines"),
+      box.padding = 0.38,
+      point.padding = 0.28,
+      min.segment.length = 0,
+      segment.colour = "#3d4a51",
+      segment.size = 0.3,
+      max.overlaps = Inf,
+      max.time = 4,
+      xlim = xlim + c(0.025, -0.025) * x_span,
+      ylim = ylim + c(0.025, -0.025) * y_span,
+      show.legend = FALSE
+    ) +
     ggrepel::geom_label_repel(
       data = point_xy,
       aes(
@@ -590,12 +618,13 @@
         Y,
         label = nest_id,
         fill = label_fill,
-        colour = label_text
+        colour = label_text,
+        fontface = label_fontface
       ),
       seed = 20260916,
       size = 2.75,
-      fontface = "bold",
       label.size = 0.15,
+      linewidth = 0.25,
       label.padding = grid::unit(0.1, "lines"),
       box.padding = 0.38,
       point.padding = 0.28,
@@ -652,6 +681,7 @@
     ) +
     scale_fill_identity() +
     scale_colour_identity() +
+    scale_linewidth_identity() +
     scale_shape_manual(
       values = task_shapes,
       limits = names(task_shapes),
@@ -678,6 +708,36 @@
     )
 }
 
+.todo_pdf_map_draw_key_brood_label <- function(data, params, size) {
+  grid::grobTree(
+    grid::rectGrob(
+      gp = grid::gpar(fill = "#edf0f1", col = NA)
+    ),
+    grid::roundrectGrob(
+      x = 0.5,
+      y = 0.5,
+      width = grid::unit(0.95, "npc"),
+      height = grid::unit(0.72, "npc"),
+      r = grid::unit(0.08, "npc"),
+      gp = grid::gpar(
+        fill = "#f4d03f",
+        col = "#ffffff",
+        lwd = 1.4
+      )
+    ),
+    grid::textGrob(
+      "X9999",
+      x = 0.5,
+      y = 0.5,
+      gp = grid::gpar(
+        col = "#111111",
+        fontsize = 7.5,
+        fontface = "italic"
+      )
+    )
+  )
+}
+
 .todo_pdf_map_legend <- function() {
   task_cols <- c(
     Capture = "#d32f2f",
@@ -697,6 +757,11 @@
     "No to-do task today"
   )
   legend_shapes <- c(`Nest check` = 24, `notA visit` = 25)
+  brood_work_key <- data.frame(
+    x = 0,
+    y = 0,
+    brood_work = "Brood work required"
+  )
 
   ggplot(
     data.frame(
@@ -732,6 +797,17 @@
       size = 3.2,
       alpha = 0
     ) +
+    geom_point(
+      data = brood_work_key,
+      aes(x, y, alpha = brood_work),
+      shape = 22,
+      size = 0,
+      stroke = 1.15,
+      fill = "#f4d03f",
+      colour = "#ffffff",
+      key_glyph = .todo_pdf_map_draw_key_brood_label,
+      show.legend = c(alpha = TRUE, fill = FALSE, shape = FALSE)
+    ) +
     scale_fill_manual(
       values = c(task_cols, `Capture + tag` = task_cols[["Capture"]]),
       limits = parent_work_levels,
@@ -745,6 +821,12 @@
       labels = c("Nest check", "notA visit"),
       drop = FALSE,
       name = "Nest work"
+    ) +
+    scale_alpha_manual(
+      values = c(`Brood work required` = 1),
+      limits = "Brood work required",
+      labels = "Italic + white border = brood photo / flag / band work; upright/no border = no brood work",
+      name = "Brood work"
     ) +
     guides(
       fill = guide_legend(
@@ -761,6 +843,18 @@
         order = 2,
         nrow = 1,
         override.aes = list(alpha = 1, fill = "#7b858b", size = 3.2)
+      ),
+      alpha = guide_legend(
+        order = 3,
+        nrow = 1,
+        override.aes = list(
+          alpha = 1,
+          shape = 22,
+          size = 3.7,
+          fill = "#4f5a60",
+          colour = "#ffffff",
+          stroke = 1.15
+        )
       )
     ) +
     theme_void() +
@@ -773,7 +867,7 @@
       legend.spacing.x = grid::unit(2, "mm"),
       legend.spacing.y = grid::unit(0.5, "mm"),
       legend.margin = margin(0, 0, 0, 0),
-      legend.key.width = grid::unit(5, "mm"),
+      legend.key.width = grid::unit(10, "mm"),
       plot.margin = margin(0, 0, 0, 0)
     )
 }
@@ -783,8 +877,7 @@ todo_pdf_map_save <- function(
   todo = NULL,
   spatial_objects = DBq("SELECT * FROM spatial_objects WHERE variable = 'study_area'"),
   chick_captures = NULL,
-  nests_latest = NULL,
-  unseen_tagged_birds = NULL
+  nests_latest = NULL
 ) {
   if (is.null(todo)) {
     todo <- todo_pdf_query_tasks()
@@ -794,8 +887,7 @@ todo_pdf_map_save <- function(
   nests <- .todo_pdf_map_prepare_nests(
     todo,
     chick_captures,
-    nests_latest,
-    unseen_tagged_birds
+    nests_latest
   )
 
   gate <- st_as_sf(
@@ -819,7 +911,9 @@ todo_pdf_map_save <- function(
       local_image_rotation = TRUE,
       server_rotation = 0,
       target_ratio = 1.55,
-      image_size = "1275,823"
+      image_size = "1275,823",
+      trim_west_to_points = TRUE,
+      trim_padding_m = 150
     ),
     C = list(
       rotation_deg = -17.5,
@@ -840,7 +934,13 @@ todo_pdf_map_save <- function(
       nests[nests$plot_name == plot_id, ],
       target_ratio = panel_specs[[plot_id]]$target_ratio,
       landmark = if (gate_plot == plot_id) gate else NULL,
-      rotation_deg = if (plot_id == "C") panel_specs[[plot_id]]$rotation_deg else 0
+      rotation_deg = if (plot_id == "C") panel_specs[[plot_id]]$rotation_deg else 0,
+      trim_west_to_points = isTRUE(panel_specs[[plot_id]]$trim_west_to_points),
+      trim_padding_m = if (is.null(panel_specs[[plot_id]]$trim_padding_m)) {
+        150
+      } else {
+        panel_specs[[plot_id]]$trim_padding_m
+      }
     )
     panel_specs[[plot_id]]$imagery_file <- file.path(
       imagery_dir,

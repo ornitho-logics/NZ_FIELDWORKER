@@ -58,6 +58,8 @@ test_that("main app UI and entrypoint load", {
     app$env$git_version$source,
     "env:FIELDWORKER_GIT_ID"
   )
+  expect_false(app$env$git_version$local)
+  expect_false(app$env$git_version$dirty)
   expect_identical(
     app$env$parse_git_ls_remote(
       "ABCDEF1234567890ABCDEF1234567890ABCDEF12\trefs/heads/main"
@@ -104,7 +106,25 @@ test_that("main app UI and entrypoint load", {
   expect_match(html, 'id="overview_cr_combos_show"', fixed = TRUE)
   expect_match(html, 'id="overview_lay_date_show"', fixed = TRUE)
   expect_match(html, 'id="overview_hatching_forecast_show"', fixed = TRUE)
+  expect_match(html, 'id="overview_chick_growth_show"', fixed = TRUE)
   expect_match(html, 'id="overview_quota_show"', fixed = TRUE)
+  overview_titles <- c(
+    "Current quotas for manipulations (Cass and elsewhere in NZ).",
+    "Cass: lay date phenology",
+    "Cass: Hatching Forecast",
+    "Cass: Seasonal progression in nest discovery",
+    "Cass: Seasonal progression in unique band combinations encountered (resighted or captured)",
+    "Cass: Seasonal progression in geolocator deployments",
+    "Cass: Chick growth trends",
+    "Cass: Resighting histories of geolocator-tagged birds"
+  )
+  overview_title_positions <- vapply(
+    overview_titles,
+    function(title) regexpr(title, html, fixed = TRUE)[[1L]],
+    integer(1)
+  )
+  expect_true(all(overview_title_positions > 0L))
+  expect_true(all(diff(overview_title_positions) > 0L))
   expect_true(is.function(app$env$overview_nests_graph))
   expect_true(is.function(app$env$overview_tagged_resightings_graph))
   expect_true(is.function(app$env$overview_hatching_forecast_graph))
@@ -117,6 +137,7 @@ test_that("main app UI and entrypoint load", {
     "overview_cr_combos_show",
     "overview_lay_date_show",
     "overview_hatching_forecast_show",
+    "overview_chick_growth_show",
     "overview_quota_show"
   )) {
     expect_equal(
@@ -129,10 +150,8 @@ test_that("main app UI and entrypoint load", {
   }
 
   expect_contains(app$env$dbtabs_show_views, "OVERVIEW")
-  expect_identical(
-    sum(app$env$dbtabs_show_views == "VIEW_1"),
-    1L
-  )
+  expect_false("VIEW_1" %in% app$env$dbtabs_show_views)
+  expect_false("VIEW_1" %in% names(app$env$dbtabs_show_view_sources))
   expect_setequal(
     app$env$dbtabs_show_view_sources[["OVERVIEW"]],
     c(
@@ -142,10 +161,6 @@ test_that("main app UI and entrypoint load", {
       "EGGS",
       "RESIGHTINGS"
     )
-  )
-  expect_identical(
-    app$env$dbtabs_show_view_sources[["VIEW_1"]],
-    c("settings", "CAPTURES", "RESIGHTINGS")
   )
   expect_true("RESIGHTINGS" %in% app$env$dbtabs_show_view_sources[["NESTS_LATEST"]])
   expect_identical(
@@ -182,6 +197,30 @@ test_that("git version falls back to local HEAD when remote lookup is unavailabl
     observed$commit_time,
     app$env$git_commit_time(app_file("main"), "HEAD")
   )
+})
+
+
+test_that("local feature worktree wins over remote main fallback", {
+  app <- load_main_app()
+
+  withr::local_envvar(c(
+    FIELDWORKER_GIT_ID = NA,
+    GITHUB_SHA = NA,
+    SOURCE_VERSION = NA,
+    RENDER_GIT_COMMIT = NA
+  ))
+  app$env$git_ref_matches_app <- function(...) FALSE
+  app$env$git_local_head_id <- function(...) "abcdef1"
+  app$env$git_branch_name <- function(...) "codex/local-test"
+  app$env$git_worktree_dirty <- function(...) TRUE
+  app$env$git_remote_main_id <- function(...) "1234567890abcdef1234567890abcdef12345678"
+
+  observed <- app$env$resolve_git_version(app_file("main"))
+
+  expect_identical(observed$id, "abcdef1")
+  expect_identical(observed$source, "git:HEAD-working-tree")
+  expect_true(observed$local)
+  expect_true(observed$dirty)
 })
 
 

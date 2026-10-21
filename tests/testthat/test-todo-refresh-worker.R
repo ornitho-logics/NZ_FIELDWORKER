@@ -1,8 +1,4 @@
 test_that("TODO task assembly consumes the bounded context input", {
-  views_sql <- paste(
-    readLines(app_file("DATABASE", "views.SQL"), warn = FALSE),
-    collapse = "\n"
-  )
   refresh_sql <- paste(
     readLines(
       app_file("DATABASE", "refresh_todo_list_snapshot.SQL"),
@@ -12,17 +8,13 @@ test_that("TODO task assembly consumes the bounded context input", {
   )
 
   task_start <- regexpr(
-    paste(
-      "CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW",
-      "FIELD_2026_BADOatNZ.TODO_LIST_CALCULATE AS",
-      sep = " "
-    ),
-    views_sql,
+    "INSERT INTO FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_BUILD (",
+    refresh_sql,
     fixed = TRUE
   )[[1L]]
   task_end <- regexpr(
-    "/*\n  Refreshable task snapshot",
-    substring(views_sql, task_start),
+    "SELECT 'TODO_REFRESH_STAGE|publishing'",
+    substring(refresh_sql, task_start),
     fixed = TRUE
   )[[1L]]
 
@@ -30,7 +22,7 @@ test_that("TODO task assembly consumes the bounded context input", {
   expect_gt(task_end, 0L)
 
   task_sql <- substring(
-    views_sql,
+    refresh_sql,
     task_start,
     task_start + task_end - 2L
   )
@@ -190,12 +182,6 @@ test_that("TODO task assembly consumes the bounded context input", {
     refresh_sql,
     fixed = TRUE
   )[[1L]]
-  public_drop <- regexpr(
-    "DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.TODO_LIST;",
-    refresh_sql,
-    fixed = TRUE
-  )[[1L]]
-
   expect_gt(context_build, 0L)
   brood_build <- regexpr(
     "INSERT INTO FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_SNAPSHOT_BUILD",
@@ -221,7 +207,6 @@ test_that("TODO task assembly consumes the bounded context input", {
   expect_gt(link_build, chick_capture_build)
   expect_gt(parent_build, link_build)
   expect_gt(task_build, parent_build)
-  expect_gt(public_drop, task_build)
 
   expect_match(
     refresh_sql,
@@ -285,6 +270,27 @@ test_that("snapshot readiness fails closed when the published table is unavailab
 })
 
 
+test_that("snapshot health reports an incomplete refresh without exposing data", {
+  env <- new.env(parent = globalenv())
+  source_app_file(app_file("main", "R", "system_utils.R"), env)
+  env$DBq <- function(...) {
+    data.frame(
+      state = "running",
+      reference_date = as.Date("2026-10-16"),
+      started_at = "2026-10-16 09:00:00",
+      completed_at = NA_character_,
+      task_row_count = NA_integer_
+    )
+  }
+
+  health <- env$todo_snapshot_refresh_health(as.Date("2026-10-16"))
+
+  expect_identical(health$state, "running")
+  expect_identical(health$reference_date, as.Date("2026-10-16"))
+  expect_true(is.na(health$task_row_count))
+})
+
+
 test_that("downloads UI exposes the asynchronous snapshot action", {
   app <- load_main_app()
   html <- as.character(app$ui)
@@ -314,4 +320,7 @@ test_that("downloads UI exposes the asynchronous snapshot action", {
     "TODO_REFRESH_STAGE|hiding_spot_photos",
     fixed = TRUE
   )
+  expect_match(system_utils, "todo_snapshot_refresh_health", fixed = TRUE)
+  expect_match(server, "this PDF may contain stale task rows", fixed = TRUE)
+  expect_match(system_utils, "TODO_REFRESH_STATUS", fixed = TRUE)
 })
