@@ -293,12 +293,14 @@ overview_lay_date_plot <- function(
       x = annotation_x,
       y = Inf,
       label = paste(
-        "Numbers above bars = geolocators deployed on parents",
-        "associated with nests in that four-day lay-date bin"
+        "Numbers above bars = geolocators deployed",
+        "on parents associated with nests",
+        "in each 4-day lay-date bin",
+        sep = "\n"
       ),
       hjust = 0,
-      vjust = 1.2,
-      size = 4.2,
+      vjust = 1.05,
+      size = 3.8,
       linewidth = 0.25,
       fill = "white"
     )
@@ -2378,14 +2380,14 @@ overview_band_combo_summary_label <- function(summary) {
     row <- counts[sex == sex_value]
     if (!nrow(row)) {
       return(glue(
-        "N {label} = 0 (0 captured this year, 0 resighted only)"
+        "N {label} = 0 (0 caps, 0 res)"
       ))
     }
 
     glue(
       "N {label} = {row$total} (",
-      "{row$captured} captured this year, ",
-      "{row$resighted_only} resighted only)"
+      "{row$captured} caps, ",
+      "{row$resighted_only} res)"
     )
   }
 
