@@ -177,6 +177,22 @@ test_that("the obsolete monolithic TODO calculator is removed, not recreated", {
 })
 
 
+test_that("the obsolete VIEW_1 tagged-bird follow-up view is removed", {
+  sql <- views_source_sql()
+
+  expect_match(
+    sql,
+    "DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.VIEW_1;",
+    fixed = TRUE
+  )
+  expect_false(grepl(
+    "CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.VIEW_1 AS",
+    sql,
+    fixed = TRUE
+  ))
+})
+
+
 test_that("Untrapped parent remains internal and cannot become a public task", {
   refresh_sql <- refresh_source_sql()
   task_sql <- todo_list_view_sql()

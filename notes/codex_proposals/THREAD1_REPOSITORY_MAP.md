@@ -312,10 +312,9 @@ Current `Show Views` names are:
 - `CAPTURES_ARCHIVE`
 - `EGGS_HATCH_PREDICTION`
 - `OVERVIEW`
-- `VIEW_1`
 - `VIEW_2`
 
-The final two are advertised placeholders with no active definitions in tracked
+`VIEW_2` remains an advertised placeholder with no active definition in tracked
 `DATABASE/views.SQL`.
 
 ## Reference-date handling
@@ -693,7 +692,8 @@ runtime package behavior or current database contents.
    only historic CAPTURES.
 4. `AVAILABLE_COMBOS` is browser-visible but has no source-watch mapping. Unmapped
    views receive a stable polling token and do not refresh from source checks.
-5. `VIEW_1` is tracked; `VIEW_2` remains browser-visible without tracked DDL.
+5. The obsolete tagged-bird follow-up view has been removed; `VIEW_2` remains
+   browser-visible without tracked DDL.
 6. `GPS_TRACKS` exists but is absent from the current raw-table browser list.
 7. CAPTURES DDL includes `eggs_handled`, but its DataEntry wrapper has no binary
    dropdown for it.

@@ -256,61 +256,21 @@ dashboardPage(
       tabItem(
         tabName = "overview",
         bs4Dash::box(
-          title = "Seasonal progression in nest discovery",
+          title = "Current quotas for manipulations (Cass and elsewhere in NZ).",
           width = 12,
           collapsible = TRUE,
           collapsed = FALSE,
-          height = "50vh",
+          height = "40vh",
           style = "overflow: hidden;",
           spinner(
             plotOutput(
-              "overview_nests_show"
+              "overview_quota_show",
+              height = "32vh"
             )
           )
         ),
         bs4Dash::box(
-          title = "Seasonal progression in geolocator deployments",
-          width = 12,
-          collapsible = TRUE,
-          collapsed = FALSE,
-          height = "50vh",
-          style = "overflow: hidden;",
-          spinner(
-            plotOutput(
-              "overview_geolocator_show"
-            )
-          )
-        ),
-        bs4Dash::box(
-          title = "Resighting histories of geolocator-tagged birds",
-          width = 12,
-          collapsible = TRUE,
-          collapsed = FALSE,
-          spinner(
-            plotOutput(
-              "overview_tagged_resightings_show",
-              height = "105vh"
-            )
-          )
-        ),
-        bs4Dash::box(
-          title = paste(
-            "Seasonal progression in unique band combinations encountered",
-            "(resighted or captured)"
-          ),
-          width = 12,
-          collapsible = TRUE,
-          collapsed = FALSE,
-          height = "50vh",
-          style = "overflow: hidden;",
-          spinner(
-            plotOutput(
-              "overview_cr_combos_show"
-            )
-          )
-        ),
-        bs4Dash::box(
-          title = "Seasonal progression in lay date",
+          title = "Cass: lay date phenology",
           width = 12,
           collapsible = TRUE,
           collapsed = FALSE,
@@ -323,7 +283,7 @@ dashboardPage(
           )
         ),
         bs4Dash::box(
-          title = "Hatching Forecast",
+          title = "Cass: Hatching Forecast",
           width = 12,
           collapsible = TRUE,
           collapsed = FALSE,
@@ -336,7 +296,46 @@ dashboardPage(
           )
         ),
         bs4Dash::box(
-          title = "Seasonal progression in chick growth",
+          title = "Cass: Seasonal progression in nest discovery",
+          width = 12,
+          collapsible = TRUE,
+          collapsed = FALSE,
+          height = "50vh",
+          style = "overflow: hidden;",
+          spinner(
+            plotOutput(
+              "overview_nests_show"
+            )
+          )
+        ),
+        bs4Dash::box(
+          title = "Cass: Seasonal progression in unique band combinations encountered (resighted or captured)",
+          width = 12,
+          collapsible = TRUE,
+          collapsed = FALSE,
+          height = "50vh",
+          style = "overflow: hidden;",
+          spinner(
+            plotOutput(
+              "overview_cr_combos_show"
+            )
+          )
+        ),
+        bs4Dash::box(
+          title = "Cass: Seasonal progression in geolocator deployments",
+          width = 12,
+          collapsible = TRUE,
+          collapsed = FALSE,
+          height = "50vh",
+          style = "overflow: hidden;",
+          spinner(
+            plotOutput(
+              "overview_geolocator_show"
+            )
+          )
+        ),
+        bs4Dash::box(
+          title = "Cass: Chick growth trends",
           width = 12,
           collapsible = TRUE,
           collapsed = FALSE,
@@ -350,16 +349,14 @@ dashboardPage(
           )
         ),
         bs4Dash::box(
-          title = "Current quotas for manipulations (Cass and elsewhere in NZ).",
+          title = "Cass: Resighting histories of geolocator-tagged birds",
           width = 12,
           collapsible = TRUE,
           collapsed = FALSE,
-          height = "40vh",
-          style = "overflow: hidden;",
           spinner(
             plotOutput(
-              "overview_quota_show",
-              height = "32vh"
+              "overview_tagged_resightings_show",
+              height = "105vh"
             )
           )
         )

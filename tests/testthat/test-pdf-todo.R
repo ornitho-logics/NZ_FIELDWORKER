@@ -1,27 +1,3 @@
-test_that("tagged-bird PDF follow-up uses the strict unseen threshold", {
-  app <- load_main_app()
-  prepare <- app$env$todo_pdf_prepare_unseen_tagged_birds
-
-  view_1 <- data.frame(
-    mark = c("MOCK-B", "MOCK-A", "MOCK-C", "MOCK-D", "MOCK-E"),
-    sex = c("F", "M", "F", "M", "F"),
-    nest_id = c("MOCK_NEST_02", "MOCK_NEST_01", NA, "MOCK_NEST_04", NA),
-    days_since_cap = c(12, 15, 8, 20, 7),
-    days_since_last_seen = c(NA, NA, NA, 3, NA)
-  )
-
-  observed <- prepare(view_1)
-
-  expect_identical(
-    names(observed),
-    c("Mark", "Sex", "Nest", "Days Since Cap")
-  )
-  expect_identical(observed$Mark, c("MOCK-A", "MOCK-B", "MOCK-C"))
-  expect_identical(observed$Nest, c("MOCK_NEST_01", "MOCK_NEST_02", ""))
-  expect_identical(observed$`Days Since Cap`, c("15", "12", "8"))
-})
-
-
 test_that("team marks are distributed evenly across three teams", {
   app <- load_main_app()
   prepare <- app$env$todo_pdf_prepare_team_marks
@@ -98,7 +74,7 @@ test_that("to-do headings use the current operational subtitles", {
 
   expect_identical(
     heading("Hiding spot photos needed")$subtitle,
-    "find these broods and take in-situ and tent photos before the chicks are 7 days old"
+    "Find each brood; take in-situ and tent photos before chicks are 7 days old."
   )
   expect_identical(
     heading("Broods to recapture for flagging")$title,
@@ -106,15 +82,23 @@ test_that("to-do headings use the current operational subtitles", {
   )
   expect_identical(
     heading("Broods to recapture for flagging")$subtitle,
-    "recapture chicks aged 21 days or more and assign unique engraved UL flags (e.g., FW73)"
+    "Recapture chicks aged 21 days or more; assign unique engraved UL flags."
+  )
+  expect_identical(
+    heading("Untrapped brood")$subtitle,
+    "Band chicks at hatched nests/broods with no chick captures."
+  )
+  expect_identical(
+    heading("Unprocessed nest")$subtitle,
+    "Complete required egg, nest/tent, or scrape photos; float where needed."
   )
   expect_identical(
     heading("Parent capture")$subtitle,
-    "follow notes for tag deployment or band-only instructions"
+    "Follow the row notes: deploy a geolocator or band only."
   )
   expect_identical(
     heading("Parent resighting")$subtitle,
-    "Association resolves after 3 nest-linked resightings or 1 confirming behav (“IN”, “NM”, “BW”, “BC”, “FC”, “AC”). “MM, n” shows an MM capture and n non-confirming resightings."
+    "Association resolves after 3 nest-linked resightings or 1 confirming behaviour (IN, NM, BW, BC, FC, AC). MM, n = MM capture plus n non-confirming resightings."
   )
   expect_identical(
     heading("Re-process nest")$title,
@@ -128,11 +112,21 @@ test_that("to-do headings use the current operational subtitles", {
   )
   expect_identical(
     heading("nest check")$subtitle,
-    "egg floatation data estimates that these nests are within 7 days of hatching"
+    "Revisit to check hatch status and update the nest record."
+  )
+  expect_false(grepl("float", heading("nest check")$subtitle, ignore.case = TRUE))
+  expect_true(grepl(
+    "float where needed",
+    heading("Unprocessed nest")$subtitle,
+    fixed = TRUE
+  ))
+  expect_identical(
+    heading("Clutch check")$subtitle,
+    "Revisit to check for additional eggs."
   )
   expect_identical(
     heading("notA nest-check")$subtitle,
-    "these nests have finished and can be closed; nest_ids with state \"H\" may still be active mobile broods that require monitoring"
+    "Confirm closure and enter notA; H-state nests may still be active mobile broods."
   )
 })
 
@@ -221,9 +215,9 @@ test_that("PDF task tables use the authoritative fieldworker order", {
       "## Nests to check for potential hatch",
       "## Nests to check for additional eggs",
       "## Nests to process",
-      "## Nests requiring a 'notA' closure visit",
       "## Parents to capture",
       "## Parents to resight for nest association",
+      "## Nests requiring a 'notA' closure visit",
       "## Team marks"
     )
   )
@@ -358,44 +352,16 @@ test_that("parent-resighting PDF notes retain rules and identity counts", {
 })
 
 
-test_that("tagged-bird follow-up table is included in the PDF body", {
-  app <- load_main_app()
-  body <- app$env$todo_pdf_body(
-    rows = data.table::data.table(),
-    unseen_tagged_birds = data.table::data.table(
-      Mark = "MOCK-A",
-      Sex = "M",
-      Nest = "MOCK_NEST_01",
-      `Days Since Cap` = "15"
-    )
-  )
-
-  expect_true(any(grepl("## Tagged birds to resight", body, fixed = TRUE)))
-  expect_true(any(grepl(
-    "These birds have not been in seen in over 7 days since tag deployment, please resight and comment either \"no limp\", \"slight limp\", or \"severe limp\".",
-    body,
-    fixed = TRUE
-  )))
-})
-
-
-test_that("tagged-bird and team-mark tables use the shared PDF table style", {
+test_that("team-mark tables use the shared PDF table style", {
   app <- load_main_app()
   body <- app$env$todo_pdf_body(
     rows = data.table::data.table(),
     team_marks = data.table::data.table(
       Team = "Team 1",
       `1` = "MOCK-1"
-    ),
-    unseen_tagged_birds = data.table::data.table(
-      Mark = "MOCK",
-      Sex = "M",
-      Nest = "MOCK_NEST",
-      `Days Since Cap` = "12"
     )
   )
 
-  expect_true(any(grepl("#strong[Mark]", body, fixed = TRUE)))
   expect_true(any(grepl("#strong[Team]", body, fixed = TRUE)))
   expect_true(any(grepl('table.cell(fill: rgb("#dfe5e7"))', body, fixed = TRUE)))
   expect_true(any(grepl("stroke: none", body, fixed = TRUE)))
@@ -581,10 +547,17 @@ test_that("parent summary subtitle explains hatch intervals", {
   )
 
   expect_true(any(grepl(
-    "Number in \"Est. Hatch\" is the days until the estimated hatch date for active nests; negative values show days overdue, while negative values for broods show days since hatch.",
+    "Brood labels use chick band colour; symbols match the map. For active nests, \"Est. Hatch\" is days until hatch (negative = overdue); for broods, negative values are days since hatch.",
     body,
     fixed = TRUE
   )))
+  expect_true(any(grepl(
+    "Map of tasks needed on active nests and broods",
+    body,
+    fixed = TRUE
+  )))
+  expect_true(any(grepl("#v(-0.2em)", body, fixed = TRUE)))
+  expect_false(any(grepl("#v(0.1em)", body, fixed = TRUE)))
 })
 
 
@@ -719,15 +692,19 @@ test_that("terminal hatched broods use unique age-C captures", {
 
 test_that("PDF includes the main-version footer", {
   app <- load_main_app()
-  version <- list(id = "abcdef1")
+  version <- list(
+    id = "abcdef1",
+    source = "env:FIELDWORKER_GIT_ID",
+    local = FALSE,
+    dirty = FALSE
+  )
   app$env$git_version <- version
   qmd <- app$env$todo_pdf_qmd(
     pdf = list(
       title = "Cass To-Dos for 2026-09-30",
       rows = data.table::data.table(),
       team_marks = data.table::data.table(),
-      nest_summary = data.table::data.table(),
-      unseen_tagged_birds = data.table::data.table()
+      nest_summary = data.table::data.table()
     ),
     map_file = NULL,
     template = app_file("main/templates/todo_pdf.qmd")
@@ -767,6 +744,39 @@ test_that("PDF includes the main-version footer", {
 })
 
 
+test_that("local PDF footers identify the local commit and dirty state", {
+  app <- load_main_app()
+
+  expect_equal(
+    app$env$todo_pdf_version_footer(list(
+      id = "abcdef1",
+      source = "git:HEAD-working-tree",
+      local = TRUE,
+      dirty = TRUE
+    )),
+    "version local-abcdef1-dirty"
+  )
+  expect_equal(
+    app$env$todo_pdf_version_footer(list(
+      id = "abcdef1",
+      source = "git:HEAD",
+      local = TRUE,
+      dirty = FALSE
+    )),
+    "version local-abcdef1"
+  )
+  expect_equal(
+    app$env$todo_pdf_version_footer(list(
+      id = "abcdef1",
+      source = "env:FIELDWORKER_GIT_ID",
+      local = FALSE,
+      dirty = FALSE
+    )),
+    "version abcdef1"
+  )
+})
+
+
 test_that("PDF note key includes only definitions used by task notes", {
   app <- load_main_app()
   note_key <- app$env$todo_pdf_note_key
@@ -784,6 +794,12 @@ test_that("PDF note key includes only definitions used by task notes", {
   expect_false(grepl("FO marker", observed, fixed = TRUE))
   expect_false(grepl("M/F w/GEO", observed, fixed = TRUE))
   expect_false(grepl("Status ?", observed, fixed = TRUE))
+  expect_false(grepl(
+    "Band only",
+    paste(note_key("band"), collapse = "\n"),
+    fixed = TRUE
+  ))
+  expect_identical(note_key(c("photo", "hatch check")), character())
 
   revised_key <- paste(
     note_key(c(
@@ -928,17 +944,11 @@ test_that("notA task rows remain available to the PDF summary and map", {
     is_negative_brood = c(FALSE, FALSE),
     stringsAsFactors = FALSE
   )
-  unseen_tagged_birds <- data.frame(
-    nest_id = "B0201",
-    stringsAsFactors = FALSE
-  )
-
   summary <- prepare_summary(
     nests,
     as.Date("2026-10-01"),
     todo = todo,
-    chick_captures = data.frame(),
-    unseen_tagged_birds = unseen_tagged_birds
+    chick_captures = data.frame()
   )
   expect_true(all(c("B0220", "B0604") %in% summary$Nest))
   expect_identical(summary$Symbol[summary$Nest == "B0220"], "notA")
@@ -956,18 +966,7 @@ test_that("notA task rows remain available to the PDF summary and map", {
   )
   expect_identical(
     summary$SymbolColor[summary$Nest == "B0201"],
-    "#1976d2"
-  )
-
-  mapped <- prepare_map(
-    todo = todo,
-    chick_captures = data.frame(),
-    nests_latest = nests,
-    unseen_tagged_birds = unseen_tagged_birds
-  )
-  expect_identical(
-    as.character(mapped$parent_work[mapped$nest_id == "B0201"]),
-    "Resight"
+    "#7b858b"
   )
 })
 

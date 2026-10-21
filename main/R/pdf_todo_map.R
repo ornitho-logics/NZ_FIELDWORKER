@@ -120,30 +120,10 @@
   captures[, .(nest_id, chick_band, label_fill, label_text)]
 }
 
-.todo_pdf_map_prepare_tagged_resight_nests <- function(unseen_tagged_birds) {
-  empty <- data.table(nest_id = character())
-  if (is.null(unseen_tagged_birds)) {
-    return(empty)
-  }
-
-  tagged <- data.table(unseen_tagged_birds)
-  if (!nrow(tagged) || !"nest_id" %in% names(tagged)) {
-    return(empty)
-  }
-
-  tagged[, nest_id := trimws(as.character(nest_id))]
-  tagged <- tagged[
-    !is.na(nest_id) & nzchar(nest_id)
-  ]
-  unique(tagged[, .(nest_id)])
-}
-
-
 .todo_pdf_map_prepare_nests <- function(
   todo,
   chick_captures = NULL,
-  nests_latest = NULL,
-  unseen_tagged_birds = NULL
+  nests_latest = NULL
 ) {
   todo <- data.table(todo)
   if (!"notes" %in% names(todo)) {
@@ -195,31 +175,6 @@
     ),
     by = nest_id
   ]
-
-  tagged_resight_nests <- .todo_pdf_map_prepare_tagged_resight_nests(
-    unseen_tagged_birds
-  )
-  if (nrow(tagged_resight_nests)) {
-    tagged_resight_status <- copy(tagged_resight_nests)
-    tagged_resight_status[, tagged_resight := TRUE]
-    task_status <- merge(
-      task_status,
-      tagged_resight_status,
-      by = "nest_id",
-      all = TRUE,
-      sort = FALSE
-    )
-    task_status[is.na(tagged_resight), tagged_resight := FALSE]
-    task_status[
-      tagged_resight == TRUE,
-      parent_work := fcase(
-        as.character(parent_work) == "Capture",
-        "Capture",
-        default = "Resight"
-      )
-    ]
-    task_status[, tagged_resight := NULL]
-  }
 
   reference_date <- if ("reference_date" %in% names(todo)) {
     as.Date(todo$reference_date[1])
@@ -541,7 +496,11 @@
   angle <- spec$rotation_deg * pi / 180
   north_vector <- c(-sin(angle), cos(angle))
   north_length <- 0.25 * x_span
-  north_end <- c(xlim[2] - 0.07 * x_span, ylim[1] + 0.20 * y_span)
+  north_base_fraction <- if (identical(plot_id, "C")) 0.25 else 0.20
+  north_end <- c(
+    xlim[2] - 0.07 * x_span,
+    ylim[1] + north_base_fraction * y_span
+  )
   north_start <- north_end - north_vector * north_length
   north_label <- north_end + north_vector * (0.035 * x_span)
   north <- data.frame(
@@ -918,8 +877,7 @@ todo_pdf_map_save <- function(
   todo = NULL,
   spatial_objects = DBq("SELECT * FROM spatial_objects WHERE variable = 'study_area'"),
   chick_captures = NULL,
-  nests_latest = NULL,
-  unseen_tagged_birds = NULL
+  nests_latest = NULL
 ) {
   if (is.null(todo)) {
     todo <- todo_pdf_query_tasks()
@@ -929,8 +887,7 @@ todo_pdf_map_save <- function(
   nests <- .todo_pdf_map_prepare_nests(
     todo,
     chick_captures,
-    nests_latest,
-    unseen_tagged_birds
+    nests_latest
   )
 
   gate <- st_as_sf(
