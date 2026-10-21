@@ -350,6 +350,48 @@ test_that("PDF map uses plots A, B, and C", {
 })
 
 
+test_that("Plot B can crop its western empty extent without changing defaults", {
+  app <- load_main_app()
+  panel_extent <- app$env$.todo_pdf_map_panel_extent
+  boundary <- sf::st_as_sf(
+    data.frame(
+      geometry = sf::st_sfc(
+        sf::st_polygon(list(rbind(
+          c(0, 0), c(2500, 0), c(2500, 850), c(0, 850), c(0, 0)
+        ))),
+        crs = 2193
+      )
+    )
+  )
+  points <- sf::st_as_sf(
+    data.frame(
+      geometry = sf::st_sfc(
+        sf::st_multipoint(rbind(c(1100, 250), c(2300, 650))),
+        crs = 2193
+      )
+    )
+  )
+  landmark <- sf::st_as_sf(
+    data.frame(
+      geometry = sf::st_sfc(sf::st_point(c(900, 400)), crs = 2193)
+    )
+  )
+
+  full <- panel_extent(boundary, points, target_ratio = 1.55)
+  cropped <- panel_extent(
+    boundary,
+    points,
+    target_ratio = 1.55,
+    landmark = landmark,
+    trim_west_to_points = TRUE,
+    trim_padding_m = 150
+  )
+
+  expect_gt(cropped$x[1], full$x[1])
+  expect_lte(cropped$x[1], 900 - 150)
+})
+
+
 test_that("parent-resighting marks drop bare duplicates when a counted mark exists", {
   app <- load_main_app()
   collapse <- app$env$todo_pdf_collapse_annotated_marks
@@ -869,6 +911,59 @@ test_that("tagged capture tasks receive a white map outline and legend entry", {
   )
   expect_false("Other task" %in% shape_scale$get_limits())
   expect_true("No to-do task today" %in% fill_scale$get_labels())
+})
+
+
+test_that("brood work tasks receive a white label outline and legend entry", {
+  app <- load_main_app()
+  prepare_map <- app$env$.todo_pdf_map_prepare_nests
+
+  todo <- data.frame(
+    nest_id = c("B0201", "B0202", "B0203", "B0204"),
+    todo = c(
+      "Hiding spot photos needed",
+      "Broods to recapture for flagging",
+      "Untrapped brood",
+      "Parent resighting"
+    ),
+    notes = NA_character_,
+    lat = c(-43.1, -43.2, -43.3, -43.4),
+    lon = c(170.1, 170.2, 170.3, 170.4),
+    stringsAsFactors = FALSE
+  )
+  nests <- data.frame(
+    nest_id = todo$nest_id,
+    nest_state = rep("I", 4),
+    lat = todo$lat,
+    lon = todo$lon,
+    has_hatch_evidence = rep(FALSE, 4),
+    is_negative_brood = rep(FALSE, 4),
+    stringsAsFactors = FALSE
+  )
+
+  mapped <- prepare_map(
+    todo = todo,
+    chick_captures = data.frame(),
+    nests_latest = nests
+  )
+
+  brood_rows <- mapped$nest_id %in% c("B0201", "B0202", "B0203")
+  expect_true(all(mapped$brood_work[brood_rows]))
+  expect_identical(unique(mapped$label_outline[brood_rows]), "#ffffff")
+  expect_identical(unique(mapped$label_outline_width[brood_rows]), 1.4)
+  expect_false(mapped$brood_work[mapped$nest_id == "B0204"])
+  expect_identical(mapped$label_outline[mapped$nest_id == "B0204"], "#ffffff")
+  expect_identical(mapped$label_outline_width[mapped$nest_id == "B0204"], 0)
+
+  legend <- app$env$.todo_pdf_map_legend()
+  alpha_scale <- legend$scales$get_scales("alpha")
+  expect_true(
+    "Italic + white border = brood photo / flag / band work; upright/no border = no brood work" %in%
+      alpha_scale$get_labels()
+  )
+  expect_true(is.function(app$env$.todo_pdf_map_draw_key_brood_label))
+  expect_identical(unique(mapped$label_fontface[brood_rows]), "italic")
+  expect_identical(mapped$label_fontface[mapped$nest_id == "B0204"], "plain")
 })
 
 

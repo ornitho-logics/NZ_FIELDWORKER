@@ -1,8 +1,4 @@
 test_that("TODO task assembly consumes the bounded context input", {
-  views_sql <- paste(
-    readLines(app_file("DATABASE", "views.SQL"), warn = FALSE),
-    collapse = "\n"
-  )
   refresh_sql <- paste(
     readLines(
       app_file("DATABASE", "refresh_todo_list_snapshot.SQL"),
@@ -12,17 +8,13 @@ test_that("TODO task assembly consumes the bounded context input", {
   )
 
   task_start <- regexpr(
-    paste(
-      "CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW",
-      "FIELD_2026_BADOatNZ.TODO_LIST_CALCULATE AS",
-      sep = " "
-    ),
-    views_sql,
+    "INSERT INTO FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_BUILD (",
+    refresh_sql,
     fixed = TRUE
   )[[1L]]
   task_end <- regexpr(
-    "/*\n  Refreshable task snapshot",
-    substring(views_sql, task_start),
+    "SELECT 'TODO_REFRESH_STAGE|publishing'",
+    substring(refresh_sql, task_start),
     fixed = TRUE
   )[[1L]]
 
@@ -30,7 +22,7 @@ test_that("TODO task assembly consumes the bounded context input", {
   expect_gt(task_end, 0L)
 
   task_sql <- substring(
-    views_sql,
+    refresh_sql,
     task_start,
     task_start + task_end - 2L
   )
@@ -190,12 +182,6 @@ test_that("TODO task assembly consumes the bounded context input", {
     refresh_sql,
     fixed = TRUE
   )[[1L]]
-  public_drop <- regexpr(
-    "DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.TODO_LIST;",
-    refresh_sql,
-    fixed = TRUE
-  )[[1L]]
-
   expect_gt(context_build, 0L)
   brood_build <- regexpr(
     "INSERT INTO FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_SNAPSHOT_BUILD",
@@ -221,7 +207,6 @@ test_that("TODO task assembly consumes the bounded context input", {
   expect_gt(link_build, chick_capture_build)
   expect_gt(parent_build, link_build)
   expect_gt(task_build, parent_build)
-  expect_gt(public_drop, task_build)
 
   expect_match(
     refresh_sql,
