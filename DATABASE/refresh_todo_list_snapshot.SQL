@@ -1708,6 +1708,38 @@ adult_capture_age_status AS (
     AND b.reference_date = sr.reference_date
 ),
 /*
+  A notA record with hatch evidence still needs parent work: the nest itself
+  is closed, but the hatched brood keeps the parent-capture task alive.  Keep
+  ordinary notA closure records out of the GEO/task candidate set.  A
+  presumed-dead brood is excluded here as well, so its parents cannot become
+  capture or pair-completion candidates; the final publication guard remains
+  as a second defensive layer for every task type.
+*/
+parent_task_nests AS (
+  SELECT n.*
+  FROM active_nests n
+  WHERE NOT EXISTS (
+    SELECT 1
+    FROM FIELD_2026_BADOatNZ.TODO_BROOD_CLOSURE_STATUS_SNAPSHOT_BUILD closure
+    WHERE closure.brood_id = n.nest_id
+      AND closure.reference_date = n.reference_date
+      AND closure.is_presumed_dead = 1
+  )
+  UNION ALL
+  SELECT n.*
+  FROM latest_nests n
+  JOIN hatched_nests h
+    ON h.nest_id = n.nest_id
+  WHERE UPPER(TRIM(COALESCE(n.nest_state, ''))) = 'NOTA'
+    AND NOT EXISTS (
+      SELECT 1
+      FROM FIELD_2026_BADOatNZ.TODO_BROOD_CLOSURE_STATUS_SNAPSHOT_BUILD closure
+      WHERE closure.brood_id = n.nest_id
+        AND closure.reference_date = n.reference_date
+        AND closure.is_presumed_dead = 1
+    )
+),
+/*
   Tag deployment is deliberately a small, explicit plan rather than a
   phenology/quota planner.  Initial deployment is restricted to positive nests
   on plots B and C whose authoritative completion date is strictly after
@@ -1747,8 +1779,8 @@ tag_deployment_history AS (
 ),
 tag_deployment_candidates AS (
   SELECT
-    active_nests.nest_id,
-    active_nests.reference_date,
+    parent_task_nests.nest_id,
+    parent_task_nests.reference_date,
     adult_parent_status.M_parent_mark,
     adult_parent_status.F_parent_mark,
     adult_parent_status.M_has_geo,
@@ -1805,14 +1837,14 @@ tag_deployment_candidates AS (
     CASE WHEN EXISTS (
       SELECT 1
       FROM tag_deployment_history history
-      WHERE history.nest_id = active_nests.nest_id
+      WHERE history.nest_id = parent_task_nests.nest_id
         AND history.parent_sex = 'M'
         AND UPPER(TRIM(history.parent_mark)) = UPPER(TRIM(adult_parent_status.M_parent_mark))
     ) THEN 1 ELSE 0 END AS M_new_protocol_geo,
     CASE WHEN EXISTS (
       SELECT 1
       FROM tag_deployment_history history
-      WHERE history.nest_id = active_nests.nest_id
+      WHERE history.nest_id = parent_task_nests.nest_id
         AND history.parent_sex = 'F'
         AND UPPER(TRIM(history.parent_mark)) = UPPER(TRIM(adult_parent_status.F_parent_mark))
     ) THEN 1 ELSE 0 END AS F_new_protocol_geo,
@@ -1832,12 +1864,12 @@ tag_deployment_candidates AS (
       THEN 1
       ELSE 0
     END AS initial_deployment_eligible
-  FROM active_nests
+  FROM parent_task_nests
   JOIN adult_parent_status
-    ON active_nests.nest_id = adult_parent_status.nest_id
+    ON parent_task_nests.nest_id = adult_parent_status.nest_id
   LEFT JOIN adult_capture_age_status
-    ON active_nests.nest_id = adult_capture_age_status.nest_id
-  WHERE LEFT(TRIM(active_nests.nest_id), 1) IN ('B', 'C')
+    ON parent_task_nests.nest_id = adult_capture_age_status.nest_id
+  WHERE LEFT(TRIM(parent_task_nests.nest_id), 1) IN ('B', 'C')
     AND COALESCE(adult_parent_status.M_is_dead, 0) = 0
     AND COALESCE(adult_parent_status.F_is_dead, 0) = 0
     AND COALESCE(adult_parent_status.M_resight_association_ambiguous, 0) = 0

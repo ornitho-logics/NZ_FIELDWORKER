@@ -1396,11 +1396,22 @@ test_that("tag deployment uses the bounded post-cutoff plan", {
   source_sql <- views_source_sql()
 
   expect_match(sql, "tag_deployment_history AS", fixed = TRUE)
+  expect_match(sql, "parent_task_nests AS", fixed = TRUE)
+  expect_match(
+    sql,
+    "TODO_BROOD_CLOSURE_STATUS_SNAPSHOT_BUILD closure",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "WHERE UPPER(TRIM(COALESCE(n.nest_state, ''))) = 'NOTA'",
+    fixed = TRUE
+  )
   expect_match(sql, "tag_deployment_candidates candidates", fixed = TRUE)
   expect_match(sql, "tag_deployment_plan AS", fixed = TRUE)
   expect_match(
     sql,
-    "LEFT(TRIM(active_nests.nest_id), 1) IN ('B', 'C')",
+    "LEFT(TRIM(parent_task_nests.nest_id), 1) IN ('B', 'C')",
     fixed = TRUE
   )
   expect_match(sql, "c.date <= sr.reference_date", fixed = TRUE)
@@ -1491,7 +1502,7 @@ test_that("pair completion requires current-nest deployment provenance", {
 
   expect_match(
     sql,
-    "history.nest_id = active_nests.nest_id",
+    "history.nest_id = parent_task_nests.nest_id",
     fixed = TRUE
   )
   expect_match(sql, "history.parent_sex = 'M'", fixed = TRUE)
