@@ -262,7 +262,7 @@
   nest_tasks[is.na(label_fill), label_fill := "#111111"]
   nest_tasks[is.na(label_text), label_text := "#ffffff"]
   nest_tasks[, label_outline := fifelse(brood_work, "#ffffff", label_text)]
-  nest_tasks[, label_outline_width := fifelse(brood_work, 1.4, 0)]
+  nest_tasks[, label_outline_width := fifelse(brood_work, 1, 0)]
   nest_tasks[, label_fontface := fifelse(brood_work, "italic", "plain")]
 
   missing_coordinate_count <- nest_tasks[
@@ -434,6 +434,32 @@
   as.raster(image)
 }
 
+.todo_pdf_map_save_rotated <- function(
+  map,
+  file,
+  width = 190,
+  height = 145,
+  dpi = 240
+) {
+  source_file <- tempfile("todo_map_landscape_", fileext = ".png")
+  on.exit(unlink(source_file), add = TRUE)
+
+  ggsave(
+    filename = source_file,
+    plot = map,
+    width = width,
+    height = height,
+    units = "mm",
+    dpi = dpi,
+    bg = "white"
+  )
+
+  image <- png::readPNG(source_file)
+  rotated <- .todo_pdf_map_rotate_image(image)
+  png::writePNG(rotated, target = file)
+  invisible(file)
+}
+
 .todo_pdf_map_scale_length <- function(panel_width) {
   candidates <- c(10, 20, 25, 50, 100, 200, 250, 500, 1000)
   max(candidates[candidates <= panel_width * 0.24])
@@ -543,8 +569,8 @@
       data = gate_xy,
       aes(X, Y),
       shape = 23,
-      size = 3.2,
-      stroke = 0.75,
+      size = 2.3,
+      stroke = 0.65,
       fill = "#f2c94c",
       colour = "#17242d"
     ) +
@@ -552,17 +578,17 @@
       data = gate_xy,
       aes(X, Y, label = label),
       seed = 20260916,
-      size = 2.75,
+      size = 1.95,
       fontface = "bold",
       colour = "#17242d",
       fill = scales::alpha("#fff7cf", 0.92),
-      label.size = 0.15,
-      label.padding = grid::unit(0.1, "lines"),
-      box.padding = 0.38,
-      point.padding = 0.28,
+      label.size = 0.1,
+      label.padding = grid::unit(0.07, "lines"),
+      box.padding = 0.28,
+      point.padding = 0.2,
       min.segment.length = 0,
       segment.colour = "#3d4a51",
-      segment.size = 0.3,
+      segment.size = 0.22,
       max.overlaps = Inf,
       xlim = xlim + c(0.025, -0.025) * x_span,
       ylim = ylim + c(0.025, -0.025) * y_span
@@ -570,15 +596,15 @@
     geom_point(
       data = point_xy,
       aes(X, Y, fill = parent_fill, shape = check_type),
-      size = 3.45,
-      stroke = 0.75,
+      size = 2.35,
+      stroke = 0.65,
       colour = "#17242d"
     ) +
     geom_point(
       data = tagged_capture_points,
       aes(X, Y, shape = check_type),
-      size = 3.45,
-      stroke = 1.15,
+      size = 2.35,
+      stroke = 0.95,
       colour = "#ffffff",
       fill = NA
     ) +
@@ -596,15 +622,15 @@
         fontface = label_fontface
       ),
       seed = 20260916,
-      size = 2.75,
+      size = 1.95,
       fill = NA,
-      label.size = 0.15,
-      label.padding = grid::unit(0.1, "lines"),
-      box.padding = 0.38,
-      point.padding = 0.28,
+      label.size = 0.1,
+      label.padding = grid::unit(0.12, "lines"),
+      box.padding = 0.28,
+      point.padding = 0.2,
       min.segment.length = 0,
       segment.colour = "#3d4a51",
-      segment.size = 0.3,
+      segment.size = 0.22,
       max.overlaps = Inf,
       max.time = 4,
       xlim = xlim + c(0.025, -0.025) * x_span,
@@ -622,15 +648,15 @@
         fontface = label_fontface
       ),
       seed = 20260916,
-      size = 2.75,
-      label.size = 0.15,
-      linewidth = 0.25,
-      label.padding = grid::unit(0.1, "lines"),
-      box.padding = 0.38,
-      point.padding = 0.28,
+      size = 1.95,
+      label.size = 0.1,
+      linewidth = 0.2,
+      label.padding = grid::unit(0.12, "lines"),
+      box.padding = 0.28,
+      point.padding = 0.2,
       min.segment.length = 0,
       segment.colour = "#3d4a51",
-      segment.size = 0.3,
+      segment.size = 0.22,
       max.overlaps = Inf,
       max.time = 4,
       xlim = xlim + c(0.025, -0.025) * x_span,
@@ -640,15 +666,15 @@
       data = north,
       aes(x, y, xend = xend, yend = yend),
       inherit.aes = FALSE,
-      linewidth = 0.55,
+      linewidth = 0.5,
       colour = "#17242d",
-      arrow = ggplot2::arrow(type = "closed", length = grid::unit(1.8, "mm"))
+      arrow = ggplot2::arrow(type = "closed", length = grid::unit(1.5, "mm"))
     ) +
     geom_text(
       data = north,
       aes(label_x, label_y, label = "N"),
       inherit.aes = FALSE,
-      size = 3,
+      size = 2.25,
       fontface = "bold",
       colour = "#17242d"
     ) +
@@ -658,7 +684,7 @@
       xend = scale_x + scale_length,
       y = scale_y,
       yend = scale_y,
-      linewidth = 0.65,
+      linewidth = 0.55,
       colour = "#17242d"
     ) +
     annotate(
@@ -667,7 +693,7 @@
       xend = c(scale_x, scale_x + scale_length),
       y = scale_y - 0.008 * y_span,
       yend = scale_y + 0.008 * y_span,
-      linewidth = 0.65,
+      linewidth = 0.55,
       colour = "#17242d"
     ) +
     annotate(
@@ -675,7 +701,7 @@
       x = scale_x + scale_length / 2,
       y = scale_y + 0.019 * y_span,
       label = paste(scale_length, "m"),
-      size = 2.6,
+      size = 2,
       fontface = "bold",
       colour = "#17242d"
     ) +
@@ -697,7 +723,7 @@
       plot.background = element_rect(fill = "white", colour = NA),
       plot.title.position = "plot",
       plot.title = element_text(
-        size = 10,
+        size = 8.2,
         face = "bold",
         hjust = 0.5,
         colour = "#17242d",
@@ -722,7 +748,7 @@
       gp = grid::gpar(
         fill = "#f4d03f",
         col = "#ffffff",
-        lwd = 1.4
+        lwd = 1.1
       )
     ),
     grid::textGrob(
@@ -731,7 +757,7 @@
       y = 0.5,
       gp = grid::gpar(
         col = "#111111",
-        fontsize = 7.5,
+        fontsize = 5.5,
         fontface = "italic"
       )
     )
@@ -754,7 +780,7 @@
     "Capture",
     "Capture (deploy tag if outlined in white).",
     "Resight",
-    "No to-do task today"
+    "No parent task today"
   )
   legend_shapes <- c(`Nest check` = 24, `notA visit` = 25)
   brood_work_key <- data.frame(
@@ -774,7 +800,7 @@
     geom_point(
       aes(fill = parent_work),
       shape = 21,
-      size = 3.2,
+      size = 2.3,
       colour = "#17242d",
       alpha = 0
     ) +
@@ -786,15 +812,15 @@
       ),
       aes(x, y, fill = parent_work),
       shape = 21,
-      size = 3.2,
-      stroke = 1.15,
+      size = 2.3,
+      stroke = 0.95,
       colour = "#ffffff",
       alpha = 0
     ) +
     geom_point(
       aes(shape = check_type),
       fill = "#7b858b",
-      size = 3.2,
+      size = 2.3,
       alpha = 0
     ) +
     geom_point(
@@ -802,7 +828,7 @@
       aes(x, y, alpha = brood_work),
       shape = 22,
       size = 0,
-      stroke = 1.15,
+      stroke = 0.95,
       fill = "#f4d03f",
       colour = "#ffffff",
       key_glyph = .todo_pdf_map_draw_key_brood_label,
@@ -835,14 +861,14 @@
         override.aes = list(
           alpha = 1,
           shape = 21,
-          size = 3.2,
+          size = 2.3,
           colour = c("#17242d", "#ffffff", "#17242d", "#17242d")
         )
       ),
       shape = guide_legend(
         order = 2,
         nrow = 1,
-        override.aes = list(alpha = 1, fill = "#7b858b", size = 3.2)
+        override.aes = list(alpha = 1, fill = "#7b858b", size = 2.3)
       ),
       alpha = guide_legend(
         order = 3,
@@ -850,10 +876,10 @@
         override.aes = list(
           alpha = 1,
           shape = 22,
-          size = 3.7,
+          size = 2.7,
           fill = "#4f5a60",
           colour = "#ffffff",
-          stroke = 1.15
+          stroke = 0.95
         )
       )
     ) +
@@ -862,12 +888,12 @@
       legend.position = "top",
       legend.box = "vertical",
       legend.box.just = "left",
-      legend.title = element_text(face = "bold", size = 8.5),
-      legend.text = element_text(size = 8.2),
-      legend.spacing.x = grid::unit(2, "mm"),
-      legend.spacing.y = grid::unit(0.5, "mm"),
+      legend.title = element_text(face = "bold", size = 6.6),
+      legend.text = element_text(size = 6.5),
+      legend.spacing.x = grid::unit(1.5, "mm"),
+      legend.spacing.y = grid::unit(0.3, "mm"),
       legend.margin = margin(0, 0, 0, 0),
-      legend.key.width = grid::unit(10, "mm"),
+      legend.key.width = grid::unit(7.5, "mm"),
       plot.margin = margin(0, 0, 0, 0)
     )
 }
@@ -974,17 +1000,15 @@ todo_pdf_map_save <- function(
     panel_row,
     .todo_pdf_map_legend(),
     ncol = 1,
-    heights = c(1, 0.06)
+    heights = c(1, 0.045)
   )
 
-  ggsave(
-    filename = file,
-    plot = map,
+  .todo_pdf_map_save_rotated(
+    map = map,
+    file = file,
     width = 190,
     height = 145,
-    units = "mm",
-    dpi = 240,
-    bg = "white"
+    dpi = 240
   )
 
   invisible(file)

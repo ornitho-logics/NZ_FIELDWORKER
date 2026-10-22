@@ -593,24 +593,48 @@ test_that("complete-clutch predictions without flotation stay blank in task rows
 
 test_that("parent summary subtitle explains hatch intervals", {
   app <- load_main_app()
+  summary <- data.table::data.table(
+    Nest = "MOCK-NEST",
+    `Est. Hatch` = "2",
+    Male = "MOCK-M",
+    Female = "MOCK-F",
+    Symbol = "circle",
+    SymbolColor = "#7b858b",
+    LabelFill = NA_character_,
+    LabelText = NA_character_
+  )
   body <- app$env$todo_pdf_body(
     rows = data.table::data.table(),
-    nest_summary = data.table::data.table(),
+    nest_summary = summary,
     map_file = "mock-map.png"
   )
+  body_text <- paste(body, collapse = "\n")
 
-  expect_true(any(grepl(
+  expect_true(grepl(
     "Brood labels use chick band colour; symbols match the map. For active nests, \"Est. Hatch\" is days until hatch (negative = overdue); for broods, negative values are days since hatch.",
-    body,
+    body_text,
     fixed = TRUE
-  )))
-  expect_true(any(grepl(
+  ))
+  expect_true(grepl(
     "Map of tasks needed on active nests and broods",
-    body,
+    body_text,
     fixed = TRUE
-  )))
-  expect_true(any(grepl("#v(-0.2em)", body, fixed = TRUE)))
-  expect_false(any(grepl("#v(0.1em)", body, fixed = TRUE)))
+  ))
+  summary_position <- regexpr(
+    "Summary of currently active nests and broods",
+    body_text,
+    fixed = TRUE
+  )[[1L]]
+  map_position <- regexpr(
+    "Map of tasks needed on active nests and broods",
+    body_text,
+    fixed = TRUE
+  )[[1L]]
+  expect_gt(summary_position, 0L)
+  expect_gt(map_position, summary_position)
+  expect_true(grepl("#pagebreak()", body_text, fixed = TRUE))
+  expect_true(grepl("#v(-0.2em)", body_text, fixed = TRUE))
+  expect_false(grepl("#v(0.1em)", body_text, fixed = TRUE))
 })
 
 
@@ -1072,7 +1096,7 @@ test_that("tagged capture tasks receive a white map outline and legend entry", {
     c("Nest check", "notA visit")
   )
   expect_false("Other task" %in% shape_scale$get_limits())
-  expect_true("No to-do task today" %in% fill_scale$get_labels())
+  expect_true("No parent task today" %in% fill_scale$get_labels())
 })
 
 
@@ -1112,7 +1136,7 @@ test_that("brood work tasks receive a white label outline and legend entry", {
   brood_rows <- mapped$nest_id %in% c("B0201", "B0202", "B0203")
   expect_true(all(mapped$brood_work[brood_rows]))
   expect_identical(unique(mapped$label_outline[brood_rows]), "#ffffff")
-  expect_identical(unique(mapped$label_outline_width[brood_rows]), 1.4)
+  expect_identical(unique(mapped$label_outline_width[brood_rows]), 1)
   expect_false(mapped$brood_work[mapped$nest_id == "B0204"])
   expect_identical(mapped$label_outline[mapped$nest_id == "B0204"], "#ffffff")
   expect_identical(mapped$label_outline_width[mapped$nest_id == "B0204"], 0)

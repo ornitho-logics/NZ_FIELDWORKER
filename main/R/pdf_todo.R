@@ -1581,7 +1581,11 @@ todo_pdf_note_key <- function(notes = character()) {
   )
 }
 
-todo_pdf_nest_summary_table <- function(nest_summary, n_blocks = 3L) {
+todo_pdf_nest_summary_table <- function(
+  nest_summary,
+  n_blocks = 3L,
+  raw = FALSE
+) {
   summary <- data.table(nest_summary)
   if (!nrow(summary)) {
     return(character())
@@ -1726,7 +1730,7 @@ todo_pdf_nest_summary_table <- function(nest_summary, n_blocks = 3L) {
 
   tables <- lapply(blocks, typst_table)
 
-  c(
+  table_body <- c(
     "```{=typst}",
     "#v(-0.7em)",
     glue("#set text(size: {font_size}pt)"),
@@ -1738,6 +1742,49 @@ todo_pdf_nest_summary_table <- function(nest_summary, n_blocks = 3L) {
     "#set text(size: 9pt)",
     "```",
     ""
+  )
+
+  if (isTRUE(raw)) {
+    return(table_body[2:(length(table_body) - 2L)])
+  }
+
+  table_body
+}
+
+
+todo_pdf_summary_block <- function(
+  nest_summary,
+  keep_tables_together = FALSE
+) {
+  summary <- data.table(nest_summary)
+  if (!nrow(summary)) {
+    return(character())
+  }
+
+  title <- "#align(left)[#text(size: 10pt, weight: \"bold\")[Summary of currently active nests and broods]]"
+  subtitle <- "#align(left)[#emph[#text(size: 8pt)[Brood labels use chick band colour; symbols match the map. For active nests, \"Est. Hatch\" is days until hatch (negative = overdue); for broods, negative values are days since hatch.]]]"
+
+  if (isTRUE(keep_tables_together)) {
+    return(c(
+      "```{=typst}",
+      "#block(breakable: false)[",
+      title,
+      subtitle,
+      todo_pdf_nest_summary_table(summary, raw = TRUE),
+      "]",
+      "```",
+      ""
+    ))
+  }
+
+  c(
+    "```{=typst}",
+    "#v(-0.35em)",
+    title,
+    subtitle,
+    "```",
+    "",
+    todo_pdf_nest_summary_table(summary)
   )
 }
 
@@ -2143,6 +2190,10 @@ todo_pdf_body <- function(
   if (!is.null(map_file)) {
     out <- c(
       out,
+      todo_pdf_summary_block(
+        nest_summary,
+        keep_tables_together = keep_tables_together
+      ),
       "```{=typst}",
       "#set page(margin: (x: 1cm, y: 1cm))",
       "#pagebreak()",
@@ -2151,15 +2202,7 @@ todo_pdf_body <- function(
       "#v(-0.2em)",
       glue('#align(center)[#image("{map_file}", width: 100%)]'),
       "#v(-0.4em)",
-      "```",
-      "",
-      "```{=typst}",
-      "#v(-0.35em)",
-      "#align(left)[#text(size: 10pt, weight: \"bold\")[Summary of currently active nests and broods]]",
-      "#align(left)[#emph[#text(size: 8pt)[Brood labels use chick band colour; symbols match the map. For active nests, \"Est. Hatch\" is days until hatch (negative = overdue); for broods, negative values are days since hatch.]]]",
-      "```",
-      "",
-      todo_pdf_nest_summary_table(nest_summary)
+      "```"
     )
   }
 
