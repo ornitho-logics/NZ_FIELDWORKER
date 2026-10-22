@@ -7,6 +7,10 @@ todo_pdf_prepare_team_marks <- function(available_combos = NULL) {
         WHERE site_code = 'CR'
         ORDER BY
           CASE
+            WHEN UPPER(TRIM(LL)) = 'GY' THEN 1
+            ELSE 0
+          END,
+          CASE
             WHEN LEFT(LL, 1) = 'Y' THEN 0
             ELSE 1
           END,
@@ -29,14 +33,22 @@ todo_pdf_prepare_team_marks <- function(available_combos = NULL) {
   }
 
   combos_dt <- data.table(available_combos)
+  if ("mark" %in% names(combos_dt)) {
+    combos_dt[, mark := trimws(as.character(mark))]
+    combos_dt <- combos_dt[!is.na(mark) & nzchar(mark)]
+  }
   marks <- if ("mark" %in% names(combos_dt)) {
-    as.character(combos_dt$mark)
+    marks <- as.character(combos_dt$mark)
+    is_gy <- if ("LL" %in% names(combos_dt)) {
+      toupper(trimws(as.character(combos_dt$LL))) == "GY"
+    } else {
+      grepl("^GY-", toupper(marks))
+    }
+    marks[order(is_gy, seq_along(marks))]
   } else {
     character()
   }
 
-  marks <- trimws(marks)
-  marks <- marks[!is.na(marks) & nzchar(marks)]
   if (!length(marks)) {
     stop(
       "No available combinations were returned for the Team marks table.",

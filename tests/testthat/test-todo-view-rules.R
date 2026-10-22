@@ -398,6 +398,11 @@ test_that("AVAILABLE_COMBOS keeps all eligible OY and GY marks in CR", {
   )
   expect_match(
     sql,
+    "WHEN UPPER(TRIM(available_combos_ranked.LL)) = 'GY' THEN 1",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
     "ON candidate.LL = used.LL\n   AND candidate.LR = used.LR",
     fixed = TRUE
   )
