@@ -1403,11 +1403,19 @@ test_that("tag deployment uses the bounded post-cutoff plan", {
     "LEFT(TRIM(active_nests.nest_id), 1) IN ('B', 'C')",
     fixed = TRUE
   )
-  expect_match(sql, "c.date > CAST('2026-10-09' AS DATE)", fixed = TRUE)
+  expect_match(sql, "c.date <= sr.reference_date", fixed = TRUE)
+  expect_no_match(sql, "c.date > CAST('2026-10-09' AS DATE)", fixed = TRUE)
   expect_match(sql, "M_new_protocol_geo", fixed = TRUE)
   expect_match(sql, "tag any, but only if one is confirmed X-X", fixed = TRUE)
   expect_match(sql, "tag X-X F (pair completion)", fixed = TRUE)
   expect_match(sql, "tag F (pair completion)", fixed = TRUE)
+  expect_match(sql, "resight/tag M (status ?; pair completion)", fixed = TRUE)
+  expect_match(sql, "initial_deployment_eligible", fixed = TRUE)
+  expect_match(
+    sql,
+    "candidates.initial_tag_candidate = 1\n      AND candidates.initial_deployment_eligible = 1",
+    fixed = TRUE
+  )
   expect_no_match(sql, "geo_parent_targets AS", fixed = TRUE)
   expect_no_match(sql, "999999 AS release_ceiling", fixed = TRUE)
   expect_no_match(
@@ -1500,16 +1508,40 @@ test_that("pair completion requires current-nest deployment provenance", {
     target_is_ambiguous = FALSE
   ) {
     isTRUE(tagged_parent_is_current) &&
-      target_status %in% c("X", "B") &&
+      target_status %in% c("X", "B", "?") &&
       !isTRUE(target_is_dead) &&
       !isTRUE(target_is_ambiguous)
   }
 
   expect_true(pair_completion_allowed(TRUE, "B"))
   expect_true(pair_completion_allowed(TRUE, "X"))
+  expect_true(pair_completion_allowed(TRUE, "?"))
   expect_false(pair_completion_allowed(FALSE, "B"))
-  expect_false(pair_completion_allowed(TRUE, "?"))
   expect_false(pair_completion_allowed(TRUE, "B", target_is_ambiguous = TRUE))
+
+  pair_completion_note <- function(tagged_parent_sex, target_status) {
+    target_sex <- if (tagged_parent_sex == "M") "F" else "M"
+    if (target_status == "X") {
+      paste("tag X-X", target_sex, "(pair completion)")
+    } else if (target_status == "B") {
+      paste("tag", target_sex, "(pair completion)")
+    } else if (target_status == "?") {
+      paste("resight/tag", target_sex, "(status ?; pair completion)")
+    }
+  }
+
+  expect_identical(
+    pair_completion_note("F", "B"),
+    "tag M (pair completion)"
+  )
+  expect_identical(
+    pair_completion_note("F", "X"),
+    "tag X-X M (pair completion)"
+  )
+  expect_identical(
+    pair_completion_note("F", "?"),
+    "resight/tag M (status ?; pair completion)"
+  )
 })
 
 

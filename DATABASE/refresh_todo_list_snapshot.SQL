@@ -670,7 +670,7 @@ CREATE TABLE FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_BUILD (
   F_has_unique_scrape_resight TINYINT NULL,
   INDEX idx_todo_parent_status_nest (nest_id),
   INDEX idx_todo_parent_status_reference (reference_date)
-);
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci;
 
 CREATE TABLE IF NOT EXISTS FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT
 LIKE FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_BUILD;
@@ -1709,9 +1709,13 @@ adult_capture_age_status AS (
 ),
 /*
   Tag deployment is deliberately a small, explicit plan rather than a
-  phenology/quota planner.  The plan is restricted to positive nests on plots
-  B and C whose authoritative completion date is strictly after 2026-10-09.
-  A missing completion date is not eligible.
+  phenology/quota planner.  Initial deployment is restricted to positive nests
+  on plots B and C whose authoritative completion date is strictly after
+  2026-10-09.  Pair completion is a separate path: it may complete a pair at
+  an active Plot B/C nest regardless of that nest's completion date, but only
+  when the qualifying deployment occurred at that same nest.
+
+  A missing completion date is never eligible for an initial deployment.
 
   X = authoritative confirmed X-X; B = authoritative resolved non-X-X parent
   without a GEO; T = authoritative parent with a GEO; ? = unknown or still
@@ -1720,8 +1724,10 @@ adult_capture_age_status AS (
   an unconfirmed bird.
 
   Pair completion requires a qualifying GEO deployment record for the current
-  authoritative parent at the same eligible nest after the campaign cutoff.
-  This prevents an old or unrelated GEO from creating a new tag instruction.
+  authoritative parent at the same nest, bounded only by the reference date.
+  This prevents an unrelated GEO from creating a new tag instruction while
+  allowing the nest's completion date and the original deployment date to
+  precede the initial-deployment campaign window.
 */
 tag_deployment_history AS (
   SELECT DISTINCT
@@ -1733,7 +1739,6 @@ tag_deployment_history AS (
   WHERE c.nest_id IS NOT NULL
     AND TRIM(c.nest_id) <> ''
     AND LEFT(TRIM(c.nest_id), 1) IN ('B', 'C')
-    AND c.date > CAST('2026-10-09' AS DATE)
     AND c.date <= sr.reference_date
     AND LEFT(c.field_sex, 1) IN ('M', 'F')
     AND UPPER(TRIM(COALESCE(c.tag_type, ''))) = 'GEO'
@@ -1820,15 +1825,19 @@ tag_deployment_candidates AS (
         )
       THEN 1
       ELSE 0
-    END AS initial_tag_candidate
+    END AS initial_tag_candidate,
+    CASE
+      WHEN adult_capture_age_status.clutch_completion_basis_date
+        > CAST('2026-10-09' AS DATE)
+      THEN 1
+      ELSE 0
+    END AS initial_deployment_eligible
   FROM active_nests
   JOIN adult_parent_status
     ON active_nests.nest_id = adult_parent_status.nest_id
   LEFT JOIN adult_capture_age_status
     ON active_nests.nest_id = adult_capture_age_status.nest_id
   WHERE LEFT(TRIM(active_nests.nest_id), 1) IN ('B', 'C')
-    AND adult_capture_age_status.clutch_completion_basis_date
-      > CAST('2026-10-09' AS DATE)
     AND COALESCE(adult_parent_status.M_is_dead, 0) = 0
     AND COALESCE(adult_parent_status.F_is_dead, 0) = 0
     AND COALESCE(adult_parent_status.M_resight_association_ambiguous, 0) = 0
@@ -1843,53 +1852,57 @@ tag_deployment_plan AS (
     1 AS geo_priority_score,
     CASE
       WHEN candidates.M_tag_status = 'T'
-       AND candidates.F_tag_status IN ('X', 'B')
+       AND candidates.F_tag_status IN ('X', 'B', '?')
        AND candidates.M_new_protocol_geo = 1
       THEN 'pair completion'
       WHEN candidates.F_tag_status = 'T'
-       AND candidates.M_tag_status IN ('X', 'B')
+       AND candidates.M_tag_status IN ('X', 'B', '?')
        AND candidates.F_new_protocol_geo = 1
       THEN 'pair completion'
       WHEN candidates.initial_tag_candidate = 1
+       AND candidates.initial_deployment_eligible = 1
       THEN 'initial'
       ELSE NULL
     END AS geo_reason,
     CASE
       WHEN candidates.M_tag_status = 'T'
-       AND candidates.F_tag_status IN ('X', 'B')
+       AND candidates.F_tag_status IN ('X', 'B', '?')
        AND candidates.M_new_protocol_geo = 1
       THEN 'F'
       WHEN candidates.F_tag_status = 'T'
-       AND candidates.M_tag_status IN ('X', 'B')
+       AND candidates.M_tag_status IN ('X', 'B', '?')
        AND candidates.F_new_protocol_geo = 1
       THEN 'M'
       WHEN candidates.initial_tag_candidate = 1
+       AND candidates.initial_deployment_eligible = 1
       THEN 'A'
       ELSE NULL
     END AS geo_target,
     CASE
       WHEN candidates.M_tag_status = 'T'
-       AND candidates.F_tag_status IN ('X', 'B')
+       AND candidates.F_tag_status IN ('X', 'B', '?')
        AND candidates.M_new_protocol_geo = 1
       THEN 'F'
       WHEN candidates.F_tag_status = 'T'
-       AND candidates.M_tag_status IN ('X', 'B')
+       AND candidates.M_tag_status IN ('X', 'B', '?')
        AND candidates.F_new_protocol_geo = 1
       THEN 'M'
       WHEN candidates.initial_tag_candidate = 1
+       AND candidates.initial_deployment_eligible = 1
       THEN 'A'
       ELSE NULL
     END AS geo_tag_target,
     CASE
       WHEN candidates.M_tag_status = 'T'
-       AND candidates.F_tag_status IN ('X', 'B')
+       AND candidates.F_tag_status IN ('X', 'B', '?')
        AND candidates.M_new_protocol_geo = 1
       THEN 1
       WHEN candidates.F_tag_status = 'T'
-       AND candidates.M_tag_status IN ('X', 'B')
+       AND candidates.M_tag_status IN ('X', 'B', '?')
        AND candidates.F_new_protocol_geo = 1
       THEN 1
       WHEN candidates.initial_tag_candidate = 1
+       AND candidates.initial_deployment_eligible = 1
       THEN 1
       ELSE 0
     END AS geo_is_actionable,
@@ -1919,21 +1932,31 @@ tag_deployment_plan AS (
        AND candidates.M_tag_status = 'B'
        AND candidates.F_new_protocol_geo = 1
       THEN 'tag M (pair completion)'
+      WHEN candidates.M_tag_status = 'T'
+       AND candidates.F_tag_status = '?'
+       AND candidates.M_new_protocol_geo = 1
+      THEN 'resight/tag F (status ?; pair completion)'
+      WHEN candidates.F_tag_status = 'T'
+       AND candidates.M_tag_status = '?'
+       AND candidates.F_new_protocol_geo = 1
+      THEN 'resight/tag M (status ?; pair completion)'
       WHEN candidates.initial_tag_candidate = 1
+       AND candidates.initial_deployment_eligible = 1
        AND candidates.M_tag_status = '?'
        AND candidates.F_tag_status = '?'
       THEN 'tag any, but only if one is confirmed X-X'
       WHEN candidates.initial_tag_candidate = 1
+       AND candidates.initial_deployment_eligible = 1
       THEN 'tag any'
       ELSE NULL
     END AS geo_instruction,
     CASE
       WHEN candidates.M_tag_status = 'T'
-       AND candidates.F_tag_status IN ('X', 'B')
+       AND candidates.F_tag_status IN ('X', 'B', '?')
        AND candidates.M_new_protocol_geo = 1
       THEN 1
       WHEN candidates.F_tag_status = 'T'
-       AND candidates.M_tag_status IN ('X', 'B')
+       AND candidates.M_tag_status IN ('X', 'B', '?')
        AND candidates.F_new_protocol_geo = 1
       THEN 1
       ELSE 0
@@ -1944,15 +1967,18 @@ tag_deployment_plan AS (
   CROSS JOIN geo_observation_counts
   WHERE (
       candidates.M_tag_status = 'T'
-      AND candidates.F_tag_status IN ('X', 'B')
+      AND candidates.F_tag_status IN ('X', 'B', '?')
       AND candidates.M_new_protocol_geo = 1
     )
     OR (
       candidates.F_tag_status = 'T'
-      AND candidates.M_tag_status IN ('X', 'B')
+      AND candidates.M_tag_status IN ('X', 'B', '?')
       AND candidates.F_new_protocol_geo = 1
     )
-    OR candidates.initial_tag_candidate = 1
+    OR (
+      candidates.initial_tag_candidate = 1
+      AND candidates.initial_deployment_eligible = 1
+    )
 ),
 todo_untrapped_parent_candidate AS (
   SELECT
