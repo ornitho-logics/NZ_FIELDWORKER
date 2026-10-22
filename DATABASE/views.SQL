@@ -424,6 +424,10 @@ SELECT
   available_combos_ranked.LR
 FROM available_combos_ranked
 ORDER BY
+  CASE
+    WHEN UPPER(TRIM(available_combos_ranked.LL)) = 'GY' THEN 1
+    ELSE 0
+  END,
   available_combos_ranked.site_code,
   available_combos_ranked.combo_rank;
 

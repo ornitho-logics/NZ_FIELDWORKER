@@ -36,6 +36,23 @@ test_that("team marks are distributed evenly across three teams", {
 })
 
 
+test_that("new GY team marks are placed after the existing marks", {
+  app <- load_main_app()
+  prepare <- app$env$todo_pdf_prepare_team_marks
+
+  observed <- prepare(data.frame(
+    mark = c("GY-BB", "OY-BB", "GY-BG", "BY-BB", "WY-BB"),
+    stringsAsFactors = FALSE
+  ))
+  combo_cells <- as.matrix(observed[, -"Team"])
+
+  expect_identical(
+    as.character(t(combo_cells))[as.character(t(combo_cells)) != ""],
+    c("OY-BB", "BY-BB", "WY-BB", "GY-BB", "GY-BG")
+  )
+})
+
+
 test_that("team marks render with the actual number of table columns", {
   app <- load_main_app()
   prepare <- app$env$todo_pdf_prepare_team_marks
