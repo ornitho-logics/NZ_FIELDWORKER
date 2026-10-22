@@ -227,7 +227,7 @@ SELECT 'TODO_REFRESH_STAGE|nest_context' AS refresh_stage;
 
 /* Build the bounded operational context once for all task branches. */
 CREATE TABLE FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT_BUILD (
-  nest_id VARCHAR(6) NULL,
+  nest_id VARCHAR(6) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NULL,
   species VARCHAR(20) NULL,
   last_visit_datetime DATETIME NULL,
   days_ago INT NULL,
@@ -379,7 +379,7 @@ SELECT 'TODO_REFRESH_STAGE|brood_context' AS refresh_stage;
 
 /* Materialize the compact brood input once for all brood task branches. */
 CREATE TABLE FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_SNAPSHOT_BUILD (
-  nest_id VARCHAR(6) NULL,
+  nest_id VARCHAR(6) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NULL,
   species VARCHAR(20) NULL,
   is_negative_brood TINYINT NULL,
   discovery_date DATE NULL,
@@ -454,7 +454,7 @@ SELECT 'TODO_REFRESH_STAGE|chick_capture_context' AS refresh_stage;
 
 /* Materialize the shared chick-capture aggregate once for all brood tasks. */
 CREATE TABLE FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_SNAPSHOT_BUILD (
-  nest_id VARCHAR(6) NULL,
+  nest_id VARCHAR(6) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NULL,
   n_chick_captures BIGINT NULL,
   n_captured_chick_rings BIGINT NULL,
   n_flagged_chick_rings BIGINT NULL,
@@ -527,7 +527,7 @@ SELECT 'TODO_REFRESH_STAGE|hiding_spot_photos' AS refresh_stage;
 
 /* Materialize the shared H-photo evidence aggregate once for brood tasks. */
 CREATE TABLE FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_SNAPSHOT_BUILD (
-  nest_id VARCHAR(6) NULL,
+  nest_id VARCHAR(6) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NULL,
   n_hiding_spot_photos BIGINT NULL,
   INDEX idx_todo_hiding_spot_photo_context_nest (nest_id)
 );
@@ -555,7 +555,7 @@ CREATE TABLE FIELD_2026_BADOatNZ.TODO_PARENT_CHICK_GPS_LINKS_SNAPSHOT_BUILD (
   capture_pk VARCHAR(64) NULL,
   identity_key VARCHAR(255) NULL,
   capture_sex VARCHAR(1) NULL,
-  nest_id VARCHAR(6) NULL,
+  nest_id VARCHAR(6) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NULL,
   capture_date DATE NULL,
   capture_datetime DATETIME NULL,
   display_mark VARCHAR(50) NULL,
@@ -586,7 +586,7 @@ SELECT 'TODO_REFRESH_STAGE|parent_status' AS refresh_stage;
 
 /* Build parent status first, without touching the published view. */
 CREATE TABLE FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_BUILD (
-  nest_id VARCHAR(6) NULL,
+  nest_id VARCHAR(6) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NULL,
   reference_date DATE NULL,
   M_selected_mark LONGTEXT NULL,
   F_selected_mark LONGTEXT NULL,
@@ -670,7 +670,7 @@ CREATE TABLE FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_BUILD (
   F_has_unique_scrape_resight TINYINT NULL,
   INDEX idx_todo_parent_status_nest (nest_id),
   INDEX idx_todo_parent_status_reference (reference_date)
-);
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci;
 
 CREATE TABLE IF NOT EXISTS FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT
 LIKE FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_BUILD;
@@ -711,7 +711,7 @@ DROP TEMPORARY TABLE IF EXISTS tmp_todo_closure_reactivation;
 
 CREATE TEMPORARY TABLE tmp_todo_closure_broods AS
 SELECT
-  b.nest_id AS brood_id,
+  CONVERT(b.nest_id USING utf8mb4) COLLATE utf8mb4_uca1400_ai_ci AS brood_id,
   b.is_negative_brood,
   b.discovery_date,
   b.hatch_evidence_date,
@@ -1160,11 +1160,11 @@ JOIN tmp_todo_closure_events x
 GROUP BY c.brood_id;
 
 CREATE TABLE FIELD_2026_BADOatNZ.TODO_BROOD_CLOSURE_STATUS_SNAPSHOT_BUILD (
-  brood_id VARCHAR(6) NOT NULL,
+  brood_id VARCHAR(6) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL,
   reference_date DATE NOT NULL,
   is_presumed_dead TINYINT NOT NULL DEFAULT 0,
   closure_reason VARCHAR(255) NULL,
-  later_nest_id VARCHAR(6) NULL,
+  later_nest_id VARCHAR(6) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NULL,
   later_nest_date DATE NULL,
   later_nest_parent_count BIGINT NULL,
   later_nest_authoritative_parent_count BIGINT NULL,
@@ -1245,7 +1245,7 @@ SELECT 'TODO_REFRESH_STAGE|task_rows' AS refresh_stage;
   complete nested task graph during DDL installation.
 */
 CREATE TABLE FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT_BUILD (
-  nest_id VARCHAR(6) NULL,
+  nest_id VARCHAR(6) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NULL,
   reference_date DATE NULL,
   todo VARCHAR(64) NOT NULL,
   notes LONGTEXT NULL,
@@ -1313,7 +1313,13 @@ WITH sr AS (
   WHERE variable = 'reference_date'
     AND value IS NOT NULL
 ),
-geo_deployment_status AS (
+/*
+  GEO history is retained for compatibility/reporting only.  It no longer
+  supplies a release ceiling, sex quota, phenology deficit, or deployment
+  candidate.  The bounded tag_deployment_plan below is the only new GEO-task
+  selector.
+*/
+geo_observation_counts AS (
   SELECT
     COUNT(DISTINCT NULLIF(TRIM(c.tag_id), '')) AS n_geo_deployed,
     COUNT(DISTINCT CASE
@@ -1321,53 +1327,7 @@ geo_deployment_status AS (
     END) AS n_male_geo_deployed,
     COUNT(DISTINCT CASE
       WHEN LEFT(c.field_sex, 1) = 'F' THEN NULLIF(TRIM(c.tag_id), '')
-    END) AS n_female_geo_deployed,
-    999999 AS release_ceiling,
-    GREATEST(
-      0,
-      50 - COUNT(DISTINCT CASE
-        WHEN LEFT(c.field_sex, 1) = 'M' THEN NULLIF(TRIM(c.tag_id), '')
-      END)
-    ) AS male_quota_remaining,
-    GREATEST(
-      0,
-      50 - COUNT(DISTINCT CASE
-        WHEN LEFT(c.field_sex, 1) = 'F' THEN NULLIF(TRIM(c.tag_id), '')
-      END)
-    ) AS female_quota_remaining,
-    CASE
-      WHEN GREATEST(
-             0,
-             50 - COUNT(DISTINCT CASE
-               WHEN LEFT(c.field_sex, 1) = 'M'
-               THEN NULLIF(TRIM(c.tag_id), '')
-             END)
-           )
-           > GREATEST(
-               0,
-               50 - COUNT(DISTINCT CASE
-                 WHEN LEFT(c.field_sex, 1) = 'F'
-                 THEN NULLIF(TRIM(c.tag_id), '')
-               END)
-             )
-      THEN 'M'
-      WHEN GREATEST(
-             0,
-             50 - COUNT(DISTINCT CASE
-               WHEN LEFT(c.field_sex, 1) = 'F'
-               THEN NULLIF(TRIM(c.tag_id), '')
-             END)
-           )
-           > GREATEST(
-               0,
-               50 - COUNT(DISTINCT CASE
-                 WHEN LEFT(c.field_sex, 1) = 'M'
-                 THEN NULLIF(TRIM(c.tag_id), '')
-               END)
-             )
-      THEN 'F'
-      ELSE NULL
-    END AS preferred_balance_sex
+    END) AS n_female_geo_deployed
   FROM FIELD_2026_BADOatNZ.CAPTURES c
   CROSS JOIN sr
   WHERE c.date <= sr.reference_date
@@ -1605,36 +1565,6 @@ adult_parent_status AS (
   SELECT *
   FROM FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_INPUT
 ),
-adult_parent_geo_target_status AS (
-  SELECT
-    adult_parent_status.*,
-    CASE
-      WHEN geo_deployment_status.n_geo_deployed
-           < geo_deployment_status.release_ceiling
-       AND adult_parent_status.M_parent_mark IS NOT NULL
-       AND adult_parent_status.F_parent_mark IS NOT NULL
-       AND COALESCE(adult_parent_status.M_confirmed_unbanded, 0) = 0
-       AND COALESCE(adult_parent_status.F_confirmed_unbanded, 0) = 0
-       AND COALESCE(adult_parent_status.M_unknown_status, 0) = 0
-       AND COALESCE(adult_parent_status.F_unknown_status, 0) = 0
-       AND COALESCE(adult_parent_status.M_has_geo, 0) = 0
-       AND COALESCE(adult_parent_status.F_has_geo, 0) = 0
-       AND COALESCE(adult_parent_status.M_is_au_migrant, 0) = 0
-       AND COALESCE(adult_parent_status.F_is_au_migrant, 0) = 0
-       AND COALESCE(adult_parent_status.M_is_dead, 0) = 0
-       AND COALESCE(adult_parent_status.F_is_dead, 0) = 0
-       AND COALESCE(adult_parent_status.M_single_colour_recruit, 0) = 0
-       AND COALESCE(adult_parent_status.F_single_colour_recruit, 0) = 0
-       AND COALESCE(adult_parent_status.M_mm_resight_pending, 0) = 0
-       AND COALESCE(adult_parent_status.F_mm_resight_pending, 0) = 0
-       AND COALESCE(adult_parent_status.M_resight_association_pending, 0) = 0
-       AND COALESCE(adult_parent_status.F_resight_association_pending, 0) = 0
-      THEN 1
-      ELSE 0
-    END AS both_parents_need_geo_derived
-  FROM adult_parent_status
-  CROSS JOIN geo_deployment_status
-),
 adult_capture_interval_status AS (
   SELECT
     todo_parent_source.nest_id,
@@ -1778,104 +1708,309 @@ adult_capture_age_status AS (
     AND b.reference_date = sr.reference_date
 ),
 /*
-  GEO deployment is now a pure pair-completion plan.  Phenology strata,
-  release ceilings, and sex-balancing candidates no longer create GEO tasks.
-  A target may remain association-pending, but an ambiguous or dead identity
-  is not silently selected.
+  A notA record with hatch evidence still needs parent work: the nest itself
+  is closed, but the hatched brood keeps the parent-capture task alive.  Keep
+  ordinary notA closure records out of the GEO/task candidate set.  A
+  presumed-dead brood is excluded here as well, so its parents cannot become
+  capture or pair-completion candidates; the final publication guard remains
+  as a second defensive layer for every task type.
 */
-geo_parent_targets AS (
-  SELECT
-    units.nest_id,
-    units.reference_date,
-    parent_status.M_parent_mark,
-    parent_status.F_parent_mark,
-    parent_status.M_has_geo,
-    parent_status.F_has_geo,
-    parent_status.M_is_dead,
-    parent_status.F_is_dead,
-    parent_status.M_is_au_migrant,
-    parent_status.F_is_au_migrant,
-    parent_status.M_resight_association_ambiguous,
-    parent_status.F_resight_association_ambiguous,
-    CASE
-      WHEN parent_status.M_has_geo = 1
-       AND COALESCE(parent_status.F_has_geo, 0) = 0
-       AND COALESCE(parent_status.M_is_dead, 0) = 0
-       AND COALESCE(parent_status.M_resight_association_ambiguous, 0) = 0
-       AND COALESCE(parent_status.F_is_dead, 0) = 0
-       AND COALESCE(parent_status.F_resight_association_ambiguous, 0) = 0
-      THEN 'F'
-      WHEN parent_status.F_has_geo = 1
-       AND COALESCE(parent_status.M_has_geo, 0) = 0
-       AND COALESCE(parent_status.F_is_dead, 0) = 0
-       AND COALESCE(parent_status.F_resight_association_ambiguous, 0) = 0
-       AND COALESCE(parent_status.M_is_dead, 0) = 0
-       AND COALESCE(parent_status.M_resight_association_ambiguous, 0) = 0
-      THEN 'M'
-      ELSE NULL
-    END AS pair_target
-  FROM (
-    SELECT active_nests.nest_id, active_nests.reference_date
-    FROM active_nests
-    UNION
-    SELECT n.nest_id, n.reference_date
-    FROM latest_nests n
-    JOIN hatched_nests
-      ON n.nest_id = hatched_nests.nest_id
-    WHERE UPPER(TRIM(COALESCE(n.nest_state, ''))) = 'NOTA'
-    UNION
-    SELECT b.nest_id, b.reference_date
-    FROM brood_context b
-    CROSS JOIN sr
-    WHERE b.is_negative_brood = 1
-      AND b.reference_date = sr.reference_date
-  ) units
-  LEFT JOIN adult_parent_status parent_status
-    ON units.nest_id = parent_status.nest_id
+parent_task_nests AS (
+  SELECT n.*
+  FROM active_nests n
+  WHERE NOT EXISTS (
+    SELECT 1
+    FROM FIELD_2026_BADOatNZ.TODO_BROOD_CLOSURE_STATUS_SNAPSHOT_BUILD closure
+    WHERE closure.brood_id = n.nest_id
+      AND closure.reference_date = n.reference_date
+      AND closure.is_presumed_dead = 1
+  )
+  UNION ALL
+  SELECT n.*
+  FROM latest_nests n
+  JOIN hatched_nests h
+    ON h.nest_id = n.nest_id
+  WHERE UPPER(TRIM(COALESCE(n.nest_state, ''))) = 'NOTA'
+    AND NOT EXISTS (
+      SELECT 1
+      FROM FIELD_2026_BADOatNZ.TODO_BROOD_CLOSURE_STATUS_SNAPSHOT_BUILD closure
+      WHERE closure.brood_id = n.nest_id
+        AND closure.reference_date = n.reference_date
+        AND closure.is_presumed_dead = 1
+    )
 ),
-geo_parent_plan AS (
+/*
+  Tag deployment is deliberately a small, explicit plan rather than a
+  phenology/quota planner.  Initial deployment is restricted to positive nests
+  on plots B and C whose authoritative completion date is strictly after
+  2026-10-09.  Pair completion is a separate path: it may complete a pair at
+  an active Plot B/C nest regardless of that nest's completion date, but only
+  when the qualifying deployment occurred at that same nest.
+
+  A missing completion date is never eligible for an initial deployment.
+
+  X = authoritative confirmed X-X; B = authoritative resolved non-X-X parent
+  without a GEO; T = authoritative parent with a GEO; ? = unknown or still
+  unresolved.  Unknown status is never silently converted to X-X.  The guarded
+  ?/? row is an instruction to verify X-X in the field, not permission to tag
+  an unconfirmed bird.
+
+  Pair completion requires a qualifying GEO deployment record for the current
+  authoritative parent at the same nest, bounded only by the reference date.
+  This prevents an unrelated GEO from creating a new tag instruction while
+  allowing the nest's completion date and the original deployment date to
+  precede the initial-deployment campaign window.
+*/
+tag_deployment_history AS (
+  SELECT DISTINCT
+    c.nest_id,
+    LEFT(c.field_sex, 1) AS parent_sex,
+    FIELD_2026_BADOatNZ.format_mark(c.UL, c.LL, c.UR, c.LR) AS parent_mark
+  FROM FIELD_2026_BADOatNZ.CAPTURES c
+  CROSS JOIN sr
+  WHERE c.nest_id IS NOT NULL
+    AND TRIM(c.nest_id) <> ''
+    AND LEFT(TRIM(c.nest_id), 1) IN ('B', 'C')
+    AND c.date <= sr.reference_date
+    AND LEFT(c.field_sex, 1) IN ('M', 'F')
+    AND UPPER(TRIM(COALESCE(c.tag_type, ''))) = 'GEO'
+    AND UPPER(TRIM(COALESCE(c.tag_action, ''))) IN ('D', 'S', 'N')
+    AND NULLIF(TRIM(c.tag_id), '') IS NOT NULL
+),
+tag_deployment_candidates AS (
   SELECT
-    targets.nest_id,
-    CASE WHEN targets.pair_target IS NOT NULL
-      THEN ROW_NUMBER() OVER (ORDER BY targets.nest_id) END AS geo_rank,
-    CASE WHEN targets.pair_target IS NOT NULL THEN 1 ELSE NULL END AS geo_priority_tier,
-    CASE WHEN targets.pair_target IS NOT NULL THEN 1 ELSE NULL END AS global_sex_priority,
-    CASE WHEN targets.pair_target IS NOT NULL THEN 1 ELSE NULL END AS geo_priority_score,
-    CASE WHEN targets.pair_target IS NOT NULL THEN 'pair completion' ELSE NULL END AS geo_reason,
-    targets.pair_target AS geo_target,
-    CASE WHEN targets.pair_target IS NOT NULL THEN 1 ELSE 0 END AS geo_is_actionable,
-    deployment_status.n_geo_deployed,
-    deployment_status.release_ceiling,
-    deployment_status.release_ceiling - deployment_status.n_geo_deployed AS release_slots_remaining,
-    deployment_status.n_male_geo_deployed,
-    deployment_status.n_female_geo_deployed,
-    deployment_status.male_quota_remaining,
-    deployment_status.female_quota_remaining,
-    deployment_status.preferred_balance_sex,
-    CONVERT(CAST(NULL AS CHAR(2)) USING utf8mb4) COLLATE utf8mb4_uca1400_ai_ci AS geo_band_target,
-    targets.pair_target AS geo_tag_target,
+    parent_task_nests.nest_id,
+    parent_task_nests.reference_date,
+    adult_parent_status.M_parent_mark,
+    adult_parent_status.F_parent_mark,
+    adult_parent_status.M_has_geo,
+    adult_parent_status.F_has_geo,
+    adult_parent_status.M_confirmed_unbanded,
+    adult_parent_status.F_confirmed_unbanded,
+    adult_parent_status.M_unknown_status,
+    adult_parent_status.F_unknown_status,
+    adult_parent_status.M_resight_association_pending,
+    adult_parent_status.F_resight_association_pending,
+    adult_parent_status.M_resight_association_ambiguous,
+    adult_parent_status.F_resight_association_ambiguous,
+    adult_parent_status.M_is_dead,
+    adult_parent_status.F_is_dead,
+    adult_parent_status.M_is_au_migrant,
+    adult_parent_status.F_is_au_migrant,
+    adult_capture_age_status.clutch_completion_basis_date,
     CASE
-      WHEN targets.pair_target IS NULL THEN NULL
-      WHEN targets.pair_target = 'M'
-       AND UPPER(TRIM(COALESCE(targets.M_parent_mark, ''))) = 'X-X'
-      THEN CONCAT(
-        'tag X-X M (pair completion)',
-        CASE WHEN targets.nest_id = 'C2208' THEN '; CORRECT DUPLICATE' ELSE '' END
-      )
-      WHEN targets.pair_target = 'F'
-       AND UPPER(TRIM(COALESCE(targets.F_parent_mark, ''))) = 'X-X'
+      WHEN COALESCE(adult_parent_status.M_has_geo, 0) = 1
+       AND COALESCE(adult_parent_status.M_resight_association_pending, 0) = 0
+       AND COALESCE(adult_parent_status.M_resight_association_ambiguous, 0) = 0
+      THEN 'T'
+      WHEN COALESCE(adult_parent_status.M_confirmed_unbanded, 0) = 1
+      THEN 'X'
+      WHEN COALESCE(adult_parent_status.M_unknown_status, 0) = 1
+        OR COALESCE(adult_parent_status.M_resight_association_pending, 0) = 1
+        OR COALESCE(adult_parent_status.M_resight_association_ambiguous, 0) = 1
+      THEN '?'
+      WHEN NULLIF(TRIM(COALESCE(adult_parent_status.M_parent_mark, '')), '') IS NOT NULL
+       AND UPPER(TRIM(adult_parent_status.M_parent_mark)) <> 'X-X'
+       AND COALESCE(adult_parent_status.M_is_dead, 0) = 0
+       AND COALESCE(adult_parent_status.M_has_geo, 0) = 0
+      THEN 'B'
+      ELSE '?'
+    END AS M_tag_status,
+    CASE
+      WHEN COALESCE(adult_parent_status.F_has_geo, 0) = 1
+       AND COALESCE(adult_parent_status.F_resight_association_pending, 0) = 0
+       AND COALESCE(adult_parent_status.F_resight_association_ambiguous, 0) = 0
+      THEN 'T'
+      WHEN COALESCE(adult_parent_status.F_confirmed_unbanded, 0) = 1
+      THEN 'X'
+      WHEN COALESCE(adult_parent_status.F_unknown_status, 0) = 1
+        OR COALESCE(adult_parent_status.F_resight_association_pending, 0) = 1
+        OR COALESCE(adult_parent_status.F_resight_association_ambiguous, 0) = 1
+      THEN '?'
+      WHEN NULLIF(TRIM(COALESCE(adult_parent_status.F_parent_mark, '')), '') IS NOT NULL
+       AND UPPER(TRIM(adult_parent_status.F_parent_mark)) <> 'X-X'
+       AND COALESCE(adult_parent_status.F_is_dead, 0) = 0
+       AND COALESCE(adult_parent_status.F_has_geo, 0) = 0
+      THEN 'B'
+      ELSE '?'
+    END AS F_tag_status,
+    CASE WHEN EXISTS (
+      SELECT 1
+      FROM tag_deployment_history history
+      WHERE history.nest_id = parent_task_nests.nest_id
+        AND history.parent_sex = 'M'
+        AND UPPER(TRIM(history.parent_mark)) = UPPER(TRIM(adult_parent_status.M_parent_mark))
+    ) THEN 1 ELSE 0 END AS M_new_protocol_geo,
+    CASE WHEN EXISTS (
+      SELECT 1
+      FROM tag_deployment_history history
+      WHERE history.nest_id = parent_task_nests.nest_id
+        AND history.parent_sex = 'F'
+        AND UPPER(TRIM(history.parent_mark)) = UPPER(TRIM(adult_parent_status.F_parent_mark))
+    ) THEN 1 ELSE 0 END AS F_new_protocol_geo,
+    CASE
+      WHEN adult_parent_status.M_confirmed_unbanded = 1
+        OR adult_parent_status.F_confirmed_unbanded = 1
+        OR (
+          adult_parent_status.M_unknown_status = 1
+          AND adult_parent_status.F_unknown_status = 1
+        )
+      THEN 1
+      ELSE 0
+    END AS initial_tag_candidate,
+    CASE
+      WHEN adult_capture_age_status.clutch_completion_basis_date
+        > CAST('2026-10-09' AS DATE)
+      THEN 1
+      ELSE 0
+    END AS initial_deployment_eligible
+  FROM parent_task_nests
+  JOIN adult_parent_status
+    ON parent_task_nests.nest_id = adult_parent_status.nest_id
+  LEFT JOIN adult_capture_age_status
+    ON parent_task_nests.nest_id = adult_capture_age_status.nest_id
+  WHERE LEFT(TRIM(parent_task_nests.nest_id), 1) IN ('B', 'C')
+    AND COALESCE(adult_parent_status.M_is_dead, 0) = 0
+    AND COALESCE(adult_parent_status.F_is_dead, 0) = 0
+    AND COALESCE(adult_parent_status.M_resight_association_ambiguous, 0) = 0
+    AND COALESCE(adult_parent_status.F_resight_association_ambiguous, 0) = 0
+),
+tag_deployment_plan AS (
+  SELECT
+    candidates.nest_id,
+    ROW_NUMBER() OVER (ORDER BY candidates.nest_id) AS geo_rank,
+    1 AS geo_priority_tier,
+    1 AS global_sex_priority,
+    1 AS geo_priority_score,
+    CASE
+      WHEN candidates.M_tag_status = 'T'
+       AND candidates.F_tag_status IN ('X', 'B', '?')
+       AND candidates.M_new_protocol_geo = 1
+      THEN 'pair completion'
+      WHEN candidates.F_tag_status = 'T'
+       AND candidates.M_tag_status IN ('X', 'B', '?')
+       AND candidates.F_new_protocol_geo = 1
+      THEN 'pair completion'
+      WHEN candidates.initial_tag_candidate = 1
+       AND candidates.initial_deployment_eligible = 1
+      THEN 'initial'
+      ELSE NULL
+    END AS geo_reason,
+    CASE
+      WHEN candidates.M_tag_status = 'T'
+       AND candidates.F_tag_status IN ('X', 'B', '?')
+       AND candidates.M_new_protocol_geo = 1
+      THEN 'F'
+      WHEN candidates.F_tag_status = 'T'
+       AND candidates.M_tag_status IN ('X', 'B', '?')
+       AND candidates.F_new_protocol_geo = 1
+      THEN 'M'
+      WHEN candidates.initial_tag_candidate = 1
+       AND candidates.initial_deployment_eligible = 1
+      THEN 'A'
+      ELSE NULL
+    END AS geo_target,
+    CASE
+      WHEN candidates.M_tag_status = 'T'
+       AND candidates.F_tag_status IN ('X', 'B', '?')
+       AND candidates.M_new_protocol_geo = 1
+      THEN 'F'
+      WHEN candidates.F_tag_status = 'T'
+       AND candidates.M_tag_status IN ('X', 'B', '?')
+       AND candidates.F_new_protocol_geo = 1
+      THEN 'M'
+      WHEN candidates.initial_tag_candidate = 1
+       AND candidates.initial_deployment_eligible = 1
+      THEN 'A'
+      ELSE NULL
+    END AS geo_tag_target,
+    CASE
+      WHEN candidates.M_tag_status = 'T'
+       AND candidates.F_tag_status IN ('X', 'B', '?')
+       AND candidates.M_new_protocol_geo = 1
+      THEN 1
+      WHEN candidates.F_tag_status = 'T'
+       AND candidates.M_tag_status IN ('X', 'B', '?')
+       AND candidates.F_new_protocol_geo = 1
+      THEN 1
+      WHEN candidates.initial_tag_candidate = 1
+       AND candidates.initial_deployment_eligible = 1
+      THEN 1
+      ELSE 0
+    END AS geo_is_actionable,
+    geo_observation_counts.n_geo_deployed,
+    CAST(NULL AS SIGNED) AS release_ceiling,
+    CAST(NULL AS SIGNED) AS release_slots_remaining,
+    geo_observation_counts.n_male_geo_deployed,
+    geo_observation_counts.n_female_geo_deployed,
+    CAST(NULL AS SIGNED) AS male_quota_remaining,
+    CAST(NULL AS SIGNED) AS female_quota_remaining,
+    CAST(NULL AS CHAR(1)) AS preferred_balance_sex,
+    CAST(NULL AS CHAR(2)) AS geo_band_target,
+    CASE
+      WHEN candidates.M_tag_status = 'T'
+       AND candidates.F_tag_status = 'X'
+       AND candidates.M_new_protocol_geo = 1
       THEN 'tag X-X F (pair completion)'
-      ELSE CONCAT(
-        'tag ', targets.pair_target, ' (pair completion)',
-        CASE WHEN targets.nest_id = 'C2208' AND targets.pair_target = 'M'
-          THEN '; CORRECT DUPLICATE' ELSE '' END
-      )
+      WHEN candidates.F_tag_status = 'T'
+       AND candidates.M_tag_status = 'X'
+       AND candidates.F_new_protocol_geo = 1
+      THEN 'tag X-X M (pair completion)'
+      WHEN candidates.M_tag_status = 'T'
+       AND candidates.F_tag_status = 'B'
+       AND candidates.M_new_protocol_geo = 1
+      THEN 'tag F (pair completion)'
+      WHEN candidates.F_tag_status = 'T'
+       AND candidates.M_tag_status = 'B'
+       AND candidates.F_new_protocol_geo = 1
+      THEN 'tag M (pair completion)'
+      WHEN candidates.M_tag_status = 'T'
+       AND candidates.F_tag_status = '?'
+       AND candidates.M_new_protocol_geo = 1
+      THEN 'resight/tag F (status ?; pair completion)'
+      WHEN candidates.F_tag_status = 'T'
+       AND candidates.M_tag_status = '?'
+       AND candidates.F_new_protocol_geo = 1
+      THEN 'resight/tag M (status ?; pair completion)'
+      WHEN candidates.initial_tag_candidate = 1
+       AND candidates.initial_deployment_eligible = 1
+       AND candidates.M_tag_status = '?'
+       AND candidates.F_tag_status = '?'
+      THEN 'tag any, but only if one is confirmed X-X'
+      WHEN candidates.initial_tag_candidate = 1
+       AND candidates.initial_deployment_eligible = 1
+      THEN 'tag any'
+      ELSE NULL
     END AS geo_instruction,
-    CASE WHEN targets.pair_target IS NOT NULL THEN 1 ELSE 0 END AS is_pair_completion,
-    targets.M_is_au_migrant,
-    targets.F_is_au_migrant
-  FROM geo_parent_targets targets
-  CROSS JOIN geo_deployment_status deployment_status
+    CASE
+      WHEN candidates.M_tag_status = 'T'
+       AND candidates.F_tag_status IN ('X', 'B', '?')
+       AND candidates.M_new_protocol_geo = 1
+      THEN 1
+      WHEN candidates.F_tag_status = 'T'
+       AND candidates.M_tag_status IN ('X', 'B', '?')
+       AND candidates.F_new_protocol_geo = 1
+      THEN 1
+      ELSE 0
+    END AS is_pair_completion,
+    candidates.M_is_au_migrant,
+    candidates.F_is_au_migrant
+  FROM tag_deployment_candidates candidates
+  CROSS JOIN geo_observation_counts
+  WHERE (
+      candidates.M_tag_status = 'T'
+      AND candidates.F_tag_status IN ('X', 'B', '?')
+      AND candidates.M_new_protocol_geo = 1
+    )
+    OR (
+      candidates.F_tag_status = 'T'
+      AND candidates.M_tag_status IN ('X', 'B', '?')
+      AND candidates.F_new_protocol_geo = 1
+    )
+    OR (
+      candidates.initial_tag_candidate = 1
+      AND candidates.initial_deployment_eligible = 1
+    )
 ),
 todo_untrapped_parent_candidate AS (
   SELECT
@@ -1889,8 +2024,8 @@ todo_untrapped_parent_candidate AS (
       ELSE 0
     END AS duplicate_correction,
     CASE
-      WHEN geo_parent_plan.geo_instruction IS NOT NULL
-      THEN geo_parent_plan.geo_instruction
+      WHEN tag_deployment_plan.geo_instruction IS NOT NULL
+      THEN tag_deployment_plan.geo_instruction
       WHEN adult_parent_status.M_confirmed_unbanded = 1
        AND adult_parent_status.F_confirmed_unbanded = 1
       THEN 'any (both X-X)'
@@ -1917,8 +2052,6 @@ todo_untrapped_parent_candidate AS (
       THEN 'M (status ?)'
       WHEN adult_parent_status.F_unknown_status = 1
       THEN 'F (status ?)'
-      WHEN adult_parent_status.both_parents_need_geo_derived = 1
-      THEN 'any (GEOs)'
       WHEN adult_parent_status.M_has_geo = 1
        AND adult_parent_status.F_has_geo = 0
       THEN 'F (no GEO; M w/GEO)'
@@ -1937,12 +2070,12 @@ todo_untrapped_parent_candidate AS (
       WHEN active_nests.nest_id = 'B2203'
        AND UPPER(TRIM(COALESCE(adult_parent_status.F_parent_mark, ''))) = 'YY-TB.BL'
       THEN 'F'
-      WHEN geo_parent_plan.geo_tag_target IS NOT NULL
-      THEN geo_parent_plan.geo_tag_target
-      WHEN geo_parent_plan.geo_target IS NOT NULL
-      THEN geo_parent_plan.geo_target
-      WHEN geo_parent_plan.geo_band_target IS NOT NULL
-      THEN geo_parent_plan.geo_band_target
+      WHEN tag_deployment_plan.geo_tag_target IS NOT NULL
+      THEN tag_deployment_plan.geo_tag_target
+      WHEN tag_deployment_plan.geo_target IS NOT NULL
+      THEN tag_deployment_plan.geo_target
+      WHEN tag_deployment_plan.geo_band_target IS NOT NULL
+      THEN tag_deployment_plan.geo_band_target
       WHEN adult_parent_status.M_confirmed_unbanded = 1
        AND adult_parent_status.F_confirmed_unbanded = 1 THEN 'A'
       WHEN adult_parent_status.M_confirmed_unbanded = 1
@@ -1959,7 +2092,6 @@ todo_untrapped_parent_candidate AS (
        AND adult_parent_status.F_unknown_status = 1 THEN 'A'
       WHEN adult_parent_status.M_unknown_status = 1 THEN 'M'
       WHEN adult_parent_status.F_unknown_status = 1 THEN 'F'
-      WHEN adult_parent_status.both_parents_need_geo_derived = 1 THEN 'A'
       WHEN adult_parent_status.M_has_geo = 1
        AND adult_parent_status.F_has_geo = 0
        AND adult_parent_status.F_mm_resight_pending = 0 THEN 'F'
@@ -2001,7 +2133,6 @@ todo_untrapped_parent_candidate AS (
     adult_parent_status.F_single_colour_recruit,
     adult_parent_status.M_mm_resight_pending,
     adult_parent_status.F_mm_resight_pending,
-    adult_parent_status.both_parents_need_geo_derived AS both_parents_need_geo,
     adult_capture_interval_status.no_parent_capture_yet,
     adult_capture_interval_status.any_target_capture_window_open,
     adult_capture_interval_status.M_target_capture_window_open,
@@ -2035,8 +2166,8 @@ todo_untrapped_parent_candidate AS (
        AND UPPER(TRIM(COALESCE(adult_parent_status.F_parent_mark, ''))) = 'YY-TB.BL'
       THEN 1
       WHEN COALESCE(
-             geo_parent_plan.geo_tag_target,
-             geo_parent_plan.geo_band_target
+             tag_deployment_plan.geo_tag_target,
+             tag_deployment_plan.geo_band_target
            ) = 'A'
       THEN CASE
         WHEN COALESCE(adult_capture_interval_status.no_parent_capture_yet, 0) = 1
@@ -2047,8 +2178,8 @@ todo_untrapped_parent_candidate AS (
         THEN 1 ELSE 0
       END
       WHEN COALESCE(
-             geo_parent_plan.geo_tag_target,
-             geo_parent_plan.geo_band_target
+             tag_deployment_plan.geo_tag_target,
+             tag_deployment_plan.geo_band_target
            ) = 'M'
       THEN CASE
         WHEN COALESCE(adult_capture_interval_status.no_parent_capture_yet, 0) = 1
@@ -2059,8 +2190,8 @@ todo_untrapped_parent_candidate AS (
         THEN 1 ELSE 0
       END
       WHEN COALESCE(
-             geo_parent_plan.geo_tag_target,
-             geo_parent_plan.geo_band_target
+             tag_deployment_plan.geo_tag_target,
+             tag_deployment_plan.geo_band_target
            ) = 'F'
       THEN CASE
         WHEN COALESCE(adult_capture_interval_status.no_parent_capture_yet, 0) = 1
@@ -2083,7 +2214,6 @@ todo_untrapped_parent_candidate AS (
           adult_parent_status.M_single_colour_recruit = 1
           AND adult_parent_status.F_single_colour_recruit = 1
         )
-        OR adult_parent_status.both_parents_need_geo_derived = 1
       )
       THEN CASE
         WHEN COALESCE(adult_capture_interval_status.no_parent_capture_yet, 0) = 1
@@ -2148,24 +2278,24 @@ todo_untrapped_parent_candidate AS (
       END
       ELSE 0
     END AS capture_interval_open,
-    geo_parent_plan.geo_instruction,
-    geo_parent_plan.geo_tag_target,
-    geo_parent_plan.geo_band_target,
-    geo_parent_plan.geo_target,
-    geo_parent_plan.geo_is_actionable,
-    geo_parent_plan.n_geo_deployed,
-    geo_parent_plan.release_ceiling,
-    geo_parent_plan.geo_rank,
-    geo_parent_plan.geo_priority_tier,
-    geo_parent_plan.global_sex_priority,
-    geo_parent_plan.geo_priority_score,
-    geo_parent_plan.geo_reason,
-    geo_parent_plan.is_pair_completion,
-    geo_parent_plan.n_male_geo_deployed,
-    geo_parent_plan.n_female_geo_deployed,
-    geo_parent_plan.male_quota_remaining,
-    geo_parent_plan.female_quota_remaining,
-    geo_parent_plan.preferred_balance_sex,
+    tag_deployment_plan.geo_instruction,
+    tag_deployment_plan.geo_tag_target,
+    tag_deployment_plan.geo_band_target,
+    tag_deployment_plan.geo_target,
+    tag_deployment_plan.geo_is_actionable,
+    tag_deployment_plan.n_geo_deployed,
+    tag_deployment_plan.release_ceiling,
+    tag_deployment_plan.geo_rank,
+    tag_deployment_plan.geo_priority_tier,
+    tag_deployment_plan.global_sex_priority,
+    tag_deployment_plan.geo_priority_score,
+    tag_deployment_plan.geo_reason,
+    tag_deployment_plan.is_pair_completion,
+    tag_deployment_plan.n_male_geo_deployed,
+    tag_deployment_plan.n_female_geo_deployed,
+    tag_deployment_plan.male_quota_remaining,
+    tag_deployment_plan.female_quota_remaining,
+    tag_deployment_plan.preferred_balance_sex,
     active_nests.lat,
     active_nests.lon
   FROM (
@@ -2251,10 +2381,10 @@ todo_untrapped_parent_candidate AS (
     WHERE b.is_negative_brood = 1
       AND b.reference_date = sr.reference_date
   ) active_nests
-  LEFT JOIN adult_parent_geo_target_status adult_parent_status
+  LEFT JOIN adult_parent_status
     ON active_nests.nest_id = adult_parent_status.nest_id
-  LEFT JOIN geo_parent_plan
-    ON active_nests.nest_id = geo_parent_plan.nest_id
+  LEFT JOIN tag_deployment_plan
+    ON active_nests.nest_id = tag_deployment_plan.nest_id
   LEFT JOIN adult_capture_interval_status
     ON active_nests.nest_id = adult_capture_interval_status.nest_id
   LEFT JOIN adult_capture_age_status
@@ -2285,7 +2415,7 @@ todo_untrapped_parent_candidate AS (
         active_nests.nest_id = 'B2203'
         AND UPPER(TRIM(COALESCE(adult_parent_status.F_parent_mark, ''))) = 'YY-TB.BL'
       )
-      OR geo_parent_plan.geo_instruction IS NOT NULL
+      OR tag_deployment_plan.geo_instruction IS NOT NULL
       OR adult_parent_status.M_confirmed_unbanded = 1
       OR adult_parent_status.F_confirmed_unbanded = 1
       OR adult_parent_status.M_unknown_status = 1
@@ -2377,19 +2507,6 @@ todo_untrapped_parent AS (
           ELSE ''
         END
       )
-      WHEN geo_instruction IS NOT NULL
-       AND geo_instruction LIKE 'band %'
-       AND geo_tag_target IS NULL
-       AND geo_band_target IS NOT NULL
-       AND COALESCE(M_confirmed_unbanded, 0) = 0
-       AND COALESCE(F_confirmed_unbanded, 0) = 0
-       AND COALESCE(M_unknown_status, 0) = 0
-       AND COALESCE(F_unknown_status, 0) = 0
-       AND COALESCE(capture_allowed_after_completion, 0) = 1
-       AND COALESCE(capture_interval_open, 0) = 1
-      THEN geo_instruction
-      WHEN COALESCE(both_parents_need_geo, 0) = 1
-      THEN 'band any'
       WHEN COALESCE(F_confirmed_unbanded, 0) = 1
        AND COALESCE(M_unknown_status, 0) = 1
       THEN CONCAT(
@@ -2576,14 +2693,6 @@ todo_untrapped_parent AS (
           ELSE ''
         END
       )
-      WHEN COALESCE(M_has_geo, 0) = 1
-       AND COALESCE(F_has_geo, 0) = 0
-       AND COALESCE(female_quota_remaining, 0) = 0
-      THEN 'band F (no GEO; female quota complete; M w/GEO)'
-      WHEN COALESCE(F_has_geo, 0) = 1
-       AND COALESCE(M_has_geo, 0) = 0
-       AND COALESCE(male_quota_remaining, 0) = 0
-      THEN 'band M (no GEO; male quota complete; F w/GEO)'
       WHEN COALESCE(M_has_geo, 0) = 1
        AND COALESCE(F_has_geo, 0) = 0
       THEN 'band F (no GEO; M w/GEO)'
@@ -3542,23 +3651,23 @@ SELECT
   adult_parent_status.F_mm_resight_pending,
   adult_parent_status.M_resighting_identity_count,
   adult_parent_status.F_resighting_identity_count,
-  geo_parent_plan.geo_rank AS geo_priority_rank,
-  geo_parent_plan.geo_priority_tier,
-  geo_parent_plan.geo_priority_score,
-  geo_parent_plan.geo_reason,
-  geo_parent_plan.geo_target,
-  geo_parent_plan.geo_tag_target,
-  geo_parent_plan.geo_is_actionable,
-  geo_parent_plan.n_geo_deployed,
-  geo_parent_plan.release_ceiling,
-  geo_parent_plan.release_slots_remaining,
-  geo_parent_plan.n_male_geo_deployed,
-  geo_parent_plan.n_female_geo_deployed,
-  geo_parent_plan.male_quota_remaining,
-  geo_parent_plan.female_quota_remaining,
-  geo_parent_plan.preferred_balance_sex,
-  geo_parent_plan.M_is_au_migrant,
-  geo_parent_plan.F_is_au_migrant,
+  tag_deployment_plan.geo_rank AS geo_priority_rank,
+  tag_deployment_plan.geo_priority_tier,
+  tag_deployment_plan.geo_priority_score,
+  tag_deployment_plan.geo_reason,
+  tag_deployment_plan.geo_target,
+  tag_deployment_plan.geo_tag_target,
+  tag_deployment_plan.geo_is_actionable,
+  tag_deployment_plan.n_geo_deployed,
+  tag_deployment_plan.release_ceiling,
+  tag_deployment_plan.release_slots_remaining,
+  tag_deployment_plan.n_male_geo_deployed,
+  tag_deployment_plan.n_female_geo_deployed,
+  tag_deployment_plan.male_quota_remaining,
+  tag_deployment_plan.female_quota_remaining,
+  tag_deployment_plan.preferred_balance_sex,
+  tag_deployment_plan.M_is_au_migrant,
+  tag_deployment_plan.F_is_au_migrant,
   CASE
     WHEN t.todo IN ('Untrapped parent', 'Parent capture', 'Parent resighting')
      AND t.min_days_to_hatch IS NOT NULL
@@ -3596,8 +3705,8 @@ FROM (
 ) t
 LEFT JOIN adult_parent_status
   ON t.nest_id = adult_parent_status.nest_id
-LEFT JOIN geo_parent_plan
-  ON t.nest_id = geo_parent_plan.nest_id
+LEFT JOIN tag_deployment_plan
+  ON t.nest_id = tag_deployment_plan.nest_id
 -- WRYB remains available to map/summary consumers, but is not a Cass
 -- operational task in TODO_LIST.
 WHERE NOT EXISTS (

@@ -652,12 +652,9 @@ test_that("parent-status view projections remain deployable", {
   )
 
   todo_sql <- todo_list_view_sql()
-  expect_match(todo_sql, "END AS both_parents_need_geo_derived", fixed = TRUE)
-  expect_match(
-    todo_sql,
-    "adult_parent_status.both_parents_need_geo_derived AS both_parents_need_geo",
-    fixed = TRUE
-  )
+  expect_match(todo_sql, "tag_deployment_plan AS", fixed = TRUE)
+  expect_match(todo_sql, "clutch_completion_basis_date", fixed = TRUE)
+  expect_no_match(todo_sql, "both_parents_need_geo_derived", fixed = TRUE)
 })
 
 
@@ -1045,7 +1042,7 @@ test_that("two-egg parent capture waits seven days after inferred completion", {
   expect_gt(timing_start, 0L)
 
   timing_sql <- substring(sql, timing_start)
-  timing_end <- regexpr("geo_parent_targets AS", timing_sql, fixed = TRUE)[[1L]]
+  timing_end <- regexpr("tag_deployment_history AS", timing_sql, fixed = TRUE)[[1L]]
   expect_gt(timing_end, 0L)
   timing_sql <- substring(timing_sql, 1L, timing_end - 1L)
 
@@ -1394,123 +1391,99 @@ test_that("the parent pipeline includes a conservative chick-GPS definitive gate
 })
 
 
-test_that("pair completion uses the four-gate status without phenology gating", {
+test_that("tag deployment uses the bounded post-cutoff plan", {
   sql <- todo_list_view_sql()
   source_sql <- views_source_sql()
 
-  expect_match(sql, "FROM geo_parent_targets targets", fixed = TRUE)
-  expect_match(sql, "FROM FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_INPUT", fixed = TRUE)
-  expect_match(sql, "is_pair_completion", fixed = TRUE)
-  expect_match(sql, "geo_instruction", fixed = TRUE)
-
-  resolved_parent_geo <- function(identity_has_geo, xx_parent_confirmed, pending) {
-    if (isTRUE(xx_parent_confirmed) || isTRUE(pending)) 0 else identity_has_geo
-  }
-  expect_identical(resolved_parent_geo(1, TRUE, FALSE), 0)
-  expect_identical(resolved_parent_geo(1, FALSE, TRUE), 0)
-  expect_identical(resolved_parent_geo(1, FALSE, FALSE), 1)
-
-  expect_match(sql, "parent_status.F_has_geo", fixed = TRUE)
-  expect_match(sql, "parent_status.M_has_geo", fixed = TRUE)
-
+  expect_match(sql, "tag_deployment_history AS", fixed = TRUE)
+  expect_match(sql, "parent_task_nests AS", fixed = TRUE)
   expect_match(
-    source_sql,
-    "CASE WHEN by_identity.association_selected = 1",
+    sql,
+    "TODO_BROOD_CLOSURE_STATUS_SNAPSHOT_BUILD closure",
     fixed = TRUE
   )
-  expect_match(source_sql, "AS selected_has_geo", fixed = TRUE)
-  expect_match(source_sql, "status_by_sex.selected_has_geo", fixed = TRUE)
-  expect_no_match(source_sql, "status_by_sex.any_has_geo", fixed = TRUE)
-
-  selected_geo <- function(identities) {
-    selected <- identities[identities$association_selected == 1, , drop = FALSE]
-    if (nrow(selected) != 1L) return(0L)
-    as.integer(selected$has_geo[[1L]] == 1L)
-  }
-
-  # A selected unbanded parent must not inherit GEO from a provisional
-  # same-sex identity at the same nest (the C0615 failure mode).
-  expect_identical(
-    selected_geo(data.frame(
-      association_selected = c(1L, 0L),
-      has_geo = c(0L, 1L)
-    )),
-    0L
+  expect_match(
+    sql,
+    "WHERE UPPER(TRIM(COALESCE(n.nest_state, ''))) = 'NOTA'",
+    fixed = TRUE
+  )
+  expect_match(sql, "tag_deployment_candidates candidates", fixed = TRUE)
+  expect_match(sql, "tag_deployment_plan AS", fixed = TRUE)
+  expect_match(
+    sql,
+    "LEFT(TRIM(parent_task_nests.nest_id), 1) IN ('B', 'C')",
+    fixed = TRUE
+  )
+  expect_match(sql, "c.date <= sr.reference_date", fixed = TRUE)
+  expect_no_match(sql, "c.date > CAST('2026-10-09' AS DATE)", fixed = TRUE)
+  expect_match(sql, "M_new_protocol_geo", fixed = TRUE)
+  expect_match(sql, "tag any, but only if one is confirmed X-X", fixed = TRUE)
+  expect_match(sql, "tag X-X F (pair completion)", fixed = TRUE)
+  expect_match(sql, "tag F (pair completion)", fixed = TRUE)
+  expect_match(sql, "resight/tag M (status ?; pair completion)", fixed = TRUE)
+  expect_match(sql, "initial_deployment_eligible", fixed = TRUE)
+  expect_match(
+    sql,
+    "candidates.initial_tag_candidate = 1\n      AND candidates.initial_deployment_eligible = 1",
+    fixed = TRUE
+  )
+  expect_no_match(sql, "geo_parent_targets AS", fixed = TRUE)
+  expect_no_match(sql, "999999 AS release_ceiling", fixed = TRUE)
+  expect_no_match(
+    source_sql,
+    "CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.GEO_ROLLOUT_PHENOLOGY",
+    fixed = TRUE
+  )
+  expect_match(
+    source_sql,
+    "DROP VIEW IF EXISTS FIELD_2026_BADOatNZ.GEO_ROLLOUT_PHENOLOGY",
+    fixed = TRUE
   )
 
-  # A selected tagged parent remains GEO-eligible even if another identity is
-  # untagged or provisional.
-  expect_identical(
-    selected_geo(data.frame(
-      association_selected = c(1L, 0L),
-      has_geo = c(1L, 0L)
-    )),
-    1L
-  )
-
-  # Ambiguous same-sex evidence has no authoritative GEO identity.
-  expect_identical(
-    selected_geo(data.frame(
-      association_selected = c(0L, 0L),
-      has_geo = c(1L, 0L)
-    )),
-    0L
-  )
-
-  pair_target <- function(
-    male_tag_eligible,
-    female_quota_remaining,
-    male_quota_remaining,
-    female_has_geo,
-    female_captured_has_geo,
-    female_mm_pending
+  tag_status <- function(
+    mark = NULL,
+    has_geo = FALSE,
+    confirmed_xx = FALSE,
+    unknown = FALSE,
+    pending = FALSE,
+    ambiguous = FALSE
   ) {
-    if (
-      male_tag_eligible &&
-        male_quota_remaining > 0 &&
-        (female_has_geo || female_captured_has_geo)
-    ) {
-      return("M")
+    if (isTRUE(has_geo) && !isTRUE(pending) && !isTRUE(ambiguous)) {
+      return("T")
     }
-    if (female_quota_remaining > 0 && male_quota_remaining >= 0) {
-      return(NULL)
+    if (isTRUE(confirmed_xx)) {
+      return("X")
     }
-    NULL
+    if (isTRUE(unknown) || isTRUE(pending) || isTRUE(ambiguous)) {
+      return("?")
+    }
+    if (!is.null(mark) && nzchar(mark) && !identical(toupper(mark), "X-X")) {
+      return("B")
+    }
+    "?"
   }
 
-  expect_identical(
-    pair_target(TRUE, 1, 1, TRUE, FALSE, FALSE),
-    "M"
-  )
-  expect_identical(
-    pair_target(TRUE, 1, 1, FALSE, TRUE, TRUE),
-    "M"
-  )
+  expect_identical(tag_status(confirmed_xx = TRUE), "X")
+  expect_identical(tag_status(mark = "YO-GR"), "B")
+  expect_identical(tag_status(has_geo = TRUE), "T")
+  expect_identical(tag_status(mark = "YO-GR", pending = TRUE), "?")
 })
 
 
-test_that("pair completion bypasses the release ceiling but balance does not", {
+test_that("retired rollout quotas cannot create deployment tasks", {
   sql <- todo_list_view_sql()
+  source_sql <- views_source_sql()
 
-  expect_match(sql, "999999 AS release_ceiling", fixed = TRUE)
-  expect_match(sql, "CASE WHEN targets.pair_target IS NOT NULL THEN 1 ELSE 0 END", fixed = TRUE)
-  expect_match(sql, "CASE WHEN targets.pair_target IS NOT NULL THEN 'pair completion' ELSE NULL END", fixed = TRUE)
-
-  geo_is_actionable <- function(
-    is_candidate,
-    pair_target,
-    geo_rank,
-    release_slots_remaining
-  ) {
-    isTRUE(is_candidate) && (
-      !is.null(pair_target) ||
-        geo_rank <= max(0, release_slots_remaining)
-    )
-  }
-
-  expect_true(geo_is_actionable(TRUE, "F", 8, 0))
-  expect_false(geo_is_actionable(TRUE, NULL, 1, 0))
-  expect_true(geo_is_actionable(TRUE, NULL, 1, 1))
+  expect_no_match(sql, "release_slots_remaining -", fixed = TRUE)
+  expect_no_match(sql, "female quota complete", fixed = TRUE)
+  expect_no_match(sql, "male quota complete", fixed = TRUE)
+  expect_no_match(sql, "stratum_deficit", fixed = TRUE)
+  expect_no_match(source_sql, "stratum_targets AS", fixed = TRUE)
+  expect_no_match(
+    source_sql,
+    "CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.GEO_ROLLOUT_PHENOLOGY",
+    fixed = TRUE
+  )
 })
 
 
@@ -1524,283 +1497,88 @@ test_that("notA follow-up notes use the compact operational wording", {
 })
 
 
-test_that("one tagged parent produces pair completion without deployment-date gating", {
+test_that("pair completion requires current-nest deployment provenance", {
   sql <- todo_list_view_sql()
 
-  expect_match(sql, "parent_status.F_has_geo", fixed = TRUE)
-  expect_match(sql, "parent_status.M_has_geo", fixed = TRUE)
-  expect_no_match(sql, "is_pre25_nest", fixed = TRUE)
-  expect_no_match(sql, "geo_deployment_date >=", fixed = TRUE)
+  expect_match(
+    sql,
+    "history.nest_id = parent_task_nests.nest_id",
+    fixed = TRUE
+  )
+  expect_match(sql, "history.parent_sex = 'M'", fixed = TRUE)
+  expect_match(sql, "history.parent_sex = 'F'", fixed = TRUE)
+  expect_match(sql, "tag F (pair completion)", fixed = TRUE)
+  expect_match(sql, "tag M (pair completion)", fixed = TRUE)
+  expect_match(sql, "tag X-X F (pair completion)", fixed = TRUE)
+  expect_match(sql, "tag X-X M (pair completion)", fixed = TRUE)
 
-  pair_completion_target <- function(
-    male_tagged,
-    female_tagged,
-    male_tag_eligible = TRUE,
-    female_tag_eligible = TRUE,
-    male_quota_remaining = 1,
-    female_quota_remaining = 1,
-    male_mm_pending = FALSE,
-    female_mm_pending = FALSE
+  pair_completion_allowed <- function(
+    tagged_parent_is_current,
+    target_status,
+    target_is_dead = FALSE,
+    target_is_ambiguous = FALSE
   ) {
-    if (
-      female_tagged &&
-        !male_tagged &&
-        male_tag_eligible &&
-        male_quota_remaining > 0
-    ) {
-      return("M")
-    }
-    if (
-      male_tagged &&
-        !female_tagged &&
-        female_tag_eligible &&
-        female_quota_remaining > 0
-    ) {
-      return("F")
-    }
-    NULL
+    isTRUE(tagged_parent_is_current) &&
+      target_status %in% c("X", "B", "?") &&
+      !isTRUE(target_is_dead) &&
+      !isTRUE(target_is_ambiguous)
   }
 
-  parent_capture_note <- function(pair_target, actionable = TRUE) {
-    if (isTRUE(actionable) && !is.null(pair_target)) {
-      return(paste0("tag ", pair_target, " (pair completion)"))
+  expect_true(pair_completion_allowed(TRUE, "B"))
+  expect_true(pair_completion_allowed(TRUE, "X"))
+  expect_true(pair_completion_allowed(TRUE, "?"))
+  expect_false(pair_completion_allowed(FALSE, "B"))
+  expect_false(pair_completion_allowed(TRUE, "B", target_is_ambiguous = TRUE))
+
+  pair_completion_note <- function(tagged_parent_sex, target_status) {
+    target_sex <- if (tagged_parent_sex == "M") "F" else "M"
+    if (target_status == "X") {
+      paste("tag X-X", target_sex, "(pair completion)")
+    } else if (target_status == "B") {
+      paste("tag", target_sex, "(pair completion)")
+    } else if (target_status == "?") {
+      paste("resight/tag", target_sex, "(status ?; pair completion)")
     }
-    "ordinary parent work"
   }
 
-  # C0217-like: tagged female, untagged/unknown male. The female's
-  # deployment date is deliberately absent from this mock.
   expect_identical(
-    parent_capture_note(pair_completion_target(FALSE, TRUE)),
+    pair_completion_note("F", "B"),
     "tag M (pair completion)"
   )
-  # C2205-like: tagged male, X-X female. The male's deployment date is
-  # deliberately absent from this mock.
   expect_identical(
-    parent_capture_note(pair_completion_target(TRUE, FALSE)),
-    "tag F (pair completion)"
-  )
-  # MM uncertainty remains a Parents-to-resight task, but does not suppress
-  # the opposite mate's pair-completion capture target.
-  expect_identical(
-    pair_completion_target(
-      FALSE,
-      TRUE,
-      female_mm_pending = TRUE
-    ),
-    "M"
+    pair_completion_note("F", "X"),
+    "tag X-X M (pair completion)"
   )
   expect_identical(
-    pair_completion_target(
-      TRUE,
-      FALSE,
-      male_mm_pending = TRUE
-    ),
-    "F"
-  )
-  # Quota and parent eligibility remain authoritative.
-  expect_identical(
-    pair_completion_target(
-      FALSE,
-      TRUE,
-      male_quota_remaining = 0
-    ),
-    NULL
+    pair_completion_note("F", "?"),
+    "resight/tag M (status ?; pair completion)"
   )
 })
 
 
-test_that("confirmed X-X alternate parent can complete a tagged pair", {
-  sql <- todo_list_view_sql()
-
-  expect_match(sql, "parent_status.M_has_geo", fixed = TRUE)
-  expect_match(sql, "parent_status.F_has_geo", fixed = TRUE)
-  expect_match(sql, "tag X-X F (pair completion)", fixed = TRUE)
-  expect_match(sql, "THEN '; CORRECT DUPLICATE'", fixed = TRUE)
-  expect_match(
-    sql,
-    "active_nests.nest_id = 'B2203'",
-    fixed = TRUE
-  )
-  expect_match(sql, "'F: CORRECT DUPLICATE'", fixed = TRUE)
-
-  pair_completion_target <- function(
-    target_sex,
-    target_is_xx,
-    opposite_captured_has_geo,
-    opposite_mm_pending,
-    target_tag_eligible = TRUE,
-    target_quota_remaining = 1
-  ) {
-    alternate_parent_resolves <- target_is_xx && opposite_mm_pending
-    if (
-      target_sex == "F" &&
-        target_tag_eligible &&
-        target_quota_remaining > 0 &&
-        opposite_captured_has_geo
+test_that("initial deployment notes preserve unknown status", {
+  initial_note <- function(male_status, female_status) {
+    if (identical(male_status, "?") && identical(female_status, "?")) {
+      "tag any, but only if one is confirmed X-X"
+    } else if (
+      (male_status == "X" && female_status %in% c("X", "B", "?")) ||
+      (female_status == "X" && male_status %in% c("X", "B", "?"))
     ) {
-      return("F")
-    }
-    NULL
-  }
-
-  pair_note <- function(target_sex, target_mark) {
-    target_label <- if (identical(target_mark, "X-X")) {
-      paste("X-X", target_sex)
-    } else {
-      target_sex
-    }
-    paste0("tag ", target_label, " (pair completion)")
-  }
-
-  corrected_pair_note <- function(nest_id, target_sex, target_mark) {
-    note <- pair_note(target_sex, target_mark)
-    if (identical(nest_id, "C2208") && identical(target_sex, "M")) {
-      paste0(note, "; CORRECT DUPLICATE")
-    } else {
-      note
-    }
-  }
-
-  expect_identical(
-    pair_completion_target("F", TRUE, TRUE, TRUE),
-    "F"
-  )
-  expect_identical(
-    pair_completion_target("F", FALSE, TRUE, TRUE),
-    "F"
-  )
-  expect_identical(
-    pair_note("F", "X-X"),
-    "tag X-X F (pair completion)"
-  )
-  expect_identical(
-    corrected_pair_note("C2208", "M", "YO-GR"),
-    "tag M (pair completion); CORRECT DUPLICATE"
-  )
-  expect_identical(
-    corrected_pair_note("C9999", "M", "YO-GR"),
-    "tag M (pair completion)"
-  )
-
-  duplicate_correction_note <- function(nest_id, female_mark) {
-    if (
-      identical(nest_id, "B2203") &&
-        identical(female_mark, "YY-TB.BL")
-    ) {
-      "F: CORRECT DUPLICATE"
+      "tag any"
     } else {
       NA_character_
     }
   }
+
+  expect_identical(initial_note("X", "?"), "tag any")
+  expect_identical(initial_note("?", "X"), "tag any")
+  expect_identical(initial_note("X", "B"), "tag any")
+  expect_identical(initial_note("B", "X"), "tag any")
   expect_identical(
-    duplicate_correction_note("B2203", "YY-TB.BL"),
-    "F: CORRECT DUPLICATE"
-  )
-  expect_true(is.na(duplicate_correction_note("B2203", "YY-TB.BW")))
-  expect_null(
-    pair_completion_target("F", TRUE, TRUE, TRUE, target_tag_eligible = FALSE)
-  )
-  expect_null(
-    pair_completion_target("F", TRUE, FALSE, TRUE)
+    initial_note("?", "?"),
+    "tag any, but only if one is confirmed X-X"
   )
 })
-
-
-test_that("live X-X after a dead MM capture remains GEO eligible", {
-  sql <- todo_list_view_sql()
-
-  expect_match(
-    sql,
-    "COALESCE(parent_status.M_is_dead, 0) = 0",
-    fixed = TRUE
-  )
-  expect_match(
-    sql,
-    "adult_parent_status.M_confirmed_unbanded = 1",
-    fixed = TRUE
-  )
-  expect_match(
-    sql,
-    "adult_parent_status.M_resight_association_pending",
-    fixed = TRUE
-  )
-  expect_match(
-    sql,
-    "M_confirmed_unbanded",
-    fixed = TRUE
-  )
-
-  tag_eligible <- function(
-    is_dead,
-    mm_xx_parent_confirmed,
-    confirmed_unbanded,
-    mm_resight_pending = FALSE
-  ) {
-    !isTRUE(mm_resight_pending) &&
-      (
-        !isTRUE(is_dead) ||
-          (
-            isTRUE(mm_xx_parent_confirmed) &&
-              isTRUE(confirmed_unbanded) &&
-              !isTRUE(mm_resight_pending)
-          )
-      )
-  }
-
-  # C0217-like chronology: dead MM capture, then live X-X with IN.
-  expect_true(tag_eligible(TRUE, TRUE, TRUE))
-  # A dead parent without a later qualifying live X-X remains ineligible.
-  expect_false(tag_eligible(TRUE, FALSE, FALSE))
-  # Pending MM uncertainty still blocks tag deployment.
-  expect_false(tag_eligible(TRUE, TRUE, TRUE, mm_resight_pending = TRUE))
-})
-
-
-test_that("pair completion may target one pending known-banded association", {
-  sql <- todo_list_view_sql()
-
-  expect_match(sql, "geo_parent_plan.geo_tag_target", fixed = TRUE)
-  expect_match(sql, "geo_parent_plan.geo_band_target", fixed = TRUE)
-  expect_match(
-    sql,
-    "COALESCE(parent_status.M_resight_association_ambiguous, 0) = 0",
-    fixed = TRUE
-  )
-  expect_match(
-    sql,
-    "COALESCE(parent_status.F_resight_association_ambiguous, 0) = 0",
-    fixed = TRUE
-  )
-  expect_match(sql, "M_resight_association_ambiguous", fixed = TRUE)
-  expect_match(sql, "F_resight_association_ambiguous", fixed = TRUE)
-
-  pair_tag_allowed <- function(
-    has_geo,
-    is_dead = FALSE,
-    mm_pending = FALSE,
-    association_ambiguous = FALSE,
-    plot = "B"
-  ) {
-    identical(plot, "A") == FALSE &&
-      !isTRUE(has_geo) &&
-      !isTRUE(is_dead) &&
-      !isTRUE(mm_pending) &&
-      !isTRUE(association_ambiguous)
-  }
-
-  # A single pending known-banded identity can still be the pair-completion
-  # target when the opposite parent carries a GEO tag.
-  expect_true(pair_tag_allowed(FALSE))
-  # Competing same-sex identities, dead status, or MM uncertainty remain gates.
-  expect_false(pair_tag_allowed(FALSE, association_ambiguous = TRUE))
-  expect_false(pair_tag_allowed(FALSE, is_dead = TRUE))
-  expect_false(pair_tag_allowed(FALSE, mm_pending = TRUE))
-  expect_false(pair_tag_allowed(FALSE, plot = "A"))
-  expect_false(pair_tag_allowed(TRUE))
-})
-
-
 test_that("captured sex overrides a uniquely matching resighting sex", {
   sql <- views_source_sql()
   todo_sql <- todo_list_view_sql()
