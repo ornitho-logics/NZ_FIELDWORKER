@@ -94,7 +94,7 @@ test_that("to-do headings use the current operational subtitles", {
   )
   expect_identical(
     heading("Parent capture")$subtitle,
-    "Follow the row notes: deploy a geolocator or band only."
+    "Follow the row notes: deploy a GEO only when the nest is eligible; otherwise band or resight as instructed."
   )
   expect_identical(
     heading("Parent resighting")$subtitle,
@@ -859,12 +859,13 @@ test_that("PDF note key includes only definitions used by task notes", {
   note_key <- app$env$todo_pdf_note_key
 
   observed <- paste(
-    note_key(c("tag M (pair completion)", "resight M; 7d rule", "band X-X F")),
+    note_key(c("tag M (pair completion)", "tag any", "resight M; 7d rule", "band X-X F")),
     collapse = "\n"
   )
 
   expect_true(grepl("7d rule", observed, fixed = TRUE))
   expect_true(grepl("Pair completion", observed, fixed = TRUE))
+  expect_true(grepl("Tag deployment", observed, fixed = TRUE))
   expect_true(grepl("Band only", observed, fixed = TRUE))
   expect_false(grepl("36hr rule", observed, fixed = TRUE))
   expect_false(grepl("Sex/phenology balance", observed, fixed = TRUE))
@@ -891,7 +892,7 @@ test_that("PDF note key includes only definitions used by task notes", {
     fixed = TRUE
   ))
   expect_true(grepl(
-    "Prioritize tagging the eligible untagged mate so that both pair members are tagged",
+    "After an eligible first deployment, tag the authoritative untagged mate so that both pair members are tagged.",
     revised_key,
     fixed = TRUE
   ))

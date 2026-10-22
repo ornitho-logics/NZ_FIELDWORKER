@@ -1418,7 +1418,7 @@ todo_pdf_heading <- function(todo_name) {
     ),
     "Parent capture" = list(
       title = "Parents to capture",
-      subtitle = "Follow the row notes: deploy a geolocator or band only."
+      subtitle = "Follow the row notes: deploy a GEO only when the nest is eligible; otherwise band or resight as instructed."
     ),
     "Parent resighting" = list(
       title = "Parents to resight for nest association",
@@ -1497,12 +1497,12 @@ todo_pdf_note_key <- function(notes = character()) {
     list(
       label = "Pair completion",
       pattern = "pair completion",
-      text = "Prioritize tagging the eligible untagged mate so that both pair members are tagged"
+      text = "After an eligible first deployment, tag the authoritative untagged mate so that both pair members are tagged."
     ),
     list(
-      label = "Sex/phenology balance",
-      pattern = "sex/phenology balance",
-      text = "Deploy to the stated sex to reduce the global sex imbalance and that lay-date stratum's deficit."
+      label = "Tag deployment",
+      pattern = "tag any",
+      text = "Deploy only on Plot B/C nests completed after 9 October; initial deployment requires a confirmed authoritative X-X parent. A guarded unknown-status note requires confirmation before tagging."
     ),
     list(
       label = "FO marker",
