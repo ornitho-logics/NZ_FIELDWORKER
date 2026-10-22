@@ -351,6 +351,7 @@ site_rules AS (
   UNION ALL SELECT 'CR', 'LY', NULL
   UNION ALL SELECT 'CR', 'BY', NULL
   UNION ALL SELECT 'CR', 'WY', NULL
+  UNION ALL SELECT 'CR', 'GY', NULL
   UNION ALL SELECT 'AR', 'BW', NULL
   UNION ALL SELECT 'WN', 'WO', 'B'
   UNION ALL SELECT 'WN', 'WO', 'G'
@@ -406,7 +407,7 @@ SELECT
   CASE
     -- Temporary compatibility gate for the deployed PDF's site_code = 'CR' query.
     WHEN available_combos_ranked.site_code = 'CR'
-     AND available_combos_ranked.LL IN ('BY', 'WY', 'YY', 'YO', 'OY') THEN 'CR'
+     AND available_combos_ranked.LL IN ('BY', 'WY', 'YY', 'YO', 'OY', 'GY') THEN 'CR'
     WHEN available_combos_ranked.site_code = 'CR'
      AND CONCAT(available_combos_ranked.LL, available_combos_ranked.LR) REGEXP 'L' THEN 'CX'
     WHEN available_combos_ranked.site_code = 'CR'

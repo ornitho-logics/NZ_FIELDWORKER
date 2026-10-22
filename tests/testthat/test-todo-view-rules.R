@@ -383,12 +383,17 @@ test_that("AVAILABLE_COMBOS fails closed without a reference date", {
 })
 
 
-test_that("AVAILABLE_COMBOS keeps all eligible OY marks in CR", {
+test_that("AVAILABLE_COMBOS keeps all eligible OY and GY marks in CR", {
   sql <- available_combos_view_sql()
 
   expect_match(
     sql,
-    "LL IN ('BY', 'WY', 'YY', 'YO', 'OY') THEN 'CR'",
+    "UNION ALL SELECT 'CR', 'GY', NULL",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "LL IN ('BY', 'WY', 'YY', 'YO', 'OY', 'GY') THEN 'CR'",
     fixed = TRUE
   )
   expect_match(
@@ -400,14 +405,14 @@ test_that("AVAILABLE_COMBOS keeps all eligible OY marks in CR", {
   expect_lt(
     regexpr("WHERE used.LL IS NULL", sql, fixed = TRUE)[[1]],
     regexpr(
-      "LL IN ('BY', 'WY', 'YY', 'YO', 'OY') THEN 'CR'",
+      "LL IN ('BY', 'WY', 'YY', 'YO', 'OY', 'GY') THEN 'CR'",
       sql,
       fixed = TRUE
     )[[1]]
   )
 
   classify_cr_candidate <- function(LL, LR, combo_rank) {
-    if (LL %in% c("BY", "WY", "YY", "YO", "OY")) {
+    if (LL %in% c("BY", "WY", "YY", "YO", "OY", "GY")) {
       return("CR")
     }
     if (grepl("L", paste0(LL, LR)) || combo_rank > 30L) {
@@ -418,6 +423,7 @@ test_that("AVAILABLE_COMBOS keeps all eligible OY marks in CR", {
 
   expect_identical(classify_cr_candidate("OY", "BL", 40L), "CR")
   expect_identical(classify_cr_candidate("OY", "BR", 80L), "CR")
+  expect_identical(classify_cr_candidate("GY", "BL", 80L), "CR")
   expect_identical(classify_cr_candidate("LY", "BB", 20L), "CX")
 })
 
