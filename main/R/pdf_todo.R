@@ -1492,6 +1492,16 @@ todo_pdf_table_task_order <- c(
 todo_pdf_note_key <- function(notes = character()) {
   definitions <- list(
     list(
+      label = "Last visit",
+      always = TRUE,
+      text = "Days since the latest qualifying nest or brood encounter, including a nest visit, chick capture, chick resighting, or resolved GPS-linked observation."
+    ),
+    list(
+      label = "Est. Hatch",
+      always = TRUE,
+      text = "For active nests, days until estimated hatch (negative = overdue); for broods, negative values are days since hatch."
+    ),
+    list(
       label = "7d rule",
       pattern = "7d rule",
       text = "Resighting only. Capture is not allowed until at least 7 days after estimated clutch completion."
@@ -1545,6 +1555,9 @@ todo_pdf_note_key <- function(notes = character()) {
   used <- vapply(
     definitions,
     function(definition) {
+      if (isTRUE(definition$always)) {
+        return(TRUE)
+      }
       any(grepl(
         tolower(definition$pattern),
         tolower(notes),
