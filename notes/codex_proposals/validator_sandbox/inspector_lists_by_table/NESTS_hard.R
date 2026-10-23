@@ -1496,61 +1496,161 @@ list({
                 seq.int(s, e)
             }
         }
-        expand_rows <- function(dt, rowid_col = NULL) {
+        normalize_photo_text <- function(v) {
+            raw <- toupper(trimws(as.character(v)))
+            raw[is.na(v) | !nzchar(raw) | raw == "NA"] <- NA_character_
+            raw
+        }
+        expand_rows <- function(dt, table_name, rowid_col = NULL) {
+            dt <- data.table::copy(dt)
+            for (column in c("cam_id", "date", "observer", "nest_id", "gps_id", "gps_point", "rclass", "age")) {
+                if (!column %in% names(dt)) {
+                    dt[, (column) := NA_character_]
+                }
+            }
+            dt[, `:=`(
+                table_name = table_name,
+                cam_key = normalize_photo_text(cam_id),
+                date_key = normalize_photo_text(date),
+                observer_key = normalize_photo_text(observer),
+                nest_key = normalize_photo_text(nest_id),
+                gps_id_key = normalize_photo_text(gps_id),
+                gps_point_key = normalize_photo_text(gps_point),
+                rclass_key = normalize_photo_text(rclass),
+                age_key = normalize_photo_text(age)
+            )]
             pieces <- lapply(seq_len(nrow(dt)), function(i) {
                 nums <- expand_range(dt$photo_start[i], dt$photo_end[i])
                 if (!length(nums)) {
                   return(NULL)
                 }
-                data.table::data.table(rowid = if (is.null(rowid_col)) NA_integer_ else dt[[rowid_col]][i], img_num = nums)
+                data.table::data.table(
+                    table_name = dt$table_name[i],
+                    rowid = if (is.null(rowid_col)) NA_integer_ else dt[[rowid_col]][i],
+                    img_num = nums,
+                    cam_key = dt$cam_key[i],
+                    date_key = dt$date_key[i],
+                    observer_key = dt$observer_key[i],
+                    nest_key = dt$nest_key[i],
+                    gps_id_key = dt$gps_id_key[i],
+                    gps_point_key = dt$gps_point_key[i],
+                    rclass_key = dt$rclass_key[i],
+                    age_key = dt$age_key[i]
+                )
             })
             pieces <- Filter(Negate(is.null), pieces)
             if (length(pieces) == 0) {
-                data.table::data.table(rowid = integer(), img_num = integer())
+                data.table::data.table(
+                    table_name = character(),
+                    rowid = integer(),
+                    img_num = integer(),
+                    cam_key = character(),
+                    date_key = character(),
+                    observer_key = character(),
+                    nest_key = character(),
+                    gps_id_key = character(),
+                    gps_point_key = character(),
+                    rclass_key = character(),
+                    age_key = character()
+                )
             } else {
                 data.table::rbindlist(pieces, use.names = TRUE, fill = TRUE)
             }
         }
+        same_h_photo_session <- function(a, b) {
+            if (!identical(a$table_name[[1]], "RESIGHTINGS") || !identical(b$table_name[[1]], "RESIGHTINGS")) {
+                return(FALSE)
+            }
+            if (!identical(a$rclass_key[[1]], "H") || !identical(b$rclass_key[[1]], "H") ||
+                !identical(a$age_key[[1]], "C") || !identical(b$age_key[[1]], "C")) {
+                return(FALSE)
+            }
+            if (any(is.na(c(a$cam_key[[1]], b$cam_key[[1]], a$date_key[[1]], b$date_key[[1]], a$observer_key[[1]], b$observer_key[[1]])))) {
+                return(FALSE)
+            }
+            if (!identical(a$cam_key[[1]], b$cam_key[[1]]) ||
+                !identical(a$date_key[[1]], b$date_key[[1]]) ||
+                !identical(a$observer_key[[1]], b$observer_key[[1]])) {
+                return(FALSE)
+            }
+            nest_complete <- !is.na(a$nest_key[[1]]) && !is.na(b$nest_key[[1]])
+            if (nest_complete) {
+                return(identical(a$nest_key[[1]], b$nest_key[[1]]))
+            }
+            gps_complete <- !is.na(a$gps_id_key[[1]]) && !is.na(b$gps_id_key[[1]]) &&
+                !is.na(a$gps_point_key[[1]]) && !is.na(b$gps_point_key[[1]])
+            gps_complete &&
+                identical(a$gps_id_key[[1]], b$gps_id_key[[1]]) &&
+                identical(a$gps_point_key[[1]], b$gps_point_key[[1]])
+        }
+        photo_conflict <- function(a, b) {
+            if (is.na(a$cam_key[[1]]) || is.na(b$cam_key[[1]]) ||
+                !identical(a$cam_key[[1]], b$cam_key[[1]]) ||
+                !identical(a$img_num[[1]], b$img_num[[1]])) {
+                return(FALSE)
+            }
+            !same_h_photo_session(a, b)
+        }
         z <- data.table::copy(x)
         z[, `:=`(rowid, .I)]
-        current_seq <- expand_rows(z, rowid_col = "rowid")
+        current_seq <- expand_rows(z, table_name = "NESTS", rowid_col = "rowid")
         if (nrow(current_seq) == 0) {
             empty
         } else {
             ref_parts <- list()
-            ref_nests <- tryCatch(db_get("SELECT photo_start, photo_end FROM NESTS"), error = function(e) NULL)
+            ref_nests <- tryCatch(db_get("SELECT cam_id, date, observer, nest_id, gps_id, gps_point, photo_start, photo_end FROM NESTS"), error = function(e) NULL)
             if (!is.null(ref_nests) && nrow(ref_nests) > 0) {
-                ref_parts[[length(ref_parts) + 1L]] <- expand_rows(data.table::as.data.table(ref_nests))
+                ref_parts[[length(ref_parts) + 1L]] <- expand_rows(data.table::as.data.table(ref_nests), table_name = "NESTS")
             }
-            ref_caps <- tryCatch(db_get("SELECT photo_start, photo_end FROM CAPTURES"), error = function(e) NULL)
+            ref_caps <- tryCatch(db_get("SELECT cam_id, date, observer, nest_id, gps_id, gps_point, age, photo_start, photo_end FROM CAPTURES"), error = function(e) NULL)
             if (!is.null(ref_caps) && nrow(ref_caps) > 0) {
-                ref_parts[[length(ref_parts) + 1L]] <- expand_rows(data.table::as.data.table(ref_caps))
+                ref_parts[[length(ref_parts) + 1L]] <- expand_rows(data.table::as.data.table(ref_caps), table_name = "CAPTURES")
             }
-            ref_res <- tryCatch(db_get("SELECT photo_start, photo_end FROM RESIGHTINGS"), error = function(e) NULL)
+            ref_res <- tryCatch(db_get("SELECT cam_id, date, observer, nest_id, gps_id, gps_point, rclass, age, photo_start, photo_end FROM RESIGHTINGS"), error = function(e) NULL)
             if (!is.null(ref_res) && nrow(ref_res) > 0) {
-                ref_parts[[length(ref_parts) + 1L]] <- expand_rows(data.table::as.data.table(ref_res))
+                ref_parts[[length(ref_parts) + 1L]] <- expand_rows(data.table::as.data.table(ref_res), table_name = "RESIGHTINGS")
             }
             ref <- if (length(ref_parts) == 0) {
-                data.table::data.table(rowid = integer(), img_num = integer())
+                data.table::data.table(
+                    table_name = character(), rowid = integer(), img_num = integer(),
+                    cam_key = character(), date_key = character(), observer_key = character(),
+                    nest_key = character(), gps_id_key = character(), gps_point_key = character(),
+                    rclass_key = character(), age_key = character()
+                )
             } else {
                 data.table::rbindlist(ref_parts, use.names = TRUE, fill = TRUE)
             }
-            dup_current <- current_seq[, .N, by = img_num][N > 1]
-            rows_dup_current <- if (nrow(dup_current) == 0) {
-                integer()
-            } else {
-                current_seq[dup_current, on = "img_num", nomatch = 0L][, unique(rowid)]
+            rows_dup_current <- integer()
+            if (nrow(current_seq) > 1) {
+                for (i in seq_len(nrow(current_seq))) {
+                    hits <- which(current_seq$img_num == current_seq$img_num[i] & current_seq$rowid != current_seq$rowid[i])
+                    if (length(hits) > 0) {
+                        for (j in hits) {
+                            if (photo_conflict(current_seq[i], current_seq[j])) {
+                                rows_dup_current <- c(rows_dup_current, current_seq$rowid[i], current_seq$rowid[j])
+                            }
+                        }
+                    }
+                }
             }
-            rows_dup_ref <- if (nrow(ref) == 0) {
-                integer()
-            } else {
-                current_seq[img_num %in% unique(ref$img_num), unique(rowid)]
+            rows_dup_ref <- integer()
+            if (nrow(ref) > 0) {
+                for (i in seq_len(nrow(current_seq))) {
+                    hits <- which(ref$img_num == current_seq$img_num[i])
+                    if (length(hits) > 0) {
+                        for (j in hits) {
+                            if (photo_conflict(current_seq[i], ref[j])) {
+                                rows_dup_ref <- c(rows_dup_ref, current_seq$rowid[i])
+                            }
+                        }
+                    }
+                }
             }
             flagged_rows <- sort(unique(c(rows_dup_current, rows_dup_ref)))
             if (!length(flagged_rows)) {
                 empty
             } else {
-                data.table::data.table(rowid = flagged_rows, variable = "photo_start", reason = "Photo range overlaps image numbers already used in NESTS, CAPTURES, RESIGHTINGS, or another current row.")
+                data.table::data.table(rowid = flagged_rows, variable = "photo_start", reason = "Photo range overlaps an image number already used by the same camera in NESTS, CAPTURES, RESIGHTINGS, or another current row. Multiple age-C H rows may share a range when they document the same nest/brood photo session.")
             }
         }
     }, nam = "photo numbers unique")

@@ -1984,9 +1984,19 @@ list({
         if (!"rowid" %in% names(z)) {
             z[, `:=`(rowid, .I)]
         }
-        expand_ranges <- function(dt, table_name) {
+        normalize_photo_text <- function(v) {
+            raw <- toupper(trimws(as.character(v)))
+            raw[is.na(v) | !nzchar(raw) | raw == "NA"] <- NA_character_
+            raw
+        }
+        expand_ranges <- function(dt, table_name, rowid_col = "rowid") {
             if (nrow(dt) == 0) {
-                return(data.table::data.table(table_name = character(), rowid = integer(), photo_no = integer()))
+                return(data.table::data.table(
+                    table_name = character(), rowid = integer(), photo_no = integer(),
+                    cam_key = character(), date_key = character(), observer_key = character(),
+                    nest_key = character(), gps_id_key = character(), gps_point_key = character(),
+                    rclass_key = character(), age_key = character()
+                ))
             }
             photo_seq_num <- function(v) {
                 raw <- trimws(as.character(v))
@@ -2009,33 +2019,126 @@ list({
                 out
             }
             tmp <- data.table::copy(dt)
-            if (!"rowid" %in% names(tmp)) {
+            if (!rowid_col %in% names(tmp)) {
                 tmp[, `:=`(rowid, .I)]
+            } else if (rowid_col != "rowid") {
+                tmp[, `:=`(rowid, get(rowid_col))]
             }
+            for (column in c("cam_id", "date", "observer", "nest_id", "gps_id", "gps_point", "rclass", "age")) {
+                if (!column %in% names(tmp)) {
+                    tmp[, (column) := NA_character_]
+                }
+            }
+            tmp[, `:=`(
+                table_name = table_name,
+                cam_key = normalize_photo_text(cam_id),
+                date_key = normalize_photo_text(date),
+                observer_key = normalize_photo_text(observer),
+                nest_key = normalize_photo_text(nest_id),
+                gps_id_key = normalize_photo_text(gps_id),
+                gps_point_key = normalize_photo_text(gps_point),
+                rclass_key = normalize_photo_text(rclass),
+                age_key = normalize_photo_text(age)
+            )]
             tmp[, `:=`(start_no, photo_seq_num(photo_start))]
             tmp[, `:=`(end_no, photo_seq_num(photo_end))]
             tmp <- tmp[!is.na(start_no) & !is.na(end_no) & start_no <= end_no]
             if (nrow(tmp) == 0) {
-                return(data.table::data.table(table_name = character(), rowid = integer(), photo_no = integer()))
+                return(data.table::data.table(
+                    table_name = character(), rowid = integer(), photo_no = integer(),
+                    cam_key = character(), date_key = character(), observer_key = character(),
+                    nest_key = character(), gps_id_key = character(), gps_point_key = character(),
+                    rclass_key = character(), age_key = character()
+                ))
             }
-            tmp[, .(photo_no = seq.int(start_no, end_no)), by = rowid][, `:=`(table_name, table_name)][, .(table_name, rowid, photo_no)]
+            pieces <- lapply(seq_len(nrow(tmp)), function(i) {
+                data.table::data.table(
+                    table_name = tmp$table_name[i],
+                    rowid = tmp$rowid[i],
+                    photo_no = seq.int(tmp$start_no[i], tmp$end_no[i]),
+                    cam_key = tmp$cam_key[i],
+                    date_key = tmp$date_key[i],
+                    observer_key = tmp$observer_key[i],
+                    nest_key = tmp$nest_key[i],
+                    gps_id_key = tmp$gps_id_key[i],
+                    gps_point_key = tmp$gps_point_key[i],
+                    rclass_key = tmp$rclass_key[i],
+                    age_key = tmp$age_key[i]
+                )
+            })
+            data.table::rbindlist(pieces, use.names = TRUE, fill = TRUE)
         }
-        other_res <- data.table::as.data.table(db_get("SELECT photo_start, photo_end FROM RESIGHTINGS"))
-        other_nests <- data.table::as.data.table(db_get("SELECT photo_start, photo_end FROM NESTS"))
-        current_expanded <- expand_ranges(z[, .(rowid, photo_start, photo_end)], "CAPTURES")
-        other_res_expanded <- expand_ranges(other_res[, .(photo_start, photo_end)], "RESIGHTINGS")
-        other_nests_expanded <- expand_ranges(other_nests[, .(photo_start, photo_end)], "NESTS")
-        all_expanded <- data.table::rbindlist(list(current_expanded, other_res_expanded, other_nests_expanded), use.names = TRUE, fill = TRUE)
-        dup_photo <- all_expanded[, .N, by = photo_no][N > 1, photo_no]
-        if (length(dup_photo) == 0) {
+        same_h_photo_session <- function(a, b) {
+            if (!identical(a$table_name[[1]], "RESIGHTINGS") || !identical(b$table_name[[1]], "RESIGHTINGS")) {
+                return(FALSE)
+            }
+            if (!identical(a$rclass_key[[1]], "H") || !identical(b$rclass_key[[1]], "H") ||
+                !identical(a$age_key[[1]], "C") || !identical(b$age_key[[1]], "C")) {
+                return(FALSE)
+            }
+            if (any(is.na(c(a$cam_key[[1]], b$cam_key[[1]], a$date_key[[1]], b$date_key[[1]], a$observer_key[[1]], b$observer_key[[1]])))) {
+                return(FALSE)
+            }
+            if (!identical(a$cam_key[[1]], b$cam_key[[1]]) ||
+                !identical(a$date_key[[1]], b$date_key[[1]]) ||
+                !identical(a$observer_key[[1]], b$observer_key[[1]])) {
+                return(FALSE)
+            }
+            nest_complete <- !is.na(a$nest_key[[1]]) && !is.na(b$nest_key[[1]])
+            if (nest_complete) {
+                return(identical(a$nest_key[[1]], b$nest_key[[1]]))
+            }
+            gps_complete <- !is.na(a$gps_id_key[[1]]) && !is.na(b$gps_id_key[[1]]) &&
+                !is.na(a$gps_point_key[[1]]) && !is.na(b$gps_point_key[[1]])
+            gps_complete &&
+                identical(a$gps_id_key[[1]], b$gps_id_key[[1]]) &&
+                identical(a$gps_point_key[[1]], b$gps_point_key[[1]])
+        }
+        photo_conflict <- function(a, b) {
+            if (is.na(a$cam_key[[1]]) || is.na(b$cam_key[[1]]) ||
+                !identical(a$cam_key[[1]], b$cam_key[[1]]) ||
+                !identical(a$photo_no[[1]], b$photo_no[[1]])) {
+                return(FALSE)
+            }
+            !same_h_photo_session(a, b)
+        }
+        other_res <- data.table::as.data.table(db_get("SELECT cam_id, date, observer, nest_id, gps_id, gps_point, rclass, age, photo_start, photo_end FROM RESIGHTINGS"))
+        other_nests <- data.table::as.data.table(db_get("SELECT cam_id, date, observer, nest_id, gps_id, gps_point, photo_start, photo_end FROM NESTS"))
+        current_expanded <- expand_ranges(z, "CAPTURES")
+        other_res_expanded <- expand_ranges(other_res, "RESIGHTINGS", rowid_col = "missing_rowid")
+        other_nests_expanded <- expand_ranges(other_nests, "NESTS", rowid_col = "missing_rowid")
+        rows_dup_current <- integer()
+        if (nrow(current_expanded) > 1) {
+            for (i in seq_len(nrow(current_expanded))) {
+                hits <- which(current_expanded$photo_no == current_expanded$photo_no[i] & current_expanded$rowid != current_expanded$rowid[i])
+                if (length(hits) > 0) {
+                    for (j in hits) {
+                        if (photo_conflict(current_expanded[i], current_expanded[j])) {
+                            rows_dup_current <- c(rows_dup_current, current_expanded$rowid[i], current_expanded$rowid[j])
+                        }
+                    }
+                }
+            }
+        }
+        ref <- data.table::rbindlist(list(other_res_expanded, other_nests_expanded), use.names = TRUE, fill = TRUE)
+        rows_dup_ref <- integer()
+        if (nrow(ref) > 0) {
+            for (i in seq_len(nrow(current_expanded))) {
+                hits <- which(ref$photo_no == current_expanded$photo_no[i])
+                if (length(hits) > 0) {
+                    for (j in hits) {
+                        if (photo_conflict(current_expanded[i], ref[j])) {
+                            rows_dup_ref <- c(rows_dup_ref, current_expanded$rowid[i])
+                        }
+                    }
+                }
+            }
+        }
+        flagged <- sort(unique(c(rows_dup_current, rows_dup_ref)))
+        if (length(flagged) == 0) {
             data.table::data.table(rowid = integer(), variable = character(), reason = character())
         } else {
-            flagged <- unique(current_expanded[photo_no %in% dup_photo, rowid])
-            if (length(flagged) == 0) {
-                data.table::data.table(rowid = integer(), variable = character(), reason = character())
-            } else {
-                data.table::data.table(rowid = flagged, variable = "photo_start", reason = "Photo range overlaps an image number already used in another event.")
-            }
+            data.table::data.table(rowid = flagged, variable = "photo_start", reason = "Photo range overlaps an image number already used by the same camera in another event.")
         }
     }, nam = "GLOBAL_005 photo unique")
     out <- data.table::as.data.table(out)

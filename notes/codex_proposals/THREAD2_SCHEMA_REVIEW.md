@@ -73,14 +73,17 @@ column type or dropping compatibility fields:
   chick `CAPTURES` link plus same-date/exact-GPS parent identities resolves one
   positive nest or negative brood uniquely. The nullable `ring` field is
   positioned after `LR` and before `sex`.
-- CAPTURES image ranges describe handling/tent sequences, not hiding-spot photos.
+- CAPTURES image ranges describe the capture photo sequence. The
+  `chick_hide_photo` field is retained as a normal photo flag alongside
+  `chick_tent_photo`; when either is `1`, enter `cam_id`, `photo_start`, and
+  `photo_end`.
 - `RESIGHTINGS_PUBLIC` is unchanged and does not receive this field.
 
-`CAPTURES.chick_hide_photo` is retained for compatibility but is now explicitly
-legacy for new entry. Do not drop or repurpose it during the season. New
-hiding-spot evidence belongs in its own age-C, H-class RESIGHTINGS row. A future
-migration may remove it only after a compatibility audit of existing rows,
-validators, views, package behavior, and export history.
+`CAPTURES.chick_hide_photo` remains an active photo flag for new entry. It is
+handled like `chick_tent_photo`: `1` means that the chick hiding-spot photo was
+taken during the capture and requires `cam_id`, `photo_start`, and `photo_end`;
+`0` means that it was not taken. It is not interpreted as an “in situ” comment
+or as a request to create a separate RESIGHTINGS row.
 
 ### Location and temporal contract
 
@@ -244,10 +247,10 @@ ALTER TABLE FIELD_2026_BADOatNZ.CAPTURES
   MODIFY COLUMN nest_id varchar(7) DEFAULT NULL COMMENT 'Nest or brood association: <br> a positive ID identifies a real nest/scrape (SXXYY; e.g., A0203 or BA0202). <br> A <b>negative</b> ID (e.g., -A0203, -BA0202) identifies a mobile brood of unknown origin: it has no NESTS or EGGS row. For a negative ID, record both gps_id and gps_point and enter each observed/captured individual as a separate event. <br> Use <b>NO_NEST</b> only when the event is unrelated to any nest or brood.',
   MODIFY COLUMN gps_id tinyint(3) unsigned DEFAULT NULL COMMENT 'Handheld Garmin GPS ID. Required together with gps_point when nest_id is a negative brood ID or NO_NEST.',
   MODIFY COLUMN gps_point int(10) unsigned DEFAULT NULL COMMENT 'Waypoint number of the capture location stored in your handheld Garmin GPS unit. Required together with gps_id when nest_id is a negative brood ID or NO_NEST.',
-  MODIFY COLUMN photo_start varchar(255) DEFAULT NULL COMMENT 'First image filename for this handling or tent-photo sequence. Record hiding-spot images as a separate age-C RESIGHTINGS event with rclass H.',
-  MODIFY COLUMN photo_end varchar(255) DEFAULT NULL COMMENT 'Last image filename for this handling or tent-photo sequence. Record hiding-spot images as a separate age-C RESIGHTINGS event with rclass H.',
-  MODIFY COLUMN chick_tent_photo enum('0','1') DEFAULT NULL COMMENT 'Was a chick handling/tent photo taken? <br> <b>0</b> (no) or <br> <b>1</b> (yes)',
-  MODIFY COLUMN chick_hide_photo enum('0','1') DEFAULT NULL COMMENT 'Legacy field: do not use for new entries. Record each hiding-spot photo as a separate age-C RESIGHTINGS event with rclass <b>H</b> and direct GPS. <br> <b>0</b> (no) or <br> <b>1</b> (yes)';
+  MODIFY COLUMN photo_start varchar(255) DEFAULT NULL COMMENT 'First image filename for the capture photo sequence. When any photo flag is 1, also enter cam_id and photo_end.',
+  MODIFY COLUMN photo_end varchar(255) DEFAULT NULL COMMENT 'Last image filename for the capture photo sequence. When any photo flag is 1, also enter cam_id and photo_start.',
+  MODIFY COLUMN chick_tent_photo enum('0','1') DEFAULT NULL COMMENT 'Was a chick handling/tent photo taken? When 1, also enter cam_id, photo_start, and photo_end. <br> <b>0</b> (no) or <br> <b>1</b> (yes)',
+  MODIFY COLUMN chick_hide_photo enum('0','1') DEFAULT NULL COMMENT 'Was a chick hiding-spot photo taken during this capture? When 1, also enter cam_id, photo_start, and photo_end. <br> <b>0</b> (no) or <br> <b>1</b> (yes)';
 
 ALTER TABLE FIELD_2026_BADOatNZ.EGGS
   MODIFY COLUMN nest_id varchar(8) DEFAULT NULL COMMENT 'Positive ID of the real nest/scrape where this egg belongs (SXXYY; e.g., A0203 or BA0202). <br> Negative brood IDs are not valid in EGGS because broods of unknown origin have no egg history; record their events in CAPTURES or RESIGHTINGS. <br> <b>NO_NEST</b> is not valid in EGGS.';
