@@ -1633,8 +1633,8 @@ todo_pdf_nest_summary_table <- function(
 
   max_font_size <- 8.5
   label_inset_y <- 2
-  max_inset_y <- 3.2
-  target_table_height <- 280
+  max_inset_y <- 4.5
+  target_table_height <- 330
   if (rows_per_block <= 12L) {
     font_size <- max_font_size
     inset_y <- max_inset_y
@@ -1744,7 +1744,7 @@ todo_pdf_nest_summary_table <- function(
       "[",
       "#table(",
       "  columns: (1.1fr, 0.8fr, 1.125fr, 1.125fr),",
-      "  align: (left, center, center, center),",
+      "  align: center + horizon,",
       glue("  inset: (x: 2.2pt, y: {inset_y}pt),"),
       '  stroke: 0.25pt + rgb("#aeb8ba"),',
       paste0("  ", paste(cells, collapse = ",\n  "), ","),
@@ -1935,7 +1935,14 @@ todo_pdf_task_table <- function(
     )
   }
   columns <- paste0(column_widths, "fr", collapse = ", ")
-  align_text <- paste(align, collapse = ", ")
+  align_text <- paste(
+    vapply(
+      align,
+      function(value) paste0(value, " + horizon"),
+      character(1)
+    ),
+    collapse = ", "
+  )
 
   table_body <- c(
     "#set text(size: 8.5pt)",
@@ -2025,7 +2032,7 @@ todo_pdf_simple_table <- function(
     "#set text(size: 8.5pt)",
     "#table(",
     glue("  columns: ({columns}),"),
-    "  align: center,",
+    "  align: center + horizon,",
     "  inset: (x: 2.2pt, y: 3pt),",
     "  stroke: none,",
     paste0("  ", paste(cells, collapse = ",\n  "), ","),
@@ -2096,16 +2103,11 @@ todo_pdf_body <- function(
       heading <- todo_pdf_heading(todo)
 
       if (todo %in% c(
+        "Untrapped brood",
         "Hiding spot photos needed",
         "Broods to recapture for flagging"
       )) {
-        names(todo_rows)[names(todo_rows) == "Nest"] <- if (
-          todo == "Broods to recapture for flagging"
-        ) {
-          "Brood ID"
-        } else {
-          "Brood"
-        }
+        names(todo_rows)[names(todo_rows) == "Nest"] <- "Brood"
         if (todo == "Broods to recapture for flagging") {
           todo_rows[["Clutch–Brood"]] <- sub(
             "^.*–",

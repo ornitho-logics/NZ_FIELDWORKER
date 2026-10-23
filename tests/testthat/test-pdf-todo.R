@@ -881,6 +881,8 @@ test_that("PDF note key includes only definitions used by task notes", {
   )
 
   expect_true(grepl("7d rule", observed, fixed = TRUE))
+  expect_true(grepl("Last visit", observed, fixed = TRUE))
+  expect_true(grepl("Est. Hatch", observed, fixed = TRUE))
   expect_true(grepl("Pair completion", observed, fixed = TRUE))
   expect_true(grepl("Tag deployment", observed, fixed = TRUE))
   expect_true(grepl("Band only", observed, fixed = TRUE))
@@ -894,7 +896,13 @@ test_that("PDF note key includes only definitions used by task notes", {
     paste(note_key("band"), collapse = "\n"),
     fixed = TRUE
   ))
-  expect_identical(note_key(c("photo", "hatch check")), character())
+  unused_notes_key <- paste(
+    note_key(c("photo", "hatch check")),
+    collapse = "\n"
+  )
+  expect_true(grepl("Last visit", unused_notes_key, fixed = TRUE))
+  expect_true(grepl("Est. Hatch", unused_notes_key, fixed = TRUE))
+  expect_false(grepl("7d rule", unused_notes_key, fixed = TRUE))
 
   revised_key <- paste(
     note_key(c(
@@ -1162,8 +1170,10 @@ test_that("brood work tasks receive a white label outline and legend entry", {
   legend <- app$env$.todo_pdf_map_legend()
   alpha_scale <- legend$scales$get_scales("alpha")
   expect_true(
-    "Italic + white border = brood photo / flag / band work; upright/no border = no brood work" %in%
-      alpha_scale$get_labels()
+    all(c(
+      "Italic + white border = brood photo / flag / band work;",
+      "upright + black border = no brood work"
+    ) %in% alpha_scale$get_labels())
   )
   expect_true(is.function(app$env$.todo_pdf_map_draw_key_brood_label))
   expect_identical(unique(mapped$label_fontface[brood_rows]), "italic")
@@ -1721,7 +1731,7 @@ test_that("parent summary keeps a larger adaptive vertical row inset", {
     collapse = "\n"
   )
 
-  expect_true(grepl("inset: \\(x: 2.2pt, y: 3.63pt\\)", output))
+  expect_true(grepl("inset: \\(x: 2.2pt, y: 5.41pt\\)", output))
 })
 
 
