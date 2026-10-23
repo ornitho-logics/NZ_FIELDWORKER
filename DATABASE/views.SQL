@@ -907,12 +907,14 @@ WHERE n.row_num = 1
   use the same operational association without altering the raw row.
 
   The association is conservative: a direct nest_id wins; an unlinked H row
-  may use one same-GPS adult nest or one unambiguous preceding chick capture
-  by ring. Multiple candidate nests remain unresolved so a photo task cannot
-  be silently cleared for the wrong family.
+  may use one same-date same-GPS adult nest evidence from a RESIGHTINGS or
+  CAPTURES row, or one unambiguous preceding chick capture by ring. Multiple
+  candidate nests remain unresolved so a photo task cannot be silently cleared
+  for the wrong family.
 
   CTE roles: sr = reference-date gate; h_events = valid H rows and ring keys;
-  same_occasion_adult_candidates/summary = same-date same-GPS adult evidence;
+  same_occasion_adult_candidates/summary = same-date same-GPS adult evidence
+  from RESIGHTINGS and CAPTURES;
   ring_capture_candidates = prior age-C capture history; and
   latest_ring_capture_datetime/summary = latest capture and ambiguity status.
 */
@@ -951,19 +953,42 @@ h_events AS (
 same_occasion_adult_candidates AS (
   SELECT
     h.resighting_pk,
-    TRIM(a.nest_id) AS adult_nest_id
+    adult.adult_nest_id
   FROM h_events h
-  JOIN FIELD_2026_BADOatNZ.RESIGHTINGS a
-    ON a.date = h.resighting_date
-   AND UPPER(TRIM(COALESCE(a.site, ''))) = 'CR'
-   AND a.age = 'A'
-   AND a.nest_id IS NOT NULL
-   AND TRIM(a.nest_id) <> ''
-   AND UPPER(TRIM(a.nest_id)) <> 'NO_NEST'
+  JOIN (
+    SELECT
+      r.date AS event_date,
+      r.gps_id,
+      r.gps_point,
+      TRIM(r.nest_id) AS adult_nest_id
+    FROM FIELD_2026_BADOatNZ.RESIGHTINGS r
+    CROSS JOIN sr
+    WHERE UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'
+      AND r.age = 'A'
+      AND r.nest_id IS NOT NULL
+      AND TRIM(r.nest_id) <> ''
+      AND UPPER(TRIM(r.nest_id)) <> 'NO_NEST'
+      AND r.date <= sr.reference_date
+    UNION ALL
+    SELECT
+      c.date AS event_date,
+      c.gps_id,
+      c.gps_point,
+      TRIM(c.nest_id) AS adult_nest_id
+    FROM FIELD_2026_BADOatNZ.CAPTURES c
+    CROSS JOIN sr
+    WHERE UPPER(TRIM(COALESCE(c.site, ''))) = 'CR'
+      AND c.age = 'A'
+      AND c.nest_id IS NOT NULL
+      AND TRIM(c.nest_id) <> ''
+      AND UPPER(TRIM(c.nest_id)) <> 'NO_NEST'
+      AND c.date <= sr.reference_date
+  ) adult
+    ON adult.event_date = h.resighting_date
    AND h.gps_id IS NOT NULL
    AND h.gps_point IS NOT NULL
-   AND a.gps_id = h.gps_id
-   AND a.gps_point = h.gps_point
+   AND adult.gps_id = h.gps_id
+   AND adult.gps_point = h.gps_point
   WHERE h.raw_nest_id_key IS NULL
 ),
 same_occasion_adult_summary AS (
@@ -1067,16 +1092,20 @@ LEFT JOIN latest_ring_capture_summary captures
   represent mobile broods with no NESTS or EGGS rows and are discovered from
   nest-linked CAPTURES/RESIGHTINGS only.
 
-  Location and label colour are separate concepts: the latest valid age-C GPS
-  event controls a brood's displayed location, while the earliest qualifying
-  chick capture controls its assigned band-colour label. This preserves the
-  fieldwork interpretation when chicks later move or mix.
+  Location, last-visit timing, and label colour are separate concepts: the
+  latest valid age-C GPS event controls a brood's displayed location; the
+  latest qualifying age-C CAPTURES/RESIGHTINGS event contributes to
+  latest_encounter_date; and the earliest qualifying chick capture controls
+  its assigned band-colour label. This preserves the fieldwork interpretation
+  when chicks later move or mix while keeping task Last Visit current.
 
   CTE roles: sr = reference date; positive_history/status = positive history
-  and hatch evidence; positive_chick_status = age-C evidence; positive_locations
-  = positive GPS fallback; negative_encounters/ranked/discovery = mobile brood
-  discovery; chick_events/ranked/direct_chick_locations = age-C union and
-  latest GPS choice; chick_colour_events/ranked = stable assigned colour;
+  and hatch evidence; positive_chick_status = first age-C capture evidence;
+  positive_locations = positive GPS fallback; same_occasion_chick_gps_* =
+  conservative adult-linked GPS association; negative_encounters/ranked/
+  discovery = mobile brood discovery; chick_events/ranked/
+  direct_chick_locations = age-C union, latest encounter, and latest GPS
+  choice; chick_colour_events/ranked = stable assigned colour;
   negative_parent_events/ranked/marks = mobile parent identity; and
   positive_units/negative_units = the two final operational unit types.
 */
@@ -1170,6 +1199,77 @@ positive_locations AS (
   WHERE n.gps_id IS NOT NULL
     AND n.gps_point IS NOT NULL
 ),
+/*
+  A non-H age-C RESIGHTINGS row may carry only the GPS pair. If exactly one
+  CR adult nest_id is present at the same date and GPS pair, use that brood
+  association for encounter timing and mobile-brood discovery. Multiple adult
+  nest_ids remain unresolved and cannot change a brood's Last Visit value.
+
+  Adult evidence is deliberately sourced from both RESIGHTINGS and CAPTURES.
+  H rows continue through RESIGHTINGS_H_BROOD_ASSOCIATIONS so their ring-based
+  hiding-photo rules remain separate and auditable.
+*/
+same_occasion_chick_gps_candidates AS (
+  SELECT
+    chick.pk AS resighting_pk,
+    TRIM(adult.nest_id) AS adult_nest_id
+  FROM FIELD_2026_BADOatNZ.RESIGHTINGS chick
+  JOIN (
+    SELECT
+      r.date AS event_date,
+      r.gps_id,
+      r.gps_point,
+      TRIM(r.nest_id) AS nest_id
+    FROM FIELD_2026_BADOatNZ.RESIGHTINGS r
+    CROSS JOIN sr
+    WHERE UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'
+      AND r.age = 'A'
+      AND r.nest_id IS NOT NULL
+      AND TRIM(r.nest_id) <> ''
+      AND UPPER(TRIM(r.nest_id)) <> 'NO_NEST'
+      AND r.date <= sr.reference_date
+    UNION ALL
+    SELECT
+      c.date AS event_date,
+      c.gps_id,
+      c.gps_point,
+      TRIM(c.nest_id) AS nest_id
+    FROM FIELD_2026_BADOatNZ.CAPTURES c
+    CROSS JOIN sr
+    WHERE UPPER(TRIM(COALESCE(c.site, ''))) = 'CR'
+      AND c.age = 'A'
+      AND c.nest_id IS NOT NULL
+      AND TRIM(c.nest_id) <> ''
+      AND UPPER(TRIM(c.nest_id)) <> 'NO_NEST'
+      AND c.date <= sr.reference_date
+  ) adult
+    ON adult.event_date = chick.date
+   AND chick.gps_id = adult.gps_id
+   AND chick.gps_point = adult.gps_point
+  CROSS JOIN sr
+  WHERE UPPER(TRIM(COALESCE(chick.site, ''))) = 'CR'
+    AND chick.age = 'C'
+    AND UPPER(TRIM(COALESCE(chick.rclass, ''))) <> 'H'
+    AND chick.date <= sr.reference_date
+    AND chick.gps_id IS NOT NULL
+    AND chick.gps_point IS NOT NULL
+    AND (
+      chick.nest_id IS NULL
+      OR TRIM(chick.nest_id) = ''
+    )
+),
+same_occasion_chick_gps_summary AS (
+  SELECT
+    resighting_pk,
+    CASE
+      WHEN COUNT(DISTINCT adult_nest_id) = 1
+      THEN MIN(adult_nest_id)
+      ELSE NULL
+    END AS resolved_nest_id,
+    COUNT(DISTINCT adult_nest_id) AS n_adult_nest_ids
+  FROM same_occasion_chick_gps_candidates
+  GROUP BY resighting_pk
+),
 negative_encounters AS (
   SELECT
     c.nest_id,
@@ -1192,7 +1292,11 @@ negative_encounters AS (
     AND c.date <= sr.reference_date
   UNION ALL
   SELECT
-    r.nest_id,
+    COALESCE(
+      h_assoc.resolved_nest_id,
+      gps_assoc.resolved_nest_id,
+      r.nest_id
+    ) AS nest_id,
     r.date AS event_date,
     '00:00:00' AS event_time,
     CAST(CONCAT(r.date, ' 00:00:00') AS DATETIME) AS event_datetime,
@@ -1204,9 +1308,19 @@ negative_encounters AS (
     r.age,
     r.rclass
   FROM FIELD_2026_BADOatNZ.RESIGHTINGS r
+  LEFT JOIN FIELD_2026_BADOatNZ.RESIGHTINGS_H_BROOD_ASSOCIATIONS h_assoc
+    ON r.pk = h_assoc.resighting_pk
+  LEFT JOIN same_occasion_chick_gps_summary gps_assoc
+    ON r.pk = gps_assoc.resighting_pk
   CROSS JOIN sr
-  WHERE r.nest_id IS NOT NULL
-    AND LEFT(TRIM(r.nest_id), 1) = '-'
+  WHERE (
+      (
+        r.nest_id IS NOT NULL
+        AND LEFT(TRIM(r.nest_id), 1) = '-'
+      )
+      OR LEFT(TRIM(h_assoc.resolved_nest_id), 1) = '-'
+      OR LEFT(TRIM(gps_assoc.resolved_nest_id), 1) = '-'
+    )
     AND UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'
     AND r.date <= sr.reference_date
 ),
@@ -1250,7 +1364,11 @@ chick_events AS (
     AND c.date <= sr.reference_date
   UNION ALL
   SELECT
-    COALESCE(h_assoc.resolved_nest_id, r.nest_id) AS nest_id,
+    COALESCE(
+      h_assoc.resolved_nest_id,
+      gps_assoc.resolved_nest_id,
+      r.nest_id
+    ) AS nest_id,
     r.date AS event_date,
     '00:00:00' AS event_time,
     CAST(CONCAT(r.date, ' 00:00:00') AS DATETIME) AS event_datetime,
@@ -1264,6 +1382,8 @@ chick_events AS (
   FROM FIELD_2026_BADOatNZ.RESIGHTINGS r
   LEFT JOIN FIELD_2026_BADOatNZ.RESIGHTINGS_H_BROOD_ASSOCIATIONS h_assoc
     ON r.pk = h_assoc.resighting_pk
+  LEFT JOIN same_occasion_chick_gps_summary gps_assoc
+    ON r.pk = gps_assoc.resighting_pk
   CROSS JOIN sr
   WHERE UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'
     AND r.age = 'C'
@@ -1275,6 +1395,7 @@ chick_events AS (
         AND UPPER(TRIM(r.nest_id)) <> 'NO_NEST'
       )
       OR h_assoc.resolved_nest_id IS NOT NULL
+      OR gps_assoc.resolved_nest_id IS NOT NULL
     )
 ),
 chick_events_ranked AS (
@@ -1447,11 +1568,20 @@ positive_units AS (
     'positive' AS brood_kind,
     0 AS is_negative_brood,
     h.discovery_date,
-    p.date AS latest_encounter_date,
-    CAST(CONCAT(p.date, ' ', COALESCE(p.time_visit, '00:00:00')) AS DATETIME)
-      AS latest_encounter_datetime,
-    CAST(NULL AS DATE) AS latest_chick_event_date,
-    CONVERT(CAST(NULL AS CHAR(20)) USING utf8mb4) COLLATE utf8mb4_uca1400_ai_ci AS latest_chick_event_source,
+    CASE
+      WHEN chick_latest.event_datetime >
+        CAST(CONCAT(p.date, ' ', COALESCE(p.time_visit, '00:00:00')) AS DATETIME)
+      THEN chick_latest.event_date
+      ELSE p.date
+    END AS latest_encounter_date,
+    CASE
+      WHEN chick_latest.event_datetime >
+        CAST(CONCAT(p.date, ' ', COALESCE(p.time_visit, '00:00:00')) AS DATETIME)
+      THEN chick_latest.event_datetime
+      ELSE CAST(CONCAT(p.date, ' ', COALESCE(p.time_visit, '00:00:00')) AS DATETIME)
+    END AS latest_encounter_datetime,
+    chick_latest.event_date AS latest_chick_event_date,
+    chick_latest.source_table AS latest_chick_event_source,
     CAST(NULL AS DATE) AS location_event_date,
     CAST(NULL AS DATETIME) AS location_event_datetime,
     CAST(NULL AS UNSIGNED) AS location_event_pk,
@@ -1483,6 +1613,9 @@ positive_units AS (
     ON p.nest_id = h.nest_id
   LEFT JOIN positive_chick_status chicks
     ON p.nest_id = chicks.nest_id
+  LEFT JOIN chick_events_ranked chick_latest
+    ON p.nest_id = chick_latest.nest_id
+   AND chick_latest.row_num = 1
   LEFT JOIN positive_locations loc
     ON p.nest_id = loc.nest_id
    AND loc.row_num = 1
