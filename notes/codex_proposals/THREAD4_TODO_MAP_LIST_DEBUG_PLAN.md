@@ -2,35 +2,43 @@
 
 ## Document status
 
-This is the tracked Thread 4 handoff document refreshed on 2026-10-06. It
-describes the current PR candidate, not the live database or deployed Shiny
-process.
+This is the tracked Thread 4 handoff document refreshed on 2026-10-23. It is a
+restart-grade operational reference for the local-replica/debugging thread. It
+describes source and observed failure modes; it does not claim that any SQL,
+R code, database views, or Shiny process is live.
 
-- Current PR branch: `codex/parent-association-thread-docs-2026-10-06`.
-- Base commit: `1617e84` (`Codex/todo view processing 2026 10 05 (#95)`),
-  matching `origin/main` when the branch was created.
-- This checkout contains `8796dd6` (`Simplify todo processing and PDF query
-  planning`) and its follow-up processing/PDF changes in the local history.
-- The PR candidate adds generic banded-parent association and MM alternate-
-  parent handling in SQL, updates the PDF subtitle, and expands focused tests.
-- Branch and commit facts describe this checkout only; they do not claim that
-  the same SQL, R code, database views, or Shiny process are live.
-- This handoff is tracked; `notes/codex_logs/THREAD4_PROMPT_LOG.md` remains
-  ignored and outside the PR.
+- The documentation publication baseline is `origin/main` at `f7d13fb`.
+- The original Thread 4 inspection baseline was `9beb203`; references to it
+  below preserve the audit chronology rather than describing the publication
+  branch.
+- The calling checkout is branch `codex/split-todo-calculator-2026-10-19` at
+  `d3c7bd4`, with unrelated uncommitted changes. It is protected WIP, not a
+  deployment candidate.
+- The refresh-only fix `ad1698b` (`);;` to `);`) was subsequently merged
+  through PR #147 and is included in `f7d13fb`. This source merge does not
+  establish live deployment.
+- The current checkout contains an experimental active split task calculator;
+  `origin/main` deliberately does not. Do not describe the dirty worktree as
+  the current deployable architecture.
+- This handoff and its sanitized companion
+  `notes/codex_logs/THREAD4_PROMPT_LOG.md` are tracked. Raw transcripts remain
+  ignored.
 
 Status vocabulary used below:
 
-- **Base source** means what the committed files at `1617e84` implement.
-- **PR candidate** means the reviewed branch diff relative to `1617e84`; it is
-  not a deployed release until merged and installed.
-- **Remote reference** means the inspected `origin/main` commit only.
+- **Remote baseline** means the committed files at the inspected
+  `origin/main` revision.
+- **Protected WIP** means the current dirty checkout and its uncommitted
+  source changes; preserve it and do not deploy it accidentally.
+- **Local candidate** means a clean disposable worktree based on the selected
+  revision plus an explicitly reviewed change.
 - **Database deployment** means views/tables actually rebuilt in a target
   MariaDB database.
-- **Live verification** means a database query, Shiny restart, and user-facing
-  output check after deployment. None is claimed by this document.
+- **Live verification** means database diagnostics, Shiny restart, and
+  user-facing output checks after deployment. None is claimed here.
 
-No database was connected to, changed, or rebuilt during this refresh. No raw
-rows, coordinates, credentials, or field records are included here.
+No live database was connected to, changed, or rebuilt during this refresh.
+No raw rows, coordinates, credentials, or field records are included here.
 
 ## Thread 4 scope and boundaries
 
@@ -42,6 +50,78 @@ policy. Those are coordinated with Threads 1, 2, 3/3.1, 5, and 6.
 The authoritative task source is the SQL `TODO_LIST` view. The PDF should not
 reimplement task eligibility in R. R prepares display data, applies the PDF's
 presentation labels and symbols, and renders the result.
+
+## Current-state reconciliation (2026-10-23)
+
+The repository now has three layers that must not be conflated:
+
+1. **Install layer.** `DATABASE/views.SQL` defines compatibility, identity,
+   nest, brood, hatch, parent-input, closure, and published-output views. In
+   the remote optimized baseline it creates bounded input views and drops the
+   obsolete active `TODO_LIST_CALCULATE` object rather than asking MariaDB to
+   compile the entire task graph during installation.
+2. **Refresh layer.** `DATABASE/refresh_todo_list_snapshot.SQL` performs the
+   expensive reference-date-specific materialization. It builds indexed
+   replacement tables, validates the results, and atomically publishes the
+   task, parent, GPS-link, and closure snapshots. It is not redundant with the
+   install script.
+3. **Application layer.** The Shiny worker in `main/R/system_utils.R` starts
+   the refresh script through the local MariaDB/MySQL client, writes stage
+   status to `TODO_REFRESH_STATUS`, and exposes status in the download page.
+   Ordinary PDF downloads should read the published snapshot, not expand the
+   full task graph again.
+
+The protected dirty checkout is different: its `DATABASE/views.SQL` contains
+an experimental active split calculator (`TODO_LIST_PARENT_TASKS`,
+`TODO_LIST_NEST_TASKS`, `TODO_LIST_BROOD_TASKS`, `TODO_LIST_CLOSURE_TASKS`, and
+`TODO_LIST_CALCULATE`) as well as snapshot-related definitions. That WIP must
+not be used as evidence that the remote baseline has the same objects, and it
+must not be deployed by copying the dirty file. The local-replica thread should
+start from a clean selected revision and port changes one architectural layer
+at a time.
+
+The safe debugging target is therefore not “make one enormous `CREATE VIEW`
+paste finish.” It is: reproduce the selected revision locally, replay install
+and refresh separately, time each stage, compare task rows and PDF inputs with
+the known-good contract, and only then prepare a small reviewed deployment
+candidate.
+
+## Production/Adminer failure evidence
+
+The observed remote failure was MariaDB error `2006`, “server has gone away,”
+while Adminer was executing the very large `views.SQL` paste. The first
+connection then returned cascading errors because its server connection was
+already dead. This is not evidence of a SQL syntax error at the first red
+line, and it is not proof that the later refresh stages ran.
+
+The strongest observed process-list evidence was a
+`CREATE OR REPLACE VIEW ... CAPTURES_ARCHIVE` statement waiting for a table
+metadata lock for roughly two minutes. A second Adminer connection also
+timed out during one attempt. Other snapshots showed only the Adminer query
+and an idle connection after the failure. The administrator was not reachable,
+so the exact server log cause is unknown: resource exhaustion, a restart,
+metadata-lock interaction, or an application/proxy timeout remain possible.
+
+The reported MariaDB facts were version 11.8.9, a 6 GiB InnoDB buffer pool,
+256 MiB temporary-table limits, a roughly 510 MiB maximum packet, 8 MiB sort
+buffer, 100 maximum connections, `performance_schema` disabled, low observed
+connection counts, and no observed aborted clients/connections at the later
+check. Those values do not prove that memory was sufficient during the failed
+statement. No OOM log, swap metric, or exact killed-process record was
+available.
+
+An earlier expensive path used `CREATE TABLE ... AS SELECT * FROM
+TODO_LIST_CALCULATE WHERE 1 = 0` to infer a schema. MariaDB still expanded the
+large view while deriving the empty table definition. The current design uses
+explicit snapshot schemas and indexes instead. This removes that avoidable
+initialization cost but does not make a monolithic live view safe to compile on
+a constrained server.
+
+For local diagnosis, capture per-statement elapsed time, row counts, and the
+server error log from the disposable MariaDB instance. Treat the Adminer
+location as approximate unless the server process list or local replay proves
+the exact statement. Do not infer that a partially created view set is
+coherent merely because some later objects exist.
 
 ## Files and authorities inspected
 
@@ -58,12 +138,22 @@ The refresh inspected:
 - Thread 8 H-event reconciliation and template-distillation notes.
 - `DATABASE/main_tables.SQL`, `DATABASE/functions.SQL`,
   `DATABASE/predict_hatching.SQL`, and `DATABASE/views.SQL`.
+- `DATABASE/refresh_todo_list_snapshot.SQL` as the separate refresh/publish
+  source, not as a redundant copy of the install layer.
 - `main/global.R`, `main/ui.R`, `main/server.R`.
+- `main/R/system_utils.R` and `main/R/system_utils_app.R` for the background
+  refresh worker, status markers, lock handling, and health checks.
 - `main/R/pdf_todo.R`, `main/R/pdf_todo_map.R`,
   `main/R/leaflet_nest_latest.R`, `main/R/kmz_nest_latest.R`, and
   `main/R/html_tables.R`.
 - `main/templates/todo_pdf.qmd` and the live-map help text.
-- Focused PDF, map, hiding-photo, TODO-view-rule, app-wiring, and server tests.
+- `tests/testthat/test-pdf-todo.R`,
+  `tests/testthat/test-todo-view-rules.R`,
+  `tests/testthat/test-todo-refresh-worker.R`, and the focused map/app tests.
+- `notes/codex_proposals/THREAD9_LOCAL_REPLICA_PROTOCOL.md` for the
+  disposable MariaDB replay boundary and its explicit ownership split.
+- The inspected `origin/main` revision and the protected dirty worktree were
+  compared separately; neither is silently treated as the other.
 
 The local source files, not older Thread 4 prose, determine the implementation
 claims below. Where the checked-out source, dirty WIP, or remote reference
@@ -84,13 +174,22 @@ The operational path is:
    and parent summary and by the interactive live-map preparation layer.
 5. `EGGS_HATCH_PREDICTION` supplies hatch-date evidence, days-to-hatch, and
    reference-date laying-age fields.
-6. `TODO_LIST` derives operational task rows, timing gates, note text, sort
-   fields, parent marks, GEO diagnostics, and overdue fields. `AVAILABLE_COMBOS`
-   separately supplies the available team-mark pool used by the PDF.
-7. Shiny reads the views through the source-watch map in `main/global.R`.
-   `main/server.R` supplies the to-do table, PDF inputs, interactive map,
-   offline downloads, and view-data outputs.
-8. `main/R/pdf_todo.R` normalizes task rows, calls the PDF map helper, and
+6. In the remote optimized baseline, bounded helper views and published
+   snapshot boundaries are installed by `views.SQL`; the expensive
+   reference-date-specific task assembly is performed by
+   `refresh_todo_list_snapshot.SQL`. `TODO_LIST` then exposes the published
+   task rows, timing gates, note text, sort fields, parent marks, GEO
+   diagnostics, and overdue fields. `AVAILABLE_COMBOS` separately supplies
+   the available team-mark pool used by the PDF.
+7. The Shiny worker in `main/R/system_utils.R` launches the refresh as a
+   background client process, records `queued`, `running`, `successful`, or
+   `failed` status, and prevents concurrent refreshes. `main/server.R` reads
+   that status and guards the PDF download against a missing or stale
+   reference-date snapshot.
+8. Shiny reads the published views through the source-watch map in
+   `main/global.R`. `main/server.R` supplies the to-do table, PDF inputs,
+   interactive map, offline downloads, and view-data outputs.
+9. `main/R/pdf_todo.R` normalizes task rows, calls the PDF map helper, and
    prepares the PDF sections. `main/templates/todo_pdf.qmd` renders the PDF.
 
 `TODO_LIST` and the map views are reference-date-sensitive. A source view can
@@ -112,7 +211,7 @@ The same SQL commit added source-of-truth comments at the major view
 boundaries. They identify the fieldwork purpose and CTE roles for the
 compatibility/archive layer, `NESTS_LATEST`, H-event association,
 `BROODS_LATEST`, `EGGS_HATCH_PREDICTION`, GEO rollout planning, `TODO_LIST`,
-and `OVERVIEW`. These comments are explanatory documentation inside
+`VIEW_1`, and `OVERVIEW`. These comments are explanatory documentation inside
 `DATABASE/views.SQL`; they do not create additional views, alter table data, or
 replace the protocol documentation here.
 
@@ -242,6 +341,47 @@ laying, and reference-date days since laying. These estimates are biologically
 sensitive and should be checked against the current field protocol before a
 future season reuses them.
 
+## Snapshot refresh and publication contract
+
+The current refresh contract is intentionally staged. The exact object names
+must be read from the selected revision before deployment, but the remote
+optimized workflow has these phases:
+
+1. `nest_context` builds the reference-date-bounded operational nest context.
+2. `brood_context` builds compact positive/negative brood inputs.
+3. `chick_capture_context` aggregates distinct chick captures and flag state.
+4. `hiding_spot_photos` aggregates qualifying H-photo evidence.
+5. `chick_gps_links` materializes the GPS-linked chick/parent evidence once.
+6. `parent_status` builds the four-gate parent result from the bounded inputs.
+7. `brood_closure` builds the presumed-dead/closure result.
+8. `task_rows` assembles the complete task snapshot.
+9. `publishing` atomically promotes the completed snapshots and public views.
+
+Each expensive stage writes an explicitly defined, indexed `_BUILD` table. It
+must not use a zero-row CTAS query over a large view to infer a schema. The
+previous public snapshot remains available while replacement BUILD tables are
+being populated. Publication uses a single atomic `RENAME TABLE` sequence
+only after stage checks succeed, with `_PREVIOUS` tables retained until the
+new public boundaries are valid. A failure before publication must leave the
+previous public output in place; stale BUILD tables can be cleaned up on the
+next retry.
+
+The app button is a request mechanism, not a synchronous SQL request. It
+starts the background worker, which writes stage markers such as “Building
+nest context”, “Linking chicks to parents”, “Building task rows”, and
+“Publishing snapshot”, followed by a final success or failure status. The
+interface warns that the build may take several minutes. PDF download should
+be enabled only when the latest successful status and published snapshot
+reference date match `settings.reference_date`; a failed new build must not
+silently expose a partial result.
+
+There is one known revision-specific trap: the refresh script inspected at the
+current checkout contains an empty-statement typo (`);;`) at the task-row
+boundary. MariaDB may report an empty query and stop before publication. The
+pending `ad1698b` change removes that extra terminator. It is not yet part of
+the inspected `origin/main`, so the local-replica thread must test the exact
+selected file and must not claim this fix is deployed.
+
 ## Current TODO task inventory
 
 The final `TODO_LIST` union currently supports these operational classes. The
@@ -258,17 +398,29 @@ PDF uses clearer fieldworker-facing headings in several cases.
 | `nest check` | `Nests to check for potential hatch` | predicted or observed hatch follow-up, with hatch-sign text from the last visit in the PDF note. |
 | `Untrapped brood` | `Broods to band` | negative or hatched brood without the required chick capture/banding evidence. |
 | `Hiding spot photos needed` | `Broods to photograph` | qualifying positive or negative brood within the day-1-through-day-6 window whose distinct captured-chick rings outnumber its distinct qualifying H-photo rings. |
+| `Broods to recapture for flagging` | `Broods to recapture for flagging` | brood with chicks aged at least 21 days and remaining unflagged chick evidence; recapture and assign unique engraved UL flags. |
 | `notA nest-check` | `Nests requiring a 'notA' closure visit` | closure follow-up for appropriate positive nests; negative broods never generate this class. |
 
 The SQL may also build compatibility or intermediate rows such as
 `Untrapped parent`, but the current final task union is the authority for what
-the PDF displays. The retired tagged-bird follow-up table is not part of the
-current PDF workflow.
+the PDF displays. `Tagged birds to resight` is a separate PDF table sourced
+from `VIEW_1`, not a `TODO_LIST` task class.
 
 Negative/mobile broods can generate parent work, `Broods to band`, and hiding
 photo work. They must not generate `Nests to process`, scrape photos,
 re-processing, clutch checks, ordinary nest checks, or `notA` closure visits.
 They have no fabricated hatch estimate or GEO/phenology target.
+
+The flagging task is a dedicated brood-level follow-up. It applies at age 21
+days or older, asks observers to recapture chicks and assign unique engraved
+flags on the UL leg segment, and uses the same field columns and PDF table
+shape as `Broods to photograph`. It must count already flagged/engraved chick
+identities so completed chicks do not create duplicate work, retain the
+remaining count in the note, and use discovery-age logic for negative broods.
+The exact SQL branch, heading, subtitle, and tests are present in the current
+source history and should be verified in the clean candidate selected for a
+local replay. Do not infer that a task is deployed merely because its R/PDF
+heading exists.
 
 ### Processing and brood-photo task separation
 
@@ -681,26 +833,18 @@ Current PDF presentation includes:
 - `Parents to capture` and `Parents to resight for nest association`, with
   `Nest/Brood` columns;
 - `Broods to photograph`, with a `Brood` column;
-- `Broods to band`, nest-processing, clutch-check, potential-hatch, scrape, and
-  closure sections when nonempty;
+- `Broods to recapture for flagging`, with the same brood-oriented columns and
+  table structure as `Broods to photograph`;
+- `Broods to band`, nest-processing, clutch-check, potential-hatch, scrape,
+  closure, and tagged-bird follow-up sections when nonempty;
 - compact two-line headings, alternating row shading, and reduced table
   borders for the parent/brood task tables;
 - the note key, which should contain only note types present in the PDF;
 - the version/footer and header styling currently present in the checked-out
   R source.
 
-The fieldworker-facing table order is: broods to band; broods to photograph;
-broods to recapture for flagging; potential-hatch checks; additional-egg
-checks; the combined nest-processing table; parent capture; parent resighting;
-notA closure visits; and Team marks. The map and active nest/brood summary are
-reserved for the final page. `Unprocessed nest`, `Re-process nest`, and `take
-scrape photos` remain distinct SQL task branches but are rendered together as
-`Nests to process`.
-
 `todo_pdf_version_footer()` now uses the shared `git_version` object from
-`main/global.R`. Local feature-branch or dirty-worktree renders are labelled
-`version local-<short-commit>[-dirty]`; deployment/environment identifiers and
-main-origin renders remain `version <short-commit>`. `resolve_git_version()`
+`main/global.R` and displays the resolved commit ID only. `resolve_git_version()`
 prefers deployment/environment identifiers, then matching local Git refs, then
 remote/local fallbacks; the app sidebar and PDF therefore share the same
 resolution path in the checked-out source. A deployed checkout must still be
@@ -743,22 +887,29 @@ decision and its own tests.
 ## Tests and evidence
 
 The recent implementation evidence includes focused safe local tests for the
-PDF, live map, server wiring, and TODO view contracts. The processing/PDF
-planning regression coverage in `tests/testthat/test-todo-view-rules.R`
-asserts that the consolidated processing summaries are used, the removed
-`complete_clutch_processing_status` CTE is absent, and brood follow-up uses
-`BROODS_LATEST`. This documentation-only refresh did not rerun the test suite.
+PDF, live map, server wiring, refresh worker, and TODO view contracts. The
+processing/PDF planning regression coverage in
+`tests/testthat/test-todo-view-rules.R` asserts that the consolidated
+processing summaries are used, the removed `complete_clutch_processing_status`
+CTE is absent, brood follow-up uses `BROODS_LATEST`, historical clutch size
+preserves the capture gate after egg removal, and the dedicated 21-day
+flagging task remains present. `tests/testthat/test-todo-refresh-worker.R`
+checks worker command construction, lock/status handling, and failure-safe
+publication assumptions. This documentation-only refresh did not rerun the
+test suite.
 
 The focused tests cover, using invented/mock data, the following contracts:
 
 - PDF task preparation, labels, sorting, note-key filtering, negative-brood
-  task exclusion, and adaptive summary layout;
+  task exclusion, flagging headings/table structure, and adaptive summary
+  layout;
 - live-map merging, brood/notA categories, hatched-terminal-notA versus failed
   notA, negative IDs, coordinate fallback, duplicate collapse, warning paths,
   legend color, popup escaping, and empty-map behavior;
 - H ring requirements, direct linked H resolution, blank/NA/non-H rejection,
   separate chick rings, and reference-date ordering;
-- app wiring and server behavior without a live database.
+- app wiring, refresh-worker behavior, and server behavior without a live
+  database.
 
 Remaining verification is deployment-sensitive rather than an undefined-view
 gap:
@@ -781,27 +932,41 @@ The safe deployment sequence is:
 3. Apply required SQL functions and support tables.
 4. Define approved helper views before dependent views. The current source
    defines `RESIGHTINGS_H_BROOD_ASSOCIATIONS`; rebuild and verify it before
-   `BROODS_LATEST` and `TODO_LIST`, rather than assuming a previous database
-   definition is still present.
-5. Rebuild `NESTS_LATEST`, `RESIGHTINGS_H_BROOD_ASSOCIATIONS`,
-   `BROODS_LATEST`, `EGGS_HATCH_PREDICTION`, and
-   `TODO_LIST` in dependency order.
-6. Check `SHOW CREATE VIEW` and small aggregate diagnostics for each view at a
-   selected reference date. Confirm the view definitions are the intended
-   source, not merely that the SQL command returned successfully.
-7. Restart the Shiny process so source watchers and R helpers load the intended
-   code.
-8. Verify the app's reference date, task tables, live-map categories,
-   negative-brood handling, PDF page count/map placement, parent summary,
-   offline tables, and KMZ behavior.
-9. Record the deployed commit, SQL version, database rebuild time, and Shiny
+   `BROODS_LATEST` and the snapshot boundaries, rather than assuming a
+   previous database definition is still present.
+5. Install the selected `views.SQL` only. Do not paste an experimental dirty
+   calculator or treat the refresh section as a replacement for the install
+   layer. Confirm the installer completes and that the expected boundaries,
+   support views, and public snapshot objects exist.
+6. Run the selected `refresh_todo_list_snapshot.SQL` separately. Monitor its
+   stage/status output, and stop on error. Do not run the full refresh merely
+   because ordinary PDF code was updated; refresh is required after source
+   data or `reference_date` changes.
+7. Check `SHOW CREATE VIEW`, snapshot row counts, reference-date ranges,
+   `TODO_REFRESH_STATUS`, and small aggregate diagnostics. Confirm the
+   definitions are the intended source, not merely that an SQL paste returned
+   successfully.
+8. Restart the Shiny process so source watchers and R helpers load the
+   intended code.
+9. Verify the app's reference date, task tables, live-map categories,
+   negative-brood handling, 21-day flagging rows, PDF page count/map
+   placement, parent summary, offline tables, and KMZ behavior.
+10. Record the deployed commit, SQL version, database rebuild time, and Shiny
    restart time in a separately approved deployment record if an auditable
    history is required; do not put raw operational data in this handoff.
 
 ## Current risks and ambiguous assumptions
 
-- The current topic branch differs from `origin/main`; remote behavior and
-  local behavior must not be conflated.
+- The protected dirty topic branch differs from `origin/main`; remote
+  behavior, protected WIP behavior, local-replica behavior, and live-server
+  behavior must not be conflated.
+- The current remote baseline has no active monolithic or split
+  `TODO_LIST_CALCULATE` view after installation; a dirty WIP that does have
+  one is not evidence that the baseline failed to install.
+- A successful local PDF proves only that the selected local SQL/R/data
+  combination is internally usable. It does not prove that Adminer imported
+  the same revision, that the refresh reached publication, or that the live
+  Shiny process restarted.
 - `RESIGHTINGS_H_BROOD_ASSOCIATIONS` is now defined in the checked-out
   `DATABASE/views.SQL`, but a target database can still have an older or
   missing definition; verify it explicitly before rebuilding dependent views.
@@ -814,6 +979,13 @@ The safe deployment sequence is:
 - SQL view rebuilds can block or hang when dependent views are locked or
   rebuilt in an unsafe order. Use an isolated or maintenance-window database
   and inspect `SHOW PROCESSLIST` if a deployment stalls.
+- A failed Adminer paste can leave a mixed schema: some views may be new,
+  some old, and some absent. Existence checks alone are insufficient; compare
+  `SHOW CREATE VIEW`, snapshot reference dates, and refresh status before
+  diagnosing task biology.
+- The `);;` refresh terminator is revision-specific. Test the exact refresh
+  file that will be deployed and keep the pending fix distinct from the
+  merged baseline until it is actually merged.
 - `settings.reference_date` drives multiple views, so stale settings or a
   stale materialized view can make the app appear inconsistent.
 - External imagery, spatial-object R expressions, and GPS linkage can fail
@@ -840,10 +1012,11 @@ If a deployed rebuild is wrong:
    count, and PDF render.
 5. Do not delete field records to repair a view problem.
 
-For this PR, rollback means reverting the parent-association source/test commit
-and, if needed, the separate documentation-tracking commit. No database or
-deployed process is changed merely by merging repository files; deployed views
-must be rolled back separately from their known-good definitions.
+For a source candidate, rollback means selecting the known-good Git revision
+and re-running its install/refresh pair in the disposable replica. For a live
+deployment, restore the previously approved SQL/view definitions and snapshot
+workflow separately. No database or deployed process is changed merely by
+merging repository files.
 
 ## Cross-thread handoff
 
@@ -867,13 +1040,22 @@ must be rolled back separately from their known-good definitions.
   `TODO_LIST`; direct, ring-derived, and same-occasion associations remain
   conservative, with ambiguous candidates left unresolved. Deployment still
   requires dependency-order rebuilds and focused association checks.
+- **Thread 9:** disposable local MariaDB 11.8.9 replay, stage timing,
+  process/error-log capture, refresh failure diagnosis, and local PDF render.
+  Thread 9 must start from a clean selected revision and preserve this
+  checkout's dirty files. It should send back timings, failing statements,
+  object inventories, and sanitized diagnostics; Thread 4 interprets task
+  biology and PDF/map contracts.
 
 ## Obsolete or superseded statements
 
 Older Thread 4 notes describing the negative-brood feature as wholly future or
 claiming that every `notA` row is excluded from every map are superseded by the
-current checked-out live-map/PDF distinction. Older branch names, commit IDs,
-deployment claims, and hard-coded PDF examples are historical context only.
+current live-map/PDF distinction. Older branch names, commit IDs, deployment
+claims, and hard-coded PDF examples are historical context only. Statements
+that a single `views.SQL` paste must also perform the entire refresh are
+superseded in the remote optimized workflow: installation and materialization
+are separate operations.
 
 The current local implementation is not evidence that the matching SQL is
 installed in the target database, that the Shiny worker has restarted, or that

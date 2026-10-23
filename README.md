@@ -46,3 +46,22 @@ how to set the database credentials.
 ```r
 shiny::runApp("./main", launch.browser = TRUE)
 ```
+
+### Project handoffs and Codex transparency
+
+Read [`AGENTS.md`](AGENTS.md) before using Codex or changing database-facing
+code. It defines the project's human-control, confidentiality, Git, validation,
+and live-database safety rules.
+
+The current specialist handoffs are under
+[`notes/codex_proposals/`](notes/codex_proposals/). Start with
+[`THREAD1_REPOSITORY_MAP.md`](notes/codex_proposals/THREAD1_REPOSITORY_MAP.md),
+then read the handoff for the relevant schema, validator, TODO/PDF/map,
+Overview, combo, GEO rollout, field-manual, or local-replay workstream.
+
+[`notes/CODEX_USAGE_TRANSPARENCY.md`](notes/CODEX_USAGE_TRANSPARENCY.md)
+documents how Codex was used, which artifacts are tracked, what remains
+human-controlled, and why raw prompts, confidential field data, credentials,
+coordinates, and private rollout reports are deliberately excluded. Sanitized
+prompt/decision summaries are indexed in
+[`notes/codex_logs/INDEX.md`](notes/codex_logs/INDEX.md).

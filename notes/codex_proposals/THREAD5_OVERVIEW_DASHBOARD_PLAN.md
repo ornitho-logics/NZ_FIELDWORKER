@@ -2,691 +2,521 @@
 
 ## Protocol status
 
-This tracked memo replaces the 28 July 2026 handoff as the current Thread 5
-protocol. It was reconciled with repository-visible source on 2026-10-06 using
-static inspection only.
+This is the current Thread 5 maintenance memo after static inspection on
+2026-10-23. It supersedes the earlier July and October memos where they
+describe fewer panels, visible pair tallies, archive-driven combo sex, or the
+old panel order.
 
-Current inspection point:
+Two repository states must be kept distinct:
 
-- PR branch: `codex/parent-association-thread-docs-2026-10-06`
-- base commit: `1617e84`, matching `origin/main` when the branch was created
-- tracked Overview implementation: `main/ui.R`, `main/server.R`, and
-  `main/R/ggplot_overview.R`
-- reference-date support: `main/R/system_utils.R` and
-  `main/R/system_utils_app.R`
-- no database connection, Shiny run, or data inspection was used for this
-  refresh
+- The protected checkout is `codex/split-todo-calculator-2026-10-19` at
+  `d3c7bd4`. It contains unrelated uncommitted SQL, PDF, validator, Thread 2,
+  Thread 4, Thread 6, and test changes. It is not a deployment candidate.
+- The original inspection used `origin/main` at `9beb203`; references to that
+  revision below preserve the audit chronology. The documentation publication
+  baseline is now `origin/main` at `f7d13fb`, which includes the refresh
+  empty-statement correction merged through PR #147. This memo is
+  documentation only and does not reconcile or deploy the protected WIP.
 
-The standalone SQL `OVERVIEW` view is visible in the app's view browser, but it
-does not supply any of the dashboard plots documented below.
+No database connection, Shiny run, raw-data inspection, credential inspection,
+or live deployment check was performed.
 
-## What I inspected
+## Ownership and boundaries
 
-- `AGENTS.md`
-- `notes/codex_proposals/THREAD1_REPOSITORY_MAP.md`
-- `notes/codex_proposals/THREAD2_SCHEMA_REVIEW.md`
-- the previous version of this memo
-- `notes/codex_logs/THREAD5_PROMPT_LOG.md`
-- Git history from the July handoff through `7c1d502`
-- `main/ui.R`
-- `main/server.R`
-- `main/global.R`
-- `main/R/ggplot_overview.R`
-- `main/R/system_utils.R`
-- `main/R/system_utils_app.R`
-- `main/www/style.css`
-- relevant definitions in `DATABASE/views.SQL` and `DATABASE/functions.SQL`
-- relevant tests in `tests/testthat/`
-- current ignored Thread 5 preview scripts in `notes/codex_proposals/`
+Thread 5 owns the Overview UI contract, plot calculations, panel-specific
+reference-date behavior, plotting conventions, and Overview-focused tests.
 
-## Current user-visible dashboard
+- Thread 1 owns repository mapping, branch hygiene, and AGENTS governance.
+- Thread 2 owns SQL architecture, view dependencies, object order, and
+  deployment risk.
+- Thread 3.1 owns inspectors, validation protocol, and mock-data realism.
+- Thread 4 owns TODO, map, parent-association task semantics, and PDF behavior.
+- Thread 6 owns combo normalization and available-combination generation.
+- Thread 9 owns disposable local MariaDB replay and deployment troubleshooting.
 
-The Overview tab now contains seven full-width `bs4Dash::box()` panels in this
-order:
+Thread 5 may consume shared SQL objects, but should not silently redefine their
+biological meaning. Changes to `CAPTURES_ARCHIVE`, `EGGS_HATCH_PREDICTION`,
+`format_mark()`, parent-association SQL, or reference-date persistence require
+the owning thread to be included in review.
 
-| Panel | Output ID | Scope | Display |
+## Current source map
+
+The active Overview path is:
+
+1. `main/ui.R` defines the Overview boxes and plot output IDs.
+2. `main/server.R` owns `reference_date`, the shared date-limit reactive, the
+   eight `renderPlot()` outputs, and the panel-specific error fallbacks.
+3. `main/R/ggplot_overview.R` contains the Overview SQL, data preparation,
+   identity reconciliation, models, plot helpers, and panel functions.
+4. `main/global.R` sources the R helpers and registers the Overview view/browser
+   configuration. It also loads `mgcv` and `patchwork` for chick growth.
+5. `main/R/system_utils.R` and `main/R/system_utils_app.R` provide the
+   reference-date/settings and database utility layer; they do not own the
+   panel calculations.
+6. `main/www/style.css` supplies generic card/header and page styling. There is
+   no current Overview-specific mobile CSS that replaces the plot helpers.
+
+The current local checkout and `origin/main` both contain eight Overview panel
+families. The local checkout order is nest, geolocator, tagged histories, band
+combinations, lay date, hatching forecast, chick growth, quotas. `origin/main`
+currently orders them as quotas, lay date, hatching forecast, nest discovery,
+unique combinations, geolocator, chick growth, and tagged histories, with
+Cass-prefixed titles. The output IDs and calculation families are the same.
+Do not infer that a source change is deployed merely because it exists in a
+local branch or another remote topic branch.
+
+## Current panel inventory
+
+| Panel | Output ID | Current calculation scope | Plot |
 |---|---|---|---|
-| Seasonal progression in nest discovery | `overview_nests_show` | Cass (`site = 'CR'`) | Cumulative step plot |
-| Seasonal progression in geolocator deployments | `overview_geolocator_show` | Cass (`site = 'CR'`) | Sex-specific cumulative step plot |
-| Resighting histories of geolocator-tagged birds | `overview_tagged_resightings_show` | Cass GEO deployments and later resightings | Female/male event histories |
-| Seasonal progression in unique band combinations encountered (resighted or captured) | `overview_cr_combos_show` | Cass (`site = 'CR'`) | Sex-specific cumulative step plot |
-| Seasonal progression in lay date | `overview_lay_date_show` | Cass nests | Daily histogram |
-| Hatching Forecast | `overview_hatching_forecast_show` | Future predicted hatches | Daily histogram |
-| Current quotas for manipulations (Cass and elsewhere in NZ). | `overview_quota_show` | Project-wide | Four proportional quota pies |
+| Nest discovery | `overview_nests_show` | Cass, `site = 'CR'` | Grey cumulative step ribbon |
+| Geolocator deployments | `overview_geolocator_show` | Cass, `site = 'CR'` | Female/male cumulative step ribbons |
+| Tagged-bird resighting histories | `overview_tagged_resightings_show` | Cass GEO deployments and sex-matched later resightings | Two-row history plot |
+| Unique adult band combinations encountered | `overview_cr_combos_show` | Cass adult CAPTURES plus adult RESIGHTINGS | Female/male cumulative step ribbons |
+| Estimated lay date | `overview_lay_date_show` | Cass nests linked to `EGGS_HATCH_PREDICTION` | Four-day histogram |
+| Hatching Forecast | `overview_hatching_forecast_show` | Nonblank future prediction rows | One-day histogram with reference marker |
+| Chick growth | `overview_chick_growth_show` | Age-C captures linked to known hatch dates | Three-column growth figure |
+| Manipulation quotas | `overview_quota_show` | Project-wide counts | Four proportional quota pies |
 
-All boxes are collapsible but initially expanded. Nests, deployments, band
-combinations, lay date, and hatching forecast use `50vh` boxes. The tagged-
-resighting plot has an explicit `105vh` output height so its two sex facets,
-multi-row legend, and caption are not clipped. The quota box is `40vh`, and its
-plot output is `32vh`. There are no panel-local inputs; all seven use the
-app-level reference date.
-
-## Current Overview code path
-
-1. `main/ui.R` defines the seven boxes and output IDs under
-   `tabName = "overview"`.
-2. `main/server.R` owns the active reference-date reactive, creates the shared
-   date limits, and calls the seven plot helpers.
-3. `main/R/ggplot_overview.R` contains all current Overview queries,
-   aggregation helpers, plotting helpers, and panel functions. There is no
-   active separate `main/R/data_overview.R` path on this branch.
-4. `main/global.R` sources `main/R/*.R` through the app startup pattern and
-   loads the plotting/runtime packages.
-5. `main/R/system_utils.R` supplies `get_reference_date()`,
-   `set_reference_date()`, and settings-table update checks used by the server.
-6. `main/R/system_utils_app.R` contributes app-level utility behavior, but the
-   panel calculations themselves remain in `ggplot_overview.R`.
-
-Each render call is wrapped in `try_else()`. A query or helper error therefore
-produces a simple panel-specific failure plot, such as
-`overview_band_combos_graph() failed!`, rather than terminating the app.
+All boxes are full-width, collapsible, and initially expanded. The local
+checkout uses approximately `50vh` boxes for the first seasonal plots, `105vh`
+for tagged histories, `55vh` for chick growth, and `40vh` for quotas. The
+remote baseline uses the same output sizing families while changing order and
+titles. Smartphone behavior is primarily handled in the plot themes, label
+wrapping, free-y facet space, and stacked full-width boxes.
 
 ## Reference-date and reactive protocol
 
-At startup, `server.R` initializes `reference_date <- reactiveVal()` from
-`get_reference_date()`. It also polls the `settings` table every five seconds
-through `reactivePoll()` and `dbtable_is_updated("settings")`.
+`server.R` initializes a local `reference_date <- reactiveVal(get_reference_date())`.
+The database setting is watched through `reactivePoll()` and
+`dbtable_is_updated('settings')`. The Set action validates the date, updates
+the local reactive immediately, and schedules `set_reference_date()` through
+`later()`. If persistence fails, the previous local value is restored.
 
-When a user presses the reference-date Set button:
+`active_refdate()` is the date passed to every panel. The first five date-based
+panels also receive `overview_plot_date_limits(active_refdate())`. Hatching
+forecast calculates its own date limits around the reference date; quotas have
+no date axis. Chick growth additionally polls `CAPTURES` and `NESTS` so new
+measurements invalidate that output.
 
-- the selected value is validated as a non-missing `Date`;
-- the local reactive value is updated immediately;
-- `set_reference_date()` is scheduled to persist the setting;
-- the previous local value is restored if persistence fails.
+All panel SQL uses parameter placeholders and supplies the reference date via
+`params`; date strings are not interpolated into SQL. A panel query error is
+converted by `try_else()` to a panel-specific fallback such as
+`overview_band_combos_graph() failed!`; an empty query result is a valid empty
+plot and must not be represented as a query failure.
 
-`active_refdate()` is the single server-side date supplied to every Overview
-helper. Changing it invalidates all seven plot outputs. Nests, deployments,
-tagged resightings, combinations, and lay date receive
-`overview_plot_date_limits()`, a shared reactive around
-`overview_date_limits(active_refdate())`. The hatching forecast uses its own
-future-date limits, and quotas have no date axis.
+The main timing risk is `EGGS_HATCH_PREDICTION`: its view may itself depend on
+the database settings reference date while the outer R query already uses the
+new local date. A fast render immediately after Set can therefore combine a
+new outer cutoff with view rows materialized under the prior setting. This
+requires a read-only timing test or user-side verification; it is not a reason
+to route the Overview plots through the SQL `OVERVIEW` view.
 
-All Overview SQL uses `?` placeholders with the reference date passed in
-`params`. The date is not interpolated into query text.
+## Shared date ranges and plot helpers
 
-One maintenance risk remains: `EGGS_HATCH_PREDICTION` reads the database
-`settings.reference_date` internally, while the app supplies its newly selected
-date to the outer lay-date query immediately. A render that occurs before the
-settings write completes could combine the new outer cutoff with view rows
-calculated using the previous setting. This is a timing risk to test explicitly;
-it is not evidence that every date change is stale.
+`overview_date_limits()` queries the earliest qualifying date through the
+active reference date from a union of:
 
-## Shared date-range calculation
+- Cass Found rows in `NESTS`;
+- all Cass-dated `CAPTURES` rows;
+- all Cass-dated `RESIGHTINGS` rows; and
+- calculated Cass lay dates from `EGGS_HATCH_PREDICTION`.
 
-`overview_date_limits(refdate)` creates the common x-axis limits for the first
-date-based seasonal panels. It returns the earliest qualifying date through
-`refdate` from a
-union of:
+The union is an alignment window, not a statement that every event contributes
+to every panel. If no usable start date exists, it falls back to 30 days before
+the reference date. The seasonal panels use seven-day date breaks and angled
+labels. The forecast uses three-day labels, starts three days before the red
+reference line, and includes predicted dates strictly after the reference date.
 
-- Cass NESTS rows;
-- Cass CAPTURES rows;
-- Cass RESIGHTINGS rows; and
-- calculated lay dates for Cass nests.
+`overview_cumulative_counts()` counts already-deduplicated events by day and
+applies a within-sex cumulative sum. `overview_step_ribbon_data()` expands
+each series into horizontal and vertical vertices. The ribbons therefore have
+only cumulative steps, not diagonal interpolation. They are visual fills, not
+uncertainty intervals.
 
-The CAPTURES and RESIGHTINGS contributions are not limited to records that
-qualify for the geolocator or band-combination panels. The common start can
-therefore precede the first plotted event in one or more panels. That is
-intentional: it aligns the four date axes to the same field-season window.
+The common cumulative style is:
 
-If no usable minimum date is returned, the helper falls back to
-`refdate - 30 days`. The upper limit is always the supplied reference date.
-The quota panel has no date axis and does not use these limits.
+- Female red `#c43c39` and Male blue `#2878b5`;
+- semi-transparent overlapping fills;
+- integer y-axis breaks through `overview_integer_breaks()`;
+- no Date x-axis title; and
+- summary annotations at the upper-left plot edge, with legend placement moved
+  down when annotations would overlap it.
 
-## Shared cumulative-plot protocol
+The cumulative panels do not display statistical confidence intervals. The
+only interval currently plotted in Overview is the approximate 95% interval
+around the marginal GAMM-style trend in the chick-growth panel.
 
-`overview_cumulative_counts()` reduces events to daily counts, optionally by
-sex, and applies `cumsum()` within group. It assumes its input has already been
-deduplicated to the unit the panel intends to count.
+## Panel protocols
 
-`overview_step_ribbon_data()` expands each cumulative series into explicit
-horizontal and vertical vertices. The resulting ribbons and lines contain only
-steps; there is no diagonal interpolation between dates.
+### 1. Seasonal progression in nest discovery
 
-The translucent ribbons are visual fills under cumulative counts. They are not
-confidence intervals, uncertainty bands, model predictions, or sampling-error
-estimates. The dashboard currently displays no statistical uncertainty.
+**Source and filter.** `NESTS`; `nest_state = 'F'`, `site = 'CR'`, non-null
+`date`, and `date <= reference_date`.
 
-For sex-specific panels:
+**Unit and date.** Rows are ordered by date/time and `pk`; the first qualifying
+row per `nest_id` is retained. The plotted date is that first Found date.
 
-- Female is red (`#c43c39`);
-- Male is blue (`#2878b5`);
-- ribbon alpha is `0.38` so overlapping cumulative fills remain visible;
-- the line and fill legends are combined under the title `Sex`; and
-- the legend is placed inside the upper-left region and moved down when a
-  summary annotation is present.
+**Plot and annotation.** A grey cumulative step ribbon shows the number of
+found nests. The annotation is `Total nests found = N`. There is no sex
+classification and no pair tally.
 
-`overview_summary_annotation()` places bold summary text inside the upper-left
-plot region. Its x position is the shared lower date limit and its y position is
-relative to the top of the plot. Current annotations use short labels to fit
-smaller screens.
+**Empty behavior.** An empty result returns aligned date axes and the zero
+summary annotation without event steps. A query error uses the panel fallback.
 
-## Seasonal progression in nest discovery
+**Risks.** The current R reduction is by `nest_id` but does not explicitly
+exclude every blank/malformed identifier before grouping. Nest IDs are not
+globally unique across seasons, so the active database and site filter define
+the intended context.
 
-### Source and filters
+### 2. Seasonal progression in geolocator deployments
 
-- source: `FIELD_2026_BADOatNZ.NESTS`
-- `UPPER(TRIM(site)) = 'CR'`
-- `nest_state = 'F'`
-- non-null `date`
-- `date <= reference_date`
+**Source and filter.** `CAPTURES`; `site = 'CR'`, `tag_type = 'GEO'`,
+`tag_action = 'D'`, nonblank `tag_id`, non-null date, and date through the
+reference date.
 
-The event timestamp combines `date` with `time_visit`, defaulting missing time
-to midnight. Rows are ordered by timestamp and `pk`.
+**Unit and sex.** The deduplication key is `tag_id`; the first ordered row is
+used for its date. `F`/`FU` maps to Female and `M`/`MU` maps to Male. A tag ID
+with more than one distinct known sex is omitted; unknown-sex tags are omitted.
+This counts unique tag IDs, not capture rows and not necessarily unique birds.
 
-### Counting and display
+**Plot and annotation.** Overlapping female/male cumulative step ribbons show
+the number deployed. The annotation contains only `N females = Y` and
+`N males = Z` in the current source. Earlier pair-count annotations are
+obsolete and are not part of this panel's current rendering.
 
-- deduplication key: `nest_id`
-- retained event: first qualifying Found row for each `nest_id`
-- sex: not applicable
-- date plotted: date of that first qualifying row
-- plot: grey cumulative step line and ribbon
-- y-axis: `Cumulative number of` / `found nests`
-- annotation: `Total nests found = N`
-- scope: Cass only
+**Empty behavior and risks.** Empty or unresolved-sex data produce aligned axes
+and zero sex annotations. Reusing a tag ID counts it once, even if it appears
+on more than one bird. `CAPTURES_ARCHIVE` genetic sex is not consulted here.
 
-### Empty-data behavior
+### 3. Resighting histories of geolocator-tagged birds
 
-An empty result produces aligned axes and the annotation
-`Total nests found = 0` without event steps.
+**Deployment source and filter.** GEO deployment rows come from Cass
+`CAPTURES` with nonblank `tag_id`, `tag_type = 'GEO'`, `tag_action = 'D'`, a
+known normalized field sex, and date through the reference date. The first
+deployment is retained per lower-tarsus mark plus sex; the `X_X` unbanded
+deployment is excluded.
 
-### Assumptions and risks
+**Resighting source and match.** Cass `RESIGHTINGS` rows through the reference
+date are matched by normalized LL/LR and sex, with resightings on or after the
+deployment date. The SQL path does not use the `ring` field for this adult
+history match. CAPTURES sex is the deployment anchor; a sex-specific identity
+such as the two `BY-YB` birds remains separate.
 
-- Repeated Found visits for a nest are correctly reduced to the earliest one.
-- The query does not explicitly exclude blank or missing `nest_id`; malformed
-  identifiers could form one blank group and one missing-value group.
-- `nest_id` is not globally unique across all seasons. The current query relies
-  on the active database representing the intended season and on the Cass site
-  filter to define context.
-- Exact `nest_state = 'F'` coding is assumed.
+**Display.** The plot has female and male facets in one column/two rows, with
+free y-scale and free y-space. Facet labels are annotated as `Females` and
+`Males`; the y-axis label is the displayed mark, with underscores converted to
+hyphens and the sex suffix removed. A diamond marks deployment and circles mark
+resightings. A single-band LR bird can display the UR spacer colour, so a
+stored one-band representation is shown as the more informative mark where
+the right-upper colour is available.
 
-## Seasonal progression in geolocator deployments
+Deployment `capture_status = 'C'` produces a dashed history line; other or
+missing statuses use solid lines. Limp status recognizes `limp0`, `limp1`, and
+`limp2` plus legacy free-text phrases. The visible levels are `No limp
+reported`, `Possible/slight limp`, and `Limping`; missing comments default to
+`No limp reported` as a display convention, not evidence that a gait check was
+performed.
 
-### Source and filters
+**Date range and styling.** The lower x-limit is two days before the first
+deployment; the upper limit is the shared reference-date upper bound when
+available. The x-axis title is omitted. The legend is vertical and below the
+plot, and the caption explains diamonds, dashed lines, limp categories, and
+the missing-comment convention.
 
-- source: `FIELD_2026_BADOatNZ.CAPTURES`
-- `UPPER(TRIM(site)) = 'CR'`
-- `tag_type = 'GEO'`
-- `tag_action = 'D'`
-- non-null `date`
-- `date <= reference_date`
-- nonblank `tag_id`
+**Empty behavior and risks.** Empty data produce a labelled empty plot with
+the available date window. The match assumes lower-tarsus marks are stable
+enough for the deployment/resighting link and that the recorded resighting sex
+is correct after the capture anchor. It does not resolve arbitrary mark-change
+history beyond the current LL/LR match.
 
-### Counting, sex, and display
+### 4. Seasonal progression in unique adult band combinations encountered
 
-- deduplication key: `tag_id`
-- retained event: first qualifying deployment date for each tag ID
-- Female: `field_sex` of `F` or `FU`
-- Male: `field_sex` of `M` or `MU`
-- unknown values are ignored
-- a tag ID with more than one distinct known sex is removed from the plot
-- plot: overlapping red and blue cumulative step lines and ribbons
-- y-axis: `Cumulative number of` / `geolocators deployed`
-- annotation: `N females = Y` and `N males = Z`
-- scope: Cass only
+**Sources and filters.** Current `CAPTURES` and current `RESIGHTINGS` are
+queried separately. Both require adult age `A`, `site = 'CR'`, non-null date,
+and date through the reference date. An optional explicit start date is
+supported for diagnostics or future use.
 
-### Empty-data behavior
+**Identity normalization.** The R helper normalizes all four colour fields,
+uses CAPTURES `_in` fields as fallbacks, maps `F`/`FU` to Female and `M`/`MU`
+to Male, and anchors captured identities by recorded `ring`. It builds full,
+lower-tarsus, flag, and spacer representations. Known single-LR/spacer cases
+are handled when a UR value has a `T` spacer code or when a two-character LR
+value encodes spacer plus lower-right colour. Engraved flag values in UL/UR
+are retained as strong identity keys.
 
-An empty or entirely unresolved-sex result produces aligned axes, zero female
-and male annotations, and no event steps.
+Resightings are matched to capture anchors in priority order: flag, full
+representation, spacer representation, then lower-tarsus representation.
+Candidate capture anchors are restricted to the observed sex where known.
+Unmatched resightings are grouped by strong representation plus sex; lower-only
+rows attach to a unique compatible strong group or remain a separate
+sex-specific lower identity. This is the logic that prevents a captured bird
+and its later resightings from being counted as two identities while retaining
+legitimate sex-specific duplicates such as two `BY-YB` individuals.
 
-### Assumptions and risks
+**Important boundary.** The active plot does not query `CAPTURES_ARCHIVE` and
+does not use archive genetic sex. `CAPTURES_ARCHIVE` remains relevant to other
+views and combo workflows, but the current Overview combo reconciliation is a
+current-season R-side identity pass. The SQL `format_mark()` function is not
+the active identity reconciler for this plot.
 
-- The metric is unique deployed tag IDs, not capture rows and not necessarily
-  unique birds.
-- Re-deploying the same tag ID is counted once at its first qualifying date.
-- Accidental reuse of a tag ID on different birds is also counted once.
-- Unknown-sex deployments and tag IDs with conflicting known field sexes are
-  omitted, so the plotted total can be lower than all qualifying deployments.
-- `CAPTURES_ARCHIVE` genetic sex is not used for this panel.
+**Unit, date, and annotation.** The deduplication unit is the reconciled
+`identity_key`; the earliest current capture/resighting event date is plotted.
+The annotation reports, by sex, total identities, identities with a capture,
+and identities that are resighting-only. The captured count includes identities
+that were later resighted; the resighting-only count excludes every captured
+identity. Thus the two categories are mutually exclusive.
 
-## Resighting histories of geolocator-tagged birds
+**Plot and diagnostic.** Female/male cumulative step ribbons are shown with
+integer y breaks. `overview_band_combo_diagnostic()` reports aggregate adult
+versus non-adult event rows, capture-only identities, resighting-only
+identities, capture-plus-resighting identities, identities with multiple
+normalized representations, and ambiguous resighting-event count. It does
+not expose marks or raw records.
 
-### Source and filters
+**Empty behavior and risks.** Empty or unresolved-sex results produce aligned
+axes and zero sex annotations. Query failures show the panel-specific fallback.
+Remaining risks include a bird changing marks in a way not captured by the
+available representation keys, combination reuse by another bird, an
+unresolved resighting, and identity anchors missing a usable recorded ring.
 
-- deployments come from Cass `CAPTURES` rows with `tag_type = 'GEO'`,
-  `tag_action = 'D'`, a nonblank `tag_id`, and date through the reference date;
-- the first deployment is retained for each normalized lower-tarsus mark and
-  known sex;
-- later Cass `RESIGHTINGS` are matched by normalized LL/LR identity and sex;
-- only resightings on or after deployment and through the reference date are
-  displayed.
+### 5. Seasonal progression in lay date
 
-### Display and interpretation
+**Source and scope.** The primary source is `EGGS_HATCH_PREDICTION`, joined to
+distinct nonblank Cass `NESTS` IDs. Prediction rows require non-null
+`float_date` and `predicted_days_since_laying`, with `float_date <=
+reference_date`.
 
-- female and male histories are separate free-height facets;
-- a diamond marks deployment and circles mark later resightings;
-- dashed history lines identify deployment during a changed-combination capture;
-- circle fill reports comment-derived limp status: no limp reported,
-  possible/slight limp, or limping;
-- tag spacer colour is restored in the displayed mark when a one-colour LR
-  requires it; and
-- the output height is `105vh`, with a vertical multi-row legend and wrapped
-  explanatory caption for mobile readability.
-
-The limp classifier supports structured `limp0`, `limp1`, and `limp2` text and
-legacy phrases. Missing limp information is displayed as no limp reported; this
-is a presentation convention, not proof that gait was assessed. Identity is
-based on lower-tarsus mark plus sex, so reused or incorrectly entered marks can
-merge histories.
-
-## Seasonal progression in unique band combinations encountered
-
-### Current-event sources and filters
-
-- sources: current `CAPTURES` and `RESIGHTINGS`
-- both sources require `UPPER(TRIM(site)) = 'CR'`
-- non-null event date
-- event date `<= reference_date`
-- marks are normalized with the SQL `format_mark()` function from the four
-  colour-band fields
-
-CAPTURES uses `field_sex`; RESIGHTINGS uses `sex`. In both sources, `M` and
-`MU` map to Male, `F` and `FU` map to Female, and other values are unresolved.
-
-### Historical sex resolution
-
-`CAPTURES_ARCHIVE` is consulted only for sex attribution of marks already
-encountered in the current Cass CAPTURES/RESIGHTINGS union. Its historical rows
-do not add events or dates to the cumulative series.
-
-If a mark has exactly one distinct known archive genetic sex, that sex overrides
-current field sex. If archive genetic sex is absent or conflicted, a mark is
-retained only when the current encounter rows provide exactly one distinct known
-sex.
-
-### Counting and display
-
-- deduplication key: normalized band combination (`mark`)
-- retained event: earliest current Cass CAPTURES or RESIGHTINGS date per mark
-- exact unbanded sentinels `X-X` and `XX-XX` are excluded using a binary
-  comparison to avoid case-insensitive collation treating `X` as equivalent to
-  lowercase colour code `x`
-- unresolved-sex marks are omitted
-- plot: overlapping red and blue cumulative step lines and ribbons
-- y-axis: `Cumulative number of` / `unique combinations`
-- annotation: `N females = W` and `N males = V`
-- scope: Cass only
-
-### Empty-data behavior
-
-An empty or entirely unresolved-sex result produces aligned axes, zero female
-and male annotations, and no event steps. Query failures instead show the
-panel-specific fallback message.
-
-### Assumptions and risks
-
-- This is a count of unique normalized combinations, not guaranteed unique
-  biological individuals.
-- A bird whose combination changes can contribute more than one mark.
-- Reuse of a combination by another bird remains one mark.
-- Duplicate encounters across CAPTURES and RESIGHTINGS do not double-count a
-  mark because only its earliest date is retained.
-- A genetic-sex conflict does not override current sex. A consistent known
-  current sex can still classify that mark.
-- The panel depends on `format_mark()`, `CAPTURES_ARCHIVE`, and therefore the
-  archive view's historic `BADOatNZ.CAPTURES` and `BADOatNZ.SEX` dependencies.
-- The `BINARY` sentinel comparison is essential under case-insensitive database
-  collations and should be retained in future refactors.
-
-## Seasonal progression in lay date
-
-### Source and filters
-
-- primary source: `EGGS_HATCH_PREDICTION`
-- Cass membership: an inner join to distinct nonblank `nest_id` values from
-  `NESTS` where `UPPER(TRIM(site)) = 'CR'`
-- non-null `float_date`
-- non-null `predicted_days_since_laying`
-- `float_date <= reference_date`
-
-For each nest, the app calculates:
+**Calculation.** For each nest, the current helper computes:
 
 ```text
-estimated date = latest float_date
-                 - round(mean(predicted_days_since_laying)) days
+estimated_lay_date = MAX(float_date)
+                     - ROUND(AVG(predicted_days_since_laying)) days
 ```
 
-### Counting and display
+There is one estimated date per nest. The plot uses four-day bins and integer
+y-axis breaks. It is not a sex-specific panel.
 
-- deduplication key: `nest_id`
-- one calculated date per nest
-- sex: not applicable
-- date plotted: calculated estimated lay/clutch-completion date
-- plot: one-day-bin grey histogram
-- y-axis: `N estimated lay dates`
-- annotation: none
-- scope: nests linked to Cass
+**Geolocator annotation.** The data query also attaches distinct Cass adult
+GEO deployment IDs by nest. Numbers above bars are the number of unique GEO
+tag IDs attached to parents of nests in that four-day lay-date bin. The
+geolocator's deployment date does not define the bin; the associated nest's
+estimated lay date does. A tag associated with a nest laid in an earlier bin
+belongs to the earlier bin.
 
-### Empty-data behavior
+**Empty behavior and risks.** Empty output retains aligned date axes. The
+estimate averages prediction rows before subtracting from the latest float
+date, so multiple flotation occasions can create a biological approximation.
+The query does not independently select one flotation occasion before averaging.
+The panel is sensitive to the internal reference-date behavior of
+`EGGS_HATCH_PREDICTION`.
 
-An empty result produces an empty histogram with the common aligned date axes
-and no zero-count annotation.
+### 6. Hatching Forecast
 
-### Assumptions and risks
+The helper queries `EGGS_HATCH_PREDICTION` for nonblank nests with predicted
+hatch dates strictly after the active reference date, groups by nest, and
+retains the earliest future prediction per nest. The current R plot uses a
+one-day histogram, three-day x-axis labels, a lower limit three days before the
+reference date, a red vertical reference-date line drawn above the histogram,
+and a rotated `reference date` label just to the left of the line.
 
-- The estimate averages all qualifying prediction rows for a nest, then
-  subtracts that mean from the latest float date.
-- If a nest has predictions from more than one flotation date, values from
-  earlier dates can be averaged against the latest date. This is a biological
-  approximation and may bias the estimate.
-- Repeated egg records can each contribute to the average; the app deduplicates
-  nests, not egg observations, before calculating the mean.
-- Any NESTS row assigning the `nest_id` to Cass is sufficient for inclusion;
-  the join does not select only the latest nest row.
-- The panel depends on the calibration and row-selection logic inside
-  `EGGS_HATCH_PREDICTION` and its `predict_hatching` support table.
-- Incomplete-clutch rows emitted by the view with null `float_date` are excluded
-  by the app query.
-- The view's internal reference-date dependency creates the timing risk noted
-  in the reference-date section.
+The current query does not join to Cass `NESTS` or apply `site = 'CR'`, even
+though the remote UI title is Cass-labelled. That scope mismatch is an open
+biological/UI question and must be resolved by Thread 5 with Thread 2 before
+changing the query. Empty forecasts retain the reference marker without
+inventing events. The plot is a view-backed forecast, not a confidence band or
+guarantee of hatch success.
 
-## Hatching forecast
+### 7. Seasonal progression in chick growth
 
-The forecast queries `EGGS_HATCH_PREDICTION`, groups by nonblank `nest_id`, and
-retains the earliest predicted hatch date after the supplied reference date.
-It plots one anticipated event per nest in one-day bins. A red vertical line and
-label show the reference date; the x-axis begins three days before that date and
-extends through the latest future prediction. Empty results retain the reference
-marker without inventing events.
+**Source and filter.** `CAPTURES` age-C rows are inner-joined to the earliest
+`NESTS` row with `nest_state = 'H'` for the same nonblank nest ID. Capture date
+must be on or before the reference date, recorded `ring` must be nonblank, and
+at least one of weight, culmen, or tarsus must be present. Negative ages are
+excluded. The current query does not add a Cass site filter, so the UI's Cass
+title should not be treated as a complete scope guarantee.
 
-The panel reflects view output rather than a separate forecasting model in R.
-Its reliability therefore depends on current egg prediction and incomplete-
-clutch logic, and it should not be interpreted as confidence intervals or a
-guarantee that every forecast nest will hatch.
+**Plot.** The patchwork figure has three columns: weight in grams, culmen in
+millimetres, and tarsus in millimetres. The x-axis is days since the inferred
+hatch date. Repeat measurements are joined within `ring`; single observations
+remain points. Only the recorded `ring` is used for individual identity in the
+plot; colour-band fields are not substituted.
 
-## Current quotas for manipulations
+**Population trend.** Each measure is fit with `mgcv::gam(..., method =
+'REML')` using a thin-plate smooth of age plus random-effect smooths for ring
+and nest ID when there is more than one level. Predictions exclude the
+individual and brood random effects to show a marginal population trend. The
+faint ribbon is an approximate normal 95% interval (`fit +/- 1.96 * se.fit`),
+not a Bayesian CrI. Small or degenerate datasets omit the trend while retaining
+the observations.
 
-The quota panel is deliberately project-wide. It has no `site = 'CR'` filter,
-which is why its title explicitly says Cass and elsewhere in New Zealand. Each
-metric includes rows dated on or before the reference date.
+**Reference date and risks.** The server polls CAPTURES and NESTS every five
+seconds for new growth data and passes the active reference date into the
+query. The hatch-date proxy depends on the first `H` nest row, and the query
+does not currently enforce a site filter. Those assumptions should be made
+explicit before using the panel for cross-site reporting.
 
-The four pies are ordered:
+### 8. Current quotas for manipulations
 
-1. Eggs floated
-2. Geolocators deployed
-3. Non-geolocator captures
-4. Chicks processed
+This panel is intentionally project-wide and has no Cass filter. It is ordered
+as eggs, geolocators, non-geolocator captures, and chicks in the local source;
+the remote baseline puts it first in the Overview tab.
 
-### Eggs floated
+- **Eggs floated:** distinct `nest_id` plus `egg_id` in `EGGS`, dated through
+  the reference date; quota 450.
+- **Geolocators deployed:** distinct nonblank `tag_id` in GEO/D `CAPTURES`,
+  dated through the reference date; quota 100.
+- **Non-geolocator captures:** distinct `pk` in adult `CAPTURES`, dated through
+  the reference date, with a nonblank blood sample or breast/primary sample
+  code and either blank tag ID or `tag_action = 'O'`; quota 200.
+- **Chicks processed:** distinct `pk` in age-C `CAPTURES` with a nonblank blood
+  sample, dated through the reference date; quota 500.
 
-- source: `EGGS`
-- key: distinct `nest_id` plus `egg_id`
-- filters: nonblank `nest_id`, non-null `egg_id`, non-null date, date cutoff
-- quota: 450
-- risk: the query does not test float measurement fields, so any qualifying
-  identified EGGS record is counted even if its flotation fields are blank
+Each pie uses a filled value capped at the quota and a white remainder of
+`quota - filled`. The displayed subtitle retains the uncapped observed count
+over the quota, so over-quota data remain visible. Zero data are an all-white
+pie; query failures use the panel fallback.
 
-### Geolocators deployed
+## SQL view relationship
 
-- source: `CAPTURES`
-- key: distinct nonblank `tag_id`
-- filters: `tag_type = 'GEO'`, `tag_action = 'D'`, non-null date, date cutoff
-- quota: 100
-- risk: repeated deployment of one tag ID counts once, even if it represents
-  more than one deployment event
+`OVERVIEW` is included in `main/global.R` as a database-browser view and has a
+source watch list. The view exposes compact section/metric aggregates, but the
+eight plot outputs above do not query it. The panel functions issue their own
+parameterized reads from base tables and `EGGS_HATCH_PREDICTION`.
 
-### Non-geolocator captures
+- `CAPTURES_ARCHIVE` is a compatibility/historical view used by other schema
+  and combo workflows; it does not currently supply events or sex to the active
+  unique-combo plot.
+- `EGGS_HATCH_PREDICTION` supplies estimated lay dates and forecast dates and
+  is also part of the shared date-range query.
+- `format_mark()` is a SQL schema utility, not the active R-side identity
+  reconciler for `overview_band_combos_graph()`.
 
-- source: `CAPTURES`
-- key: distinct `pk`
-- filters: adult age `A`; at least one nonblank value in `blood_samp`,
-  `breast_samp`, or `primary_samp`; and either blank `tag_id` or
-  `tag_action = 'O'`; non-null date; date cutoff
-- quota: 200
-- risk: the sampling test is nonblank rather than a single literal code; that
-  is intentional for the current categorical sample fields but should be
-  revisited if their coding changes
+Do not route the custom plots through `OVERVIEW` merely because the browser view
+exists. If the view is changed, test the browser view and the custom panels as
+separate consumers.
 
-### Chicks processed
+## Styling and responsive behavior
 
-- source: `CAPTURES`
-- key: distinct `pk`
-- filters: chick age `C`, nonblank `blood_samp`, non-null date, date cutoff
-- quota: 500
-- risk: processing is represented only by the blood-sample criterion
+The generic CSS gives boxes rounded borders, light backgrounds, header accents,
+and stacked full-width layout. It does not provide a dedicated Overview mobile
+breakpoint. The plot code therefore controls mobile readability through:
 
-### Pie semantics and empty behavior
+- shortened or wrapped annotations where present;
+- integer y-axis breaks;
+- omitted Date x-axis titles;
+- angled date labels;
+- inside legends for cumulative sex plots;
+- free y-space for the two tagged-history facets;
+- a taller tagged-history output; and
+- a one-row quota grid that may still be narrow on a phone.
 
-For each quota, the filled value is capped at the quota and the white remainder
-is `quota - filled`. The subtitle displays the uncapped observed count over the
-quota, so over-quota totals remain visible even though the pie is fully filled.
-The count-to-quota ratio therefore determines the slice proportion directly.
-
-Zero counts produce an all-white pie. SQL/query failure is different from zero
-data and causes the quota panel's fallback error display.
-
-## Styling and smartphone behavior
-
-The date plots use `theme_bw(base_size = 22)`, no minor grid, angled date labels,
-and seven-day date breaks. Current y-axis titles use line breaks to reduce width.
-The cumulative panels use the shared colour, ribbon, legend, and annotation
-helpers described above.
-
-The seven boxes are full width and therefore stack vertically. The September
-smartphone adjustment increased date-break spacing and shortened labels. The
-tagged-history panel later gained a `105vh` plot, vertical legend, and wrapped
-caption to prevent clipping. `main/www/style.css` still contains no Overview-
-specific mobile media query, and the quota panel draws four pies in one row at
-every viewport size. Smartphone layout should therefore be treated as improved,
-not fully responsive or formally verified.
-
-## Query and performance protocol
-
-A full Overview redraw currently makes eleven logical database reads:
-
-- one shared date-range query;
-- one query each for nests, geolocators, tagged histories, combinations, lay
-  dates, and hatching forecast; and
-- four quota queries.
-
-There is no panel-result cache beyond normal Shiny reactive reuse of the shared
-date-limits expression. All seven outputs invalidate when the reference date
-changes. The band-combination query is the heaviest current panel because it
-unions two event tables, normalizes marks, groups sex evidence, and joins the
-archive view.
-
-Future optimization should begin with timing and query-plan evidence. Do not
-introduce a new SQL summary table or materialized view solely from assumption.
-
-## Relationship to SQL views and helpers
-
-- `CAPTURES_ARCHIVE`: used only by the band-combination panel to resolve genetic
-  sex for current encountered marks.
-- `EGGS_HATCH_PREDICTION`: used by the lay-date panel and the shared date-range
-  calculation, and directly supplies the hatching forecast.
-- `OVERVIEW`: not used by any dashboard panel; it remains a separate tabular
-  view exposed by the app's view browser.
-- `format_mark()`: used by the band-combination query to normalize four colour
-  fields into the comparison key.
-
-Because `CAPTURES_ARCHIVE` depends on historical schema objects, its watch-list
-and invalidation behavior should be checked whenever historic sex sources
-change. Thread 2 previously noted that the current dependency list may not
-explicitly watch every historic source used by the view.
+The tagged-history legend and caption are below the plot in the current source.
+Do not document a mobile-annotation topic branch as deployed unless it is
+merged into the selected source revision.
 
 ## Current test coverage
 
-Repository tests currently check that:
+`tests/testthat/test-main-server.R` and `test-app-wiring.R` currently cover:
 
-- all seven Overview output IDs and spinner containers are wired in the UI;
-- all seven plot helpers initialize and rerun when the reference date changes;
-- Overview queries receive parameterized reference dates;
-- the expected Cass and archive clauses are present in selected query text;
-- the shared cumulative helper calculates counts;
-- step ribbons contain no diagonal segments;
-- date limits are applied;
-- the legend can be placed inside the plot;
-- annotation layers use the intended vertical adjustment; and
-- tagged-history mark formatting, limp classification, changed-combination line
-  style, mobile legend/caption layout, and `105vh` wiring are retained;
-- hatching-forecast bins and the reference-date marker are retained; and
-- the separate SQL `OVERVIEW` view remains exposed in app configuration.
+- Overview output IDs, spinner wiring, and the eight server renderers;
+- reference-date initialization and invalidation of all panels;
+- parameterized query use and shared date limits;
+- integer breaks, cumulative counts, and no-diagonal step ribbons;
+- adult combo identity normalization, spacer/flag keys, sex-specific
+  duplicates, capture/resighting overlap, and aggregate diagnostics;
+- limp categories, displayed marks, deployment linetypes, facet structure,
+  and tagged-history plot construction;
+- lay-date bin width and geolocator annotation data;
+- hatching forecast filtering and reference marker;
+- chick-growth three-panel construction, ring-only identity, and query bounds;
+- quota query construction and four pie outputs; and
+- `OVERVIEW` browser registration and SQL presence.
 
-Current gaps include:
+Not covered or still weak:
 
-- no MariaDB execution test for the full band-combination query;
-- no fixture-level assertions for archive genetic-sex precedence or conflicts;
-- no explicit regression test for the binary `X-X`/`XX-XX` collation fix;
-- no biological fixture tests for each panel's deduplication key;
-- no test of multi-date egg prediction averaging;
-- no test of quota scope or over-quota behavior;
-- no explicit empty-data suite for all seven panels;
-- no reference-date timing test involving the view's internal setting;
-- no screenshot or responsive-layout test; and
-- no assertion that current labels, seven-day breaks, or panel heights remain
-  synchronized with this protocol.
-
-No tests were run during this documentation-only refresh.
+- no full MariaDB execution fixture for the eight panel queries;
+- no realistic fixture for every single-LR/spacer and engraved UL/UR variant;
+- no archive genetic-sex precedence test for the active combo plot because the
+  active plot intentionally does not use the archive;
+- no end-to-end test of view-internal reference-date timing;
+- no site-scope test for hatching forecast or chick growth;
+- no biological validation of multi-occasion lay-date averaging;
+- no screenshot/responsive test for the eight-box layout or quota grid; and
+- no deployed-server test proving the selected Git revision is live.
 
 ## Developments since the July handoff
 
-The principal implementation changes are:
+The dashboard moved from the original small set of nest/geolocator/lay-date
+plots to eight panel families. Major changes include cumulative step ribbons,
+shared date limits, proportional quota pies, hatching forecast with a visible
+reference date, tagged-bird histories with structured limp categories and
+changed-combination line styles, adult combo reconciliation across captures and
+resightings, aggregate identity diagnostics, and a three-column chick-growth
+figure with marginal GAMM-style trends.
 
-- `0c62422`: replaced nest/geolocator histograms with cumulative plots, added
-  the Cass band-combination panel, introduced shared date limits, and expanded
-  tests;
-- `67a20c4`: added cumulative-panel summary annotations;
-- `6425370`: fixed unbanded-sentinel filtering under case-insensitive collation;
-- `dfd5047`: increased date-break spacing and shortened/wrapped labels for
-  smartphone readability; and
-- `1ee3359`: restored the sex legend title to `Sex` after temporary text tests;
-- `55bd7c5` through `93c1cbf`: added and then enlarged/wrapped the tagged-bird
-  resighting-history panel and limp-status presentation;
-- `c5d2bf5` through `bb49bc3`: added and refined the hatching forecast and its
-  reference-date/week labeling; and
-- `3b2984a`: removed experimental parent-pair tally queries from visible
-  Overview graph annotations. The helper functions remain isolated and tested,
-  but current graph renderers do not call them.
-
-This means the July four-panel and September five-panel inventories, histogram
-descriptions for nest and geolocator progression, and older layout details are
+The old assumptions that nest/geolocator plots are histograms, that pair counts
+are shown in the two cumulative annotations, that the active combo plot uses
+archive genetic sex, and that a GPS heatmap is part of the Overview are now
 obsolete.
 
-## Status of earlier plans
+## Deferred and absent work
 
-### Still valid
+The earlier GPS track heatmap prototype was rejected and is absent from the
+current UI, server, Overview helper, CSS, tests, and SQL dashboard path. It is
+deferred, not silently implemented elsewhere.
 
-- Overview additions should remain isolated in UI, server wiring, and focused
-  helper functions.
-- Queries should be parameterized and reference-date aware.
-- New biological counting rules need explicit deduplication and mock fixtures.
-- Existing panels should remain independently collapsible and failure-isolated.
-- Real database data and coordinates should not be copied into tests or notes.
-
-### Obsolete
-
-- The dashboard no longer consists of only nests, geolocators, lay dates, and
-  quotas; band-combination, tagged-history, and hatching-forecast panels are
-  implemented.
-- Nest and geolocator progression are no longer histograms.
-- Three-day date breaks and older long annotation labels are no longer current.
-- The old SQL-dump preview helper does not accurately represent the present
-  Overview implementation.
-
-### Deferred or absent
-
-The proposed GPS track heatmap is not present in current UI, server, helpers,
-tests, or SQL. It remains deferred after the earlier prototype was rejected; no
-tracked heatmap path should be assumed to exist.
-
-There is also no current uncertainty model for any panel. Adding confidence or
-sampling uncertainty would be a new analytical feature, not a styling change to
-the existing ribbons.
-
-## Ignored preview scripts
-
-Two Thread 5 preview scripts remain in the ignored proposal area:
-
-- `THREAD5_OVERVIEW_CUMULATIVE_RDS_PREVIEW.R` contains a useful historical
-  five-panel
-  read-only RDS prototype, but it predates current seven-day breaks, label
-  changes, and some source hardening.
-- `run_fieldworker_full_app_from_latest_sql_dump.R` reflects older override
-  patterns and does not safely mirror all current `db_get()`-based Overview
-  paths. It should not be treated as the current local-render protocol without
-  a focused refresh.
-
-These are scratch aids, not source of truth. Current tracked app code and SQL
-definitions take precedence.
+Other deferred items include formal uncertainty for cumulative ribbons,
+explicit unknown/conflicted-sex categories, a definitive site policy for
+hatching and chick growth, a one-occasion lay-date estimator, and a responsive
+quota layout.
 
 ## Maintenance protocol
 
-Before changing an Overview panel:
+Before changing a panel:
 
-1. State the biological unit being counted.
-2. State the deduplication key and which event date survives.
-3. State site scope explicitly: Cass-only or project-wide.
-4. State how unknown and conflicting sex values are handled.
-5. Confirm whether historical data supplies events, attributes, or both.
-6. Apply the reference date with a parameterized query.
-7. Decide whether the panel belongs on the shared date range.
-8. Define zero-data behavior separately from query-error behavior.
-9. Add fake fixtures for duplicates, boundary dates, sex conflicts, and empty
-   results.
-10. Check desktop and narrow-screen rendering without using confidential rows.
+1. State the biological unit and deduplication key.
+2. State the source table/view, event date, site scope, and reference-date
+   cutoff.
+3. State how sex conflicts, unknowns, flags, spacer colours, and mark changes
+   are resolved.
+4. Decide whether the shared date range applies.
+5. Separate empty-data behavior from query failure.
+6. Keep SQL parameterized and avoid introducing raw rows into tests or notes.
+7. Add fake fixtures for duplicate rows, boundary dates, ambiguous identity,
+   empty data, and conflicting metadata.
+8. Update the focused tests and inspect both desktop and narrow-screen layout.
+9. Compare the selected source revision with `origin/main` before claiming a
+   PR is current.
+10. Coordinate schema/view changes with Thread 2 and biological task changes
+    with Thread 4.
 
-Changes to `format_mark()`, `CAPTURES_ARCHIVE`,
-`EGGS_HATCH_PREDICTION`, `predict_hatching`, or reference-date persistence
-must be treated as cross-layer changes and reviewed with the relevant schema
-protocol before altering dashboard logic.
+## Recommended safe checks
 
-## Recommended mock and read-only checks
+Use only invented or repository-provided mock values for automated checks.
 
-- Verify that events on the reference date are included and later events are
-  excluded.
-- Verify one nest with repeated Found visits counts once at its earliest date.
-- Verify one tag ID with repeated deployment rows counts once.
-- Verify unknown and conflicting deployment sexes are omitted as documented.
-- Verify archive genetic sex overrides current field sex for a known combo.
-- Verify archive conflict falls back to a single consistent current sex.
-- Verify lowercase colour code `x` is not removed with the uppercase unbanded
-  sentinels under case-insensitive collation.
-- Verify a combo seen in both current tables counts once at its first date.
-- Verify one nest with multiple egg prediction rows produces exactly one lay
-  estimate using the documented formula.
-- Verify nests, deployments, combinations, and lay dates receive identical
-  shared x-axis limits; tagged histories share the reference-date upper bound
-  but derive their lower bound from deployment history.
-- Verify quota zero, partial, exact, and over-quota cases.
-- Verify each query-error fallback independently.
-- Verify date changes after the settings write, especially the lay-date panel.
+- Assert that reference-date events are included and later events excluded.
+- Assert that repeated nest Found rows reduce to one earliest event.
+- Assert that repeated GEO deployments reduce to one tag ID.
+- Assert that one captured adult plus later resightings is one combo identity.
+- Assert that two same-mark birds with different capture sexes remain separate.
+- Assert spacer and engraved flag representations merge only when justified.
+- Assert age-A filtering excludes chick/juvenile records from combo counts.
+- Assert four-day lay bins count tags by nest lay bin, not deployment date.
+- Assert the forecast starts after the reference date and the red marker is on
+  top of the bars.
+- Assert quota pies are proportional for zero, partial, exact, and over-quota
+  values.
+- Assert chick trends disappear gracefully for too-small mock datasets.
+- Render a narrow mock plot layout without using confidential records.
 
-Use fake records for automated checks. If query-plan evidence is needed later,
-propose a narrow read-only diagnostic for a human to run rather than connecting
-from an agent task.
+## Rollback and authority
 
-## Known decisions and open maintenance questions
+This file is tracked documentation. Rollback requires reverting only its
+documentation commit. No database, SQL object, live inspector, app process, or
+runtime configuration rollback is implied.
 
-- Confirm whether the geolocator metric should continue to mean unique tag IDs
-  or should instead represent deployment events or birds.
-- Confirm whether unknown/conflicted-sex geolocator deployments should be shown
-  in a third category rather than omitted.
-- Confirm whether unique combinations are an acceptable proxy when a bird's
-  marks can change or combinations can be reused.
-- Confirm whether the lay calculation should select one flotation occasion
-  before averaging predictions.
-- Confirm whether `Eggs floated` should require an actual float measurement
-  rather than any identified EGGS record.
-- Decide whether quota pies should reflow on smartphones.
-- Decide whether reference-date persistence should complete before dependent
-  view-backed plots rerender.
-
-## Rollback
-
-This file is tracked documentation. To roll back this refresh, revert only the
-documentation commit or restore the previous Git version of this path. No app,
-SQL, database, or deployment rollback is required for a documentation-only
-revert.
-
-## How to check this protocol
-
-Compare each panel section against:
-
-- its box and output ID in `main/ui.R`;
-- its render call in `main/server.R`;
-- its query and plot helper in `main/R/ggplot_overview.R`;
-- relevant view/function definitions in `DATABASE/views.SQL` and
-  `DATABASE/functions.SQL`; and
-- wiring/helper expectations in `tests/testthat/`.
-
-The protocol should be refreshed whenever any of those layers changes.
+When documentation and source disagree, the selected clean Git revision and
+its tests take precedence over this memo, downloaded dumps, stale preview
+scripts, screenshots, or a deployed process whose revision has not been
+verified.
