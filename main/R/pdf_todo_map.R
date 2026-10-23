@@ -735,6 +735,12 @@
 }
 
 .todo_pdf_map_draw_key_brood_label <- function(data, params, size) {
+  no_brood_work <- FALSE
+  if (!is.null(data$alpha) && length(data$alpha)) {
+    no_brood_work <- isTRUE(as.numeric(data$alpha[[1L]]) < 1)
+  }
+  outline <- if (no_brood_work) "#111111" else "#ffffff"
+  fontface <- if (no_brood_work) "plain" else "italic"
   grid::grobTree(
     grid::rectGrob(
       gp = grid::gpar(fill = "#edf0f1", col = NA)
@@ -747,8 +753,8 @@
       r = grid::unit(0.08, "npc"),
       gp = grid::gpar(
         fill = "#f4d03f",
-        col = "#ffffff",
-        lwd = 1.1
+        col = outline,
+        lwd = 1.4
       )
     ),
     grid::textGrob(
@@ -757,8 +763,8 @@
       y = 0.5,
       gp = grid::gpar(
         col = "#111111",
-        fontsize = 5.5,
-        fontface = "italic"
+        fontsize = 7.5,
+        fontface = fontface
       )
     )
   )
@@ -784,9 +790,9 @@
   )
   legend_shapes <- c(`Nest check` = 24, `notA visit` = 25)
   brood_work_key <- data.frame(
-    x = 0,
-    y = 0,
-    brood_work = "Brood work required"
+    x = c(0, 0),
+    y = c(0, 0),
+    brood_work = c("Brood work required", "No brood work")
   )
 
   ggplot(
@@ -849,9 +855,12 @@
       name = "Nest work"
     ) +
     scale_alpha_manual(
-      values = c(`Brood work required` = 1),
-      limits = "Brood work required",
-      labels = "Italic + white border = brood photo / flag / band work; upright/no border = no brood work",
+      values = c(`Brood work required` = 1, `No brood work` = 0.8),
+      limits = c("Brood work required", "No brood work"),
+      labels = c(
+        "Italic + white border = brood photo / flag / band work;",
+        "upright + black border = no brood work"
+      ),
       name = "Brood work"
     ) +
     guides(
@@ -872,9 +881,9 @@
       ),
       alpha = guide_legend(
         order = 3,
+        keywidth = grid::unit(10, "mm"),
         nrow = 1,
         override.aes = list(
-          alpha = 1,
           shape = 22,
           size = 2.7,
           fill = "#4f5a60",
