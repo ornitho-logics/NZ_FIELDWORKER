@@ -1151,7 +1151,7 @@ list({
                 out_parts[[length(out_parts) + 1L]] <- data.table::data.table(
                     rowid = parents$rowid[missing_chick],
                     variable = "behav",
-                    reason = "This adult BC/FC/AC RESIGHTINGS event says you saw chicks. Enter an age-C RESIGHTINGS event for each chick in this portal session, using rclass H, R, P, or V as appropriate and the same nest_id or gps_id/gps_point."
+                    reason = "Awesome that you saw a banded parent with chicks! However you forgot to enter the associated chick resighting(s). Please enter a rclass 'R' RESIGHTINGS event for each chick with the color band seen, linking them to the tending parent with the same gps_id and gps_point. 'ring' can be left blank"
                 )
             }
         }

@@ -248,10 +248,11 @@ exclusivity rule.
 
 Warnings cover prior ring/combo history, unusual status/method combinations, parent
 spacing, same-sex adult multiplicity, photo-flag review, nest/hatch evidence,
-morphometric/tibia review, and GPS timing. `CAP_W013` warns when a chick capture
-comment suggests “in situ” hiding photos; hiding photos belong in a separate H-class
-RESIGHTINGS event. A chick tent photo remains a CAPTURES event (`chick_tent_photo`),
-not an H photo.
+morphometric/tibia review, and GPS timing. Chick photo flags are handled together:
+`chick_hide_photo` is an active photo flag like `chick_tent_photo`, and a value of
+`1` requires `cam_id`, `photo_start`, and `photo_end`. There is no comment-based
+“in situ” warning; the field is not interpreted as a request to create a separate
+RESIGHTINGS event.
 
 `CAP_013` blocks status `R` when input marks differ from release marks. If prior ring
 history supports a changed-combination recapture, the message directs the worker to
@@ -331,11 +332,12 @@ The minus sign is part of the value and must be retained.
   event GPS pair.
 - `NO_NEST` means no associated nest or brood; it is not a negative brood.
 
-Hiding-spot photos are separate age-C, `rclass = H` RESIGHTINGS events. A chick can
-therefore have one CAPTURES row for handling/banding/tent photos and a separate H row
-for its hiding-spot photo. Negative H rows additionally require the negative ID and
-both direct GPS fields. CAPTURES `chick_hide_photo` is retained for compatibility but
-is not the normal hiding-photo record.
+Hiding-spot photos may be represented by the active CAPTURES
+`chick_hide_photo` flag when they are taken during capture; that flag uses the same
+capture photo metadata as `chick_tent_photo`. Separate age-C, `rclass = H`
+RESIGHTINGS rows remain available for hiding-spot photographs taken as resightings,
+with their own ring, direct GPS, and photo metadata. Negative H rows additionally
+require the negative ID and both direct GPS fields.
 
 ## Cross-table, chronology, and history boundaries
 
@@ -434,7 +436,7 @@ Relevant artifacts include:
 - `mock_validator_report.csv`;
 - `negative_brood_methodology/` fixtures and test;
 - focused tests for H GPS/ring/rules, negative broods, WRYB IDs, relaxed brood and
-  `bird_inc`, NESTS photo/clutch checks, CAPTURES in-situ and status-change checks,
+  `bird_inc`, NESTS photo/clutch checks, CAPTURES photo-flag and status-change checks,
   social-parent marks, and RESIGHTINGS sex history.
 
 The fixtures cover passing and failing negative IDs, missing GPS pairs, invalid NESTS/
