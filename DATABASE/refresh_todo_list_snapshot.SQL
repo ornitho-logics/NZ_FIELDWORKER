@@ -3721,7 +3721,7 @@ AND NOT EXISTS (
   WHERE closure.brood_id = t.nest_id
     AND closure.reference_date = t.reference_date
     AND closure.is_presumed_dead = 1
-);;
+);
 
 SELECT 'TODO_REFRESH_STAGE|publishing' AS refresh_stage;
 
