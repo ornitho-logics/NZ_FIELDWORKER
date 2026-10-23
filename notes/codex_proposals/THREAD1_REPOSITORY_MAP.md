@@ -1,14 +1,19 @@
 # Thread 1 Repository Map: Current State
 
-Last refreshed: 2026-10-06
+Last refreshed: 2026-10-23
 
-Status: tracked static handoff for the repository-cartographer role. The full
-repository audit underlying this memo was completed on 2026-09-27; this refresh
-reconciles the Git state and major merged changes through `origin/main` commit
-`1617e84`. The current PR candidate is based directly on that commit and adds a
-broader parent-resighting association workflow plus tracked Thread handoffs.
-Current tracked source remains authoritative where an older historical detail
-in this long-form map has not been restated below.
+Status: tracked restart-grade handoff for the repository-cartographer role. This
+recovery pass supersedes older branch, panel-count, validator-version, and
+deployment claims below wherever they conflict with the current-state addendum.
+The documentation publication baseline is `origin/main` at `f7d13fb`; the
+separate protected checkout remains `codex/split-todo-calculator-2026-10-19`
+at `d3c7bd4`.
+
+The checkout is intentionally dirty and contains protected WIP in
+`DATABASE/views.SQL`, `main/R/pdf_todo.R`, focused TODO/PDF tests, four
+per-table inspector-list exports, and already-refreshed Thread 2/4/5/6
+handoffs. The dirty split task calculator is not a deployment candidate. The
+live database and deployed Shiny process remain unknown.
 
 This pass used static inspection only. No Shiny app or test suite was run, no
 database connection was made, and no credentials, database rows, or GPS
@@ -33,12 +38,16 @@ coordinates were inspected or reproduced.
 - Current Thread 2-5 handoff material for context, including the negative-brood
   work reported by Threads 2, 3/3.1, and 4.
 - The current official validator protocol and its synchronized local mirror,
-  both reporting protocol version 1.3.3, plus the ignored negative-brood mock
+  both reporting protocol version 1.3.4, plus the ignored negative-brood mock
   fixtures under `notes/codex_proposals/validator_sandbox/`.
 - Relevant ignored validator protocol and inspector-list locations without
   opening mock workbooks or reading record-level CSV data.
 
-## Current Git state
+## Historical Git state from the 2026-10-06 refresh
+
+This section records the earlier documentation branch and is superseded by the
+2026-10-23 recovery addendum below. It must not be used as the current checkout,
+remote, PR, or deployment state.
 
 - PR branch: `codex/parent-association-thread-docs-2026-10-06`.
 - Base revision: `1617e84`, identical to `origin/main` when this branch was
@@ -80,12 +89,16 @@ coordinates were inspected or reproduced.
   and table/view browsers.
 - `tests/testthat/`: mocked app wiring, DataEntry server, Overview, view-polling,
   and leaflet tests.
-- `notes/codex_proposals/`: six tracked Thread handoffs plus ignored local
-  working artifacts; `notes/codex_logs/` remains ignored.
+- `notes/codex_proposals/`: tracked Thread 1-9 handoffs, the reviewed field
+  manual, and inspector-list exports, plus ignored private/working artifacts.
+- `notes/codex_logs/`: tracked sanitized prompt/decision summaries; raw prompt
+  transcripts and private attachments remain local and ignored.
+- `notes/CODEX_USAGE_TRANSPARENCY.md`: tracked explanation of Codex roles,
+  human-control boundaries, publication scope, and confidentiality exclusions.
 - `tmp/`: ignored local scratch/output area.
 
 `README.md` still gives a valid high-level installation and directory overview,
-but it does not describe most current operational views, the seven-panel Overview,
+but it does not describe most current operational views, the eight-panel Overview,
 the generated to-do map, or current tests in detail.
 
 ## Changes since the July 29 map
@@ -99,8 +112,9 @@ the generated to-do map, or current tests in detail.
   resighting tasks, and clutch follow-up.
 - `main/R/pdf_todo_map.R` was added. The to-do PDF now includes a plotted task map
   and a compact nest summary in addition to task tables and team marks.
-- The Overview now has seven panels, including unique band combinations,
-  tagged-bird resighting histories, and a hatching forecast.
+- At this historical checkpoint, the Overview had seven panels, including
+  unique band combinations, tagged-bird resighting histories, and a hatching
+  forecast. The current dashboard has eight panels; see the recovery addendum.
 - Three Overview panels now use cumulative step/ribbon plots; all date-based
   panels share the same derived date limits; cumulative panels show summary
   annotations.
@@ -246,7 +260,7 @@ Status distinctions:
 - **Agreed methodology:** the protocol above is the current cross-thread
   biological and operational contract.
 - **Local protocol/mock implementation:** the official validator protocol and
-  synchronized local mirror report version 1.3.3, and the ignored
+  synchronized local mirror report version 1.3.4, and the ignored
   `validator_sandbox/negative_brood_methodology/` fixtures exercise negative-ID,
   GPS-pair, and table-ownership rules without real records or coordinates.
 - **Current repository implementation:** the RESIGHTINGS `ring`, negative-
@@ -312,9 +326,10 @@ Current `Show Views` names are:
 - `CAPTURES_ARCHIVE`
 - `EGGS_HATCH_PREDICTION`
 - `OVERVIEW`
+- `VIEW_1`
 - `VIEW_2`
 
-`VIEW_2` remains an advertised placeholder with no active definition in tracked
+The final two are advertised placeholders with no active definitions in tracked
 `DATABASE/views.SQL`.
 
 ## Reference-date handling
@@ -444,7 +459,8 @@ are supporting artifacts, not tracked app code or live validator state.
 
 The user has reassigned active Thread 6 to combo-list work. `AGENTS.md` and the
 tracked `notes/codex_proposals/THREAD6_COMBO_LIST_PROTOCOL.md` now agree on that
-role. Raw Thread 6 prompt logs remain ignored and outside the PR.
+role. The sanitized Thread 6 decision summary is tracked; raw transcripts and
+attachments remain ignored.
 
 ## To-do, parent-status, PDF, and map workflow
 
@@ -692,8 +708,7 @@ runtime package behavior or current database contents.
    only historic CAPTURES.
 4. `AVAILABLE_COMBOS` is browser-visible but has no source-watch mapping. Unmapped
    views receive a stable polling token and do not refresh from source checks.
-5. The obsolete tagged-bird follow-up view has been removed; `VIEW_2` remains
-   browser-visible without tracked DDL.
+5. `VIEW_1` is tracked; `VIEW_2` remains browser-visible without tracked DDL.
 6. `GPS_TRACKS` exists but is absent from the current raw-table browser list.
 7. CAPTURES DDL includes `eggs_handled`, but its DataEntry wrapper has no binary
    dropdown for it.
@@ -738,7 +753,7 @@ Start with:
 - the official external protocol path listed above;
 - `notes/codex_proposals/validator_sandbox/inspector_lists_by_table/`.
 
-Thread 3.1 should treat protocol version 1.3.3 and the negative-brood mock
+Thread 3.1 should treat protocol version 1.3.4 and the negative-brood mock
 fixtures as current local validation context. It owns inspector lists, connected
 mock validation, the `RES_010` H-class `RESIGHTINGS.ring` rule, and the
 distinction between save-time validation, post-save QA, and mock-generation-only
@@ -816,3 +831,205 @@ Treat the Thread 6 memo and aligned `AGENTS.md` role as authoritative. Start wit
 7. Reconcile view-source mappings, placeholder views, gpxui test expectations,
    DataEntry dropdowns, help text, and the static test badge in their owning
    threads before treating them as current guarantees.
+
+## 2026-10-23 recovery addendum: current authority and restart map
+
+This addendum is the current Thread 1 map. It is intentionally explicit because
+the checkout contains experimental dirty work and several specialist handoffs
+were refreshed at different revisions. Do not use an older section above to
+override the state labels here.
+
+### Git, checkout, remote, and live-state distinctions
+
+| Layer | Current evidence | Meaning |
+|---|---|---|
+| Remote baseline | local `origin/main` ref `f7d13fb` | collaborator-controlled clean source selected for documentation publication |
+| Protected checkout | branch `codex/split-todo-calculator-2026-10-19`, `HEAD d3c7bd4` | dirty WIP; preserve, inspect, and do not deploy by implication |
+| Dirty source/test WIP | `DATABASE/views.SQL`, `main/R/pdf_todo.R`, focused TODO/PDF tests, four inspector exports | user/specialist work not yet a clean reviewed candidate |
+| Local worktrees | several topic worktrees listed by `git worktree list` | separate branch state; none proves merge or deployment |
+| Local replay evidence | Thread 9 disposable MariaDB protocol and logs | can prove install/refresh/render behavior for a selected revision only |
+| Live deployment | not inspected in this pass | unknown; local source, dump, screenshot, or PR does not prove it |
+
+The initial recovery pass made no Git publication or deployment changes. The
+later user-authorized publication pass fetched `origin/main`, created a clean
+documentation branch, and prepared only reviewed documentation/manual
+artifacts. It did not run the app, connect to a database, or deploy anything.
+
+### Current source architecture
+
+The current repository-visible source map is:
+
+- `DATABASE/main_tables.SQL`: core event and GPS table DDL;
+- `DATABASE/support_tables.SQL`: `settings`, `spatial_objects`, and DB-stored
+  `inspectors` support tables;
+- `DATABASE/functions.SQL`: SQL helpers such as `format_mark()`;
+- `DATABASE/predict_hatching.SQL`: stable hatching support table and seed data;
+- `DATABASE/views.SQL`: compatibility, combo, nest, brood, hatch, identity,
+  parent, GEO, closure, and bounded task-output SQL objects. In the protected
+  checkout it also contains experimental split-calculator and snapshot code;
+- `DATABASE/refresh_todo_list_snapshot.SQL`: separate staged task-context and
+  task-row materialization/publication workflow in the clean remote design;
+- `main/global.R`: table/view inventory, source-watch dependencies, app setup,
+  and deployment-aware version resolution;
+- `main/ui.R`: eight-panel Overview, fieldwork controls, browsers, maps,
+  downloads, and PDF controls;
+- `main/server.R`: reference-date state, panel renders, view polling, maps,
+  downloads, refresh health, and PDF guards;
+- `main/R/ggplot_overview.R`: Overview calculations and fallback plots;
+- `main/R/system_utils.R` and `main/R/system_utils_app.R`: version resolution,
+  refresh worker, status/lock handling, and app-side runtime helpers;
+- `main/R/pdf_todo.R`, `main/R/pdf_todo_map.R`, and
+  `main/templates/todo_pdf.qmd`: task query preparation, map/summary inputs,
+  Team marks, and PDF rendering;
+- `DataEntry/*`: declarative table-entry wrappers around external `DataEntry`;
+- `DataEntry/inspectors/`: central inspector editor, not per-table legacy
+  inspector apps;
+- `DataEntry/spatial_objects/`: spatial-object support/admin app;
+- `gpxui/`: wrapper around the external GPS upload package;
+- `tests/testthat/`: app wiring, server, PDF, TODO, refresh-worker, hiding-photo,
+  map, and DataEntry server checks.
+
+### Current install, refresh, and output boundary
+
+The clean remote baseline uses three separate layers:
+
+1. `views.SQL` installs bounded, stable helper and snapshot-boundary objects.
+2. `refresh_todo_list_snapshot.SQL` performs the expensive reference-date-
+   specific context, parent-status, closure, and task-row build in `_BUILD`
+   tables, then validates and atomically publishes the public snapshots.
+3. The app reads the published task output for ordinary TODO/PDF work, while
+   the refresh worker reports health through `TODO_REFRESH_STATUS`.
+
+The former monolithic task-calculator expansion is not a safe assumption for
+the remote baseline. The protected checkout deliberately contains experimental
+`TODO_LIST_PARENT_TASKS`, `TODO_LIST_NEST_TASKS`, `TODO_LIST_BROOD_TASKS`,
+`TODO_LIST_CLOSURE_TASKS`, and `TODO_LIST_CALCULATE` objects; these remain
+uncommitted WIP and must be tested only from a clean candidate worktree.
+
+Thread 4 owns task biology, parent association, hiding-photo closure, map/PDF
+semantics, and field-facing wording. Thread 9 owns replay timing, object
+inventory, publication status, and render verification. Thread 9 must hand any
+task-count or meaning difference back to Thread 4 rather than changing SQL to
+make counts agree.
+
+### Current Overview contract
+
+The active Overview path is `main/ui.R`, `main/server.R`, `main/global.R`,
+`main/R/ggplot_overview.R`, system helpers, and CSS. The current dashboard has
+eight panels:
+
+1. nest discovery;
+2. geolocator deployments;
+3. geolocator-tagged bird resighting histories;
+4. unique band combinations encountered;
+5. lay-date progression;
+6. hatching forecast;
+7. chick growth; and
+8. current manipulation quotas.
+
+All use the app reference-date boundary where applicable. The tagged-resighting
+panel intentionally keeps its taller mobile output and multi-row legend. The
+SQL `OVERVIEW` view is browser-visible but does not supply these plot panels.
+
+### Tracked and private documentation inventory
+
+Tracked review documents:
+
+- `AGENTS.md`;
+- `THREAD1_REPOSITORY_MAP.md` through `THREAD9_LOCAL_REPLICA_PROTOCOL.md`,
+  including the sanitized Thread 7 rollout handoff and Thread 8 supporting
+  handoffs;
+- `notes/codex_logs/INDEX.md` and sanitized Thread 1-9 decision summaries;
+- `notes/CODEX_USAGE_TRANSPARENCY.md`;
+- `validator_sandbox/inspector_lists_by_table/` and its file index.
+
+Ignored/private working artifacts:
+
+- detailed GEO rollout protocol/reports, candidate rankings, biological
+  overrides, dated inventory states, and `geolocator_rollout/` artifacts;
+- unpublished Thread 8 manual drafts, renders, hashes, and artifact metadata;
+- raw prompt transcripts, raw model responses, screenshots, and attachments;
+- mock workbooks, CSVs, RDS/SQL snapshots, reports, previews, and generated
+  PDF/PNG artifacts.
+
+The user explicitly authorized the documentation publication pass that tracks
+the sanitized handoffs, decision summaries, and transparency record. It does
+not authorize publication of the private artifacts above.
+
+### Specialist ownership matrix
+
+| Thread | Current role | Primary authority | Boundary |
+|---|---|---|---|
+| 1 | repository cartographer | repo map, AGENTS, branch/documentation governance | does not own source semantics |
+| 2 | database architect | tables, support objects, SQL functions, views, migration risk | does not own validator wording or task biology |
+| 3.1 | validation specialist | protocol, hard/warning inspectors, connected mocks | documentation reconciliation complete; dirty WIP remains unapproved and live state is unknown |
+| 4 | TODO/list/map/PDF specialist | task eligibility, parent association, brood closure, outputs | does not own schema or combo policy |
+| 5 | Overview specialist | eight panels, queries, fallbacks, mobile layout | no unreviewed schema dependency |
+| 6 | combo-list specialist | normalization, used subtraction, candidate/ranking, Team marks | no task-eligibility rewrite |
+| 7 | GEO rollout specialist | private seasonal rollout and biological allocation | no SQL/app edits or live deployment |
+| 8 | field-manual specialist | field-facing manual, H-event reconciliation, and template method | working manual artifacts remain private until publication is explicitly approved |
+| 9 | local replica/replay specialist | disposable MariaDB install, refresh stages, timings, render checks | subordinate to Thread 2 schema and Thread 4 biology |
+
+### Cross-thread behavior contracts
+
+- Negative IDs represent mobile broods and are valid in `CAPTURES` and
+  `RESIGHTINGS`, not `NESTS` or `EGGS`; `NO_NEST` is a separate sentinel.
+- Hiding-spot photos are age-C `RESIGHTINGS` H rows, one photographed chick per
+  row, with a nonblank ring and direct GPS/photo metadata. Tent-photo capture
+  rows do not resolve H-photo work.
+- Parent identity and association are sex-aware, chronology-aware, bounded by
+  `settings.reference_date`, and conservative under ambiguity.
+- Combo availability subtracts historic archive plus current final and `_in`
+  evidence globally; the recyclable workbook is informational.
+- Validators are organized as `TABLE_hard` and `TABLE_warning`; protocol
+  version 1.3.4 is the current local spec, while live inspector state is not
+  established.
+- SQL install, task refresh, PDF rendering, and live deployment are separate
+  checks; a successful local replay cannot prove production state.
+
+### Chronology and superseded paths
+
+- The project moved from monolithic TODO view expansion toward bounded install
+  views plus staged refresh publication after the Adminer/MariaDB failure.
+- The active dashboard grew from earlier five- and seven-panel descriptions to
+  the current eight-panel Overview; old counts are historical.
+- Thread 3.1 succeeded Thread 3 as the validation owner. Its documentation-only
+  reconciliation was completed by manual delivery on 2026-10-23. The current
+  protocol is documented, while dirty inspector-list WIP still requires normal
+  review and live deployment claims remain unsupported.
+- Thread 7 changed from the old generic tutor placeholder to the seasonal GEO
+  rollout role. Thread 8 completed the v2.2 field manual after the specialist
+  contracts were synchronized. Thread 9 owns local replay and refresh
+  diagnostics.
+- Historical `Admin/db_structure.SQL`, per-table legacy inspector scripts, old
+  `CAPTURES_active` assumptions, and dumped derived views are not current
+  source authority unless a selected handoff explicitly labels them historical.
+
+### Pending state and risks
+
+- The protected dirty split-calculator work must be preserved and reviewed
+  separately from the clean remote baseline.
+- Four dirty inspector-list files and focused tests may reflect Thread 3.1 WIP;
+  they are not approved or live merely because they exist locally.
+- The earlier Thread 3.1 follow-up delivery failure was resolved by manual
+  delivery and successful documentation-only reconciliation; no validator
+  decision was invented from the coordination incident.
+- The refresh empty-statement fix was merged through PR #147 at `f7d13fb`;
+  source merge is not production-deployment evidence. Other topic worktrees
+  still require separate Git/PR checks.
+- Live SQL objects, live inspectors, permissions, locks, server limits, and the
+  running Shiny process remain deployment questions.
+
+### Paste-ready Thread 1 bootstrap
+
+> You are Thread 1, the repository cartographer for `NZ_FIELDWORKER`. Read
+> `AGENTS.md` and this map first. Record `git status --short --branch`, `HEAD`,
+> local `origin/main`, worktrees, and the exact tracked/private documentation
+> inventory. Preserve all dirty source, tests, and inspector-list WIP. Keep
+> clean remote source, protected WIP, local replay evidence, dated snapshots,
+> and live deployment separate. Inspect current `DATABASE/*.SQL`, `main/`,
+> `DataEntry/`, `gpxui/`, and `tests/testthat/` only as needed for routing.
+> Update only explicitly authorized documentation, use `apply_patch`, do not
+> connect to live databases or expose raw records/coordinates/credentials, and
+> never stage, commit, push, merge, rebase, or create a PR unless separately
+> requested. End with exact files inspected, changed, and preserved.

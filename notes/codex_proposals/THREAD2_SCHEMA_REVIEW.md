@@ -1,665 +1,560 @@
 # Thread 2 Schema Review: Current Database Architecture
 
-Last refreshed: 2026-10-06
+Last refreshed: 2026-10-23
 
-Status: tracked static handoff for future Database Architect work, reconciled
-against `origin/main` commit `1617e84` and the current parent-association PR
-candidate. The negative-brood implementation described below is now merged in
-repository source. Neither that fact nor this memo proves that matching views
-are deployed to the live database. This refresh used static source inspection
-only, without a database connection or field-record access.
+Publication reconciliation: this handoff is being published from
+`origin/main` at `f7d13fb`. The `9beb203` and `d3c7bd4` states below are the
+recorded inspection provenance for the protected experimental checkout, not
+the documentation branch's current source baseline. `f7d13fb` includes the
+refresh empty-statement correction merged through PR #147. No live deployment
+is inferred from that source merge.
 
-## October 2026 schema-layer update
+## Status and scope
 
-- `BROODS_LATEST`, hiding-photo resolution, terminal brood handling, and the
-  associated PDF/map consumers are merged in tracked source.
-- `TODO_LIST` remains the main operational view and has since gained bounded
-  PDF query planning, hatch chronology priorities, one-egg stabilization, and
-  refined MM-parent chronology.
-- The current PR candidate adds generic banded-parent association status and
-  explicit MM alternate-parent resolution. It blocks capture/GEO eligibility
-  while same-sex identity remains ambiguous and resolves an identity after one
-  approved nest behaviour or three matching nest-linked resightings.
-- These additions are view-layer changes only; they do not alter base-table DDL.
+This is the restart-grade handoff for Thread 2, the database architect. It
+describes schema contracts, SQL-object dependencies, migration safety, and
+handoffs to the validator, task/PDF/map, Overview, combo-list, and local-replay
+threads. It does not own save-time validator implementation, task wording,
+PDF layout, map styling, Overview panel design, or local MariaDB replay.
 
-## Negative brood-ID architecture (2026-09-27)
+This refresh used static repository inspection only. It did not connect to a
+database, inspect credentials, read raw field records, inspect GPS coordinates,
+run a Shiny app, or execute SQL.
 
-This section is the current database contract for brood identifiers. It supersedes
-any earlier implication that all brood work begins with a `NESTS` row. It was
-derived by static review only; no database or dump was queried.
+The repository state at inspection was deliberately split into three layers:
 
-### Canonical identifier meanings
+- `origin/main` was at `9beb203`; this is the collaborator-controlled remote
+  baseline used for deployment comparisons.
+- The checkout was branch
+  `codex/split-todo-calculator-2026-10-19` at `d3c7bd4`, with protected dirty
+  work in `DATABASE/views.SQL`, `main/R/pdf_todo.R`, Thread 4 documentation,
+  validator sandbox exports, and focused tests.
+- The live database and deployed Shiny process remain unknown. Local source,
+  local snapshots, or a successful app render are not proof of live deployment.
 
-| Value in `nest_id` | Meaning | Allowed source tables | Location rule |
+The dirty files were preserved. This documentation refresh changed only this
+tracked memo and the ignored Thread 2 prompt log.
+
+## Authority hierarchy and state labels
+
+Use the current `DATABASE/` directory as the schema layer, not the historical
+`Admin/db_structure.SQL` file:
+
+| File | Authority | Role |
+|---|---|---|
+| `DATABASE/main_tables.SQL` | current core-table DDL | biological event tables and GPS upload tables |
+| `DATABASE/support_tables.SQL` | current support-table DDL | `settings`, `spatial_objects`, and DB-stored `inspectors` |
+| `DATABASE/functions.SQL` | current helper-function DDL | `format_mark()` and related SQL helpers |
+| `DATABASE/predict_hatching.SQL` | current stable support object | hatching calibration table and seed values |
+| `DATABASE/views.SQL` | current derived-view source | archive, combo, nest, brood, identity, parent, hatch, task, and reporting views |
+| `DATABASE/refresh_todo_list_snapshot.SQL` | current refresh workflow | reference-date-specific materialization and publication |
+| `DATABASE/_reset.SQL` | destructive local reset helper | local-only drop workflow, not an in-place migration |
+
+The dated `DATABASE/FIELD_2026_BADOatNZ_*.sql` files are read-only alignment
+references for local testing. They are not a current schema source, migration
+ledger, or proof of the live database. The latest inspected snapshot predates
+the current DDL and view architecture.
+
+When describing behavior, use these labels precisely:
+
+- **Tracked source**: committed repository source at the selected Git revision.
+- **Protected WIP**: uncommitted local changes in the current checkout. They
+  must not be deployed merely because they are present on disk.
+- **Remote baseline**: the selected `origin/main` source pair.
+- **Local replay evidence**: results from an explicitly isolated local database,
+  not inspected in this documentation pass.
+- **Live deployment**: the target MariaDB objects and restarted app process.
+  None is established by source inspection.
+
+The local checkout currently contains an experimental split task calculator and
+additional snapshot definitions in the dirty `DATABASE/views.SQL`. The clean
+remote baseline has a different install/refresh boundary and does not establish
+that the dirty split calculator is a deployable replacement. Treat the exact
+`views.SQL` and `refresh_todo_list_snapshot.SQL` from one reviewed revision as a
+matched pair.
+
+## Current source-table contract
+
+### `OBSERVERS`
+
+`OBSERVERS` stores observer identity and device metadata. The `observer` value
+is the lookup used by field tables. Current DDL permits free-text GPS and
+camera-device values so one observer can record multiple devices. The latest
+dated dump still reflects an older numeric GPS representation and must not
+override the tracked DDL.
+
+### `CAPTURES`
+
+`CAPTURES` stores in-hand capture and recapture events, including adult and
+chick handling, morphometrics, samples, tags, photos, and parent/nest
+associations. Important relational fields are `nest_id`, `gps_id`,
+`gps_point`, `ring`, `UL_in`, `LL_in`, `UR_in`, `LR_in`, `UL`, `LL`, `UR`,
+`LR`, `field_sex`, `age`, `tag_id`, `tag_type`, and `tag_action`.
+
+Current DDL facts:
+
+- `nest_id` is `varchar(7)`. The negative examples `-C0201` and `-BA0202`
+  fit; a future longer identifier would require an explicit migration.
+- `gps_id` is unsigned tiny integer and `gps_point` is unsigned integer. The
+  `(gps_id, gps_point)` index supports GPS lookup but does not enforce a
+  matching GPS row.
+- `eggs_handled` is a CAPTURES-only `enum('0','1')` field located between
+  `gps_point` and `field_sex`.
+- `observer_upload` is CAPTURES-only. It must not be assumed in EGGS, NESTS,
+  RESIGHTINGS, or RESIGHTINGS_PUBLIC.
+- `age` allows `A`, `J`, and `C`; controlled fields are represented by the
+  current DDL enums and the matching DataEntry dropdowns where implemented.
+- The targeted composite index `(nest_id, age, date, pk)` supports repeated
+  brood/chick chronology and deterministic latest-row selection.
+
+`CAPTURES` accepts positive nest IDs, negative unknown-origin brood IDs, and
+`NO_NEST` with the meanings below. A negative-ID event requires the paired
+direct GPS fields. Capture photo ranges describe handling/tent sequences;
+hiding-spot photographs belong in separate H-class RESIGHTINGS rows.
+
+### `EGGS`
+
+`EGGS` is intentionally long format: one row per egg observation. Its key
+fields are `nest_id`, `egg_id`, `date`, `time_visit`, `float_angle`,
+`float_surface`, and `float_location`. Current `float_location` values are
+`bottom`, `suspended`, and `surface`.
+
+EGGS accepts only a positive known-nest ID. A negative brood has no known nest
+or egg history, and `NO_NEST` is not valid. EGGS does not contain
+`observer_upload`.
+
+### `NESTS`
+
+`NESTS` stores nest-check history, nest state, clutch/brood observations,
+incubation observations, nest photographs, and the stationary GPS anchor for a
+real nest/scrape. Its `nest_id` is a positive nest identifier only. Negative
+brood IDs and `NO_NEST` are invalid here.
+
+The current `bird_inc` enum accepts `M`, `F`, `FM`, `MF`, `U`, and `E`; `FM`
+and `MF` both express both sexes and should not be treated as biologically
+different without collaborator confirmation. The current NESTS GPS fields
+describe the stationary nest anchor, not a mobile brood location.
+
+### `RESIGHTINGS`
+
+`RESIGHTINGS` stores opportunistic and targeted sightings of marked birds and
+chicks. It includes observed marks, `sex`, `age`, `rclass`, behavior, photos,
+and nest/brood association.
+
+The nullable `ring varchar(50)` field appears after `LR` and before `sex`. It
+identifies the resighted individual, especially an age-C, `rclass = 'H'`
+hiding-spot-photo chick. It supplements rather than replaces `UL`, `LL`, `UR`,
+and `LR`. `RESIGHTINGS_PUBLIC` is separate and does not receive this field.
+
+Positive and negative `nest_id` values are valid here. `NO_NEST` means the event
+is unrelated to a nest or brood and is not interchangeable with a negative
+brood. A negative-ID resighting requires a paired direct `gps_id` and
+`gps_point`.
+
+### `RESIGHTINGS_PUBLIC`
+
+This table is a separate public-source workflow with its own coordinate,
+source, country, and comment fields. Its `country` enum is `NZ`, `AU`, or `O`.
+It is not part of the internal parent/brood GPS-association workflow and must
+not receive the internal RESIGHTINGS `ring` field.
+
+### `GPS_POINTS` and `GPS_TRACKS`
+
+The GPS upload pipeline creates these products. Observation-to-point linkage
+uses `(gps_id, gps_point)` in `GPS_POINTS`. Track linkage uses `gps_id`,
+`seg_id`, and `seg_point_id` in `GPS_TRACKS`. The current DDL uses unsigned
+numeric identifiers and indexes GPS lookup keys. There are no foreign keys, so
+paired-key validity is enforced by the upload workflow, validators, and
+read-side joins.
+
+## Identifier contract: positive, negative, and `NO_NEST`
+
+The existing column name `nest_id` is retained for compatibility.
+
+| Identifier | Meaning | Allowed source tables | Location contract |
 |---|---|---|---|
-| Positive ID | A real, stationary nest/scrape. | `NESTS`, `EGGS`, `CAPTURES`, `RESIGHTINGS` | The `NESTS` history can supply a stationary fallback location. |
-| Negative ID | A mobile brood of unknown origin, for example `-A0203`, `-B0204`, `-C0201`, or `-BA0202`. | `CAPTURES`, `RESIGHTINGS` only | Every event needs a direct `gps_id` + `gps_point`; there is no `NESTS` fallback. |
-| `NO_NEST` | An event unrelated to any nest or brood. | `CAPTURES`, `RESIGHTINGS` | Direct GPS workflow; exclude from brood/nest identity logic. |
+| Positive ID | A real stationary nest/scrape. | `NESTS`, `EGGS`, `CAPTURES`, `RESIGHTINGS` | `NESTS` can provide the stationary fallback anchor. |
+| Negative ID | A mobile brood of unknown origin, such as `-A0203`, `-B0204`, `-C0201`, or `-BA0202`. | `CAPTURES`, `RESIGHTINGS` only | Each event carries its own direct paired GPS; there is no NESTS fallback. |
+| `NO_NEST` | An event unrelated to any nest or brood. | `CAPTURES`, `RESIGHTINGS` where the current protocol allows it | Follow the unlinked direct-GPS workflow; exclude it from nest/brood identity. |
 
-Do not rename `nest_id` during the field season. Negative IDs are not malformed
-positive IDs and `NO_NEST` is not a negative brood. A negative ID represents one
-shared unknown-origin brood and must be repeated on later parent/chick capture or
-resighting events that are confidently associated with that brood. Each observed
-individual remains a separate source-table event.
+Negative IDs are not malformed positive IDs. They identify a mobile brood of
+unknown origin and are repeated on later parent/chick events that are
+confidently associated with that brood. Each observed individual remains a
+separate event row. Negative IDs cannot be placed in NESTS or EGGS because no
+stationary nest or egg history exists.
 
-### Current capacity and controlled values
+The source-table comments and validator protocol should enforce the distinction:
 
-- `CAPTURES.nest_id` is `varchar(7)`; `-C0201` is six characters and `-BA0202`
-  seven, so both fit exactly. `NESTS`, `EGGS`, and `RESIGHTINGS` use `varchar(8)`.
-  No type widening is required for the stated methodology.
-- `gps_id tinyint unsigned` and `gps_point int unsigned` are consistent across
-  the event and GPS tables. Existing `(gps_id, gps_point)` keys support the GPS
-  lookup; no GPS type or enum change is needed.
-- `CAPTURES.age` and `RESIGHTINGS.age` both allow `C`; `RESIGHTINGS.rclass`
-  already allows `H`; current sex enums are sufficient. No field or enum addition
-  is required.
-- A future ID longer than seven characters would require widening
-  `CAPTURES.nest_id` first. Do not silently introduce one.
+- NESTS and EGGS reject negative IDs and direct users to CAPTURES/RESIGHTINGS.
+- CAPTURES and RESIGHTINGS permit negative IDs but require paired direct GPS.
+- `NO_NEST` is reserved for no nest/brood association and must not be used as a
+  convenient substitute for an unknown-origin brood.
 
-### Entry contract and source DDL alignment
+## Hiding-spot-photo and derived association contract
 
-`DATABASE/main_tables.SQL` now documents the following without changing any
-column type or dropping compatibility fields:
+The normal hiding-spot workflow is one separate RESIGHTINGS row per chick:
+`age = 'C'`, `rclass = 'H'`, nonblank metal `ring`, direct paired GPS, and
+`photo_start`/`photo_end`. The raw `RESIGHTINGS.nest_id` should be filled when
+the positive nest or negative brood is known.
 
-- `NESTS` accepts only positive real-nest IDs and directs unknown-origin broods
-  to `CAPTURES` or `RESIGHTINGS`; its GPS fields describe the stationary scrape.
-- `EGGS` accepts only a positive known-nest ID. Negative broods have no egg
-  history, and `NO_NEST` is invalid.
-- `CAPTURES` and `RESIGHTINGS` allow a negative brood ID, require the paired
-  direct GPS fields for it, and distinguish it from `NO_NEST`.
-- `RESIGHTINGS.rclass = 'H'` is the hiding-spot-photo event: enter a chick as
-  `age = 'C'`, with its metal `ring`, direct GPS, and photo endpoints. The raw
-  `nest_id` may be blank under the approved advanced exception when an earlier
-  chick `CAPTURES` link plus same-date/exact-GPS parent identities resolves one
-  positive nest or negative brood uniquely. The nullable `ring` field is
-  positioned after `LR` and before `sex`.
-- CAPTURES image ranges describe the capture photo sequence. The
-  `chick_hide_photo` field is retained as a normal photo flag alongside
-  `chick_tent_photo`; when either is `1`, enter `cam_id`, `photo_start`, and
-  `photo_end`.
-- `RESIGHTINGS_PUBLIC` is unchanged and does not receive this field.
+The approved advanced exception permits a raw H row to have a blank `nest_id`
+when prior chick-capture evidence or current same-occasion family evidence
+resolves exactly one candidate. The raw biological row remains unchanged. A
+derived task-level association is allowed only when it is deterministic;
+ambiguous candidates remain unresolved.
 
-`CAPTURES.chick_hide_photo` remains an active photo flag for new entry. It is
-handled like `chick_tent_photo`: `1` means that the chick hiding-spot photo was
-taken during the capture and requires `cam_id`, `photo_start`, and `photo_end`;
-`0` means that it was not taken. It is not interpreted as an “in situ” comment
-or as a request to create a separate RESIGHTINGS row.
+The current checked-out `RESIGHTINGS_H_BROOD_ASSOCIATIONS` view is the shared
+helper. Its current behavior is:
 
-### Location and temporal contract
+- an explicit raw ID wins, except that `NO_NEST` is not a brood association;
+- an unlinked H row may use one same-date, exact-GPS adult RESIGHTINGS nest
+  candidate;
+- an unlinked H row may use an unambiguous latest prior age-C CAPTURES ring
+  history candidate;
+- multiple candidate nest IDs are reported as ambiguous and do not receive a
+  derived ID;
+- the helper reports the raw primary key, raw ID, ring, GPS pair, resolved ID,
+  and an association method; it does not rewrite `RESIGHTINGS`;
+- validator-side requirements for ring, direct GPS, and photo endpoints remain
+  separate from this SQL resolution helper.
 
-The implemented operational interpretation is **latest valid direct chick-event
-location**, not latest event regardless of location completeness.
-That avoids a later incomplete event erasing a usable mobile-brood position.
+`BROODS_LATEST`, the hiding-photo task input, and the PDF chick-encounter query
+consume the helper so that identity/location logic is not duplicated in R.
+`RESIGHTINGS_PUBLIC` is unaffected. The helper is internal and does not require
+a new base-table index solely for `ring`.
 
-1. Consider only age-C CAPTURES or RESIGHTINGS events through
-   `settings.reference_date`, with both `gps_id` and `gps_point` present and
-   resolvable through `GPS_POINTS`.
-2. Choose the latest qualifying direct event for the brood ID.
-3. For a positive ID with no qualifying direct chick event, fall back to its
-   `NESTS` stationary location.
-4. For a negative ID, do not fall back to `NESTS`; emit a missing-direct-location
-   state instead.
-5. Exclude `NO_NEST` from brood-derived outputs.
+## Location and temporal contract
 
-The implemented `BROODS_LATEST` view retains `location_source`,
-`location_event_date`, `location_event_datetime`, `location_event_pk`,
-`location_source_table`, `gps_id`, and `gps_point`, not just latitude/longitude.
-CAPTURES event time is `released`, then `caught`, then midnight. RESIGHTINGS has
-no time field, so its event time is midnight. Exact event ordering is
-deterministic: event date descending, event datetime descending, source rank
-(`RESIGHTINGS` H first, then `CAPTURES`, then other `RESIGHTINGS`), and `pk`
-descending. The same ordering is applied when selecting the latest valid direct
-GPS location, so a same-day H-class hiding-spot event can win deterministically.
-This source-priority rule is an operational compatibility decision and remains a
-biological review point if field teams later need a more precise time field.
+Operational brood location means the latest **valid direct chick-event
+location**, not the latest event regardless of GPS completeness:
 
-### Implemented derived-view architecture
+1. Filter age-C CAPTURES and RESIGHTINGS events through
+   `settings.reference_date`.
+2. Keep events with a non-null paired GPS key that resolves to `GPS_POINTS`.
+3. Select the latest valid direct event for the brood ID.
+4. If a positive brood has no valid direct chick-event location, use the
+   positive nest's NESTS anchor.
+5. Never use a NESTS fallback for a negative brood.
+6. Exclude `NO_NEST` from brood-derived outputs.
 
-Do not broaden `NESTS_LATEST`: it remains the one-history-per-positive-nest
-view. The current source layer adds `BROODS_LATEST` as the reusable one-row-per-
-brood authority for positive and negative brood identity, direct/mobile location
-selection, hatch evidence, parent marks, and source provenance. It does not
-fabricate `NESTS` or `EGGS` rows.
+The current event ordering is deterministic: event date descending, event
+datetime descending where available, source priority, then primary key
+descending. CAPTURES uses `released`, then `caught`, then midnight; RESIGHTINGS
+has no time field and therefore uses midnight. For equal-date direct-location
+selection, the current source ranks H-class RESIGHTINGS first, then CAPTURES,
+then other RESIGHTINGS, followed by primary-key order. This is an operational
+compatibility rule and should be revisited if the field protocol gains a
+reliable resighting time.
 
-The implemented output columns are:
+## Support objects and functions
+
+### `settings`
+
+`settings(variable, value)` provides the canonical `reference_date`. Major
+operational views use the non-null `reference_date` row as a fail-closed input.
+Changing the date changes derived output and requires a current task snapshot
+before PDF/download workflows are considered current.
+
+### `spatial_objects`
+
+`spatial_objects` stores named WKT objects used by maps and mock-data helpers.
+It is part of the app database structure even though it is not a biological
+event table.
+
+### `inspectors`
+
+The validator architecture is DB-stored. `DataEntry/inspectors/` edits the
+`inspectors` table; table-specific `global.R` files configure presentation,
+defaults, and dropdowns. Current live biological tables should use the two
+inspector classes `TABLE_hard` and `TABLE_warning`, with package-side validator
+output following the documented `rowid`, `variable`, and `reason` contract.
+Thread 2 does not edit live inspectors.
+
+### `predict_hatching`
+
+`predict_hatching` is a stable support table with a primary key on `egg_id` and
+a float-state lookup index. It supplies calibration values to
+`EGGS_HATCH_PREDICTION`; its biological validity remains a collaborator-owned
+assumption.
+
+### `format_mark()`
+
+`format_mark(UL, LL, UR, LR)` trims values, suppresses literal `X` and `M` on
+each side, joins retained upper/lower values with `.`, and returns an `X`-
+placeholder left-right mark. It is a deterministic formatter, not a complete
+identity-normalization system. View normalization for combo allocation must
+remain explicit and must not silently change this function's output contract.
+
+## Derived-view architecture
+
+### `CAPTURES_ARCHIVE`
+
+`CAPTURES_ARCHIVE` is a historical compatibility view over `BADOatNZ.CAPTURES`
+and the historic `BADOatNZ.SEX` lookup. It supplies historic release marks,
+metadata, morphology, tag fields, and `gen_sex` to current combo and Overview
+logic. It is a cross-database compatibility gate: a 2026-only database cannot
+create it unless the historic objects are available.
+
+The current app source-watch mapping names `BADOatNZ.CAPTURES` but not the
+historic `SEX` dependency. Any SEX-table change therefore requires an explicit
+manual refresh/review rather than relying on the watcher alone.
+
+### `USED_COMBOS_DETAIL` and `AVAILABLE_COMBOS`
+
+`USED_COMBOS_DETAIL` combines historic archive marks, current release marks,
+and current `_in` marks, all bounded by `reference_date` where applicable. It
+trims/uppercases values, normalizes lower-leg combinations, preserves source
+provenance, handles tag/spacer records, and flags rows that cannot be safely
+normalized.
+
+`AVAILABLE_COMBOS` generates candidate lower-leg pairs from the configured
+site rules, subtracts normalized used combinations, applies fixed exclusions,
+and ranks the remaining output for the PDF/team-mark workflow. CR/CX mapping
+and selected site exclusions remain compatibility gates requiring collaborator
+confirmation before generalization. The app exposes AVAILABLE_COMBOS but has no
+equivalent explicit source-watch entry, so source changes require a deliberate
+refresh/review.
+
+### `NESTS_LATEST`
+
+`NESTS_LATEST` remains the one-history-per-positive-nest view. It selects the
+current nest state, clutch/brood values, hatch evidence, calibrated hatch
+timing, and a stationary GPS location from NESTS/GPS_POINTS. It does not
+fabricate rows for negative broods.
+
+Parent `M_mark` and `F_mark` can be derived from both adult CAPTURES and adult
+RESIGHTINGS by `nest_id`, allowing a previous capture followed by a later
+nest-linked resighting to confirm parentage. The current `main/global.R` source
+watch includes RESIGHTINGS for NESTS_LATEST; the older memo statement that it
+was omitted is obsolete.
+
+### `BROODS_LATEST`
+
+`BROODS_LATEST` is the reusable one-row-per-positive-or-negative-brood source
+for brood-aware map, PDF, parent, and task logic. It combines:
+
+- positive nests with relevant hatch/brood evidence;
+- negative IDs discovered in CAPTURES or RESIGHTINGS without NESTS/EGGS rows;
+- parent marks and identity status from shared adult capture/resighting logic;
+- chick capture and colour-band evidence;
+- latest valid direct chick-event location, with positive-nest fallback only.
+
+The contract includes these key fields:
 
 ```text
-nest_id
-brood_kind                    -- positive / negative
-is_negative_brood
-discovery_date
-latest_encounter_date
-latest_encounter_datetime
-latest_chick_event_date
-latest_chick_event_source
+nest_id, brood_kind, is_negative_brood
+discovery_date, latest_encounter_date, latest_encounter_datetime
+latest_chick_event_date, latest_chick_event_source
 gps_id, gps_point, lat, lon
-location_source               -- direct_chick_event /
-                              -- positive_nest_fallback /
-                              -- missing_direct_chick_location
-location_event_date
-location_event_datetime
-location_event_pk
-location_source_table
-hatch_evidence_date
-has_hatch_evidence
-nest_state, hatch_state, clutch_size, brood_size
-min_days_to_hatch
-M_mark, F_mark
-nest_photo, tent_photo
-chick_band
-reference_date
+location_source, location_event_date, location_event_datetime
+location_event_pk, location_source_table
+hatch_evidence_date, has_hatch_evidence
+nest_state, hatch_state, clutch_size, brood_size, min_days_to_hatch
+M_mark, F_mark, nest_photo, tent_photo, chick_band, reference_date
 ```
 
-Implementation details:
+The current SQL is operationally Cass River scoped in the negative-brood path.
+Extending this view to additional sites requires biological and collaborator
+review; the source DDL's general negative-ID wording is not by itself approval
+to broaden the derived view.
 
-- Every source event and nest-history branch is bounded by
-  `settings.reference_date`. The current implementation is scoped to Cass River
-  (`site = 'CR'`), even though the source-table contract permits the negative-ID
-  syntax more generally.
-- Positive units are built from reference-date-bounded `NESTS` history and may
-  use a deterministic stationary `NESTS` GPS fallback. The fallback ranks state
-  `S`, then `F`, then other states, followed by date/time/primary-key and GPS
-  ordering. Positive terminal `notA` rows are retained only when historical hatch
-  or brood evidence exists.
-- Negative units are discovered from negative-ID `CAPTURES` and `RESIGHTINGS`
-  events, with discovery date as the earliest qualifying event and latest
-  encounter selected by the deterministic ordering above. Negative units have no
-  `NESTS` or `EGGS` fallback.
-- Latest chick-event metadata is selected from age-C CAPTURES/RESIGHTINGS. The
-  location itself is selected from the latest age-C event whose paired GPS keys
-  resolve in `GPS_POINTS`; a later age-C event with missing/unresolvable GPS does
-  not erase an earlier valid location.
-- Negative parent marks are selected from adult CAPTURES/RESIGHTINGS by sex. The
-  ranking prioritizes `dead`, then geolocator evidence, then an informative mark,
-  then recency and deterministic source/primary-key order. Positive parent marks
-  continue to come from `NESTS_LATEST`, whose parent candidates use both captures
-  and resightings.
-- For age-C CAPTURES, the first informative single-colour `LL` or `LR` value is
-  retained as `chick_band`. A scalar is appropriate for the current downstream
-  label-colour contract; it is not a complete list of all sibling colours.
-- Negative units intentionally expose `has_hatch_evidence = 1` as an operational
-  retention sentinel while leaving `hatch_evidence_date` and hatch estimates
-  blank. This keeps unknown-origin mobile broods in the map/summary without
-  inventing a hatch date.
+### `EGGS_HATCH_PREDICTION` and `GEO_ROLLOUT_PHENOLOGY`
 
-Dependencies are `settings`, `NESTS`, `CAPTURES`, `RESIGHTINGS`, `GPS_POINTS`,
-`NESTS_LATEST`, and `format_mark()`. `EGGS_HATCH_PREDICTION` is not a direct
-negative-brood dependency; positive hatch timing is inherited through the
-existing positive-nest path.
+`EGGS_HATCH_PREDICTION` joins long-format EGGS observations to
+`predict_hatching`, prefers exact float-state matches, and supplies chronology
+and reference-date fields to nest/task/PDF/Overview consumers. Incomplete
+clutch and stable one-egg chronology are explicit biological assumptions.
 
-`TODO_LIST` consumes `BROODS_LATEST` for negative parent work, `Untrapped brood`,
-and `Hiding spot photos needed` tasks. Negative units do not enter nest,
-flotation, clutch-check, scrape, or `notA`-closure task branches. The PDF helper
-loads `BROODS_LATEST` directly (while retaining a legacy `nests_latest` argument
-for older preview callers), and passes the same unified rows to the PDF summary
-and map. The map keeps negative and hatched-positive units, excludes failed
-positive `notA` units, and omits units with no valid map coordinates.
+`GEO_ROLLOUT_PHENOLOGY` supplies geolocator/phenology context used by the
+parent/GEO task logic. Its quotas, ceiling, timing, and sex-balance rules are
+operational policy rather than universal schema constraints.
 
-This is implemented in the current local source tree. It is not yet a deployed
-database contract.
+### Identity and parent-status views
 
-### Index decision
+The current view layer includes normalized adult capture and resighting identity
+surfaces, identity matches, GPS-linked chick/parent evidence, adult parent-nest
+associations, and authoritative adult parent status. These views coordinate:
 
-The tracked DDL already has the useful GPS lookup key on `GPS_POINTS`
-`(gps_id, gps_point)` and matching event-table GPS keys. No extra GPS index is
-needed. The tracked DDL now adds the smallest targeted new keys:
+- metal-ring, flag, spacer, lower-mark, and full-mark identity keys;
+- same-sex identity ambiguity and confirming/non-confirming association;
+- MM/mobile-mistnet recapture chronology;
+- single-colour recruits and `XX`/unknown identity handling;
+- geolocator state, AU migrant state, dead/band-status state;
+- exact GPS pair gates for eligible chick/parent links.
 
-```sql
-CAPTURES    KEY nest_age_date (nest_id, age, date, pk)
-RESIGHTINGS KEY nest_age_date (nest_id, age, date, pk)
+`ADULT_PARENT_STATUS` is the task-facing parent result. Thread 3.1 owns
+save-time validation; Thread 4 owns task interpretation. SQL should not turn a
+pending or ambiguous association into a confirmed parent merely to remove a
+task.
+
+### TODO context, task calculation, and publication
+
+The operational chain is:
+
+```text
+source tables + settings + support objects
+  -> bounded identity/parent/nest/brood/hatch inputs
+  -> TODO_*_CONTEXT and TODO_PARENT_STATUS inputs
+  -> task-family views / TODO_LIST_CALCULATE (where present in the selected revision)
+  -> explicit *_SNAPSHOT_BUILD tables
+  -> atomic snapshot publication
+  -> lightweight TODO_LIST/TODO_PARENT_TASKS/TODO_NONPARENT_TASKS boundaries
+  -> Shiny list, map, PDF, and status workflows
 ```
 
-They support the repeated brood queries that constrain an ID and `age = 'C'`,
-limit by date/reference date, then select a deterministic latest row. They do
-not replace the existing simple `nest`, `date`, `site`, or GPS indexes because
-those remain useful for other access paths. Cost: each CAPTURES/RESIGHTINGS
-insert/update writes one additional secondary index. This is a reasonable trade
-for field-season operational reads, but should be checked with `EXPLAIN` after
-deployment rather than adding more speculative composite keys.
+Current task families include parent capture, parent resighting, unprocessed
+nest, scrape/tent photo processing, re-process nest, clutch check, nest check,
+untrapped brood, hiding-spot photos, closure/notA follow-up, and related
+disturbance/GEO tasks. Exact user-facing labels belong to Thread 4, but the
+database contract must expose stable task columns and truthful parent/brood
+status.
 
-### Safe deployment and rollback
+The protected current checkout contains a split calculator:
+`TODO_LIST_PARENT_TASKS`, `TODO_LIST_NEST_TASKS`, `TODO_LIST_BROOD_TASKS`,
+`TODO_LIST_CLOSURE_TASKS`, and `TODO_LIST_CALCULATE`. It also contains
+snapshot-related definitions in the dirty `views.SQL`.
 
-Never re-run `main_tables.SQL` or `_reset.SQL` against an existing database.
-Before deployment, inspect only metadata and use a maintenance window because
-`ALTER TABLE` can take a metadata lock and may briefly block concurrent writes.
+The clean `origin/main` baseline uses a different optimized install/refresh
+boundary: the expensive calculation is not evidence that an active
+`TODO_LIST_CALCULATE` should be installed in the production view layer. The
+standalone `DATABASE/refresh_todo_list_snapshot.SQL` is the deployment-oriented
+materialization workflow. Do not combine the dirty checkout's view file with a
+different revision's refresh script.
 
-```sql
--- Preflight: current columns/comments and existing indexes.
-SELECT table_name, column_name, column_type, column_comment
-FROM information_schema.columns
-WHERE table_schema = 'FIELD_2026_BADOatNZ'
-  AND table_name IN ('CAPTURES', 'NESTS', 'EGGS', 'RESIGHTINGS')
-  AND column_name IN ('nest_id', 'gps_id', 'gps_point', 'rclass', 'photo_start',
-                      'photo_end', 'chick_tent_photo', 'chick_hide_photo');
+The explicit snapshot schema currently includes task identity, reference date,
+task label, notes, overdue/priority fields, nest state, clutch/brood values,
+parent marks, location, authoritative parent marks, association-pending flags,
+resighting identity counts, GEO priority/target/quota fields, migrant flags, and
+the display overdue label. Consumers should use explicit projected columns,
+not `SELECT *`, where a stable contract is required.
 
-SELECT table_name, index_name, seq_in_index, column_name
-FROM information_schema.statistics
-WHERE table_schema = 'FIELD_2026_BADOatNZ'
-  AND table_name IN ('CAPTURES', 'RESIGHTINGS', 'GPS_POINTS')
-ORDER BY table_name, index_name, seq_in_index;
-```
+### `OVERVIEW`, `VIEW_1`, and app-facing outputs
 
-Apply these object-specific comment changes before adding each new index. They do
-not alter stored values or column types:
+The SQL `OVERVIEW` view is a reference-date-filtered metric source. The main
+app's eight-panel Overview is primarily assembled in `main/R/ggplot_overview.R`
+and also queries source tables, `EGGS_HATCH_PREDICTION`, and
+`CAPTURES_ARCHIVE` directly. Do not assume the SQL `OVERVIEW` view alone is the
+dashboard contract.
 
-```sql
-ALTER TABLE FIELD_2026_BADOatNZ.CAPTURES
-  MODIFY COLUMN nest_id varchar(7) DEFAULT NULL COMMENT 'Nest or brood association: <br> a positive ID identifies a real nest/scrape (SXXYY; e.g., A0203 or BA0202). <br> A <b>negative</b> ID (e.g., -A0203, -BA0202) identifies a mobile brood of unknown origin: it has no NESTS or EGGS row. For a negative ID, record both gps_id and gps_point and enter each observed/captured individual as a separate event. <br> Use <b>NO_NEST</b> only when the event is unrelated to any nest or brood.',
-  MODIFY COLUMN gps_id tinyint(3) unsigned DEFAULT NULL COMMENT 'Handheld Garmin GPS ID. Required together with gps_point when nest_id is a negative brood ID or NO_NEST.',
-  MODIFY COLUMN gps_point int(10) unsigned DEFAULT NULL COMMENT 'Waypoint number of the capture location stored in your handheld Garmin GPS unit. Required together with gps_id when nest_id is a negative brood ID or NO_NEST.',
-  MODIFY COLUMN photo_start varchar(255) DEFAULT NULL COMMENT 'First image filename for the capture photo sequence. When any photo flag is 1, also enter cam_id and photo_end.',
-  MODIFY COLUMN photo_end varchar(255) DEFAULT NULL COMMENT 'Last image filename for the capture photo sequence. When any photo flag is 1, also enter cam_id and photo_start.',
-  MODIFY COLUMN chick_tent_photo enum('0','1') DEFAULT NULL COMMENT 'Was a chick handling/tent photo taken? When 1, also enter cam_id, photo_start, and photo_end. <br> <b>0</b> (no) or <br> <b>1</b> (yes)',
-  MODIFY COLUMN chick_hide_photo enum('0','1') DEFAULT NULL COMMENT 'Was a chick hiding-spot photo taken during this capture? When 1, also enter cam_id, photo_start, and photo_end. <br> <b>0</b> (no) or <br> <b>1</b> (yes)';
+`VIEW_1` is a current tagged-bird/resighting output with a source watch for
+`settings`, `CAPTURES`, and `RESIGHTINGS`. `main/global.R` still advertises
+`VIEW_2`, but the current SQL inventory does not define `VIEW_2`; this is a
+browser contract mismatch requiring an owner decision.
 
-ALTER TABLE FIELD_2026_BADOatNZ.EGGS
-  MODIFY COLUMN nest_id varchar(8) DEFAULT NULL COMMENT 'Positive ID of the real nest/scrape where this egg belongs (SXXYY; e.g., A0203 or BA0202). <br> Negative brood IDs are not valid in EGGS because broods of unknown origin have no egg history; record their events in CAPTURES or RESIGHTINGS. <br> <b>NO_NEST</b> is not valid in EGGS.';
+## App and downstream dependency map
 
-ALTER TABLE FIELD_2026_BADOatNZ.NESTS
-  MODIFY COLUMN nest_id varchar(8) DEFAULT NULL COMMENT 'Positive ID of a real stationary nest/scrape (SXXYY; e.g., A0203 or BA0202). <br> Negative brood IDs are not valid in NESTS because a brood of unknown origin has no nest record; record its events in CAPTURES or RESIGHTINGS with direct GPS. <br> <b>NO_NEST</b> is not valid in NESTS.',
-  MODIFY COLUMN gps_id tinyint(3) unsigned DEFAULT NULL COMMENT 'Handheld Garmin GPS ID for the stationary nest/scrape location, recorded when this positive nest_id is assigned.',
-  MODIFY COLUMN gps_point int(10) unsigned DEFAULT NULL COMMENT 'Waypoint number for the stationary nest/scrape location, recorded with gps_id when this positive nest_id is assigned.';
+The current main app source-watch mapping includes:
 
-ALTER TABLE FIELD_2026_BADOatNZ.RESIGHTINGS
-  MODIFY COLUMN gps_id tinyint(3) unsigned DEFAULT NULL COMMENT 'Handheld Garmin GPS ID. Required together with gps_point when nest_id is a negative brood ID or NO_NEST.',
-  MODIFY COLUMN gps_point int(10) unsigned DEFAULT NULL COMMENT 'Waypoint number of the resighting location stored in your handheld Garmin GPS unit. Required together with gps_id when nest_id is a negative brood ID or NO_NEST.',
-  MODIFY COLUMN rclass enum('C','V','R','P','H') DEFAULT NULL COMMENT 'Resighting class: <br> <b>C</b> (failed capture attempt) <br> <b>V</b> (video session) <br> <b>R</b> (regular) <br> <b>P</b> (photography session) <br> <b>H</b> (chick hiding-spot photo session: enter the chick as age C, with nest_id and direct GPS)',
-  MODIFY COLUMN nest_id varchar(8) DEFAULT NULL COMMENT 'Nest or brood association: <br> a positive ID identifies a real nest/scrape (SXXYY; e.g., A0203 or BA0202). <br> A <b>negative</b> ID (e.g., -A0203, -BA0202) identifies a mobile brood of unknown origin: it has no NESTS or EGGS row. For a negative ID, record both gps_id and gps_point and enter each observed individual as a separate event. <br> Use <b>NO_NEST</b> only when the event is unrelated to any nest or brood. <br> Enter nest_id when a resighting first establishes social parentage at a nest or brood.',
-  MODIFY COLUMN photo_start varchar(255) DEFAULT NULL COMMENT 'First image filename for this resighting sequence. For hiding-spot images use a separate age-C event with rclass H, nest_id, and direct GPS.',
-  MODIFY COLUMN photo_end varchar(255) DEFAULT NULL COMMENT 'Last image filename for this resighting sequence. For hiding-spot images use a separate age-C event with rclass H, nest_id, and direct GPS.';
-```
+- `TODO_LIST`: `settings`, `NESTS`, `GPS_POINTS`, `CAPTURES`, `EGGS`,
+  `predict_hatching`, `RESIGHTINGS`;
+- `NESTS_LATEST`: the same current-season sources, including RESIGHTINGS;
+- `BROODS_LATEST` and `LIVE_NEST_MAP`: the same current-season sources;
+- `EGGS_HATCH_PREDICTION`: `settings`, `NESTS`, `EGGS`, `predict_hatching`;
+- `OVERVIEW`: `settings`, `CAPTURES`, `NESTS`, `EGGS`, `RESIGHTINGS`;
+- `CAPTURES_ARCHIVE`: historic `BADOatNZ.CAPTURES` only in the current watch;
+- `VIEW_1`: `settings`, `CAPTURES`, `RESIGHTINGS`.
 
-Then add each new index only if the metadata query confirms its name is absent:
+Consumers include:
 
-```sql
-ALTER TABLE FIELD_2026_BADOatNZ.CAPTURES
-  ADD INDEX nest_age_date (nest_id, age, date, pk);
+- `main/server.R`, which loads NESTS_LATEST/BROODS_LATEST for maps and manages
+  the refresh status workflow;
+- `main/R/leaflet_nest_latest.R` and `main/R/kmz_nest_latest.R`, which consume
+  nest/brood location and status fields;
+- `main/R/pdf_todo.R` and `main/R/pdf_todo_map.R`, which consume bounded
+  TODO_LIST, BROODS_LATEST, parent status, hatch context, and combo outputs;
+- `main/R/ggplot_overview.R`, which has independent source/view queries;
+- `main/R/system_utils.R`, which launches the refresh SQL through a local
+  MariaDB/MySQL client and checks snapshot reference-date freshness;
+- `DataEntry/*/global.R`, which configures table presentation and dropdowns;
+- `gpxui/`, which supplies GPS_POINTS/GPS_TRACKS data.
 
-ALTER TABLE FIELD_2026_BADOatNZ.RESIGHTINGS
-  ADD INDEX nest_age_date (nest_id, age, date, pk);
-```
+Static alignment note: `DataEntry/CAPTURES/global.R` currently supplies
+dropdowns for existing controlled fields and observer lookups, but the current
+source inspection did not find an explicit `eggs_handled` dropdown entry. This
+is an app-alignment item for the DataEntry owner, not a reason to change the
+DDL. Do not edit it from Thread 2 unless separately requested.
 
-Rollback for the index portion is safe and object-specific:
+## Dependency and deployment order
 
-```sql
-ALTER TABLE FIELD_2026_BADOatNZ.CAPTURES DROP INDEX nest_age_date;
-ALTER TABLE FIELD_2026_BADOatNZ.RESIGHTINGS DROP INDEX nest_age_date;
-```
+For a clean local replay or controlled deployment, use a matched source pair:
 
-Comment rollback requires restoring the prior reviewed comment text with
-`MODIFY COLUMN`; it does not require data rewrite. Take a schema-only backup or
-save `SHOW CREATE TABLE` output before any live deployment.
-
-### Cross-thread handoff
-
-**Thread 3.1 (inspectors):** implement save-time rules only after this contract
-is accepted. Reject negative IDs in `NESTS` and `EGGS`; reject `NO_NEST` there;
-require paired GPS fields for negative IDs and `NO_NEST` in CAPTURES/RESIGHTINGS;
-allow current positive formats; warn or error when an H-class RESIGHTING is not
-age C, lacks an ID, or lacks paired GPS. Do not make the inspector infer GPS or
-create a NESTS row.
-
-**Thread 4 (TODO/PDF/map):** retain `NESTS_LATEST` for positive stationary nests.
-Use the implemented `BROODS_LATEST` for mobile-brood location, provenance, and
-negative-ID output. Do not repeat the CAPTURES/RESIGHTINGS union or location
-ranking in R. The current PDF/map helpers consume it, and `TODO_LIST` consumes it
-for negative-brood tasks. A current separate risk is that the NESTS_LATEST source
-watch in `main/global.R` omits `RESIGHTINGS` even though its parent marks use it;
-the current browser view list also does not expose `BROODS_LATEST` as a separate
-view entry because the PDF path queries it directly.
-
-### Required invented-fixture coverage
-
-The current focused tests and cross-thread mock plans use invented data to cover:
-positive nest with NESTS-only location; positive brood with later direct chick
-GPS; negative brood first seen in CAPTURES; negative brood first seen in
-RESIGHTINGS; multiple same-day individuals; same-day capture plus H resighting;
-negative ID missing GPS; `NO_NEST`; non-Cass negative syntax; historical
-positive-H followed by `notA`; changing locations; chick-band colours; and
-deterministic ordering. These are static/invented checks only; no live database
-verification has occurred.
-
-## Source-of-truth rule
-
-Treat the tracked `DATABASE/` directory as the schema source of truth. Its files
-have separate roles:
-
-- `main_tables.SQL`: core field and GPS source-table DDL.
-- `support_tables.SQL`: runtime support tables: `settings`, `spatial_objects`,
-  and DB-stored `inspectors`.
-- `predict_hatching.SQL`: stable hatch-calibration table and its controlled seed
-  data.
-- `functions.SQL`: `format_mark()`.
-- `views.SQL`: operational derived layer.
-- `_reset.SQL`: destructive local reset helper, not a migration history and not
-  a complete rebuild runner.
-
-The dated local dump `DATABASE/FIELD_2026_BADOatNZ_7311213.sql` is only an
-alignment reference. It predates current tracked DDL and must not be treated as
-an authoritative restore source.
-
-## Current dependency order
-
-For a clean local rebuild or controlled deployment, use this conceptual order:
-
-1. Create/select `FIELD_2026_BADOatNZ`.
+1. Select/create the target schema.
 2. Create core tables from `main_tables.SQL`.
 3. Create support tables from `support_tables.SQL`.
-4. Create/load `predict_hatching` from `predict_hatching.SQL`.
-5. Create `format_mark()` from `functions.SQL`.
-6. Create views from `views.SQL` in dependency order: `CAPTURES_ARCHIVE` and
-   combo views first, `NESTS_LATEST`, then `BROODS_LATEST`, then
-   `EGGS_HATCH_PREDICTION`/phenology views, and finally `TODO_LIST` and the
-   remaining reporting views.
+4. Load `predict_hatching.SQL`.
+5. Create SQL functions from `functions.SQL`.
+6. Install the selected `views.SQL` in its dependency order: historic archive
+   and combo views, NESTS_LATEST, H-photo helper, BROODS_LATEST, hatch/phenology,
+   identity/parent views, task input/family views, and reporting/public views.
+7. Run the matching `refresh_todo_list_snapshot.SQL` separately with the SQL
+   client configured to stop on error.
+8. Verify snapshot publication and reference-date status before restarting or
+   relying on Shiny/PDF consumers.
 
-`views.SQL` requires all preceding local objects. `CAPTURES_ARCHIVE` additionally
-requires the historic database `BADOatNZ` to expose compatible `CAPTURES` and
-`SEX` tables. A clean 2026-only database cannot create that view unless that
-historical compatibility dependency exists.
+`CAPTURES_ARCHIVE` additionally requires compatible historic `BADOatNZ.CAPTURES`
+and `BADOatNZ.SEX` objects. A failed large SQL paste can leave a mixed set of
+old/new/missing views; success of the client command alone is not sufficient.
+Use `SHOW CREATE VIEW`, `SHOW CREATE TABLE`, object inventory, reference-date
+checks, and refresh-status checks in an approved target environment.
 
-`_reset.SQL` begins with `DROP DATABASE IF EXISTS FIELD_2026_BADOatNZ`; its later
-individual `DROP TABLE` statements are therefore redundant. It drops objects but
-does not re-run the ordered DDL files above. Never use it as an in-place migration
-tool or against a database that has not been backed up.
+Never use `_reset.SQL` as an in-place migration. It starts by dropping the
+database and is suitable only for an explicitly disposable local rebuild.
 
-## Core source tables
+## Index and performance stance
 
-### OBSERVERS
+Current DDL already provides:
 
-Observer metadata and device/camera associations. `observer` is the application
-lookup value. Current tracked DDL makes `gps_id` and `cam_id` free text so one
-observer can list multiple values; this is intentional DDL drift from the latest
-snapshot, which still has numeric `gps_id`.
+- GPS lookup keys on `GPS_POINTS(gps_id, gps_point)` and event-table GPS fields;
+- nest/date/site and event primary-key indexes appropriate to the source tables;
+- `CAPTURES(nest_id, age, date, pk)` and
+  `RESIGHTINGS(nest_id, age, date, pk)` for repeated brood chronology queries.
 
-### CAPTURES
-
-The central in-hand event table. Important cross-table fields are `nest_id`,
-`gps_id`, `gps_point`, release marks (`UL`, `LL`, `UR`, `LR`), input marks
-(`UL_in`, `LL_in`, `UR_in`, `LR_in`), `field_sex`, `age`, capture
-method/status, and tag fields. `eggs_handled` is a current CAPTURES-only enum
-field and now sits between `gps_point` and `field_sex` in tracked DDL.
-`observer_upload` remains CAPTURES-only.
-
-`nest_id` permits negative brood-style values and the `NO_NEST` sentinel here.
-The `(gps_id, gps_point)` index is non-unique; it supports lookup rather than
-enforcing one unique GPS row.
-
-### EGGS
-
-Intentionally long format: one row per egg observation with `nest_id`, `egg_id`,
-`date`, `time_visit`, `float_angle`, `float_location`, and `float_surface`.
-`float_location` is an enum (`bottom`, `suspended`, `surface`). `NO_NEST`
-and negative nest IDs are explicitly invalid. There is no `observer_upload`
-field.
-
-### GPS_POINTS and GPS_TRACKS
-
-GPS upload products. The canonical observation-to-waypoint linkage is
-`gps_id + gps_point` into `GPS_POINTS`; tracks instead use `gps_id + seg_id` and
-`seg_point_id`. Both GPS identifiers are unsigned numeric fields in current DDL.
-No foreign keys enforce those relationships, so upload consistency remains an
-application/validator responsibility.
-
-### NESTS
-
-Nest-visit events with state, clutch/brood state, coordinates by GPS linkage, and
-photo-processing fields. `nest_id` may not be negative or `NO_NEST`. The current
-`bird_inc` enum is `M`, `F`, `FM`, `MF`, `U`, `E`; `FM` and `MF` are
-both accepted and both mean both sexes seen. This is wider than the July snapshot.
-
-### RESIGHTINGS
-
-Adult/chick resighting events with observed marks, sex, age, behavior, ring, and
-nest association. The nullable `ring varchar(50)` field appears after `LR` and
-before `sex`; it identifies the resighted individual, especially a chick in an
-H-class hiding-spot-photo event. This is a free-text identity field, not a
-controlled-value dropdown. This table is now a first-class parentage source: an at-nest
-resighting must carry `nest_id` when it is the first evidence linking an already
-marked bird to a nest or brood. `NO_NEST` is allowed only for events not associated
-with a nest or brood.
-
-`RESIGHTINGS_H_BROOD_ASSOCIATIONS` is an internal derived view for the approved
-unlinked H exception. It preserves the raw `RESIGHTINGS` row and reports a
-task-level `derived_nest_id` only when a prior chick capture link and at least
-one same-date, exact `(gps_id, gps_point)` parent mark match identify exactly
-one candidate. It reports ambiguous and unresolved candidates without assigning
-an ID. Positive candidates must exist in `NESTS`; negative candidates remain
-mobile and do not require a `NESTS` row. `BROODS_LATEST` consumes only resolved
-rows as chick events, so its latest-valid-direct-location logic can use the H
-event for either brood kind. `TODO_LIST` counts both qualifying raw linked H
-rows and qualifying uniquely resolved H rows, requiring the ring, direct GPS,
-and both photo endpoints. No raw row is backfilled, and `RESIGHTINGS_PUBLIC` is
-unchanged. The helper is internal rather than a user-facing Show View, so no
-positional insert or new base-table index is required.
-
-### RESIGHTINGS_PUBLIC
-
-Public-source observations. It has separate coordinate fields, source metadata,
-and `country` enum values `NZ`, `AU`, and `O`. It is not currently used by the
-operational nest-parent or GPS workflow.
-
-## Support objects
-
-### settings and reference_date
-
-`settings(variable, value)` holds the one canonical `reference_date`. Every major
-operational view uses a one-row `sr` CTE sourced from it. If the row is absent or
-its value is null, those views can become empty. The main app reads and writes the
-same setting through `get_reference_date()` and `set_reference_date()`.
-
-### inspectors
-
-The validator architecture is DB-stored. The `inspectors` table holds
-`table_name`, R validator code, notes, and `updated_at`; repository
-`DataEntry/*/global.R` files configure table presentation rather than the live
-validator rules. There is no primary/unique key in the DDL, so duplicate inspector
-rows remain possible and must be managed operationally.
-
-### spatial_objects and predict_hatching
-
-`spatial_objects` stores named WKT objects used by map code, notably
-`study_area`. `predict_hatching` is a stable calibration table used by both
-hatch-prediction views. It contains a primary key on `egg_id` and a float-state
-index.
-
-### format_mark()
-
-`format_mark(UL, LL, UR, LR)` is deterministic and SQL-only. It trims inputs,
-suppresses literal `X` and `M` on each leg side, joins non-suppressed upper/lower
-segments with `.`, and returns a normalized `left-right` mark with `X` as the
-empty-side placeholder. It is used by derived views and app-side queries; changing
-it is a contract change, not a cosmetic change.
-
-## Current derived views
-
-### CAPTURES_ARCHIVE
-
-Historical compatibility view over `BADOatNZ.CAPTURES` plus an aggregated lookup
-of `BADOatNZ.SEX`. It exposes historic release marks, a normalized mark, event
-metadata, morphology, tag fields, and `gen_sex`. The historic sex lookup is
-one-to-one at output time because it groups by trimmed ring and takes a nonblank
-maximum. It is an explicit cross-database compatibility gate.
-
-### USED_COMBOS_DETAIL and AVAILABLE_COMBOS
-
-`USED_COMBOS_DETAIL` aggregates potential colour-combination use from three
-sources, all filtered to `reference_date` (or undated history): historic archive
-release marks, current CAPTURES release marks, and current CAPTURES input marks.
-It normalizes the two lower-leg colour pairs used for allocation. The rules handle
-single/two-band left and right forms, normalize tagged upper-right values, and
-avoid incorrectly prepending a geolocator spacer when the lower-right value already
-contains a complete two-colour pair. It outputs raw values, normalized `LL`/`LR`,
-`mark`, and `is_normalizable`.
-
-`AVAILABLE_COMBOS` generates candidate lower-leg pairs from hard-coded site rules,
-excludes combinations already present in `USED_COMBOS_DETAIL`, applies disallowed
-combination rules, ranks candidates, and emits `site_code`, `mark`, `LL`, `LR`.
-The current `CR`/`CX` remapping is a temporary compatibility gate for the deployed
-PDF query; it is not a general biological site taxonomy.
-
-### NESTS_LATEST
-
-Operational one-row-per-nest view. It uses `NESTS` history through `reference_date`
-to choose the latest visit, latest clutch and brood values, a latest GPS point,
-hatch signs, and hatch timing. It hides old scrape-only records and selected stale
-`notA` records.
-
-`M_mark` and `F_mark` are selected by `nest_id` from both adult `CAPTURES` and
-adult `RESIGHTINGS`, restricted to Cass River, non-chick events, and usable sex
-codes. Candidate marks are ranked so informative non-`X` marks win, then longer
-informative marks, then lexical order. This supports the protocol where a parent
-can be confirmed by an at-nest resighting without a new capture.
-
-### EGGS_HATCH_PREDICTION
-
-Produces per-egg prediction rows from egg float data and calibration rows with the
-same `float_location`. It chooses exact angle/surface matches first, otherwise the
-nearest calibration candidate. Output includes matching diagnostics, predicted
-days-since-laying, hatch estimates, bounds, and `reference_date`.
-
-It also creates a synthetic `found as incomplete` prediction when the first found
-clutch was below its later final clutch size and no egg-float prediction exists.
-That path infers clutch completion and hatch timing from nest history. This is a
-biological operational assumption and needs continued collaborator review.
-
-### TODO_LIST
-
-`TODO_LIST` is the principal operational task source. It is Cass River scoped and
-reference-date aware. The final stable output columns are:
-
-`nest_id`, `reference_date`, `todo`, `notes`, `days_overdue`, `priority`,
-`min_days_to_hatch`, `last_visit_days_ago`, `nest_state`, `clutch_size`,
-`brood_size`, `M_mark`, `F_mark`, location fields, and `overdue_label`.
-
-Current task families are parent capture, parent resighting, unprocessed nest,
-scrape photos, re-process nest, clutch check, nest check, untrapped brood, hiding
-spot photos, and `notA` follow-up.
-
-Parent status combines recent capture and resighting identity evidence. It tracks
-confirmed unbanded `X-X`, uncertain identity, geolocator status, single-colour
-recruits, mobile-mistnet (`MM`) captures requiring later at-nest confirmation,
-and ordinary already-banded birds whose nest association remains unresolved.
-The PR candidate groups evidence by canonical same-sex identity. One approved
-nest behaviour or three matching nest-linked resightings resolves an identity;
-zero or multiple resolved identities remain ambiguous. MM alternate identities
-use the same evidence threshold, while spacer-dependent one-band identities
-retain their full-mark matching rule.
-
-Capture eligibility includes two protocol rules encoded in SQL: at least seven
-days after estimated clutch completion, and at least 36 hours after the previous
-adult-parent capture, evaluated against 08:00 on the reference date. The task
-notes distinguish whether a resighting only is currently appropriate. The new
-clutch-check workflow keeps a recent one/two-egg clutch under review after a
-parent-capture context. These are biological safeguards, not generic database
-constraints.
-
-### OVERVIEW
-
-The SQL `OVERVIEW` view is a tabular metric source with `section`, `metric`, and
-`n` rows, filtered to `reference_date`. It summarizes captures, nests, eggs, and
-resightings. It is separate from the app-side seven-panel Overview dashboard.
-
-## Downstream consumers
-
-- `DataEntry/*/global.R`: declarative table name, exclusions, defaults, and
-  dropdowns. Current alignment issue: `CAPTURES.eggs_handled` is in tracked DDL
-  but not in the CAPTURES dropdown list; add `c("0", "1")` before relying on the
-  schema to render it as a controlled dropdown.
-- `main/global.R`: lists browser-visible tables/views and source-watch lists.
-- `main/R/leaflet_nest_latest.R` and `main/R/kmz_nest_latest.R`: consume
-  `NESTS_LATEST` output including state, labels, and location fields.
-- `main/R/pdf_todo.R` and `main/R/pdf_todo_map.R`: consume `TODO_LIST`,
-  `BROODS_LATEST`, and `AVAILABLE_COMBOS`; they expect parent marks, hatch timing,
-  task categories, priorities, negative-brood flags, chick colours, and location
-  provenance. The legacy `nests_latest` argument remains as a compatibility
-  wrapper for older local preview callers.
-- `main/R/ggplot_overview.R`: queries source tables,
-  `EGGS_HATCH_PREDICTION`, and `CAPTURES_ARCHIVE` directly. It does not use the
-  SQL `OVERVIEW` view as the source for its seven dashboard plots.
-- `tests/testthat/`: checks view wiring, Overview output IDs, SQL-view presence,
-  reference-date reactivity, and selected archive usage. It does not replace a
-  database-level view execution test.
-
-## Changes since the July 29 memo
-
-- `TODO_LIST` now includes explicit parent-capture, parent-resighting, `MM`
-  follow-up, geolocator-target, disturbance-interval, clutch-check, and expanded
-  processing workflows.
-- `NESTS_LATEST` parent marks now use both captures and resightings rather than
-  capture-only history.
-- `OVERVIEW` is now an active tracked SQL view and the app has a committed
-  multi-panel Overview dashboard.
-- `NESTS.bird_inc` now accepts `FM` and `MF` as well as the previous sex/unknown/
-  empty values; the NESTS app dropdown matches the wider enum.
-- `OBSERVERS.gps_id` is now free text for multiple-device association.
-- Current CAPTURES DDL retains `eggs_handled`, moves it beside GPS linkage fields,
-  and retains `observer_upload` only in CAPTURES.
-- `RESIGHTINGS` now includes nullable `ring` after `LR` for chick identity in
-  H-class hiding-spot-photo events; `RESIGHTINGS_PUBLIC` remains unchanged.
-
-## Snapshot comparison
-
-The latest local snapshot is dated 2026-07-31, so it is structurally behind the
-tracked SQL. Material observed drift includes:
-
-- older `NESTS.bird_inc` allowed only `M`, `F`, `U`, `E`;
-- older `OBSERVERS.gps_id` was numeric rather than the current free-text
-  multiple-ID field;
-- older CAPTURES placement/comment semantics do not reflect current `NO_NEST` and
-  `eggs_handled` source DDL;
-- the snapshot preserves old comment formatting and auto-increment state, neither
-  of which should drive new DDL decisions.
-
-Use the snapshot for safe local read-only alignment/testing only. Do not apply it
-to roll back or recreate the current database schema.
+Do not add a `RESIGHTINGS.ring` index merely because the field exists. Current
+helpers use ring within reference-date-bounded event logic and do not establish
+a standalone index requirement. Any new index needs an EXPLAIN-backed query
+benefit, a write-cost review, a duplicate-index check, and an object-specific
+rollback statement.
 
 ## Compatibility gates and unresolved risks
 
-1. `CAPTURES_ARCHIVE` requires both historic `BADOatNZ.CAPTURES` and
-   `BADOatNZ.SEX`. The app source-watch mapping currently names only historic
-   CAPTURES, so a SEX-only change will not invalidate the browser view.
-2. `NESTS_LATEST` now depends on `RESIGHTINGS`, but its source-watch list in
-   `main/global.R` omits `RESIGHTINGS`; resighting-only parent updates may not
-   refresh the browser/map on schedule.
-3. `BROODS_LATEST` is implemented and consumed directly by `TODO_LIST` and the
-   PDF/map helpers, but it is not currently listed as a separate browser view in
-   `main/global.R`. Its underlying sources are partly covered by the `TODO_LIST`
-   watch list; direct PDF loads still depend on a fresh deployed view.
-4. `AVAILABLE_COMBOS` is browser-visible but has no explicit source-watch mapping.
-   It depends on `settings`, current CAPTURES, the historic archive, and ultimately
-   historic SEX.
-5. The obsolete tagged-bird PDF follow-up view has been removed from tracked
-   `views.SQL` and the app. The Overview geolocator-history figure is
-   independent and continues to query the underlying capture/resighting tables.
-   `main/global.R` still advertises `VIEW_2`, but tracked `views.SQL` has no
-   `VIEW_2` definition; this remains a browser-contract mismatch.
-6. `TODO_LIST` is a large window-function/CTE view. `showTable()` requests
-   `derived_merge=off`, but other direct callers may still need performance and
-   query-plan checks on the target MariaDB version.
-7. Source tables use indexes rather than foreign keys, so invalid links can be
-   stored unless validators and post-save QA catch them.
-8. `FM` versus `MF` in `bird_inc` needs a canonicalization decision. Treating
-   them as different categorical values can fragment summaries and validators.
-9. The current `BROODS_LATEST` implementation is scoped to `site = 'CR'`. The
-   source DDL comments describe negative IDs more generally, so extending the
-   view beyond Cass River requires explicit collaborator and biological review.
-10. The seven-day/36-hour rules, inferred incomplete-clutch dates, the geolocator
-   target threshold, and the temporary combo site gate require biological or
-   collaborator confirmation before being generalized or simplified.
+1. The historic `BADOatNZ.SEX` dependency of CAPTURES_ARCHIVE is not fully
+   represented by the current source-watch list.
+2. `AVAILABLE_COMBOS` has no equivalent explicit source-watch mapping.
+3. `VIEW_2` is advertised by the app but is not defined in the current SQL
+   inventory.
+4. `TODO_REFRESH_STATUS` is part of the remote optimized install/status design,
+   while the current dirty `views.SQL` and refresh script must be checked as a
+   matched pair before deployment; a status-table mismatch can make a healthy
+   or failed refresh appear unknown.
+5. The current checkout's dirty split calculator and snapshot blocks differ from
+   the clean remote baseline. The dirty file also contains repeated
+   snapshot/Overview definitions during the active WIP experiment. They are
+   protected WIP, not an approved live schema. The refresh-only fix `ad1698b`
+   was subsequently merged through PR #147 and is present in the publication
+   baseline `f7d13fb`; that source merge is not evidence of live deployment.
+6. The source tables have no foreign keys, so invalid nest/GPS links remain a
+   validator/post-save-QA concern.
+7. Negative-brood derived logic is currently Cass River scoped. Broader use
+   needs biological confirmation.
+8. `FM` and `MF` both represent both sexes but are distinct enum values.
+   Canonicalization needs collaborator confirmation before changing summaries.
+9. H-photo task closure uses distinct normalized rings, paired direct GPS,
+   complete photo metadata, and reference-date-bounded qualifying associations.
+   A missing or ambiguous association must remain open rather than being
+   silently inferred.
+10. Parent identity, MM, `XX`, single-colour recruit, geolocator, disturbance
+    interval, seven-day capture, clutch-completion, and hatch-estimate logic are
+    biological operational policy and require collaborator confirmation before
+    generalization.
 
-## Migration and rollback stance
+## Migration, rollback, and verification
 
-There is no migration ledger. For a live or valued local database, use reviewed,
-object-specific `ALTER`/`CREATE OR REPLACE VIEW` statements and a backup; do not
-re-run `main_tables.SQL` or `_reset.SQL` blindly. Deploy helper functions before
-views, and re-create dependent views after changes to `format_mark()`, source
-columns, or historic compatibility objects. Rollback should restore the prior
-object-specific DDL/view definition, not a whole dated dump.
+No migration is authorized or executed by this memo. Do not re-run
+`main_tables.SQL` or `_reset.SQL` against an existing database. For an approved
+deployment, use object-specific statements, capture schema-only definitions,
+and plan for metadata locks on view/table changes.
 
-For an environment where the live RESIGHTINGS table does not yet contain the
-field, first inspect metadata and then apply this reference migration manually.
-It is not executed by this task because the active database has already been
-altered:
+For the nullable RESIGHTINGS `ring` field, the reviewed reference migration is:
 
 ```sql
 SELECT TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION, COLUMN_NAME, COLUMN_TYPE,
@@ -676,29 +571,86 @@ ALTER TABLE FIELD_2026_BADOatNZ.RESIGHTINGS
   AFTER `LR`;
 ```
 
-Rollback, only if the column was added solely by this migration and its values
-have been reviewed, is:
+Run it only after metadata confirms the field is absent and after a schema/data
+backup. Rollback is an explicit `DROP COLUMN ring` only if the field was added
+by that migration and any entered values have been preserved; dropping it is
+data-destructive and requires collaborator approval.
 
-```sql
-ALTER TABLE FIELD_2026_BADOatNZ.RESIGHTINGS
-  DROP COLUMN `ring`;
-```
+For view/task changes, rollback means restoring the previous approved
+`CREATE VIEW` definitions and published snapshot boundary in dependency order,
+not deleting biological rows. For refresh failure, discard only incomplete
+`*_BUILD` objects after confirming the prior public snapshot remains intact.
 
-Dropping the field discards entered chick-ring values and requires an explicit
-backup and collaborator approval. No index is proposed because current views
-and helpers do not filter or join RESIGHTINGS by `ring`.
+Static verification for a candidate deployment should include:
 
-## Handoff checklist for future Thread 2 work
+- `SHOW CREATE TABLE` for source DDL, especially ring, enum, comments, and
+  indexes;
+- `SHOW CREATE VIEW` for archive, H helper, brood, TODO, and public boundaries;
+- dependency/object inventory after install;
+- reference-date and refresh-status checks;
+- invented fixtures for positive nest, positive brood with later direct chick
+  GPS, negative brood first seen in each event table, same-day events, H-photo
+  resolution, ambiguous same-GPS candidates, missing GPS, and `NO_NEST`;
+- SQL-level checks that duplicate H rows count once and ambiguous candidates do
+  not receive a derived ID;
+- focused static tests for split task boundaries, snapshot publication, PDF
+  projections, app watchers, and `VIEW_1`.
 
-1. Start from the current tracked `DATABASE/*.SQL` files, then inspect consumers
-   in `main/`, `DataEntry/`, and tests.
-2. Confirm all source-table fields/enums are represented correctly in applicable
-   `DataEntry/*/global.R` dropdowns and defaults.
-3. Treat `reference_date` as an input to operational output, not a display-only
-   setting.
-4. When changing a view dependency, update `main/global.R` source-watch mappings
-   and tests in the same review.
-5. Treat historic `BADOatNZ` compatibility objects as external prerequisites;
-   never assume a 2026-only reset provides them.
-6. Ask for biological confirmation before changing parent identity, capture timing,
-   clutch inference, geolocator targeting, or allocation rules.
+This documentation pass did not run those checks against a database or execute
+the test suite.
+
+## Cross-thread handoffs
+
+**Thread 1:** owns repository map, AGENTS governance, branch hygiene, and
+clean-PR selection. Keep dirty WIP distinct from the deployable revision.
+
+**Thread 3/3.1:** owns validator protocol and DB-stored inspectors. Enforce
+negative-ID table restrictions, paired GPS, H-class ring/photo requirements,
+and current CAPTURES/RESIGHTINGS existence rules. Do not make validators rewrite
+raw nest IDs or fabricate NESTS rows.
+
+**Thread 4:** owns task/PDF/map behavior. Consume BROODS_LATEST and the shared
+H-association/parent-status outputs rather than duplicating source unions or
+location ranking in R. Treat snapshot refresh as separate from SQL view install.
+
+**Thread 5:** owns Overview panels and their source/query contracts. Check
+CAPTURES_ARCHIVE and reference-date behavior independently of TODO correctness.
+
+**Thread 6:** owns available-combo policy, normalized mark allocation, CR/CX
+compatibility, and team-mark ordering. Preserve `format_mark()` and source
+provenance unless the combo protocol is deliberately revised.
+
+**Thread 8:** owns Field Manual/downstream documentation for H-event and
+negative-brood workflows. The SQL helper remains conservative and deployment
+must verify the exact derived-view definition.
+
+**Thread 9:** owns isolated local MariaDB replay, stage timing, process/error
+diagnostics, and refresh troubleshooting. Start from a clean selected revision,
+not this dirty checkout, and report sanitized object/timing evidence only.
+
+## Previous assumptions now obsolete
+
+- `Admin/db_structure.SQL` is no longer the schema authority.
+- EGGS is not an approved wide-format redesign; it remains long format.
+- `observer_upload` is not a shared field; it is CAPTURES-only.
+- `eggs_handled` is a current CAPTURES field between GPS linkage and field sex.
+- `RESIGHTINGS.ring` is not future-only; it is present in the current tracked
+  DDL and is part of the H-photo contract.
+- `BROODS_LATEST` is not merely a proposed future object; it is implemented in
+  the current SQL architecture and consumed by brood-aware downstream logic.
+- The older claim that NESTS_LATEST does not watch RESIGHTINGS is stale; the
+  current app mapping includes it.
+- The current dirty split calculator must not be described as the clean remote
+  deployment architecture.
+
+## Recommended next Thread 2 checks
+
+1. Select one clean revision and verify that its `views.SQL` and refresh script
+   are a compatible install/refresh pair.
+2. Compare the deployed target's object definitions to that pair using approved
+   metadata-only checks.
+3. Decide whether `TODO_REFRESH_STATUS`, `VIEW_2`, and the historic SEX watch
+   are intentional compatibility gaps or should be corrected by their owners.
+4. Ask collaborators to confirm Cass River scope, `FM`/`MF` semantics, parent
+   identity thresholds, direct-location ordering, and H-photo exception rules
+   before generalizing SQL.

@@ -1,246 +1,247 @@
 # Thread 6 Combo-List Protocol
 
-## Status
+## Status and purpose
 
-- Full protocol audit: 2026-09-22; Git/status refresh: 2026-10-06.
-- Current PR base: `origin/main` commit `1617e84`.
-- Active scope: Thread 6 combo-list maintenance for the 2026 FIELDWORKER app.
-- Method: static, read-only inspection of tracked code plus narrow inspection of the
-  latest local SQL dump and the approved recyclable-combo workbook.
-- No live database, credentials, raw coordinates, or broad historical rows were
-  accessed.
-- This tracked memo documents current behavior. The present PR makes
-  `AVAILABLE_COMBOS` fail closed when the non-null `reference_date` setting is
-  unavailable and adds a focused static regression test. It does not change
-  `USED_COMBOS_DETAIL`, candidate rules, exclusions, ranking, or banding policy.
-- It does not authorize a database deployment or a change to banding policy.
+This is the restart-grade specification for conservative colour-combination
+availability and the FIELDWORKER PDF Team marks handoff.
 
-## Purpose and ownership
+- Refreshed: 2026-10-23.
+- Original remote baseline inspected: `origin/main` at `9beb203`; references
+  below preserve that audit chronology.
+- Documentation publication baseline: `origin/main` at `f7d13fb`, including
+  the refresh empty-statement correction merged through PR #147.
+- Protected checkout inspected: `codex/split-todo-calculator-2026-10-19` at
+  `d3c7bd4`, with unrelated uncommitted SQL, R, validator, documentation, and
+  test changes. It is not a deployment candidate.
+- Live database and deployed Shiny process: not established.
+- Scope: `format_mark()`, `CAPTURES_ARCHIVE`, `USED_COMBOS_DETAIL`,
+  `AVAILABLE_COMBOS`, and the PDF Team marks preparation boundary.
+- Non-goals: save-time validators, task eligibility, map biology, Overview
+  design, live deployment, database writes, and automatic recycling of used
+  combinations.
 
-The combo-list system supplies conservative colour-band combinations that may be
-assigned in future capture events. It has two operational outputs:
+This memo records source behavior, not a claim that the same definitions are
+installed in the target database. A clean selected Git revision, the matching
+SQL files, the matching refresh workflow, and object-level database checks are
+required before deployment.
 
-1. `USED_COMBOS_DETAIL`, an audit view that normalizes historical and current band
-   fields into canonical two-colour left and right pairs where possible.
-2. `AVAILABLE_COMBOS`, a candidate generator that globally subtracts every confidently
-   normalized used pair and supplies the CR list consumed by the FIELDWORKER PDF.
+## Ownership and boundaries
 
-For this active task, Thread 6 owns the combo-list protocol, maintenance triage,
-and cross-thread handoffs. `AGENTS.md` now reflects this current role.
+Thread 6 owns canonical combo normalization, conservative used-pair subtraction,
+candidate generation, ranking, CR/CX compatibility, ambiguity auditing, and the
+PDF team-mark handoff.
 
-Cross-thread ownership remains important:
+- Thread 1 owns repository maps, branch hygiene, and AGENTS governance.
+- Thread 2 owns SQL architecture, dependency order, derived types, permissions,
+  migration risk, and deployment review.
+- Thread 3.1 owns validators, mock-data realism, and alignment of mock band
+  representations with this canonicalization.
+- Thread 4 owns to-do/PDF/map task semantics, rendering, and PDF regression
+  behavior. Thread 6 supplies the combo pool but does not reimplement task logic.
+- Thread 5 owns Overview behavior.
+- Thread 9 owns isolated local MariaDB replay, stage timing, and deployment
+  troubleshooting.
 
-- Thread 2 owns SQL architecture, view/function deployment review, derived types,
-  permissions, and schema migration risk.
-- Thread 3 owns save-time validation and connected mock-data realism. It must keep
-  classic and tagged representations aligned with the canonical rules below.
-- Thread 4 owns the FIELDWORKER to-do/PDF integration, including visible ordering,
-  team allocation, preview parity, and reactive app dependencies.
-- Thread 6 owns this protocol and coordinates combo-specific changes across those
-  boundaries.
+The current `AGENTS.md` contains a `Thread 6 - Combo-list specialist` role and
+matches this scope. The older QA/reproducibility placeholder is preserved in the
+prompt log as history. No AGENTS edit is needed for this refresh.
 
-## Source-of-truth hierarchy
+## Source-of-truth and state labels
 
-Use this order when sources disagree:
+Use the following authority order when sources disagree:
 
-1. `DATABASE/functions.SQL`
-2. `DATABASE/views.SQL`
-3. `DATABASE/main_tables.SQL`
-4. `main/R/pdf_todo.R`
-5. `main/global.R`
-6. current tests and local PDF-preview scripts as implementation evidence only
-7. the latest local `FIELD_2026_BADOatNZ_*.sql` dump as a deployment snapshot
-8. the recyclable-combo workbook as a supplementary human-maintained reference
+1. `DATABASE/functions.SQL` for the formatter contract.
+2. `DATABASE/views.SQL` for archive, audit, candidate, and downstream view logic.
+3. `DATABASE/main_tables.SQL` and `DATABASE/support_tables.SQL` for columns and
+   support-table contracts.
+4. `main/R/pdf_todo.R` and `main/templates/todo_pdf.qmd` for PDF selection,
+   allocation, and rendering.
+5. Current focused tests as executable implementation evidence.
+6. The latest local SQL dump as a deployment/alignment snapshot only.
+7. The recyclable-combo workbook as an informational human register only.
 
-Important current conflicts:
+State labels used in this memo:
 
-- The latest local dump by filename is
-  `DATABASE/FIELD_2026_BADOatNZ_7311213.sql`, completed on 2026-07-31. Its deployed
-  combo views predate current tracked SQL.
-- That dump's `AVAILABLE_COMBOS` lacks the current fixed exclusions, ranking, and
-  CR/CX compatibility gate.
-- That dump's `USED_COMBOS_DETAIL` lacks the current tag-plus-two-colour-`LR` rule
-  and does not treat `XX` as blank in the relevant right-side branch.
-- The Thread 1 and Thread 2 memos were refreshed before the combo views reached their
-  current form and do not list both combo views.
-- The local full-app preview implements part of the candidate and ordering logic but
-  not the current CR/CX gate. It also relies on the snapshot copy of
-  `USED_COMBOS_DETAIL` rather than recreating all current normalization behavior.
+- **Remote baseline:** committed files at the inspected `origin/main` revision.
+- **Protected WIP:** uncommitted files in the active checkout. They must not be
+  copied into a database merely because they are present locally.
+- **Local snapshot/replay:** a disposable or downloaded artifact. It does not
+  override tracked source and does not prove live deployment.
+- **Live deployment:** database objects and a restarted app process. It is not
+  established by this documentation pass.
 
-Tracked SQL is therefore the current source of truth. The dump and preview scripts
-are useful for detecting drift, not for overriding tracked logic.
+The repository contains dated dumps through
+`DATABASE/FIELD_2026_BADOatNZ_7311213.sql`; the newest user-supplied downloaded
+snapshots are outside the repository. Both are snapshots, not SQL source truth.
+The tracked remote baseline includes the later `GY` policy; the protected dirty
+checkout's `DATABASE/views.SQL` is older in the combo section and lacks `GY`.
+Keep this distinction explicit.
 
-## SQL object chain
-
-The dependency chain is:
+## Dependency chain
 
 ```text
-format_mark()
-  -> CAPTURES_ARCHIVE
-  -> USED_COMBOS_DETAIL
-  -> AVAILABLE_COMBOS
-  -> todo_pdf_prepare_team_marks()
-  -> Team marks table in the FIELDWORKER PDF
+functions.SQL: format_mark()
+        |
+        v
+CAPTURES_ARCHIVE  -- historic BADOatNZ.CAPTURES + BADOatNZ.SEX dependency
+        |
+        +--> USED_COMBOS_DETAIL <--- current FIELD_2026 CAPTURES final/_in fields
+                        |
+                        v
+              AVAILABLE_COMBOS
+                        |
+                        v
+main/R/pdf_todo.R::todo_pdf_prepare_team_marks()
+                        |
+                        v
+              Team marks table in the PDF
 ```
 
-`CAPTURES_ARCHIVE` reads historical `BADOatNZ.CAPTURES` and joins a grouped lookup
-from `BADOatNZ.SEX`. It is not a current-season union. The explicit current-season
-release and input sources are added later inside `USED_COMBOS_DETAIL`.
+There is no current `CAPTURES_active` definition in the inspected tracked SQL
+source or current app wiring. References to that name are historical or belong
+to another source revision. Current-season final and `_in` fields are read
+directly from `FIELD_2026_BADOatNZ.CAPTURES` inside `USED_COMBOS_DETAIL`.
 
-## `format_mark()` contract
+`CAPTURES_ARCHIVE` is not a current-season union. It reads historic
+`BADOatNZ.CAPTURES` and a grouped `BADOatNZ.SEX` lookup. The current-season
+union is deliberately added later by `USED_COMBOS_DETAIL`.
+
+## Formatter contract
 
 `FIELD_2026_BADOatNZ.format_mark(UL, LL, UR, LR)`:
 
-- trims each supplied field;
-- suppresses blank strings, `X`, and `M` independently;
-- joins multiple visible segments on one leg side with `.`;
-- uses `X` when a complete side has no visible segment; and
-- returns `left-right` as `varchar(50)`.
+- trims each input;
+- ignores blank strings and the placeholders `X` and `M` independently;
+- joins the retained upper/lower field values on each leg side with `.`;
+- uses `X` when a complete side has no visible retained value; and
+- returns a left-right `varchar(50)` mark.
 
 Invented examples:
 
-| Input `(UL, LL, UR, LR)` | Output |
+| Inputs `(UL, LL, UR, LR)` | Display result |
 | --- | --- |
-| `('B', 'G', 'R', 'O')` | `B.G-R.O` |
-| `('M', 'YY', 'X', 'GB')` | `YY-GB` |
-| `('M', NULL, 'X', NULL)` | `X-X` |
+| `B, G, R, O` | `B.G-R.O` |
+| `M, YY, X, GB` | `YY-GB` |
+| `NULL, BY, XX, GW` | `BY-GW` |
 
-`format_mark()` is a display formatter, not the complete canonical combo normalizer.
-For example, it would display a raw tag/spacer arrangement with its raw segments.
-`USED_COMBOS_DETAIL` first canonicalizes those segments and then calls
-`format_mark('X', LL, 'X', LR)` to produce the canonical combo mark.
+The formatter is a display function, not the complete combo identity rule.
+`USED_COMBOS_DETAIL` canonicalizes raw fields first, then calls
+`format_mark('X', canonical_LL, 'X', canonical_LR)` for a canonical two-pair
+display mark.
 
-## Candidate-combo rules
+## Candidate-combo generation
 
-### Colour alphabet
-
-The complete candidate alphabet is:
+The allowed colour alphabet is exactly:
 
 ```text
 B, G, R, O, W, L, Y
 ```
 
-`L` means lime. Repeated colours are allowed. No SQL rule requires the four colours
-within a combo to be unique.
+`L` means lime. Repeated colours are valid. The SQL does not require the four
+bands to be unique.
 
-### Pair generation
-
-The view cross-joins the seven colours with themselves to generate all 49 ordered
-two-colour `LR` pairs. Order matters, so `BG` and `GB` are distinct, and pairs such
-as `BB` are valid candidates.
-
-Each available mark is represented canonically by:
-
-- `LL`: exactly two allowed colour characters;
-- `LR`: exactly two allowed colour characters; and
-- `mark`: `format_mark('X', LL, 'X', LR)`, normally `LL-LR`.
+The view cross-joins the alphabet with itself to produce all 49 ordered `LR`
+pairs. Order matters: `BG` and `GB` differ, and `BB` is valid.
 
 ### Site rules
 
-| Site | Allowed `LL` | Allowed first character of `LR` |
+| Candidate site | Allowed `LL` | Allowed first `LR` character |
 | --- | --- | --- |
-| `CR` | `OY`, `YR`, `YO`, `YY`, `LY`, `BY`, `WY` | any allowed colour |
-| `AR` | `BW` | any allowed colour |
+| `CR` | `OY`, `YR`, `YO`, `YY`, `LY`, `BY`, `WY`, `GY` | any colour |
+| `AR` | `BW` | any colour |
 | `WN` | `WO` | `B`, `G`, or `R` |
 | `WS` | `WO` | `O`, `W`, or `Y` |
 
-The second `LR` character may be any allowed colour for every site.
+The second `LR` character is any colour for every site. `CX` is not a candidate
+site rule; it is a compatibility label applied to some original `CR`
+candidates after subtraction and ranking. `AU` has no current candidate rule.
 
-Before used-combo subtraction, the rules produce 343 CR, 49 AR, 21 WN, and 21 WS
-raw candidates. The fixed exclusions below reduce those maxima to 282 CR, 47 AR,
-20 WN, and 20 WS before dynamic used-combo subtraction.
+Before dynamic used subtraction, the current remote rules generate:
 
-No `AU` candidate rule is implemented in the current view, even though historical
-records or manual analyses may identify an AU scheme.
+- 392 raw `CR` candidates;
+- 49 raw `AR` candidates;
+- 21 raw `WN` candidates; and
+- 21 raw `WS` candidates.
 
-## Used-combo sources
+After excluding `LL = 'YR'` and `LR IN ('OR', 'RO')`, the maxima are 329, 47,
+20, and 20 respectively. Used-pair subtraction then reduces these counts.
 
-`USED_COMBOS_DETAIL` unions three sources with `UNION ALL`:
+## Used-combo evidence
 
-1. Historical release fields from `CAPTURES_ARCHIVE`.
-2. Current-season release fields from `CAPTURES.UL`, `LL`, `UR`, and `LR`.
-3. Current-season capture/input fields from `CAPTURES.UL_in`, `LL_in`, `UR_in`,
-   and `LR_in`.
+`USED_COMBOS_DETAIL` uses `UNION ALL` over three evidence sources:
 
-The view retains `source_table` and `source_stage` so release and input histories can
-be audited separately. It does not restrict by `capture_status`.
+1. historical release fields from `CAPTURES_ARCHIVE`;
+2. current-season final fields `CAPTURES.UL`, `LL`, `UR`, `LR`; and
+3. current-season input fields `CAPTURES.UL_in`, `LL_in`, `UR_in`, `LR_in`.
 
-Consequences of the conservative policy:
+The current SQL does not add `RESIGHTINGS` to this used-combo union. Comments in
+older or dirty source may use broader wording, but the CTEs above are the current
+remote-baseline behavior.
 
-- `F`, `R`, `C`, and `D` rows can all block a combo if their fields normalize.
-- A dead bird (`capture_status = 'D'`) does not automatically release its combo.
-- For a changed-combo event (`capture_status = 'C'`), a normalizable old `_in`
-  combination and a normalizable new release combination both remain used.
-- Duplicate source rows are allowed in the audit view, but `AVAILABLE_COMBOS`
-  subtracts distinct normalized `LL`/`LR` pairs.
-- Used pairs are global. Historical/current site is not part of the subtraction key.
-  A pair used at one site is unavailable anywhere that the same pair occurs in the
-  current candidate universe.
+The source keeps provenance columns (`source_table`, `source_stage`, date, status,
+and raw fields) for audit. It does not filter by `capture_status`.
 
-`CAPTURES_ARCHIVE.mark` is not parsed for subtraction. The audit view re-normalizes
-the underlying band fields so classic and tag-style representations can converge on
-the same canonical pair.
+Consequences:
 
-## Reference-date behavior
+- final marks from `F`, `R`, `C`, and `D` rows can all block a pair if they
+  normalize;
+- a dead bird does not automatically release its pair;
+- a changed-combo event retains both a normalizable old `_in` pair and a
+  normalizable new final pair;
+- duplicates in the audit view are expected; availability subtracts distinct
+  canonical `LL`/`LR` keys; and
+- subtraction is global. A pair used in one site candidate universe is blocked
+  everywhere the same pair appears.
 
-Every used source cross-joins the non-null row where:
+`CAPTURES_ARCHIVE.mark` is not parsed for this purpose. The underlying four band
+fields are re-normalized so classic and tagged representations converge.
 
-```sql
-settings.variable = 'reference_date'
-```
+## Reference-date gate
 
-A source row is included when:
+Each used-source CTE reads the non-null `settings.value` where
+`variable = 'reference_date'`. A row is used when:
 
 ```text
-date <= reference_date
-OR date IS NULL
+date <= reference_date OR date IS NULL
 ```
 
 Therefore:
 
-- future-dated rows are excluded until the app's reference date reaches them;
-- unknown dates are treated conservatively as already used; and
-- changing the FIELDWORKER reference date dynamically changes the used set and the
-  available list.
+- future-dated evidence is excluded until the reference date reaches it;
+- an unknown date is conservatively treated as already used; and
+- changing the app reference date changes the used and available sets.
 
-`AVAILABLE_COMBOS` now also cross-joins its candidate generation to the same
-non-null `sr` CTE. If the `reference_date` row is absent or null, both used-source
-and candidate paths are empty, so the view fails closed instead of exposing an
-unsafe near-full candidate pool. A non-null reference date remains an operational
-prerequisite for a usable list.
+`AVAILABLE_COMBOS` also cross-joins the non-null reference-date CTE. If no
+non-null reference-date row exists, its candidate path returns no rows rather
+than exposing an unsafe full candidate pool. Operations should still maintain
+exactly one non-null reference-date setting; multiple rows are a configuration
+fault even though the current candidate `DISTINCT` can mask the duplication.
 
 ## Canonical normalization
 
-Before normalization, band fields are trimmed, uppercased, and converted from blank
-strings to null. Rows with all four raw fields null are omitted.
+Before normalization, fields are uppercased, trimmed, and blank strings become
+SQL NULL. Rows with all four raw fields null are omitted.
 
-Allowed normalized pairs must match exactly:
-
-```text
-^[BGROWLY]{2}$
-```
+The only canonical side values are exactly two characters from
+`[BGROWLY]`. A row is `is_normalizable = 1` only when both canonical `LL` and
+`LR` satisfy that grammar. Otherwise its canonical `mark` is NULL and it remains
+visible in the audit view with `is_normalizable = 0`.
 
 ### Left side
 
-Normalization is applied in this order:
+The current order is:
 
-1. One allowed colour in `UL` plus one allowed colour in `LL` becomes `UL || LL`.
-2. If `UL` is null, `X`, or `M`, an allowed two-colour `LL` is used unchanged.
-3. If `LL` is null, `X`, or `M`, an allowed two-colour `UL` is used unchanged.
-4. Everything else becomes null.
+1. one colour in `UL` plus one colour in `LL` becomes `UL || LL`;
+2. null, `X`, or `M` in `UL` plus a two-colour `LL` uses `LL`; and
+3. null, `X`, or `M` in `LL` plus a two-colour `UL` uses `UL`.
 
-Invented examples:
+Everything else is non-normalizable. In particular, `XX` is not currently a
+left-side blank token.
 
-| Raw `UL` | Raw `LL` | Canonical left pair |
-| --- | --- | --- |
-| `Y` | `O` | `YO` |
-| `M` | `YY` | `YY` |
-| `X` | `BY` | `BY` |
-| NULL | `WY` | `WY` |
+Invented examples: `UL=Y, LL=O` becomes `YO`; `UL=M, LL=YY` becomes `YY`;
+`UL=X, LL=BY` becomes `BY`.
 
-`XX` is not treated as a left-side blank token by current SQL.
-
-### Right side: tag/spacer records
+### Right side, geolocator tag/spacer
 
 A tag-style `UR` matches:
 
@@ -248,278 +249,206 @@ A tag-style `UR` matches:
 ^T[A-Z0-9]*[BGROWLY]$
 ```
 
-For audit display, matching values are reduced to `T` plus their final allowed colour
-in `UR_tag_norm`. Canonical right-pair behavior is:
+The audit display field `UR_tag_norm` retains `T` plus the final allowed colour.
+The canonical right-side rules are:
 
-1. Tag-style `UR` plus a two-colour `LR`: use `LR` unchanged. The spacer colour is
-   ignored because `LR` already supplies the complete right pair.
-2. Tag-style `UR` plus a one-colour `LR`: use the final spacer colour from `UR` as
-   the first canonical colour, followed by `LR`.
-
-Invented examples:
-
-| Raw `UR` | Raw `LR` | Canonical right pair |
-| --- | --- | --- |
-| `TY` | `R` | `YR` |
-| `TG` | `GB` | `GB` |
-| `T9Y` | `B` | `YB` |
-
-This is the critical duplicate-prevention equivalence: a classic deployment with
-right pair `GB` and a tagged deployment represented as `TG` plus `GB` occupy the same
-canonical right-pair space.
-
-### Right side: classic records
-
-After tag branches, normalization is:
-
-1. One allowed colour in `UR` plus one allowed colour in `LR` becomes `UR || LR`.
-2. If `UR` is null, `X`, `XX`, or `M`, an allowed two-colour `LR` is used unchanged.
-3. If `LR` is null, `X`, or `M`, an allowed two-colour `UR` is used unchanged.
-4. Everything else becomes null.
+1. tag-style `UR` plus a two-colour `LR` uses `LR` unchanged. `LR` already
+   supplies the complete right pair, so the spacer is not prepended;
+2. tag-style `UR` plus a one-colour `LR` uses the final allowed colour after `T`
+   as the first right colour, followed by `LR`; and
+3. non-tag one-colour `UR` plus one-colour `LR` uses `UR || LR`.
 
 Invented examples:
 
-| Raw `UR` | Raw `LR` | Canonical right pair |
-| --- | --- | --- |
-| `Y` | `G` | `YG` |
-| `X` | `YG` | `YG` |
-| `XX` | `OR` | `OR` |
-| `M` | `WR` | `WR` |
+| Raw fields | Canonical right pair |
+| --- | --- |
+| `UR=TY, LR=R` | `YR` |
+| `UR=TY, LR=GB` | `GB` |
+| `UR=T9Y, LR=B` | `YB` |
+| `UR=X, LR=YG` | `YG` |
 
-### `is_normalizable`
+This is the duplicate-prevention equivalence between a classic right pair and a
+tagged representation. For example, `LL=YY, UR=TG, LR=GB` occupies `YY-GB`,
+not a five-band identity.
 
-`is_normalizable = 1` only when both canonical `LL` and canonical `LR` are exactly
-two allowed colours. The canonical `mark` is then generated as `LL-LR`.
+A literal combined value such as `UR='TY.G'` is not accepted by the current
+regex because the stored protocol expects the spacer in `UR` and the remaining
+tibia colour in `LR`. Thread 3.1 mock generation must store those components in
+the separate fields or explicitly normalize them before they reach SQL.
 
-If either side fails, `mark` is null and `is_normalizable = 0`. The raw fields,
-normalized tag field, source, stage, date, and status remain available in
-`USED_COMBOS_DETAIL` for audit.
+### Right side, classic and placeholders
 
-Examples that remain ambiguous or nonstandard include:
+After tag branches:
 
-- a tag marker with no spacer colour;
-- a tag/spacer with a missing `LR`;
-- partial sides that cannot form exactly two colours;
-- flags, unexpected symbols, or strings outside the allowed colour patterns; and
-- left-side `XX` in a position where only null, `X`, or `M` is accepted.
+1. one-colour `UR` plus one-colour `LR` becomes `UR || LR`;
+2. null, `X`, `XX`, or `M` in `UR` plus a two-colour `LR` uses `LR`; and
+3. null, `X`, or `M` in `LR` plus a two-colour `UR` uses `UR`.
 
-Ambiguous rows are reported but are not subtracted from `AVAILABLE_COMBOS`, because
-they have no confident canonical key. This is visible rather than silent at the audit
-layer, but it remains an operational risk: a human should review changes in the
-non-normalizable count before relying on a new combo list.
+Examples: `UR=X, LR=YG` becomes `YG`; `UR=XX, LR=OR` becomes `OR`;
+`UR=M, LR=WR` becomes `WR`. Partial sides, unexpected punctuation, malformed
+tags, and other strings outside the exact grammar remain ambiguous.
 
-## Available-combo subtraction and fixed exclusions
+Ambiguous rows are not silently freed. They are reported by the audit view but
+cannot be subtracted confidently and therefore remain an operational leakage
+risk requiring review of aggregate ambiguity counts before assigning new marks.
 
-`AVAILABLE_COMBOS` builds a distinct global used set from rows where
-`is_normalizable = 1`, then left-joins candidates on `LL` and `LR`. A candidate is
-kept only when no used pair matches.
+## Available subtraction, exclusions, and labels
 
-The following fixed exclusions are then applied before ranking:
+`AVAILABLE_COMBOS` builds a distinct used key from audit rows where
+`is_normalizable = 1`, left-joins candidates on both `LL` and `LR`, and keeps
+only candidates with no matching used key.
+
+The fixed exclusions are:
 
 - every candidate with `LL = 'YR'`;
 - every candidate with `LR = 'OR'`; and
 - every candidate with `LR = 'RO'`.
 
-These are hard-coded operational rules. Their biological or inventory rationale is
-not documented in tracked SQL and should be confirmed before changing them.
+These are operational rules, not inferred biological rules. Do not remove them
+without a separately approved policy decision.
 
-## Ranking and CR/CX compatibility logic
+After subtraction and exclusions, `ROW_NUMBER()` ranks within each original
+candidate site:
 
-After used subtraction and fixed exclusions, `ROW_NUMBER()` assigns `combo_rank`
-within each original candidate site using:
-
-1. `LL` beginning with `Y` first;
+1. `LL` beginning with `Y`;
 2. marks containing neither `L` nor `R`;
 3. marks containing `L`, including marks containing both `L` and `R`;
-4. remaining marks containing `R`;
-5. `LL` in database collation order; and
-6. `LR` in database collation order.
+4. remaining marks, including marks containing `R`; then
+5. database-collation order of `LL`, followed by `LR`.
 
-Because ranking happens after used subtraction, ranks can change whenever the
-reference date or used set changes.
+The current remote-baseline CR/CX compatibility gate is:
 
-The output then applies a temporary compatibility gate to original CR candidates:
+1. original `CR` with `LL` in `BY`, `WY`, `YY`, `YO`, `OY`, or `GY` remains
+   labelled `CR`, regardless of lime content or rank;
+2. other original `CR` candidates containing `L` anywhere become `CX`; and
+3. other original `CR` candidates with `combo_rank > 30` become `CX`.
 
-1. `LL` in `BY`, `WY`, `YY`, `YO`, or `OY` remains labelled `CR` regardless of
-   lime or rank.
-2. Other CR candidates containing `L` anywhere are relabelled `CX`.
-3. Other CR candidates with `combo_rank > 30` are relabelled `CX`.
-4. Remaining candidates keep their original site code.
+All other site labels remain `AR`, `WN`, or `WS`. The gate runs after global used
+subtraction. A protected `LL` group cannot restore a pair already used.
 
-This relabelling happens only after the global historical/current used-pair
-subtraction. Protecting an `LL` group as `CR` cannot restore a candidate whose
-`LL` and `LR` pair already matched `USED_COMBOS_DETAIL`.
+The view exposes only `site_code`, `mark`, `LL`, and `LR`. `LL` and `LR` are
+candidate pair expressions cast upstream to `CHAR(10)`; `site_code` is cast to
+`CHAR(2)` upstream; and `mark` comes from `format_mark()`. Verify deployed
+metadata with `SHOW COLUMNS`, because MariaDB can report expression-derived
+types slightly differently after the final `CASE`.
 
-`CX` is a compatibility bucket, not a biological candidate site in `site_rules`.
-The rule means all `LY` candidates become `CX`, `YR` is already excluded, and all
-otherwise-eligible `OY` candidates remain `CR`.
+The view's final SQL order is original site code plus source `combo_rank`. View
+row order is not a consumer API; the PDF supplies an explicit order.
 
-The gate does not guarantee that the view returns at most 30 rows labelled `CR`:
-the five preferred `LL` groups are retained as CR even when their ranks exceed 30.
-The PDF applies the actual hard limit of 30.
+## PDF Team marks contract
 
-The view's final `ORDER BY` uses original site and `combo_rank`. Consumers should
-still specify their own `ORDER BY`; SQL view row order is not a stable API contract.
-
-## Output contract and types
-
-`AVAILABLE_COMBOS` exposes only:
-
-| Column | Intended derivation |
-| --- | --- |
-| `site_code` | original two-character site or temporary `CX` label |
-| `mark` | `format_mark('X', LL, 'X', LR)` |
-| `LL` | candidate left pair, explicitly cast to `CHAR(10)` upstream |
-| `LR` | candidate right pair, explicitly cast to `CHAR(10)` upstream |
-
-The site candidate is explicitly cast to `CHAR(2)` upstream and `format_mark()`
-returns `VARCHAR(50)`. MariaDB may expose expression-derived view columns with
-slightly different reported character types after the final `CASE`; use
-`SHOW COLUMNS` against the deployed view to verify exact runtime metadata.
-
-`USED_COMBOS_DETAIL` exposes 14 audit columns:
-
-```text
-source_table, source_stage, ring, date_, capture_status,
-UL_raw, LL_raw, UR_raw, LR_raw, UR_tag_norm,
-LL, LR, mark, is_normalizable
-```
-
-Routine reports should aggregate this view and should not print `ring` or raw rows.
-
-## PDF integration and team allocation
-
-`todo_pdf_prepare_team_marks()` runs a fresh query when no combo data is injected:
+`main/R/pdf_todo.R::todo_pdf_prepare_team_marks()` queries:
 
 ```sql
 SELECT mark
 FROM AVAILABLE_COMBOS
 WHERE site_code = 'CR'
-ORDER BY ...
 ```
 
-Its live PDF ordering is:
+The live query orders by:
 
-1. `LL` beginning with `Y` first;
-2. marks containing neither `L` nor `R`;
-3. marks containing `L` but not `R`;
-4. marks containing `R`, including marks containing both `L` and `R`;
-5. `LL`; and
-6. `LR`.
+1. `LL = 'GY'` last;
+2. `LL` beginning with `Y` first;
+3. no `L` or `R`;
+4. `R` before `L` for the PDF, including marks containing both; and
+5. `LL`, then `LR`.
 
-This differs from the SQL ranking only for marks that contain both `L` and `R`:
-the view puts them in the `L` tier, while the live PDF query puts them in the `R`
-tier because its `R` test occurs first.
+The PDF therefore intentionally differs from the SQL rank for marks containing
+both `L` and `R`: SQL's `L` branch comes first, while the live PDF's `R` branch
+comes first. The GY rule is the later compatibility addition and keeps GY marks
+after existing CR marks.
 
-After querying, the R code:
+The helper trims marks, removes blank/NA values, keeps at most 30, and errors if
+the query fails or returns no usable marks. It then distributes the available
+marks as evenly as possible across three teams, giving earlier teams any
+remainder. Examples:
 
-- keeps nonblank marks;
-- takes the first 30;
-- errors if no mark is available;
-- distributes the available marks as evenly as possible across three teams,
-  assigning any remainder to the earliest teams;
-- pads only the shorter displayed team rows so the table remains rectangular;
-  and
-- labels the rows `Team 1`, `Team 2`, and `Team 3`.
+- 30 marks: 10, 10, 10;
+- 28 marks: 10, 9, 9;
+- 2 marks: 1, 1, 0.
 
-With 30 marks, Team 1 receives ordered marks 1-10, Team 2 receives 11-20,
-and Team 3 receives 21-30. With fewer marks, team sizes differ by at most one
-while preserving source order. The PDF displays a note that non-lime 1.5x
-bands are used for the tibia geolocator spacer and 2x bands are used on the
-tarsi.
+The result is a rectangular table with `Team` plus as many numeric mark columns
+as the largest team requires. Shorter teams receive empty cells; no marks wrap
+into a fourth team label. The QMD/Typst table uses the actual number of columns.
 
-If the database query errors, the helper raises a clear
-`Could not load AVAILABLE_COMBOS` error. If the query succeeds but returns no
-nonblank marks, it raises `No available combinations were returned`. A PDF is
-not silently rendered with blank team assignments.
+Preview callers may inject `available_combos`. In that path the helper preserves
+the supplied order except that current code moves rows whose `LL` is `GY` to the
+end. Preview harnesses must therefore supply the same non-GY order as the live
+SQL query if exact parity is required.
 
-When preview scripts inject `available_combos`, the helper does not re-run the SQL
-sort and trusts the injected order. The RDS preview scripts pre-sort with the view's
-`L`-before-`R` interpretation, while live PDF SQL uses the `R`-before-`L` branch for
-marks containing both. Preview and live ordering are therefore not fully identical.
+The PDF adds the current note that non-Lime 1.5x bands are used for the
+geolocator spacer and 2x bands on the tarsi. Thread 4 owns the visual layout and
+the task-table page budget; Thread 6 owns the mark pool and ordering contract.
 
-## App and test integration
+## App, dump, and test integration
 
-- `main/global.R` includes `AVAILABLE_COMBOS` in `dbtabs_show_views`.
-- `USED_COMBOS_DETAIL` is not exposed in that user-facing view list and functions as
-  a diagnostic/audit view.
-- `dbtabs_show_view_sources` has no `AVAILABLE_COMBOS` entry. If the generic view
-  browser depends on that watch list, its reactive refresh may not track changes in
-  `settings`, `CAPTURES`, or historical capture data correctly.
-- The PDF download does not use that watch list; it directly queries
-  `AVAILABLE_COMBOS` during PDF preparation.
-- `tests/testthat/test-pdf-todo.R` covers even team allocation for 1-31 injected
-  mock marks and the zero-mark error. SQL normalization, exclusion, ranking,
-  and the CR/CX gate still lack database-execution regression coverage.
-- `tests/testthat/test-todo-view-rules.R` statically checks that
-  `AVAILABLE_COMBOS` fails closed without a non-null reference date.
-- The local full-app preview partially reconstructs candidate generation and PDF
-  ordering but omits the CR/CX gate and does not recreate the latest normalization
-  from tracked SQL.
+- `main/global.R` exposes `AVAILABLE_COMBOS` and `CAPTURES_ARCHIVE` in the view
+  browser. `USED_COMBOS_DETAIL` is diagnostic and not user-facing there.
+- `dbtabs_show_view_sources` has a watch mapping for `CAPTURES_ARCHIVE` but no
+  explicit mapping for `AVAILABLE_COMBOS`. The generic view browser therefore
+  may not reactively refresh combo output when settings or capture sources change.
+  The PDF queries the view directly.
+- `main/R/system_utils.R` includes `CAPTURES_ARCHIVE` in the bounded RDS export,
+  but not the dynamic combo views. A downloaded RDS is not a replacement for
+  rebuilding the views.
+- `main/templates/todo_pdf.qmd` receives the already allocated rectangular table
+  from `pdf_todo.R`; it does not perform combo subtraction.
+- Current focused tests cover even 1-31-mark distribution, blank-result failure,
+  actual table-column width, GY ordering, reference-date fail-closed SQL shape,
+  and the CR used-pair join/gate structure.
+- Database-execution coverage for every normalization branch, fixed exclusion,
+  reference-date transition, and ambiguity case remains a Thread 2/Thread 9
+  test gap.
 
-These gaps should be handled by Thread 4 for PDF/app tests and Thread 2 for SQL-view
-tests or a local MariaDB fixture if such work is approved later.
+## Reusable-combo policy
 
-## Recyclable-combo policy
+The workbook `Band combos that have become available again.xlsx`, `Sheet1`, is
+informational only. Inspection is limited to site, `LL`, `LR`, and explanatory
+status fields. No SQL or R source reads it automatically.
 
-The approved workbook was inspected only for `Sheet1` site, `LL`, `LR`, and reason
-fields. It is a small manual register. Its reasons include both confirmed mortality
-and replacement/rebanding. No SQL or R source reads the workbook.
+The automatic policy is conservative “ever used” subtraction:
 
-Current policy is conservative "ever used" logic:
+- dead-bird (`D`) pairs remain blocked;
+- changed-event (`C`) old `_in` pairs remain blocked;
+- replacement/rebanding does not release the old pair; and
+- external workbook entries do not override SQL subtraction.
 
-- dead-bird marks remain used;
-- changed-event `_in` marks remain used;
-- replacement/rebanding does not free the old pair;
-- workbook entries do not override `USED_COMBOS_DETAIL`; and
-- no automatic expiry or reuse date exists.
+Any future recycling mechanism needs a separate governed override source, an
+approval/audit trail, a global-versus-site scope decision, a waiting period, and
+rules for revocation when later evidence conflicts. Do not filter `D` or `C`
+rows as an indirect reuse implementation.
 
-The workbook is therefore informational only. A potentially reusable combo should
-remain outside `AVAILABLE_COMBOS` until an explicit reuse policy is approved.
+## Failure modes and unresolved questions
 
-Any future automatic reuse mechanism needs a separate, reviewable override source
-and explicit answers to at least:
+Known risks and policy questions:
 
-- whether recovery of remains is sufficient to release a combo;
-- whether a replaced old combination can be released immediately;
-- whether reuse is global or site-specific;
-- whether a waiting period is required;
-- whether both historical release and current `_in` evidence can be overridden;
-- how contradictory or later records revoke an override; and
-- who approves and audits each release decision.
+1. A non-normalizable used record is visible but does not block a candidate. A
+   review threshold or quarantine policy has not been approved.
+2. `XX` is accepted as a right-side blank marker but not a left-side blank marker.
+   Changing that would be a policy change and needs mock-data/test review.
+3. A literal dotted tag string in one field is not accepted by SQL; mock-data
+   generation must use the separate stored fields.
+4. The rationale and permanence of `YR`, `OR`, and `RO` exclusions are not
+   encoded in source comments.
+5. The lifespan and removal condition of `CX` remain temporary compatibility
+   decisions.
+6. The view ranks all candidates but the PDF alone applies the hard 30-mark cap.
+   Whether the cap belongs in SQL remains unresolved.
+7. `AVAILABLE_COMBOS` has no explicit app source-watch mapping.
+8. The historic `BADOatNZ.SEX` dependency is not fully represented by the
+   current watcher.
+9. An exact-one-row invariant for `settings.reference_date` is operationally
+   expected but not enforced by this view.
+10. The live database may still contain an older view definition even after a
+    source merge. Source and deployment must be checked separately.
 
-Do not weaken `USED_COMBOS_DETAIL` by filtering out `D` or `C` rows as an indirect
-way to implement recycling.
+## Safe read-only verification
 
-## Known temporary rules and unresolved questions
+Run only against an approved local/mock database unless a separate narrow live
+inspection is authorized. These queries return aggregate or invented-example
+results and do not print rows, rings, or coordinates.
 
-1. Confirm the intended lifespan and removal condition for the temporary `CX`
-   compatibility bucket.
-2. Confirm the rationale and permanence of excluding `LL = 'YR'` and
-   `LR IN ('OR', 'RO')`.
-3. Decide whether view ranking or PDF ordering should control marks containing both
-   `L` and `R`.
-4. Decide whether the view should itself expose exactly 30 CR rows or whether the PDF
-   should remain the only hard limiter.
-5. Decide whether non-normalizable used rows require a stronger quarantine rule or
-   a mandatory review threshold before combo assignment.
-6. Confirm whether `XX` should also be treated as blank on the left side and in the
-   branch where `LR` is blank and `UR` contains the pair.
-7. Decide whether an AU candidate scheme should be implemented. It is not currently
-   present.
-8. Decide whether and how the recyclable-combo workbook should become a governed
-   data source. It is currently informational only.
-9. Align the local SQL dump and preview harness with tracked combo logic before
-    treating either as a regression fixture.
-10. Add the missing `AVAILABLE_COMBOS` dependency watch-list entry if reactive view
-    browsing is expected to refresh from `settings`, `CAPTURES`, and historical data.
-
-## Safe read-only verification queries
-
-These queries expose schema or aggregate counts only. Run them against an approved
-local/mock database unless the user separately authorizes narrow live inspection.
-
-### Confirm the formatter with invented values
+Formatter smoke test:
 
 ```sql
 SELECT
@@ -527,61 +456,45 @@ SELECT
   FIELD_2026_BADOatNZ.format_mark('M', 'YY', 'X', 'GB') AS canonical_example;
 ```
 
-Expected: `B.G-R.O` and `YY-GB`.
-
-### Confirm reference-date availability
+Reference-date health:
 
 ```sql
-SELECT
-  COUNT(*) AS reference_date_rows,
-  MIN(value) AS reference_date_min,
-  MAX(value) AS reference_date_max
+SELECT COUNT(*) AS non_null_reference_dates,
+       MIN(value) AS minimum_reference_date,
+       MAX(value) AS maximum_reference_date
 FROM FIELD_2026_BADOatNZ.settings
-WHERE variable = 'reference_date'
-  AND value IS NOT NULL;
+WHERE variable = 'reference_date' AND value IS NOT NULL;
 ```
 
-Expected: exactly one non-null row.
-
-### Count normalized and ambiguous used rows
+Audit aggregates:
 
 ```sql
-SELECT
-  source_table,
-  source_stage,
-  is_normalizable,
-  COUNT(*) AS n_rows
+SELECT source_table, source_stage, is_normalizable, COUNT(*) AS n_rows
 FROM FIELD_2026_BADOatNZ.USED_COMBOS_DETAIL
 GROUP BY source_table, source_stage, is_normalizable
 ORDER BY source_table, source_stage, is_normalizable;
 ```
 
-### Confirm future-dated rows did not enter the used view
+Future-date leakage:
 
 ```sql
 SELECT COUNT(*) AS used_rows_after_reference_date
 FROM FIELD_2026_BADOatNZ.USED_COMBOS_DETAIL u
 JOIN FIELD_2026_BADOatNZ.settings s
   ON s.variable = 'reference_date'
-WHERE u.date_ IS NOT NULL
-  AND u.date_ > s.value;
+WHERE u.date_ IS NOT NULL AND u.date_ > s.value;
 ```
 
-Expected: zero.
-
-### Count conservatively included unknown dates
+Unknown-date aggregate:
 
 ```sql
-SELECT
-  source_table,
-  source_stage,
-  COUNT(*) AS n_unknown_date_rows
+SELECT source_table, source_stage, COUNT(*) AS n_unknown_date_rows
 FROM FIELD_2026_BADOatNZ.USED_COMBOS_DETAIL
 WHERE date_ IS NULL
 GROUP BY source_table, source_stage;
 ```
 
-### Check tag plus two-colour LR normalization
+Tag-plus-two-colour-LR check:
 
 ```sql
 SELECT COUNT(*) AS tag_two_colour_failures
@@ -589,16 +502,10 @@ FROM FIELD_2026_BADOatNZ.USED_COMBOS_DETAIL
 WHERE LL REGEXP '^[BGROWLY]{2}$'
   AND UR_raw REGEXP '^T[A-Z0-9]*[BGROWLY]$'
   AND LR_raw REGEXP '^[BGROWLY]{2}$'
-  AND (
-    LR IS NULL
-    OR LR <> LR_raw
-    OR is_normalizable <> 1
-  );
+  AND (LR IS NULL OR LR <> LR_raw OR is_normalizable <> 1);
 ```
 
-Expected: zero.
-
-### Confirm no normalized used pair leaks into availability
+Global used-pair leakage:
 
 ```sql
 SELECT COUNT(*) AS leaked_used_pairs
@@ -607,14 +514,10 @@ JOIN (
   SELECT DISTINCT LL, LR
   FROM FIELD_2026_BADOatNZ.USED_COMBOS_DETAIL
   WHERE is_normalizable = 1
-) u
-  ON a.LL = u.LL
- AND a.LR = u.LR;
+) u ON a.LL = u.LL AND a.LR = u.LR;
 ```
 
-Expected: zero.
-
-### Count available rows by output bucket
+Availability aggregate:
 
 ```sql
 SELECT site_code, COUNT(*) AS n_available
@@ -623,54 +526,75 @@ GROUP BY site_code
 ORDER BY site_code;
 ```
 
-This safely reveals the dynamic CR/CX split without printing marks.
-
-### Verify deployed column metadata
+Metadata and deployment checks:
 
 ```sql
 SHOW COLUMNS FROM FIELD_2026_BADOatNZ.AVAILABLE_COMBOS;
 SHOW COLUMNS FROM FIELD_2026_BADOatNZ.USED_COMBOS_DETAIL;
 ```
 
-### Reproduce the live PDF selection safely
+For a controlled deployment, compare `SHOW CREATE VIEW` for all three combo
+objects with the selected source revision, verify the historic dependencies,
+check the non-null reference date, then run the matching PDF/test workflow.
 
-Use invented/mock data when printing marks. Against a real database, replace the
-selected columns with `COUNT(*)` unless mark output is explicitly approved.
+## Migration, rollback, and recovery
 
-```sql
-SELECT mark
-FROM FIELD_2026_BADOatNZ.AVAILABLE_COMBOS
-WHERE site_code = 'CR'
-ORDER BY
-  CASE WHEN LEFT(LL, 1) = 'Y' THEN 0 ELSE 1 END,
-  CASE
-    WHEN CONCAT(LL, LR) NOT REGEXP '[LR]' THEN 0
-    WHEN CONCAT(LL, LR) REGEXP 'R' THEN 2
-    WHEN CONCAT(LL, LR) REGEXP 'L' THEN 1
-    ELSE 0
-  END,
-  LL,
-  LR
-LIMIT 30;
+Install the matched `functions.SQL` and `views.SQL` source in dependency order;
+do not paste a dirty WIP file into Adminer. Confirm `format_mark()` before the
+dependent views and confirm `BADOatNZ.CAPTURES` plus `BADOatNZ.SEX` exist before
+`CAPTURES_ARCHIVE`.
+
+Rollback is source-based: restore the previously approved `functions.SQL` and
+`views.SQL` definitions, recreate dependent views in dependency order, and
+confirm `SHOW CREATE VIEW`, aggregate counts, reference-date behavior, and the
+PDF. Do not delete live data or use `_reset.SQL` as an in-place rollback; that
+file is destructive and local-only.
+
+If the view returns no rows because `reference_date` is missing, stop and repair
+the settings configuration rather than manually inserting marks. If ambiguity
+counts rise or a normalized used pair appears in availability, stop assignment,
+preserve the audit counts, and hand the issue to Thread 2/Thread 9 for a local
+reproduction.
+
+## Chronology and superseded decisions
+
+- **2026-09-22, exact:** the active role changed from the historical QA/
+  reproducibility placeholder to combo-list maintenance. The placeholder was
+  preserved; the protocol and prompt log became the authorized artifacts.
+- **2026-09-22 onward, reconstructed from source/history:** the combo workflow
+  was specified around global conservative subtraction, archive/current final/
+  `_in` sources, reference-date and unknown-date handling, tag/spacer
+  normalization, ambiguity reporting, fixed exclusions, and PDF allocation.
+- **2026-10-06, commit `70c5645`:** hardened used-pair subtraction, ranking,
+  reference-date fail-closed behavior, and PDF team allocation tests.
+- **2026-10-13, commits `9ca79d3` and `119465f`:** enabled the eligible OY
+  compatibility group in `CR` and fixed sub-30 PDF table distribution/layout.
+- **2026-10-22, commits `3bf72b3`, `29a1bba`, and merge `8a180a8`:** added
+  `GY` as a CR left-leg family and placed GY marks after existing marks in the
+  PDF, while preserving global subtraction.
+- **2026-10-23, commit `9288147`:** improved general PDF table cell alignment;
+  this is a PDF presentation change, not a combo identity change.
+- Earlier directions that treated only final fields as used, released `D` pairs,
+  trusted the workbook as an automatic override, or prepended a tag spacer to a
+  two-colour `LR` are superseded by the current conservative policy.
+
+## Paste-ready bootstrap prompt
+
+```text
+You are Thread 6, the combo-list specialist for NZ_FIELDWORKER. Read AGENTS.md,
+THREAD1_REPOSITORY_MAP.md, THREAD2_SCHEMA_REVIEW.md,
+THREAD3_VALIDATION_ARCHITECTURE.md, THREAD4_TODO_MAP_LIST_DEBUG_PLAN.md,
+THREAD6_COMBO_LIST_PROTOCOL.md, and THREAD6_PROMPT_LOG.md first. Treat the
+selected clean origin/main revision as source truth and keep any dirty checkout
+separate. Inspect format_mark(), CAPTURES_ARCHIVE, USED_COMBOS_DETAIL,
+AVAILABLE_COMBOS, settings.reference_date, and
+todo_pdf_prepare_team_marks(). Preserve the seven-colour alphabet, CR/AR/WN/WS
+candidate rules, GY CR family, YR/OR/RO exclusions, global subtraction, archive
+plus current final plus current _in evidence, date <= reference_date plus NULL
+dates, classic/tag normalization, is_normalizable audit behavior, CR/CX gate,
+PDF GY-last ordering, 30-mark cap, even three-team allocation, and fail-loud
+empty/error behavior. Do not automatically recycle D/C/workbook combinations.
+Use invented examples and aggregate checks only. Do not inspect credentials,
+print raw records, connect to live databases, or edit source unless explicitly
+authorized. State whether behavior is source, local replay, or deployed.
 ```
-
-## Rollback guidance
-
-The combo views do not mutate base-table records. Before changing or deploying them:
-
-1. save `SHOW CREATE FUNCTION format_mark` and `SHOW CREATE VIEW` output for
-   `CAPTURES_ARCHIVE`, `USED_COMBOS_DETAIL`, and `AVAILABLE_COMBOS`;
-2. apply or restore objects in dependency order: function, archive view, used-detail
-   view, available view;
-3. verify aggregate counts and the zero-leak query above; and
-4. generate a fresh PDF rather than relying on an already downloaded file.
-
-To roll back a view change, recreate the previously saved definition in the same
-dependency order. Dropping `USED_COMBOS_DETAIL` or `AVAILABLE_COMBOS` without an
-immediate replacement can make the PDF team table blank because the R layer catches
-query errors.
-
-For this tracked handoff, rollback is a normal Git revert of the documentation
-change. The fail-closed `AVAILABLE_COMBOS` source change should be reverted
-separately if needed; no database is changed merely by merging repository files.
-`AGENTS.md` now contains the aligned Thread 6 role text.

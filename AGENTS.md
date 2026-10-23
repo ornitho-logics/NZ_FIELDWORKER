@@ -48,10 +48,13 @@ The project currently includes:
 * `gpxui/`: GPS waypoint/track upload interface using the external `gpxui` package;
 * `DATABASE/`: current SQL source-of-truth folder for base tables, support tables, views, functions, reset logic, hatching prediction support, and the latest safe local mock-data dump used for local tests;
 * `tests/testthat/`: repo-visible tests for app wiring and server/data-entry behavior;
-* `notes/codex_proposals/`: six tracked Thread 1-6 handoffs and tracked reviewed
-  inspector lists, alongside ignored local proposals, previews, mock artifacts,
-  and generated outputs;
-* `notes/codex_logs/`: ignored local logs if used;
+* `notes/codex_proposals/`: tracked Thread 1-9 handoffs and tracked inspector
+  lists, alongside ignored field-manual drafts, private reports,
+  previews, mock artifacts, and generated outputs;
+* `notes/codex_logs/`: tracked sanitized prompt/decision summaries; raw prompt
+  transcripts and attachments remain local and ignored;
+* `notes/CODEX_USAGE_TRANSPARENCY.md`: public record of Codex roles, controls,
+  tracked artifacts, and deliberate confidentiality exclusions;
 * `tmp/codex/`: ignored local scratch area if used.
 
 The immediate development goals are:
@@ -59,7 +62,7 @@ The immediate development goals are:
 1. prepare and refine `FIELD_2026_BADOatNZ` for the 2026 field season;
 2. optimize fieldworker-facing data-entry validation through the central DB-stored `inspectors` system;
 3. maintain SQL-backed FIELDWORKER to-do/list/map/PDF outputs inside the existing app interface;
-4. maintain and refine the current seven-panel Overview dashboard;
+4. maintain and refine the current eight-panel Overview dashboard;
 5. preserve full human control over all code and database changes;
 6. avoid leakage of confidential raw data, credentials, GPS locations, or field records.
 
@@ -119,7 +122,14 @@ notes/codex_proposals/THREAD3_VALIDATION_ARCHITECTURE.md
 notes/codex_proposals/THREAD4_TODO_MAP_LIST_DEBUG_PLAN.md
 notes/codex_proposals/THREAD5_OVERVIEW_DASHBOARD_PLAN.md
 notes/codex_proposals/THREAD6_COMBO_LIST_PROTOCOL.md
+notes/codex_proposals/THREAD7_GEOLOCATOR_ROLLOUT_HANDOFF.md
+notes/codex_proposals/THREAD8_H_EVENT_RECONCILIATION.md
+notes/codex_proposals/THREAD8_TEMPLATE_DISTILLATION.md
+notes/codex_proposals/THREAD9_LOCAL_REPLICA_PROTOCOL.md
 notes/codex_proposals/validator_sandbox/inspector_lists_by_table/
+notes/codex_logs/INDEX.md
+notes/codex_logs/THREAD1_PROMPT_LOG.md through THREAD9_PROMPT_LOG.md
+notes/CODEX_USAGE_TRANSPARENCY.md
 ```
 
 Before creating any other scratch/proposal file, Codex must confirm that the
@@ -215,14 +225,15 @@ Codex must not commit, push, merge, rebase, or open pull requests unless explici
 
 Prompt and response logging is useful, but risky. By default:
 
-* full prompts and full Codex responses should remain local and ignored;
-* only sanitized summaries should be considered for tracked documentation;
+* full prompts, full Codex responses, attachments, and raw operational logs
+  should remain local and ignored;
+* reviewed sanitized summaries may be tracked for handoff and transparency;
 * sanitized logs must omit credentials, real data, real database snippets, confidential GPS locations, and sensitive site details.
 
 Preferred pattern:
 
 ```text
-notes/codex_logs/        # ignored full logs
+notes/codex_logs/        # tracked sanitized summaries; raw logs stay elsewhere
 notes/codex_proposals/   # tracked handoffs plus ignored working artifacts
 tmp/codex/               # ignored scratch files
 ```
@@ -262,9 +273,13 @@ git diff --name-status origin/main...HEAD
 git push -u origin codex/<topic>
 ```
 
-`AGENTS.md` and the six reviewed Thread handoffs are allowed in a PR when their
-update is intentional. Full prompt logs, confidential data, credentials,
-database dumps, generated previews, and unrelated local artifacts are not.
+`AGENTS.md`, the curated Thread 1-9 handoffs, sanitized prompt/decision
+summaries, `CODEX_USAGE_TRANSPARENCY.md`, and the
+reviewed `validator_sandbox/inspector_lists_by_table/` files are tracked review
+artifacts when their update is intentional. Full prompt transcripts,
+confidential data, private rollout reports, unpublished field-manual drafts,
+database dumps, generated previews, and unrelated local artifacts are not
+eligible for a PR.
 
 ## Expected response format for code, schema, validator, or app work
 
@@ -459,6 +474,7 @@ DATABASE/support_tables.SQL
 DATABASE/views.SQL
 DATABASE/functions.SQL
 DATABASE/predict_hatching.SQL
+DATABASE/refresh_todo_list_snapshot.SQL
 DATABASE/_reset.SQL
 ```
 
@@ -469,6 +485,8 @@ Use these files as follows:
 * `support_tables.SQL`: DDL for support and admin tables used by the app;
 * `functions.SQL`: SQL helper functions required by views or downstream logic;
 * `predict_hatching.SQL`: DDL and seed data for the stable support table `predict_hatching`;
+* `refresh_todo_list_snapshot.SQL`: the explicit reference-date task snapshot
+  build, validation, and publication workflow;
 * `_reset.SQL`: local reset/rebuild workflow file.
 
 Current base tables, support tables, views, and SQL functions should be checked from these files, not from older `Admin/db_structure.SQL` references.
@@ -501,6 +519,7 @@ BROODS_LATEST
 EGGS_HATCH_PREDICTION
 GEO_ROLLOUT_PHENOLOGY
 TODO_LIST
+VIEW_1
 OVERVIEW
 ```
 
@@ -985,8 +1004,8 @@ Current protocol identity:
 
 ```text
 protocol_id: bdot_2026_2027_dataentry_validator_protocol
-protocol_version: 1.3.3
-generated_on: 2026-09-30
+protocol_version: 1.3.4
+generated_on: 2026-10-10
 ```
 
 Version 1.3.3 requires a real nest or brood link for age-C first captures and
@@ -1110,6 +1129,15 @@ notA nest-check
 `Untrapped parent` remains an internal compatibility/intermediate label in the
 CTE chain, but it is not part of the current final task union.
 
+The clean remote architecture separates the bounded install layer from the
+expensive reference-date refresh. `DATABASE/views.SQL` installs stable helper
+and snapshot-boundary objects; `DATABASE/refresh_todo_list_snapshot.SQL`
+builds indexed `_BUILD` tables, validates them, and publishes the new snapshot
+atomically. Ordinary PDF downloads should read the published `TODO_LIST`
+snapshot rather than expand a full task graph. The protected dirty checkout may
+contain experimental split-calculator objects, including
+`TODO_LIST_CALCULATE`; those are WIP and are not deployment evidence.
+
 For hiding-spot work, `TODO_LIST` compares distinct age-C CAPTURES rings with
 distinct qualifying H-photo rings per positive nest or negative brood. A blank
 or missing ring does not count, duplicate rows for one chick count once, and
@@ -1140,7 +1168,7 @@ Do not print real coordinates or broad real-record dumps in diagnostics.
 
 ## Overview dashboard workflow
 
-The Overview tab is a current seven-panel dashboard for FIELDWORKER users.
+The Overview tab is a current eight-panel dashboard for FIELDWORKER users.
 
 Its active code path is:
 
@@ -1156,7 +1184,7 @@ main/www/style.css
 
 There is no active `main/R/data_overview.R` helper. The standalone SQL
 `OVERVIEW` view is visible in the database browser but does not supply the
-seven plotted panels.
+eight plotted panels.
 
 The current panel order is:
 
@@ -1165,19 +1193,22 @@ The current panel order is:
 3. resighting histories of geolocator-tagged birds;
 4. seasonal progression in unique band combinations encountered;
 5. seasonal progression in lay date;
-6. hatching forecast; and
-7. current manipulation quotas.
+6. hatching forecast;
+7. seasonal progression in chick growth; and
+8. current manipulation quotas.
 
 All panels use the app-level reference date. The first five date-based panels
 share the seasonal range where applicable, hatching uses a future range, and
 quotas have no date axis. The tagged-resighting panel intentionally uses a
 taller `105vh` output with a multi-row legend and caption; preserve that mobile
-layout when changing its facets, labels, or limp-status display.
+layout when changing its facets, labels, or limp-status display. Chick growth
+has its own reactive data version and should retain its current query/fallback
+boundary.
 
 The active helpers use parameterized queries and panel-specific fallback plots.
 Experimental pair-tally helpers remain isolated and are not user-visible.
 Additional dashboard panels may require new helpers under `main/R/`, but must
-be staged and tested without disrupting the current seven outputs.
+be staged and tested without disrupting the current eight outputs.
 
 GPS-track heatmaps, new maps, summary cards, and panel-local filters remain
 future work rather than current app behavior.
@@ -1404,12 +1435,12 @@ The detailed current contract is tracked in
 ### Thread 5 — Overview dashboard specialist
 
 Purpose: maintain and carefully extend the FIELDWORKER app's current
-seven-panel Overview dashboard.
+eight-panel Overview dashboard.
 
 Responsibilities:
 
 * inspect and understand the Overview code path in `main/ui.R`, `main/server.R`, `main/global.R`, and Overview-related helpers under `main/R/`;
-* preserve the seven current outputs, shared reference-date behavior, failure
+* preserve the eight current outputs, shared reference-date behavior, failure
   fallbacks, and mobile layout;
 * propose additional Overview panels, plots, maps, cards, and dynamic controls
   only as staged work;
@@ -1492,30 +1523,98 @@ Expected output:
 The detailed current contract is tracked in
 `notes/codex_proposals/THREAD6_COMBO_LIST_PROTOCOL.md`.
 
-### Thread 7 — Tutor
+### Thread 7 — Seasonal geolocator rollout specialist
 
-Purpose: act as the user’s local AI tutor across all threads.
+Purpose: maintain the seasonal GEO deployment protocol and private planning
+analysis for the Cass River field season. Thread 7 is a scientific rollout
+specialist, not a general tutor and not the owner of SQL task semantics.
 
 Responsibilities:
 
-* explain unfamiliar concepts plainly;
-* summarize what other threads found;
-* explain terms such as validator, inspector, `rowid`, `nov`, unit tests, CI, schema migrations, soft deletes, indexes, constraints, joins, views, SQL functions, GeoPackage, raster heatmaps, projections, CRS, and audit trails;
-* help the user decide what is worth implementing now versus later;
-* translate technical recommendations into RStudio/manual-edit steps.
+* maintain the private phenology, parent-identity, pair-completion, sex-balance,
+  migrant-exclusion, reserve, and physical-inventory reasoning for GEO rollout;
+* keep biological overrides and dated rollout reports private and sanitized;
+* distinguish database-derived candidates, physical stock, field decisions,
+  and live deployment state;
+* hand app-facing timing or parent-status questions to Thread 4 and schema
+  questions to Thread 2;
+* preserve uncertainty labels such as `WAIT / VERIFY FIRST` rather than
+  turning unresolved identity into a deployment recommendation.
 
 Restrictions:
 
-* do not make code changes;
-* do not assume the user wants software-engineering overengineering;
-* keep explanations tied to the FIELDWORKER use case.
+* do not edit application or SQL source as part of rollout ranking;
+* do not connect to or modify a live database;
+* do not expose raw identities, coordinates, private overrides, or physical
+  inventory details in tracked documents;
+* do not treat a dated report or local snapshot as current live state.
 
-Expected output:
+The tracked public method is
+`notes/codex_proposals/THREAD7_GEOLOCATOR_ROLLOUT_HANDOFF.md`; its sanitized
+decision chronology is `notes/codex_logs/THREAD7_PROMPT_LOG.md`. Dated reports,
+candidate rankings, overrides, and inventory states remain ignored/private.
 
-* plain-language explanations;
-* decision trees;
-* trade-off summaries;
-* next-step recommendations.
+### Thread 8 — Field-manual specialist
+
+Purpose: maintain the field-facing manual and template distillation after the
+technical contracts are finalized by Threads 1-7 and 9.
+
+Responsibilities:
+
+* consume finalized, reviewed schema, validator, TODO/PDF/map, Overview, combo,
+  GEO, and local-replay documentation;
+* translate approved behavior into concise field procedures, examples, diagrams,
+  and troubleshooting guidance;
+* preserve the manual's editable-document structure and visual teaching style;
+* label historical manual instructions as obsolete when current SQL/protocol
+  sources supersede them;
+* keep examples invented unless real records are separately cleared.
+
+Restrictions:
+
+* do not start from unresolved WIP semantics;
+* do not alter SQL, validators, app code, or live database state;
+* do not publish confidential rows, identities, coordinates, or credentials;
+* do not present protected WIP or unknown deployment state as current field
+  behavior.
+
+The H-event reconciliation and template distillation are tracked under
+`notes/codex_proposals/`. Working manual DOCX/PDF files and their artifact
+metadata remain private and ignored until the user explicitly approves
+publication. A private render is documentation evidence only, never deployment
+evidence.
+
+### Thread 9 — Local replica and refresh-replay specialist
+
+Purpose: reproduce schema installation, staged TODO refresh, timing, failure
+diagnosis, and local PDF/render checks in a disposable MariaDB replica.
+
+Responsibilities:
+
+* use an isolated local MariaDB instance and a clean selected Git revision;
+* replay base/support/function/hatching/view installation and the separate
+  `refresh_todo_list_snapshot.SQL` stages;
+* record sanitized stage timings, object inventories, status transitions,
+  publication results, and PDF/page-count checks;
+* distinguish installer failure, refresh failure, biological regression,
+  metadata locking, and deployment uncertainty;
+* hand task meaning and any biological difference back to Thread 4, schema
+  questions to Thread 2, and affected validator/Overview/combo questions to
+  Threads 3.1, 5, and 6.
+
+Restrictions:
+
+* never connect to the production server or write to a live database;
+* never overwrite protected dirty worktrees or import dumped derived views as
+  source truth;
+* do not change task biology merely to improve replay timing;
+* do not commit, push, merge, or create a PR unless separately requested;
+* do not log raw rows, identities, coordinates, credentials, or full local
+  dump contents.
+
+The tracked protocol and sanitized prompt log are at
+`notes/codex_proposals/THREAD9_LOCAL_REPLICA_PROTOCOL.md` and
+`notes/codex_logs/THREAD9_PROMPT_LOG.md`.
 
 ## Cross-thread handoff rules
 
@@ -1525,15 +1624,68 @@ Expected output:
   `RESIGHTINGS.ring` requirement for H-class hiding-photo events.
 * Thread 4 owns FIELDWORKER to-do/list/map/PDF logic, especially `TODO_LIST`,
   including per-chick resolution of hiding-photo tasks and parent association.
-* Thread 5 owns the seven-panel Overview dashboard and staged extensions.
+* Thread 5 owns the eight-panel Overview dashboard and staged extensions.
 * Thread 6 owns combo-list normalization, used-mark subtraction, candidate
   availability, and PDF team-mark handoff.
-* Thread 7 translates technical findings into plain-language decisions.
+* Thread 7 owns seasonal GEO rollout planning and private biological allocation
+  reasoning.
+* Thread 8 owns the field manual and consumes finalized technical contracts;
+  working manual artifacts remain private until explicitly approved for
+  publication.
+* Thread 9 owns disposable local MariaDB replay, refresh-stage timing, failure
+  diagnosis, and local render verification, but not biological semantics.
 
 Safety, reproducibility, confidentiality, rollback, test review, and PR hygiene
 are shared requirements for every thread rather than a separate Thread 6 scope.
 
 When a task crosses boundaries, the active thread should explicitly name the handoff and avoid silently taking over another thread’s scope.
+
+## Current recovery-pass state and read order
+
+At the 2026-10-23 documentation recovery pass, the local Git references were:
+
+* recovery baseline at the start of the pass: local `origin/main` at `9beb203`;
+* documentation publication baseline: updated `origin/main` at `f7d13fb`;
+* protected checkout: `codex/split-todo-calculator-2026-10-19` at `d3c7bd4`;
+* protected dirty files: `DATABASE/views.SQL`, `main/R/pdf_todo.R`, focused
+  TODO/PDF tests, four dirty inspector-list exports, and already-refreshed
+  Thread 2/4/5/6 handoffs;
+* live database, deployed views, live inspectors, and running Shiny process:
+  unknown and not established by any local file or replay.
+
+The protected checkout is not a deployment candidate. Its dirty SQL contains an
+experimental split task calculator and snapshot definitions that must not be
+silently described as the clean remote architecture. The clean remote design
+uses bounded install views plus the separate staged refresh/publication workflow
+in `DATABASE/refresh_todo_list_snapshot.SQL`. Thread 9 owns replay evidence for
+that separation; Thread 4 owns whether the resulting tasks and PDF are correct.
+
+Recommended restart/read order is:
+
+1. `AGENTS.md` and the current Git status/revision;
+2. `notes/codex_proposals/THREAD1_REPOSITORY_MAP.md`;
+3. the owning specialist handoff: Thread 2 for schema, Thread 3.1 for
+   validators, Thread 4 for TODO/PDF/map, Thread 5 for Overview, Thread 6 for
+   combos, Thread 7 for GEO rollout, Thread 8 for the field manual, or Thread 9
+   for local replay;
+4. the selected clean source files and focused tests;
+5. sanitized prompt summaries only for historical context, never as source
+   authority.
+
+Tracked documentation consists of `AGENTS.md`, the Thread 1-9 handoffs,
+sanitized prompt/decision summaries, `CODEX_USAGE_TRANSPARENCY.md`, and the
+reviewed per-table inspector lists. Raw prompts, private GEO reports, field-
+manual drafts, mock workbooks, snapshots, raw data, and generated diagnostic
+previews remain ignored/local. This is an intentional confidentiality boundary,
+not evidence that those artifacts are absent or deployed. The Thread 3.1
+protocol lives outside this repository and must be checked by path without
+copying credentials or raw data.
+
+The current Overview has eight panels, not seven. The current validator protocol
+identity is `bdot_2026_2027_dataentry_validator_protocol` version `1.3.4`,
+generated 2026-10-10. Any older handoff text that says seven panels, protocol
+1.3.3, Thread 7 Tutor, or a monolithic deployable TODO view is historical and
+is superseded by this section and the refreshed specialist handoffs.
 
 ## Definition of done
 

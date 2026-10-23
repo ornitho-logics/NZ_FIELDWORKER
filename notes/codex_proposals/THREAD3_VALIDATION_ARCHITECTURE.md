@@ -1,20 +1,28 @@
 # Thread 3.1 validation architecture and current-state handoff
 
+Publication reconciliation: this handoff is being published from
+`origin/main` at `f7d13fb`. The `9beb203` and `d3c7bd4` values below preserve
+the Thread 3.1 recovery audit's inspection provenance; they are not the
+documentation branch's current source baseline. The publication pass updates
+`AGENTS.md` and tracks the sanitized prompt summary separately, without
+approving or deploying the protected validator WIP.
+
 ## Audit status
 
 This document records the current local validation contract after a
-source-to-document reconciliation on 2026-10-10. It is a tracked documentation
-handoff for the local inspector/protocol work, not evidence that live inspectors
-have been deployed.
+documentation-only recovery and source-to-document reconciliation on
+2026-10-23. It is a tracked documentation handoff for the local
+inspector/protocol work, not evidence that live inspectors have been deployed.
 
 - Repository: `2026_NZ_FIELDWORKER`
-- PR branch: `codex/parent-association-thread-docs-2026-10-06`
-- Base revision: `1617e84`, matching `origin/main` when the branch was created
+- Protected checkout: `codex/split-todo-calculator-2026-10-19` at `d3c7bd4`
+- Local `origin/main` reference at inspection: `9beb203ac2757219def35e47bfe54bd6ac8684a2`
 - The reviewed per-table `*_hard.R` and `*_warning.R` inspector lists are
   already tracked under `validator_sandbox/inspector_lists_by_table/`.
-- The current local update changes the RESIGHTINGS hard/warning exports and the
-  synchronized validator protocol; it does not change SQL, application code, or
-  live inspectors.
+- The checkout already contains protected dirty WIP in four inspector exports,
+  SQL, PDF code, tests, and several handoffs. This recovery pass changes only
+  the two authorized Thread 3 documentation files; it does not approve,
+  revalidate, stage, deploy, or otherwise modify that WIP.
 - No live database was connected to.
 - No live `inspectors` row was queried or changed.
 - `AGENTS.md` was not changed in this update; its standing human-control and
@@ -27,16 +35,18 @@ The official YAML and local mirror are byte-identical with SHA-256:
 
 Version 1.3.4 makes parent/chick co-entry save-blocking within one RESIGHTINGS
 portal submission: every age-C row, including ordinary `rclass = R`, `P`, or `V`
-rows, must be linked to an age-A parent whose behavior includes `BC`, `FC`, or
-`AC`, and
-each such parent row must have at least one linked age-C row. Version 1.3.4 also
-separates active-nest `IN`/`NM` state checks from brood-association checks and
-documents `BW` as broken-wing display. Version 1.3.3 requires a real nest or brood
-link for age-C first captures and permits an optional complete GPS pair for
-positive-nest chicks captured away from the nest. Version 1.3.2 adds save-blocking
-H-ring format and current-CAPTURES existence checks. The H-ring rule remains
-restricted to normalized `rclass = H`; ordinary RESIGHTINGS classes may still
-leave `ring` blank.
+rows, must be linked to an age-A parent whose behavior includes `BC` or `FC`,
+and each such parent row must have at least one linked age-C row. Version 1.3.4
+also separates active-nest `IN`/`NM` state checks from brood-association checks
+and documents `BW` as broken-wing display. The current local RESIGHTINGS
+implementation artifacts additionally contain an `AC` extension; the
+hard-export portion is protected WIP, and the extension is not part of the
+verified protocol identity or a deployment claim. Version
+1.3.3 requires a real nest or brood link for age-C first captures and permits an
+optional complete GPS pair for positive-nest chicks captured away from the nest.
+Version 1.3.2 adds save-blocking H-ring format and current-CAPTURES existence
+checks. The H-ring rule remains restricted to normalized `rclass = H`; ordinary
+RESIGHTINGS classes may still leave `ring` blank.
 
 ## Authority order
 
@@ -138,7 +148,7 @@ The source-of-truth SQL is in `DATABASE/`, not older `Admin/db_structure.SQL` pa
 
 ## Rule inventory by functional area
 
-The parsed v1.3.3 protocol contains these rule families. The exact rule IDs and
+The parsed v1.3.4 protocol contains these rule families. The exact rule IDs and
 descriptions remain in the YAML; this section explains their implementation role.
 
 ### Shared rules
@@ -248,11 +258,10 @@ exclusivity rule.
 
 Warnings cover prior ring/combo history, unusual status/method combinations, parent
 spacing, same-sex adult multiplicity, photo-flag review, nest/hatch evidence,
-morphometric/tibia review, and GPS timing. Chick photo flags are handled together:
-`chick_hide_photo` is an active photo flag like `chick_tent_photo`, and a value of
-`1` requires `cam_id`, `photo_start`, and `photo_end`. There is no comment-based
-“in situ” warning; the field is not interpreted as a request to create a separate
-RESIGHTINGS event.
+morphometric/tibia review, and GPS timing. `CAP_W013` warns when a chick capture
+comment suggests “in situ” hiding photos; hiding photos belong in a separate H-class
+RESIGHTINGS event. A chick tent photo remains a CAPTURES event (`chick_tent_photo`),
+not an H photo.
 
 `CAP_013` blocks status `R` when input marks differ from release marks. If prior ring
 history supports a changed-combination recapture, the message directs the worker to
@@ -332,12 +341,11 @@ The minus sign is part of the value and must be retained.
   event GPS pair.
 - `NO_NEST` means no associated nest or brood; it is not a negative brood.
 
-Hiding-spot photos may be represented by the active CAPTURES
-`chick_hide_photo` flag when they are taken during capture; that flag uses the same
-capture photo metadata as `chick_tent_photo`. Separate age-C, `rclass = H`
-RESIGHTINGS rows remain available for hiding-spot photographs taken as resightings,
-with their own ring, direct GPS, and photo metadata. Negative H rows additionally
-require the negative ID and both direct GPS fields.
+Hiding-spot photos are separate age-C, `rclass = H` RESIGHTINGS events. A chick can
+therefore have one CAPTURES row for handling/banding/tent photos and a separate H row
+for its hiding-spot photo. Negative H rows additionally require the negative ID and
+both direct GPS fields. CAPTURES `chick_hide_photo` is retained for compatibility but
+is not the normal hiding-photo record.
 
 ## Cross-table, chronology, and history boundaries
 
@@ -345,11 +353,12 @@ Save-time checks can use current table rows, `GPS_POINTS`, current-season tables
 `CAPTURES_ARCHIVE`, and selected nest-history surfaces. Most cross-table history
 checks still must not assume that companion rows are in the same portal submission.
 There is one explicit approved exception: parent/chick co-entry is mandatory when
-the current RESIGHTINGS submission contains age-C rows or age-A `BC`/`FC`/`AC`
-rows.
+the current RESIGHTINGS submission contains age-C rows or age-A `BC`/`FC` rows.
 The association is tested only within the current submission, using the same date
 and either the same nonblank `nest_id` or the same complete `gps_id/gps_point` pair.
-Saved rows from earlier sessions do not satisfy this hard rule.
+Saved rows from earlier sessions do not satisfy this hard rule. The protected
+working-tree RESIGHTINGS exports currently extend the qualifying behavior set
+with `AC`; that extension is WIP and is not certified by protocol 1.3.4.
 
 Archive-aware rules distinguish:
 
@@ -373,12 +382,20 @@ post-save/task logic.
 ## Parent/chick co-entry and behavior-stage rules
 
 `RES_005J` is save-blocking and applies to every age-C RESIGHTINGS row, not only
-H-photo rows. A chick row may use `rclass = H`, `R`, `P`, or `V`, but it must be
-accompanied in the same portal submission by an age-A row whose comma-separated
-behavior includes `BC`, `FC`, or `AC`. Conversely, a parent row with `BC`, `FC`,
-or `AC` must have at least one linked age-C row in that submission. The parent and chick can be
-linked by the same valid `nest_id` or by the same `gps_id/gps_point` pair; the date
-must also match. This does not use saved RESIGHTINGS history to bypass the rule.
+H-photo rows. Under verified protocol 1.3.4, a chick row may use `rclass = H`,
+`R`, `P`, or `V`, but it must be accompanied in the same portal submission by an
+age-A row whose comma-separated behavior includes `BC` or `FC`. Conversely, a
+parent row with `BC` or `FC` must have at least one linked age-C row in that
+submission. The parent and chick can be linked by the same valid `nest_id` or by
+the same `gps_id/gps_point` pair; the date must also match. This does not use
+saved RESIGHTINGS history to bypass the rule.
+
+The current local `RESIGHTINGS_hard.R` and `RESIGHTINGS_warning.R` artifacts add
+`AC` (Alert with chick(s)) to this behavior set. The hard-export change is
+protected WIP, and the official protocol still says `BC`/`FC`; this document
+does not present `AC` as approved or live. A future implementation pass must
+either promote `AC` into both protocol copies and the corresponding UI/helper
+source, or remove the WIP extension after a human decision.
 
 `BW` means broken-wing display, not brood watch. It is a shorebird parent behavior
 that can occur at either the nest stage or the brood stage, so it remains part of
@@ -389,14 +406,17 @@ rule.
 `RES_005D` now restricts adult `IN`/`NM` rows to positive nest_ids whose latest
 state is `F`, `I`, or `H`; `H` remains valid during asynchronous hatching. It no
 longer blocks adult `BW`, `BC`, or `FC` rows merely because the nest is at a later
-state. `RES_005K` requires positive-nest `BC`/`FC`/`AC` rows to have latest state
-`H` or `notA`, and requires `gps_id/gps_point` for age-C rows and brood-associated
-adult `BW`/`BC`/`FC`/`AC` rows when a `notA` nest still has `brood_size > 0`.
+state. `RES_005K` requires positive-nest `BC`/`FC` rows to have latest state `H`
+or `notA`, and requires `gps_id/gps_point` for age-C rows and brood-associated
+adult `BW`/`BC`/`FC` rows when a `notA` nest still has `brood_size > 0`. The dirty
+WIP export applies the same state logic to `AC`, but that is not yet protocol-
+verified.
 
 The existing unlinked-H exception remains a narrow row-level exception: mandatory
 H GPS/ring/photo evidence still applies, and the row may omit `nest_id` only under
 the existing conditions. It does not remove the new same-session requirement for
-an accompanying age-A `BC`/`FC`/`AC` parent.
+an accompanying age-A `BC`/`FC` parent under the verified protocol; the dirty
+export extends this to `AC` as protected WIP.
 
 Thread 2’s schema memo and Thread 4’s TODO/map planning describe a stricter internal
 derived association: prior chick-CAPTURES ring/family evidence plus same-date, exact
@@ -436,7 +456,7 @@ Relevant artifacts include:
 - `mock_validator_report.csv`;
 - `negative_brood_methodology/` fixtures and test;
 - focused tests for H GPS/ring/rules, negative broods, WRYB IDs, relaxed brood and
-  `bird_inc`, NESTS photo/clutch checks, CAPTURES photo-flag and status-change checks,
+  `bird_inc`, NESTS photo/clutch checks, CAPTURES in-situ and status-change checks,
   social-parent marks, and RESIGHTINGS sex history.
 
 The fixtures cover passing and failing negative IDs, missing GPS pairs, invalid NESTS/
@@ -450,8 +470,10 @@ and must not be compiled into save-time inspectors.
 
 ## Deployment status and manual rollout
 
-Local protocol and inspector work is complete for the current v1.3.3 semantics. Live
-deployment is **not established**. No live `inspectors` rows were inspected or changed.
+The verified protocol and local implementation artifacts cover the current v1.3.4
+semantics, but the checkout also contains protected dirty inspector WIP. Live
+deployment is **not established**. No live `inspectors` rows were inspected or
+changed.
 
 Manual deployment, if separately approved, should be:
 
@@ -491,8 +513,343 @@ The audit covered:
 
 ## Reconciliation result
 
-The official YAML, mirror, local hard/warning exports, focused fixture test, and
-documentation are aligned for approved protocol v1.3.3 behavior, including the
-v1.3.2 H-ring rules. The
-unresolved derived H-association/view discrepancy is still explicitly retained for
-the responsible schema/TODO workstream.
+The official YAML and mirror are aligned byte-for-byte for verified protocol
+v1.3.4 behavior, including the v1.3.2 and v1.3.3 milestones and H-ring rules.
+The local exports include protected changes that are not yet represented in the
+protocol, notably `AC` in RESIGHTINGS and later photo/NESTS WIP. The unresolved
+derived H-association/view discrepancy is still explicitly retained for the
+responsible schema/TODO workstream. Local artifacts do not establish live
+deployment.
+
+## Documentation-recovery appendix — 2026-10-23
+
+This appendix records a recovery attempt after the validation specialist became
+unavailable for follow-up delivery. It is documentation status only. It does not
+change the protocol, validator lists, inspector rows, mock workbook, SQL, tests,
+or live database state.
+
+### Current authority and state labels
+
+The current authoritative local protocol is the external working file
+`bdot_dataentry_validator_protocol.yaml`, version **1.3.4**, generated
+2026-10-10. The synchronized local mirror under
+`validator_sandbox/xlsx_short_tag_update/` reports the same identity and
+version. The older v1.3.3 and v1.3.2 statements earlier in this handoff are
+historical milestones and must not be read as the current protocol header.
+
+The intended live inspector organization remains exactly two categories per
+biological table: `TABLE_hard` and `TABLE_warning`. The tracked
+`validator_sandbox/inspector_lists_by_table/` exports are review artifacts, not
+proof that the corresponding rows exist in the live `inspectors` table.
+
+At this recovery pass, the protected checkout contains dirty changes in four
+inspector exports (`CAPTURES_hard.R`, `NESTS_hard.R`, `NESTS_warning.R`, and
+`RESIGHTINGS_hard.R`) alongside dirty SQL, PDF, and focused tests. Those files
+were inspected as protected WIP and were not revalidated, staged, committed,
+or described as approved, pasted, merged, or live.
+
+### Delivery limitation
+
+The requested current follow-up to the successor validation thread could not be
+delivered because the destination consumed repeated deliveries as empty tool
+result turns. No validator decision was inferred from that failure. The current
+documentation therefore preserves the last inspectable protocol and source
+state while explicitly requiring a replacement Thread 3.1/3.2 audit before any
+live inspector update or deployment claim.
+
+### What remains authoritative
+
+- The machine-readable protocol controls rule classes, hard versus warning
+  intent, post-save QA, and mock-generation-only behavior.
+- The current DataEntry contract requires `rowid`, `variable`, and `reason` and
+  treats `TABLE_hard` output as save-blocking and `TABLE_warning` output as
+  non-blocking review feedback.
+- H-class hiding-photo rules remain restricted to normalized `rclass = "H"` and
+  use `RESIGHTINGS.ring` as the photographed chick identity. Ordinary
+  RESIGHTINGS classes may leave `ring` blank.
+- The stricter derived H-event family association described by Threads 2, 4,
+  and 8 is a TODO/schema contract, not an automatically implied save-time
+  validator rule.
+- Local protocol/mock evidence and tracked exports cannot establish live
+  inspector rows, a deployed package version, or a running portal process.
+
+### Safe replacement-thread bootstrap
+
+1. Read `AGENTS.md`, this handoff, `THREAD1_REPOSITORY_MAP.md`, the current
+   Thread 2/4 handoffs, and the ignored Thread 3 prompt log.
+2. Record `git status --short --branch`, `HEAD`, and the local `origin/main`
+   ref; preserve all dirty source, tests, and inspector exports.
+3. Read both protocol YAML paths and verify their identity/version/checksum
+   without changing either file.
+4. Inspect the tracked hard/warning exports and connected mock fixtures, clearly
+   separating current source, protected WIP, and historical artifacts.
+5. Run only approved parser/mock checks against invented data; do not connect to
+   live databases or write to `inspectors`.
+6. Reconcile any proposed validator change with the protocol rule class and
+   package contract before preparing a separate user-reviewed PR or deployment
+   instruction.
+7. Report what was revalidated, what remains uncertain, and whether any live
+   state was actually inspected. Do not convert delivery failure into a rule
+   decision.
+
+### Recovery conclusion
+
+The validation architecture is documented sufficiently to restart, but the
+current dirty inspector-list edits remain pending protected WIP. No current
+claim should say that they are approved or live. This appendix does not alter
+the existing protocol version or validator semantics.
+
+## Full documentation reconciliation — 2026-10-23
+
+This section supersedes stale current-state wording above where it conflicts
+with the verified 2026-10-23 checkout state. It was prepared from the manually
+pasted recovery prompt and a read-only inspection of the repository. It does
+not change runtime behavior, validator logic, protocol YAML, SQL, tests, mock
+workbooks, inspector exports, or database state.
+
+### Authority, status, and state labels
+
+Use the following authority order when rebuilding or reviewing this workstream:
+
+1. Current tracked schema and application wiring, especially
+   `DATABASE/main_tables.SQL`, `DATABASE/support_tables.SQL`,
+   `DATABASE/functions.SQL`, `DATABASE/views.SQL`, and the table-specific
+   `DataEntry/*/global.R` wrappers.
+2. The official working protocol YAML at
+   `/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/bdot_db/data/working/bdot_dataentry_validator_protocol.yaml`.
+3. The byte-identical local protocol mirror at
+   `notes/codex_proposals/validator_sandbox/xlsx_short_tag_update/bdot_dataentry_validator_protocol_plot_aligned.yaml`.
+4. Tracked hard/warning inspector exports under
+   `notes/codex_proposals/validator_sandbox/inspector_lists_by_table/`.
+5. Connected mock fixtures, parser checks, repair scripts, focused tests, and
+   reports.
+6. Prompt logs and older handoffs for intent and history only.
+
+The protocol is the approved behavior specification. A tracked export is a
+paste-ready review artifact, not evidence that the corresponding DB row exists.
+“Protected WIP” means a pre-existing dirty working-tree change that this task
+must preserve and must not silently treat as approved. “Mock-tested” means a
+local invented-data check only. “Live/deployed” requires a separately authorized
+inspection of the target database or portal; no such inspection occurred here.
+
+Verified protocol identity:
+
+```text
+protocol_id: bdot_2026_2027_dataentry_validator_protocol
+protocol_version: 1.3.4
+generated_on: 2026-10-10
+SHA-256: 1de6c733851c992e296d048bbf35ba5feffda11d1ad7e43c147fe5007359ea7f
+```
+
+The two protocol files are byte-identical. Neither was edited during this
+reconciliation. The current local checkout is the protected branch
+`codex/split-todo-calculator-2026-10-19` at `d3c7bd4`; its local
+`origin/main` reference is `9beb203ac2757219def35e47bfe54bd6ac8684a2`.
+
+### Validator architecture and contract
+
+The external `DataEntry` package supplies the table editor and validator
+execution. The central `DataEntry/inspectors/` app edits DB-managed inspector
+code. Biological tables use exactly two intended live inspector categories:
+
+- `TABLE_hard` maps protocol `hard_rules` to save-blocking errors.
+- `TABLE_warning` maps protocol `warning_rules` to non-blocking warnings.
+
+There is no permanent live residual or format category. A legacy parser, syntax,
+format, or migration rule must be assigned to hard or warning according to its
+actual save-time consequence. `post_save_qa` and `mock_generation_only` rules
+remain outside save-time inspectors unless a later, explicit protocol decision
+changes that boundary.
+
+Each validator evaluates the submitted table as `x`, preserves the submitted
+row number as `rowid`, and returns at least:
+
+```text
+rowid, variable, reason
+```
+
+An empty result must retain those columns. Each expression is wrapped in
+`try_validator(nam = "...")`. The current portal does not automatically expose
+extra severity/type columns, so severity is represented by the hard/warning
+inspector row rather than by an extra result field. A `variable = NA` result is
+an implementation failure signal, not a valid biological conclusion.
+
+### Verified protocol inventory
+
+The current protocol contains the following live save-time families. This is an
+inventory, not a request to alter any export.
+
+- Shared hard: `GLOBAL_002`, `GLOBAL_003`, `GLOBAL_004`, `GLOBAL_005A`,
+  `GLOBAL_005`.
+- Shared warning: `GLOBAL_W001`, `GLOBAL_W003`, `GLOBAL_W004`.
+- OBSERVERS hard: `OBS_001`, `OBS_002`, `OBS_003`; no warning rules.
+- EGGS hard: `EGG_001`, `EGG_002`, `EGG_003`, `EGG_004`, `EGG_006`, `EGG_009`.
+  EGGS warnings include `EGG_005`, `EGG_007`, `EGG_W001`, `EGG_W003`, and
+  `EGG_W004`.
+- NESTS hard: `NEST_001`, `NEST_001A`, `NEST_002`, `NEST_003`, `NEST_004`,
+  `NEST_005`, `NEST_007`, `NEST_009`, `NEST_013`, and `NEST_014`. NESTS
+  warnings include `NEST_006`, `NEST_008`, `NEST_010`, `NEST_010B`,
+  `NEST_010C`, `NEST_011`, `NEST_W001`, and `NEST_W002`.
+- CAPTURES hard: `CAP_001`, `CAP_001A`, `CAP_002`, `CAP_003`, `CAP_004`,
+  `CAP_005`, `CAP_006`, `CAP_006B`, `CAP_009`, `CAP_010`, `CAP_013`,
+  `CAP_014`, `CAP_015`, `CAP_015B`, `CAP_016`, `CAP_016B`, `CAP_017`,
+  `CAP_017B`, `CAP_018`, `CAP_019`, `CAP_020`, `CAP_021`, `CAP_021B`,
+  `CAP_022`, `CAP_023`, `CAP_024`, `CAP_026`, `CAP_027`, `CAP_028`,
+  `CAP_030`, and `CAP_031`. CAPTURES warnings include `CAP_007`, `CAP_008`,
+  `CAP_011`, `CAP_012`, `CAP_012B`, `CAP_025`, `CAP_029`, `CAP_W001`,
+  `CAP_W002`, `CAP_W004`, `CAP_W008`, `CAP_W011`, `CAP_W012`, and `CAP_W013`.
+- RESIGHTINGS hard: `RES_001`, `RES_002`, `RES_003`, `RES_004`, `RES_004B`,
+  `RES_004C`, `RES_004D`, `RES_005B`, `RES_005C`, `RES_005D`, `RES_005E`,
+  `RES_005F`, `RES_005J`, `RES_005K`, `RES_009`, `RES_009B`, `RES_010`,
+  `RES_010A`, `RES_010B`, and `RES_011`. RESIGHTINGS warnings include
+  `RES_005`, `RES_005G`, `RES_005H`, `RES_008`, `RES_W001`, and `RES_W002`.
+- RESIGHTINGS_PUBLIC hard: `PUB_001`, `PUB_002`, `PUB_003`, `PUB_007`, and
+  `PUB_008`; warnings are `PUB_004`, `PUB_005`, and `PUB_006`.
+
+The protocol also lists mock-generation-only and post-save material. Those
+entries are intentionally not part of the live hard/warning inventory above.
+
+### Negative broods and hiding-spot photos
+
+A negative `nest_id` identifies a brood of unknown origin. It is valid in
+`CAPTURES` and `RESIGHTINGS`, invalid in `NESTS` and `EGGS`, and its leading
+minus sign is meaningful. `NO_NEST` is a separate sentinel and is not a
+negative brood. Relevant negative-brood events require a complete direct
+`gps_id`/`gps_point` pair. Age-C first captures require a real positive nest or
+negative brood rather than blank or `NO_NEST` linkage. A positive-nest chick
+captured at the nest may leave both GPS fields blank; if a direct location is
+entered, the pair must be complete. A positive-nest chick captured away from
+the nest may therefore carry a complete pair.
+
+`RESIGHTINGS.ring` is nullable in general but mandatory for normalized age-C
+`rclass = "H"` hiding-spot rows. It identifies the photographed chick and does
+not replace `UL`, `LL`, `UR`, or `LR`. Each photographed chick gets its own H
+row, complete GPS pair, and photo metadata. H-ring formatting and current-
+season CAPTURES-existence checks are save-blocking under the verified protocol;
+equivalent permitted ring formatting is normalized consistently. Ordinary
+RESIGHTINGS classes may leave `ring` blank. `RESIGHTINGS_PUBLIC` is unaffected.
+
+CAPTURES tent-photo fields remain distinct from RESIGHTINGS hiding-photo fields.
+The verified protocol still retains the compatibility-era `chick_hide_photo`
+and `CAP_029` wording; later working-tree requests to treat that field like a
+tent-photo flag and remove the in-situ warning are protected implementation WIP
+and are not represented as current protocol behavior here.
+
+Derived H-event brood association, per-chick task closure, and ambiguity holds
+belong to the schema/TODO workstreams unless the protocol explicitly defines a
+save-time rule. They must not be inferred into the validator from Thread 2 or
+Thread 4 descriptions.
+
+### RESIGHTINGS parent/chick and active-nest behavior rules
+
+Under verified protocol 1.3.4, `RES_005J` is save-blocking and covers ordinary
+age-C rows as well as H rows. Every age-C `rclass = H`, `R`, `P`, or `V` row in
+the current portal submission must have an age-A parent row in that same
+submission whose behavior contains `BC` or `FC`. Every qualifying parent row
+must have at least one linked age-C row. Matching requires the same date and
+either the same nonblank `nest_id` or the same complete `gps_id/gps_point` pair.
+Rows already saved in the database do not satisfy this same-session rule.
+
+`IN` and `NM` are active-nest identity/linkage behaviors. The current positive
+nest must have latest state `F`, `I`, or `H` for the relevant active-nest check;
+`H` remains valid during asynchronous hatching. `BC` and `FC` are brood-
+association behaviors and require latest positive-nest state `H` or `notA`.
+When a `notA` nest still has brood, the applicable age-C and adult brood-
+association rows require the complete GPS pair. `BW` means broken-wing display,
+not brood watch: it can occur at either nest or brood stage and does not by
+itself trigger the reciprocal parent/chick requirement.
+
+The current local RESIGHTINGS artifacts add `AC` ("Alert with chick(s)") to the
+parent/chick and brood-stage behavior set. The hard-export change is protected
+WIP and represents a divergence
+from the verified protocol, which currently names only `BC` and `FC` in
+`RES_005J` and `RES_005K`. The SQL comment also mentions `AC`, but the repository
+does not provide evidence that a corresponding portal helper is deployed. A
+future authorized implementation task must reconcile the protocol, exports,
+schema comment, and UI/helper source together.
+
+### Protected WIP and cross-thread boundaries
+
+The checkout was already dirty before this documentation pass. Relevant
+protected validator WIP includes `CAPTURES_hard.R`, `NESTS_hard.R`,
+`NESTS_warning.R`, and `RESIGHTINGS_hard.R`; other tracked dirty files include
+SQL, PDF code, tests, and handoffs. The WIP includes, among other things,
+AC-related RESIGHTINGS logic, photo-overlap handling for same-session H rows,
+NESTS terminal-state/clutch changes, and an adult `HA` capture rule. None of
+these changes was approved, reformatted, staged, committed, pushed, pasted to
+the DB, or described as live by this task.
+
+Thread boundaries are deliberate:
+
+- Thread 1 owns the repository map and source inventory.
+- Thread 2 owns schema/view and derived H-photo/task-association questions.
+- Thread 3.1 owns protocol interpretation, validator contract, and inspector
+  artifact reconciliation.
+- Thread 4 owns TODO/map/list behavior; its stronger derived family evidence
+  must not be silently promoted into save-time validation.
+- Thread 8 may use the field-facing summary below for the human manual, but
+  should not imply deployment or expose implementation internals.
+- Thread 9 owns local-replica/setup concerns and is not evidence of live state.
+
+The earlier cross-thread delivery failure was a coordination issue: the
+destination rendered repeated deliveries as empty tool-result turns. It was not
+a validator finding, approval, rejection, or deployment event.
+
+### Known uncertainties and deferred work
+
+The live `inspectors` table, deployed portal process, and production database
+were not inspected. The current `HEAD` SQL does not establish a deployed
+`RESIGHTINGS_H_BROOD_ASSOCIATIONS` helper; the dirty SQL references related
+logic without proving a complete deployable definition. The protocol/export
+divergence for `AC` and the compatibility-era `chick_hide_photo`/`CAP_029`
+behavior remains unresolved. The exact package-side helper tooltip source is
+external to this repository. These are explicit follow-up items, not assumptions
+to be filled in by a replacement thread.
+
+### Restart and verification instructions for Thread 3.2
+
+Use this sequence when recreating the validation workstream:
+
+1. Read `AGENTS.md`, this handoff, the Thread 1/2/4 handoffs, and the prompt
+   log. Record the branch, `HEAD`, local `origin/main`, and all dirty files.
+2. Treat every pre-existing dirty implementation, SQL, test, workbook, and
+   inspector file as protected. Do not reset, clean, rebase, merge, stage, or
+   connect to a live database.
+3. Read both protocol YAML files and verify identity, version, generated date,
+   and checksum without editing them.
+4. Compare the protocol rule inventory with all 12 tracked hard/warning
+   exports, labeling each difference as approved protocol, local artifact,
+   protected WIP, mock-tested behavior, or live unknown.
+5. Use invented or connected mock data only for parser and validator checks.
+   Do not treat a mock pass as proof of live deployment.
+6. If a behavior is to change, update the protocol and implementation artifacts
+   in a separate explicitly authorized task, then obtain human review before
+   any inspector-table paste or deployment instruction.
+
+Paste-ready bootstrap prompt:
+
+> Read `AGENTS.md` and `THREAD3_VALIDATION_ARCHITECTURE.md` in full. Perform a
+> read-only validation-workstream audit from the current checkout. Preserve all
+> dirty files and do not access live databases, credentials, or DB-managed
+> inspectors. Verify both protocol YAML files and their checksum, compare the
+> 1.3.4 protocol with all tracked hard/warning exports, and separate approved
+> behavior from protected WIP and historical material. Use invented/mock data
+> only. Report discrepancies, do not edit implementation, and stop before any
+> staging, commit, push, paste, deployment, or PR action.
+
+### Field-manual-facing summary
+
+Fieldworkers should see two practical categories: save-blocking errors that
+must be corrected before submission, and warnings that ask for review without
+claiming the observation is impossible. Age-C first captures need a real nest
+or negative brood link; negative broods need a complete GPS pair. Hiding-spot
+photos are one H row per photographed chick with its ring, complete GPS pair,
+and photo metadata. Ordinary resightings may leave `ring` blank.
+
+For RESIGHTINGS, a current-session age-C row must be accompanied by a linked
+age-A parent row with `BC` or `FC`, and the parent row must have a linked chick
+row; the rows share date and either `nest_id` or a complete GPS pair. `IN`/`NM`
+are active-nest behaviors, `BC`/`FC` are brood-association behaviors, and `BW`
+means broken-wing display and can occur at either stage. The current protocol
+does not yet certify `AC`; field guidance must not present that WIP extension as
+live until the protocol, helper text, and inspectors are reconciled together.

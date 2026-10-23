@@ -29,9 +29,10 @@
 ADMIN (link)
 
 # Track reviewed thread handoffs and inspector lists while keeping other local
-# notes, prompt logs, generated previews, and data artifacts ignored.
+# notes, raw logs, generated previews, and data artifacts ignored.
 !/notes/
 /notes/*
+!/notes/CODEX_USAGE_TRANSPARENCY.md
 !/notes/codex_proposals/
 /notes/codex_proposals/*
 !/notes/codex_proposals/THREAD1_REPOSITORY_MAP.md
@@ -40,7 +41,23 @@ ADMIN (link)
 !/notes/codex_proposals/THREAD4_TODO_MAP_LIST_DEBUG_PLAN.md
 !/notes/codex_proposals/THREAD5_OVERVIEW_DASHBOARD_PLAN.md
 !/notes/codex_proposals/THREAD6_COMBO_LIST_PROTOCOL.md
+!/notes/codex_proposals/THREAD7_GEOLOCATOR_ROLLOUT_HANDOFF.md
+!/notes/codex_proposals/THREAD8_H_EVENT_RECONCILIATION.md
+!/notes/codex_proposals/THREAD8_TEMPLATE_DISTILLATION.md
+!/notes/codex_proposals/THREAD9_LOCAL_REPLICA_PROTOCOL.md
 !/notes/codex_proposals/validator_sandbox/
 /notes/codex_proposals/validator_sandbox/*
 !/notes/codex_proposals/validator_sandbox/inspector_lists_by_table/
 !/notes/codex_proposals/validator_sandbox/inspector_lists_by_table/**
+!/notes/codex_logs/
+/notes/codex_logs/*
+!/notes/codex_logs/INDEX.md
+!/notes/codex_logs/THREAD1_PROMPT_LOG.md
+!/notes/codex_logs/THREAD2_PROMPT_LOG.md
+!/notes/codex_logs/THREAD3_PROMPT_LOG.md
+!/notes/codex_logs/THREAD4_PROMPT_LOG.md
+!/notes/codex_logs/THREAD5_PROMPT_LOG.md
+!/notes/codex_logs/THREAD6_PROMPT_LOG.md
+!/notes/codex_logs/THREAD7_PROMPT_LOG.md
+!/notes/codex_logs/THREAD8_PROMPT_LOG.md
+!/notes/codex_logs/THREAD9_PROMPT_LOG.md
