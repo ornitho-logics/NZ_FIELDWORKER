@@ -1,6 +1,6 @@
 # Thread 9 local-replica protocol
 
-Last reconstructed: 2026-10-23
+Last reconstructed: 2026-10-24
 
 Status: tracked recovery documentation for the local MariaDB replica and
 refresh/replay workflow. This file is intentionally not a source-of-truth
@@ -33,10 +33,11 @@ This protocol must not be used to:
 - change biological rules merely to make a replay faster; or
 - treat a successful local PDF as proof that production has been deployed.
 
-The current working checkout is dirty. Any future Thread 9 work must first
-record its Git state and use a disposable worktree or an isolated copy. It must
-not edit or stage the existing dirty files merely to make the local replica
-convenient.
+Never assume that the caller's working checkout is safe for replay. Record its
+Git state first and use a clean disposable worktree or isolated copy. The
+verified replay described below used the clean topic branch
+`codex/last-visit-gps-association-2026-10-23`; it did not edit or stage the
+caller's unrelated files.
 
 ## Source-of-truth hierarchy
 
@@ -61,28 +62,33 @@ The live server is outside Thread 9's authority. A local replay can establish
 that a revision is internally consistent, but it cannot establish that the
 server imported that revision or that the deployed Shiny process restarted.
 
-## Current checked-in and pending state
+## Verified source and replay state
 
-At the final documentation publication audit:
+The final local replay used:
 
-- `origin/main` was `f7d13fb`, including the table-alignment/note work and the
-  subsequent refresh empty-statement fix merged through PR #147.
-- The active checkout was branch `codex/split-todo-calculator-2026-10-19`, at
-  `d3c7bd4`, with unrelated dirty changes in SQL, PDF code, validators, and
-  tests. It is not a clean deployment candidate and must be preserved.
-- The isolated refresh-fix worktree produced `ad1698b` on
-  `codex/fix-refresh-empty-statement-2026-10-23`. That commit
-  changes one character sequence in `DATABASE/refresh_todo_list_snapshot.SQL`:
-  the task-row statement terminator changes from `);;` to `);`.
-- `ad1698b` was subsequently merged through PR #147 as `f7d13fb`. This proves
-  source merge only; it does not prove production deployment.
-- The earlier note/legend merge remains part of the history; PR #147 is the
-  later source correction for the refresh terminator.
+- `origin/main` at `b61b6fb`, which includes PR #148 and the refresh fix from
+  PR #147;
+- topic branch `codex/last-visit-gps-association-2026-10-23` at `23cf7cc`,
+  pushed to its remote branch but not verified as merged into `origin/main`;
+- the branch's three intended changes in `DATABASE/views.SQL`,
+  `DATABASE/refresh_todo_list_snapshot.SQL`, and
+  `tests/testthat/test-todo-view-rules.R`.
 
-The user subsequently supplied an Adminer screenshot showing all refresh
- stages through `publishing` with no red error. That is positive user evidence
-for the corrected file, but no live database query was run by Thread 9 and no
-live state should be inferred beyond what the screenshot visibly showed.
+The refresh-script repair is the one-character correction in
+`DATABASE/refresh_todo_list_snapshot.SQL`: the task-row statement ended with
+`);;`, which sends an empty SQL statement before the `publishing` marker. The
+safe fix is `);`. It was introduced by commit `ad1698b` on
+`codex/fix-refresh-empty-statement-2026-10-23` and merged through PR #147 as
+`f7d13fb`; `origin/main` and the topic branch both contain it. Source merge is
+not evidence that the live database has imported the file.
+
+The topic branch's Last Visit/GPS-association work remains a separate,
+unmerged topic branch at the time of this replay. Do not describe it as
+deployed or merged merely because its local PDF rendered successfully.
+
+The user-supplied Adminer screenshot showing stages through `publishing` is
+positive user evidence for the corrected refresh file, but it is not a live
+query performed by Thread 9 and cannot establish production state.
 
 ## Architecture and dependency map
 
@@ -151,6 +157,38 @@ failed, running, or unavailable refresh health. A refresh failure therefore
 must not silently replace a valid public snapshot, and a download should warn
 or fail closed when the active reference-date snapshot is missing or stale.
 
+## Last Visit/GPS-association regression contract
+
+The Last Visit update is a reference-date-bounded encounter rule, not a new
+parent-association interpretation. For each positive or negative brood, the
+published value is based on the later of the latest qualifying nest visit and
+the latest qualifying age-C capture/resighting encounter. A later positive
+age-C capture or resighting therefore advances Last Visit after hatch evidence
+when it is directly linked or deterministically associated with the brood.
+
+For an unlinked, non-H age-C `RESIGHTINGS` row, a same-date, same-`gps_id`,
+same-`gps_point` adult observation may resolve the encounter only when exactly
+one distinct adult-linked nest ID is available. Adult evidence may come from
+the authoritative adult `RESIGHTINGS`/`CAPTURES` context. The following
+boundaries are mandatory:
+
+- a direct positive or negative brood link remains authoritative;
+- a missing, blank, or `NO_NEST` link is unresolved unless the deterministic
+  same-occasion GPS rule succeeds;
+- multiple candidate nest IDs remain unresolved;
+- a different date, incomplete GPS pair, or nonmatching GPS pair remains
+  unresolved; and
+- age-C H-class rows remain on the dedicated
+  `RESIGHTINGS_H_BROOD_ASSOCIATIONS` ring/photo path and must not be folded
+  into the non-H same-occasion resolver.
+
+The regression suite should include later age-C captures, direct age-C
+resightings, GPS-only age-C resightings with exactly one adult-linked nest,
+ambiguous adult-linked nests, missing/`NO_NEST` rows, wrong-date and wrong-GPS
+rows, and H rows with ring/photo evidence. A Last Visit change must not by
+itself change task eligibility, parent-association evidence, brood closure,
+map coordinates, or PDF table membership.
+
 ## Clean local bootstrap
 
 Use an isolated temporary MariaDB 11.8.9 instance with:
@@ -190,6 +228,30 @@ The safe dependency order is:
 If a local database must be reset, use a newly created disposable datadir or
 the reset script against the disposable database only. Never use this order as
 permission to reset a server database.
+
+### MariaDB 11.8 collation boundary
+
+In the initial clean replay, both the candidate views and the selected
+`origin/main` control reached the same publication-stage mixed-collation
+failure. The failing value came from the unqualified `format_mark()` return
+collation (`utf8mb4_general_ci`) being compared with the surrounding
+`utf8mb4_uca1400_ai_ci` expressions. This was a schema/import compatibility
+problem in the disposable replay, not evidence that the Last Visit/GPS-link
+logic caused the failure.
+
+For the successful diagnostic replay only, the isolated server used
+`utf8mb4_uca1400_ai_ci` as its default, imported text columns were normalized
+to that collation, and the disposable copy of `format_mark()` declared the
+same explicit return collation. These changes were confined to the disposable
+loader/function copy; they were not silently applied to tracked source,
+production, or any live database. A clean MariaDB 11.8 deployment should be
+given a separately reviewed tracked collation hardening change before relying
+on this replay as deployment evidence.
+
+If the same collation error occurs during a future replay, stop at the failed
+stage. Do not run the refresh, render a PDF, or report a valid snapshot until
+the schema/function compatibility boundary has been corrected and the full
+views-install/refresh sequence has been repeated.
 
 ## Reproducible replay and checks
 
@@ -292,6 +354,62 @@ full-page PNGs for visual checks. Store generated PDFs/PNGs only under an
 ignored scratch/artifact directory. Do not include map coordinates or raw
 field rows in the diagnostic report.
 
+### Verified 2026-10-23 replay and PDF reproduction
+
+The final candidate replay used branch
+`codex/last-visit-gps-association-2026-10-23` at `23cf7cc`, with the current
+season local dump boundary set to reference date `2026-10-23`. The disposable
+MariaDB server was MariaDB `11.8.9`, started with `--no-defaults`,
+`--skip-networking`, a private socket, and a private data directory. The
+loader created the base/support schema, loaded the current-season base tables
+and historic compatibility inputs, preserved `settings.reference_date`,
+rebuilt derived objects from repository SQL, and did not treat dumped view
+definitions as authoritative.
+
+Both the `origin/main` control and the candidate completed all refresh stages
+through `publishing` with `TODO_REFRESH_STATUS.state = 'succeeded'` and
+`task_row_count = 57`. The final control/candidate timings were 45.67 seconds
+and 47.50 seconds, respectively. Task-type counts were identical: 7 broods
+to recapture for flagging, 4 hiding-spot-photo rows, 4 nest-check rows, 8
+notA closure rows, 10 parent-capture rows, 22 parent-resighting rows, and 2
+unprocessed-nest rows.
+
+The row comparison matched all 57 task keys. Across the 39 non-coordinate
+published columns, the only differences were the intended
+`last_visit_days_ago` changes and their direct downstream
+`days_overdue`/`priority`/`overdue_label` consequences. Coordinate values were
+compared by non-reversible row hash only and all 57 task hashes matched. The
+candidate PDF was rendered with the current R/PDF code using:
+
+```text
+Rscript /private/tmp/nzfw-11.8-replay/render_candidate.R
+pdftoppm -png -r 150 cass_todos_2026-10-23_candidate.pdf page
+```
+
+The output was
+`/private/tmp/nzfw-11.8-replay/render-candidate/cass_todos_2026-10-23_candidate.pdf`,
+with page PNGs under
+`/private/tmp/nzfw-11.8-replay/render-candidate/png/`. It has four pages.
+Visual inspection confirmed the task tables occupied the first three pages,
+the active-nest/brood summary was on page 3, and the rotated map was alone on
+page 4. The footer identified the local source as `version local-23cf7cc`.
+This is local replay evidence only; it is not evidence of a live import,
+snapshot refresh, or Shiny restart.
+
+The safe end-to-end verification sequence is therefore:
+
+```text
+views install -> refresh stage markers -> publication/succeeded status
+  -> published task count and task-type counts -> PDF render
+  -> PDF text/page-count check -> full-page PNG inspection
+```
+
+Stop before rendering if `views.SQL` fails, any refresh stage fails, the
+publication marker is not reached, `TODO_REFRESH_STATUS` is `running` or
+`failed`, `completed_at` is null, or the published count does not match the
+successful status row. A stale or partially published snapshot must never be
+presented as a valid PDF result.
+
 ## Status lifecycle and recovery
 
 `TODO_REFRESH_STATUS` is the durable, low-volume health record:
@@ -335,8 +453,21 @@ indefinitely and do not terminate unrelated MariaDB services.
   `TODO_LIST_CALCULATE` view.
 - The refresh script is separate and performs task assembly in staged build
   tables.
-- The current origin refresh source contained a `);;` empty-statement typo at
-  the task-row/publishing boundary; commit `ad1698b` corrects it.
+- The refresh source once contained a `);;` empty-statement typo at the
+  task-row/publishing boundary; commit `ad1698b` changes it to `);`, and that
+  commit is merged into current `origin/main` through PR #147 as `f7d13fb`.
+- In the initial clean MariaDB 11.8 replay, both the candidate and the
+  `origin/main` control reached the same publication-stage `ERROR 1267`
+  mixed-collation failure. This was a disposable schema/function-loader
+  compatibility issue, not evidence that the Last Visit logic caused the
+  failure.
+- After the disposable collation normalization, both control and candidate
+  refreshes reached `publishing`, recorded `succeeded`, and published 57 task
+  rows with identical task-type counts. The candidate PDF rendered as a
+  four-page document from `23cf7cc`.
+- The candidate/control comparison found 11 changed task rows across 8 IDs.
+  Differences were limited to Last Visit and its direct overdue/priority
+  consequences; all coordinate hashes matched without exposing coordinates.
 - A user-supplied Adminer screenshot after importing the corrected file showed
   all stages through publishing with no red error.
 
@@ -345,19 +476,22 @@ indefinitely and do not terminate unrelated MariaDB services.
 - The original Adminer hang was amplified by expensive DDL validation and/or
   metadata locking, with client timeout or server-side resource pressure
   possible but not proven.
-- The new empty-statement error explains a refresh that reached task-row work
-  but remained `running` and unpublished; it is distinct from the old views
-  installation failure.
+- A `);;` empty-statement error can explain a refresh that reaches task-row
+  work but remains `running` and unpublished; it is distinct from both the old
+  views-installation failure and the later replay-only collation failure.
 - Snapshot publication is safer than recomputing the full graph for each PDF
   download because it bounds expensive work to the explicit refresh operation.
 
 ### Unresolved
 
-- Whether the live server has merged/imported the exact corrected refresh file.
-- Whether the live Adminer instance has permissions or timeouts different from
-  the local replay.
+- Whether the live server has imported the current source and completed a
+  successful refresh after the source merge.
+- Whether the live Adminer instance has permissions, collations, or timeouts
+  different from the local replay.
 - Whether the historical server run also involved an OOM or allocator issue;
   no OS evidence established that.
+- Whether the topic branch's Last Visit/GPS-association changes will be merged
+  into `origin/main`; the local replay does not answer that.
 - Whether any external SQL script still depends on the retired
   `GEO_ROLLOUT_PHENOLOGY` object or compatibility objects beyond repository
   consumers.
@@ -382,6 +516,18 @@ Run this checklist for every proposed SQL or refresh change:
 14. full-page PNG/page-count checks; and
 15. source diff review confirming no raw data, credentials, generated artifacts,
     or unrelated dirty files are included.
+
+For the Last Visit/GPS-association change, additionally verify these focused
+cases without printing their raw rows: a later positive age-C capture or
+resighting advances Last Visit; a same-date/same-GPS non-H age-C row resolves
+only when exactly one adult-linked nest exists; direct links win; ambiguous,
+missing, `NO_NEST`, wrong-date, and wrong-GPS cases remain unresolved; and H
+rows remain on the ring/photo association path.
+
+The hard stop is important: a failed view install, failed refresh stage,
+unreached publication marker, `running`/`failed` status, null completion time,
+or count mismatch invalidates the replay result. Do not render or present the
+PDF as current until the full sequence succeeds.
 
 The biological regression suite belongs to Thread 4 and must be run there or
 against its supplied mock fixtures. Thread 9 may invoke approved local tests,
@@ -413,10 +559,13 @@ match.
 > from the selected repository SQL rather than dumped views, replay
 > `DATABASE/views.SQL`, then replay
 > `DATABASE/refresh_todo_list_snapshot.SQL` as separate instrumented stages.
+> If MariaDB 11.8 exposes an import-only collation mismatch, normalize the
+> disposable schema/function setup only and record that boundary explicitly.
 > Verify `TODO_REFRESH_STATUS`, publication, task-count equality, absence of
-> active `TODO_LIST_CALCULATE`, and the PDF/page-count/layout contract. Keep
-> SQL installation failures, refresh failures, biological regressions, and
-> deployment uncertainty separate. Do not edit, commit, push, merge, or deploy
+> active `TODO_LIST_CALCULATE`, the Last Visit/GPS-link regression cases, and
+> the PDF/page-count/layout contract. Keep SQL installation failures, refresh
+> failures, biological regressions, and deployment uncertainty separate. Never
+> render a failed or stale refresh. Do not edit, commit, push, merge, or deploy
 > unless the user explicitly requests that exact action.
 
 ## Rollback of this document
