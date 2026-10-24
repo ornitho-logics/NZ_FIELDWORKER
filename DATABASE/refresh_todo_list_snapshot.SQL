@@ -1376,8 +1376,16 @@ latest_nests AS (
   SELECT
     context.nest_id,
     context.species,
-    context.last_visit_datetime,
-    context.days_ago,
+    CASE
+      WHEN brood_last_visit.nest_id IS NOT NULL
+      THEN brood_last_visit.latest_encounter_datetime
+      ELSE context.last_visit_datetime
+    END AS last_visit_datetime,
+    CASE
+      WHEN brood_last_visit.nest_id IS NOT NULL
+      THEN DATEDIFF(sr.reference_date, brood_last_visit.latest_encounter_date)
+      ELSE context.days_ago
+    END AS days_ago,
     context.last_observer,
     context.nest_state,
     context.hatch_state,
@@ -1408,6 +1416,11 @@ latest_nests AS (
   FROM task_context context
   LEFT JOIN initial_clutch_status
     ON context.nest_id = initial_clutch_status.nest_id
+  LEFT JOIN brood_context brood_last_visit
+    ON context.nest_id = brood_last_visit.nest_id
+   AND brood_last_visit.reference_date = context.reference_date
+   AND brood_last_visit.is_negative_brood = 0
+   AND brood_last_visit.has_hatch_evidence = 1
   CROSS JOIN sr
 ),
 active_nests AS (

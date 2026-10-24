@@ -542,10 +542,15 @@ test_that("H hiding-photo association is shared by BROODS_LATEST and TODO_LIST",
     fixed = TRUE
   )
   expect_match(sql, "same_occasion_adult_summary", fixed = TRUE)
+  expect_match(
+    sql,
+    "FROM FIELD_2026_BADOatNZ.CAPTURES c\n    CROSS JOIN sr",
+    fixed = TRUE
+  )
   expect_match(sql, "latest_ring_capture_summary", fixed = TRUE)
   expect_match(
     sql,
-    "COALESCE(h_assoc.resolved_nest_id, r.nest_id) AS nest_id",
+    "h_assoc.resolved_nest_id",
     fixed = TRUE
   )
   expect_match(sql, "'ambiguous_same_occasion_adult'", fixed = TRUE)
@@ -569,6 +574,62 @@ test_that("BROODS_LATEST treats age-C captures as positive brood evidence", {
   )
   expect_match(sql, "chicks.first_chick_capture_date", fixed = TRUE)
   expect_match(sql, "OR chicks.nest_id IS NOT NULL", fixed = TRUE)
+  expect_match(sql, "same_occasion_chick_gps_candidates AS", fixed = TRUE)
+  expect_match(sql, "chick.gps_id = adult.gps_id", fixed = TRUE)
+  expect_match(sql, "chick.gps_point = adult.gps_point", fixed = TRUE)
+  expect_match(sql, "TRIM(chick.nest_id) = ''", fixed = TRUE)
+  expect_match(sql, "UPPER(TRIM(COALESCE(chick.rclass, ''))) <> 'H'", fixed = TRUE)
+  expect_match(sql, "same_occasion_chick_gps_summary AS", fixed = TRUE)
+  expect_match(sql, "WHEN COUNT(DISTINCT adult_nest_id) = 1", fixed = TRUE)
+  expect_match(sql, "OR gps_assoc.resolved_nest_id IS NOT NULL", fixed = TRUE)
+  expect_match(
+    sql,
+    "LEFT JOIN same_occasion_chick_gps_summary gps_assoc",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "WHEN chick_latest.event_datetime >",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "chick_latest.event_date AS latest_chick_event_date",
+    fixed = TRUE
+  )
+})
+
+
+test_that("positive brood Last Visit uses the latest nest or chick encounter", {
+  sql <- refresh_source_sql()
+
+  expect_match(
+    sql,
+    "WHEN brood_last_visit.nest_id IS NOT NULL\n      THEN brood_last_visit.latest_encounter_datetime",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "WHEN brood_last_visit.nest_id IS NOT NULL\n      THEN DATEDIFF(sr.reference_date, brood_last_visit.latest_encounter_date)",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "LEFT JOIN brood_context brood_last_visit\n    ON context.nest_id = brood_last_visit.nest_id",
+    fixed = TRUE
+  )
+  expect_match(sql, "brood_last_visit.is_negative_brood = 0", fixed = TRUE)
+  expect_match(sql, "brood_last_visit.has_hatch_evidence = 1", fixed = TRUE)
+  expect_match(
+    sql,
+    "active_nests.days_ago AS last_visit_days_ago",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "brood_followup_nests.days_ago AS last_visit_days_ago",
+    fixed = TRUE
+  )
 })
 
 
