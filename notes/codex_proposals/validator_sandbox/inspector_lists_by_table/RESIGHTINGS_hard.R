@@ -1583,11 +1583,11 @@ list({
                     table_name = character(), rowid = integer(), photo_no = integer(),
                     cam_key = character(), date_key = character(), observer_key = character(),
                     nest_key = character(), gps_id_key = character(), gps_point_key = character(),
-                    rclass_key = character(), age_key = character()
+                    rclass_key = character(), age_key = character(), pk_key = character()
                 ))
             }
             photo_seq_num <- function(v) {
-                raw <- trimws(as.character(v))
+                raw <- sub("\\.[A-Za-z0-9]{1,5}$", "", trimws(as.character(v)), perl = TRUE)
                 out <- rep(NA_integer_, length(raw))
                 valid <- !is.na(raw) & nzchar(raw) & raw != "NA"
                 if (!any(valid)) {
@@ -1612,7 +1612,7 @@ list({
             } else if (rowid_col != "rowid") {
                 tmp[, `:=`(rowid, get(rowid_col))]
             }
-            for (column in c("cam_id", "date", "observer", "nest_id", "gps_id", "gps_point", "rclass", "age")) {
+            for (column in c("cam_id", "date", "observer", "nest_id", "gps_id", "gps_point", "rclass", "age", "pk")) {
                 if (!column %in% names(tmp)) {
                     tmp[, (column) := NA_character_]
                 }
@@ -1626,7 +1626,8 @@ list({
                 gps_id_key = normalize_photo_text(gps_id),
                 gps_point_key = normalize_photo_text(gps_point),
                 rclass_key = normalize_photo_text(rclass),
-                age_key = normalize_photo_text(age)
+                age_key = normalize_photo_text(age),
+                pk_key = normalize_photo_text(pk)
             )]
             tmp[, `:=`(start_no, photo_seq_num(photo_start))]
             tmp[, `:=`(end_no, photo_seq_num(photo_end))]
@@ -1636,7 +1637,7 @@ list({
                     table_name = character(), rowid = integer(), photo_no = integer(),
                     cam_key = character(), date_key = character(), observer_key = character(),
                     nest_key = character(), gps_id_key = character(), gps_point_key = character(),
-                    rclass_key = character(), age_key = character()
+                    rclass_key = character(), age_key = character(), pk_key = character()
                 ))
             }
             pieces <- lapply(seq_len(nrow(tmp)), function(i) {
@@ -1651,7 +1652,8 @@ list({
                     gps_id_key = tmp$gps_id_key[i],
                     gps_point_key = tmp$gps_point_key[i],
                     rclass_key = tmp$rclass_key[i],
-                    age_key = tmp$age_key[i]
+                    age_key = tmp$age_key[i],
+                    pk_key = tmp$pk_key[i]
                 )
             })
             data.table::rbindlist(pieces, use.names = TRUE, fill = TRUE)
@@ -1664,12 +1666,11 @@ list({
                 !identical(a$age_key[[1]], "C") || !identical(b$age_key[[1]], "C")) {
                 return(FALSE)
             }
-            if (any(is.na(c(a$cam_key[[1]], b$cam_key[[1]], a$date_key[[1]], b$date_key[[1]], a$observer_key[[1]], b$observer_key[[1]])))) {
+            if (any(is.na(c(a$cam_key[[1]], b$cam_key[[1]], a$date_key[[1]], b$date_key[[1]])))) {
                 return(FALSE)
             }
             if (!identical(a$cam_key[[1]], b$cam_key[[1]]) ||
-                !identical(a$date_key[[1]], b$date_key[[1]]) ||
-                !identical(a$observer_key[[1]], b$observer_key[[1]])) {
+                !identical(a$date_key[[1]], b$date_key[[1]])) {
                 return(FALSE)
             }
             nest_complete <- !is.na(a$nest_key[[1]]) && !is.na(b$nest_key[[1]])
@@ -1683,6 +1684,12 @@ list({
                 identical(a$gps_point_key[[1]], b$gps_point_key[[1]])
         }
         photo_conflict <- function(a, b) {
+            same_saved_row <- !is.na(a$pk_key[[1]]) && !is.na(b$pk_key[[1]]) &&
+                identical(a$table_name[[1]], b$table_name[[1]]) &&
+                identical(a$pk_key[[1]], b$pk_key[[1]])
+            if (same_saved_row) {
+                return(FALSE)
+            }
             if (is.na(a$cam_key[[1]]) || is.na(b$cam_key[[1]]) ||
                 !identical(a$cam_key[[1]], b$cam_key[[1]]) ||
                 !identical(a$photo_no[[1]], b$photo_no[[1]])) {
@@ -1690,9 +1697,11 @@ list({
             }
             !same_h_photo_session(a, b)
         }
-        other_caps <- data.table::as.data.table(db_get("SELECT cam_id, date, observer, nest_id, gps_id, gps_point, age, photo_start, photo_end FROM CAPTURES"))
-        other_nests <- data.table::as.data.table(db_get("SELECT cam_id, date, observer, nest_id, gps_id, gps_point, photo_start, photo_end FROM NESTS"))
+        other_res <- data.table::as.data.table(db_get("SELECT pk, cam_id, date, observer, nest_id, gps_id, gps_point, rclass, age, photo_start, photo_end FROM RESIGHTINGS"))
+        other_caps <- data.table::as.data.table(db_get("SELECT pk, cam_id, date, observer, nest_id, gps_id, gps_point, age, photo_start, photo_end FROM CAPTURES"))
+        other_nests <- data.table::as.data.table(db_get("SELECT pk, cam_id, date, observer, nest_id, gps_id, gps_point, photo_start, photo_end FROM NESTS"))
         current_expanded <- expand_ranges(z, "RESIGHTINGS")
+        other_res_expanded <- expand_ranges(other_res, "RESIGHTINGS", rowid_col = "missing_rowid")
         other_caps_expanded <- expand_ranges(other_caps, "CAPTURES", rowid_col = "missing_rowid")
         other_nests_expanded <- expand_ranges(other_nests, "NESTS", rowid_col = "missing_rowid")
         rows_dup_current <- integer()
@@ -1708,7 +1717,7 @@ list({
                 }
             }
         }
-        ref <- data.table::rbindlist(list(other_caps_expanded, other_nests_expanded), use.names = TRUE, fill = TRUE)
+        ref <- data.table::rbindlist(list(other_res_expanded, other_caps_expanded, other_nests_expanded), use.names = TRUE, fill = TRUE)
         rows_dup_ref <- integer()
         if (nrow(ref) > 0) {
             for (i in seq_len(nrow(current_expanded))) {

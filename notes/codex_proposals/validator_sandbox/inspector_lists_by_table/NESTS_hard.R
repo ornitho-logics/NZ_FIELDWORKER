@@ -1468,7 +1468,7 @@ list({
     out <- try_validator({
         empty <- data.table::data.table(rowid = integer(), variable = character(), reason = character())
         photo_seq_num <- function(v) {
-            raw <- trimws(as.character(v))
+            raw <- sub("\\.[A-Za-z0-9]{1,5}$", "", trimws(as.character(v)), perl = TRUE)
             out <- rep(NA_integer_, length(raw))
             valid <- !is.na(raw) & nzchar(raw) & raw != "NA"
             if (!any(valid)) {
@@ -1503,7 +1503,7 @@ list({
         }
         expand_rows <- function(dt, table_name, rowid_col = NULL) {
             dt <- data.table::copy(dt)
-            for (column in c("cam_id", "date", "observer", "nest_id", "gps_id", "gps_point", "rclass", "age")) {
+            for (column in c("cam_id", "date", "observer", "nest_id", "gps_id", "gps_point", "rclass", "age", "pk")) {
                 if (!column %in% names(dt)) {
                     dt[, (column) := NA_character_]
                 }
@@ -1517,7 +1517,8 @@ list({
                 gps_id_key = normalize_photo_text(gps_id),
                 gps_point_key = normalize_photo_text(gps_point),
                 rclass_key = normalize_photo_text(rclass),
-                age_key = normalize_photo_text(age)
+                age_key = normalize_photo_text(age),
+                pk_key = normalize_photo_text(pk)
             )]
             pieces <- lapply(seq_len(nrow(dt)), function(i) {
                 nums <- expand_range(dt$photo_start[i], dt$photo_end[i])
@@ -1535,7 +1536,8 @@ list({
                     gps_id_key = dt$gps_id_key[i],
                     gps_point_key = dt$gps_point_key[i],
                     rclass_key = dt$rclass_key[i],
-                    age_key = dt$age_key[i]
+                    age_key = dt$age_key[i],
+                    pk_key = dt$pk_key[i]
                 )
             })
             pieces <- Filter(Negate(is.null), pieces)
@@ -1551,7 +1553,8 @@ list({
                     gps_id_key = character(),
                     gps_point_key = character(),
                     rclass_key = character(),
-                    age_key = character()
+                    age_key = character(),
+                    pk_key = character()
                 )
             } else {
                 data.table::rbindlist(pieces, use.names = TRUE, fill = TRUE)
@@ -1565,12 +1568,11 @@ list({
                 !identical(a$age_key[[1]], "C") || !identical(b$age_key[[1]], "C")) {
                 return(FALSE)
             }
-            if (any(is.na(c(a$cam_key[[1]], b$cam_key[[1]], a$date_key[[1]], b$date_key[[1]], a$observer_key[[1]], b$observer_key[[1]])))) {
+            if (any(is.na(c(a$cam_key[[1]], b$cam_key[[1]], a$date_key[[1]], b$date_key[[1]])))) {
                 return(FALSE)
             }
             if (!identical(a$cam_key[[1]], b$cam_key[[1]]) ||
-                !identical(a$date_key[[1]], b$date_key[[1]]) ||
-                !identical(a$observer_key[[1]], b$observer_key[[1]])) {
+                !identical(a$date_key[[1]], b$date_key[[1]])) {
                 return(FALSE)
             }
             nest_complete <- !is.na(a$nest_key[[1]]) && !is.na(b$nest_key[[1]])
@@ -1584,6 +1586,12 @@ list({
                 identical(a$gps_point_key[[1]], b$gps_point_key[[1]])
         }
         photo_conflict <- function(a, b) {
+            same_saved_row <- !is.na(a$pk_key[[1]]) && !is.na(b$pk_key[[1]]) &&
+                identical(a$table_name[[1]], b$table_name[[1]]) &&
+                identical(a$pk_key[[1]], b$pk_key[[1]])
+            if (same_saved_row) {
+                return(FALSE)
+            }
             if (is.na(a$cam_key[[1]]) || is.na(b$cam_key[[1]]) ||
                 !identical(a$cam_key[[1]], b$cam_key[[1]]) ||
                 !identical(a$img_num[[1]], b$img_num[[1]])) {
@@ -1598,15 +1606,15 @@ list({
             empty
         } else {
             ref_parts <- list()
-            ref_nests <- tryCatch(db_get("SELECT cam_id, date, observer, nest_id, gps_id, gps_point, photo_start, photo_end FROM NESTS"), error = function(e) NULL)
+            ref_nests <- tryCatch(db_get("SELECT pk, cam_id, date, observer, nest_id, gps_id, gps_point, photo_start, photo_end FROM NESTS"), error = function(e) NULL)
             if (!is.null(ref_nests) && nrow(ref_nests) > 0) {
                 ref_parts[[length(ref_parts) + 1L]] <- expand_rows(data.table::as.data.table(ref_nests), table_name = "NESTS")
             }
-            ref_caps <- tryCatch(db_get("SELECT cam_id, date, observer, nest_id, gps_id, gps_point, age, photo_start, photo_end FROM CAPTURES"), error = function(e) NULL)
+            ref_caps <- tryCatch(db_get("SELECT pk, cam_id, date, observer, nest_id, gps_id, gps_point, age, photo_start, photo_end FROM CAPTURES"), error = function(e) NULL)
             if (!is.null(ref_caps) && nrow(ref_caps) > 0) {
                 ref_parts[[length(ref_parts) + 1L]] <- expand_rows(data.table::as.data.table(ref_caps), table_name = "CAPTURES")
             }
-            ref_res <- tryCatch(db_get("SELECT cam_id, date, observer, nest_id, gps_id, gps_point, rclass, age, photo_start, photo_end FROM RESIGHTINGS"), error = function(e) NULL)
+            ref_res <- tryCatch(db_get("SELECT pk, cam_id, date, observer, nest_id, gps_id, gps_point, rclass, age, photo_start, photo_end FROM RESIGHTINGS"), error = function(e) NULL)
             if (!is.null(ref_res) && nrow(ref_res) > 0) {
                 ref_parts[[length(ref_parts) + 1L]] <- expand_rows(data.table::as.data.table(ref_res), table_name = "RESIGHTINGS")
             }
@@ -1615,7 +1623,7 @@ list({
                     table_name = character(), rowid = integer(), img_num = integer(),
                     cam_key = character(), date_key = character(), observer_key = character(),
                     nest_key = character(), gps_id_key = character(), gps_point_key = character(),
-                    rclass_key = character(), age_key = character()
+                    rclass_key = character(), age_key = character(), pk_key = character()
                 )
             } else {
                 data.table::rbindlist(ref_parts, use.names = TRUE, fill = TRUE)
