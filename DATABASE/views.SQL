@@ -5383,9 +5383,12 @@ FROM FIELD_2026_BADOatNZ.BROODS_LATEST;
 /*
   TODO_CHICK_CAPTURE_CONTEXT_INPUT is the compact task-facing aggregate for
   age-C chick captures. It is deliberately separate from the task view because
-  four task branches consume the same capture counts. During a staged refresh
-  this boundary is repointed to an indexed snapshot, preventing each branch
-  from rescanning and regrouping CAPTURES independently.
+  four task branches consume the same capture counts. Ring-linked R/C rows
+  with a missing nest_id inherit the latest unambiguous prior ring-linked
+  brood; explicit nest changes are retained so post-hatch brood mixing remains
+  possible. During a staged refresh this boundary is repointed to an indexed
+  snapshot, preventing each branch from rescanning and regrouping CAPTURES
+  independently.
 */
 CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_INPUT AS
 WITH sr AS (
@@ -5394,9 +5397,15 @@ WITH sr AS (
   WHERE variable = 'reference_date'
     AND value IS NOT NULL
 ),
-chick_events AS (
+raw_chick_events AS (
   SELECT
-    c.nest_id,
+    c.pk AS capture_pk,
+    c.date AS event_date,
+    CASE
+      WHEN UPPER(TRIM(COALESCE(c.nest_id, ''))) IN ('', 'NO_NEST')
+      THEN NULL
+      ELSE UPPER(TRIM(c.nest_id))
+    END AS recorded_nest_id,
     NULLIF(
       NULLIF(UPPER(TRIM(COALESCE(c.ring, ''))), ''),
       'NA'
@@ -5410,12 +5419,60 @@ chick_events AS (
     END AS flag_code
   FROM FIELD_2026_BADOatNZ.CAPTURES c
   CROSS JOIN sr
-  WHERE c.nest_id IS NOT NULL
-    AND TRIM(c.nest_id) <> ''
-    AND UPPER(TRIM(c.nest_id)) <> 'NO_NEST'
-    AND UPPER(TRIM(COALESCE(c.site, ''))) = 'CR'
+  WHERE UPPER(TRIM(COALESCE(c.site, ''))) = 'CR'
     AND c.age = 'C'
     AND c.date <= sr.reference_date
+),
+known_ring_nest_history AS (
+  SELECT
+    capture_pk,
+    event_date,
+    ring_key,
+    recorded_nest_id AS nest_id
+  FROM raw_chick_events
+  WHERE ring_key IS NOT NULL
+    AND recorded_nest_id IS NOT NULL
+),
+latest_prior_ring_date AS (
+  SELECT
+    e.capture_pk,
+    MAX(h.event_date) AS latest_prior_event_date
+  FROM raw_chick_events e
+  JOIN known_ring_nest_history h
+    ON h.ring_key = e.ring_key
+   AND h.event_date <= e.event_date
+  WHERE e.ring_key IS NOT NULL
+    AND e.recorded_nest_id IS NULL
+  GROUP BY e.capture_pk
+),
+latest_prior_ring_nests AS (
+  SELECT DISTINCT
+    e.capture_pk,
+    h.nest_id
+  FROM raw_chick_events e
+  JOIN latest_prior_ring_date d
+    ON d.capture_pk = e.capture_pk
+  JOIN known_ring_nest_history h
+    ON h.ring_key = e.ring_key
+   AND h.event_date = d.latest_prior_event_date
+),
+resolved_prior_ring_nests AS (
+  SELECT
+    capture_pk,
+    MAX(nest_id) AS inferred_nest_id
+  FROM latest_prior_ring_nests
+  GROUP BY capture_pk
+  HAVING COUNT(*) = 1
+),
+chick_events AS (
+  SELECT
+    COALESCE(e.recorded_nest_id, inferred.inferred_nest_id) AS nest_id,
+    e.ring_key,
+    e.flag_code
+  FROM raw_chick_events e
+  LEFT JOIN resolved_prior_ring_nests inferred
+    ON inferred.capture_pk = e.capture_pk
+  WHERE COALESCE(e.recorded_nest_id, inferred.inferred_nest_id) IS NOT NULL
 )
 SELECT
   chick_events.nest_id,
@@ -5551,7 +5608,8 @@ CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_BROODS_FOR
 SELECT b.*
 FROM FIELD_2026_BADOatNZ.BROODS_LATEST b
 LEFT JOIN FIELD_2026_BADOatNZ.TODO_BROOD_CLOSURE_STATUS s
-  ON CONVERT(s.brood_id USING utf8mb4) COLLATE utf8mb4_uca1400_ai_ci = b.nest_id
+  ON CONVERT(s.brood_id USING utf8mb4) COLLATE utf8mb4_general_ci
+     = CONVERT(b.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
  AND s.reference_date = b.reference_date
 WHERE COALESCE(s.is_presumed_dead, 0) = 0;
 

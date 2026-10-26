@@ -91,7 +91,11 @@ test_that("to-do headings use the current operational subtitles", {
 
   expect_identical(
     heading("Hiding spot photos needed")$subtitle,
-    "Find each brood; take in-situ and tent photos before chicks are 7 days old."
+    paste(
+      "Find each brood; take in-situ and tent photos before chicks are 7 days old.",
+      "Clutch–Brood shows the latest encountered chick count when available.",
+      "Notes show latest encounter count and H-photo progress (photographed / captured)."
+    )
   )
   expect_identical(
     heading("Broods to recapture for flagging")$title,
@@ -99,7 +103,11 @@ test_that("to-do headings use the current operational subtitles", {
   )
   expect_identical(
     heading("Broods to recapture for flagging")$subtitle,
-    "Recapture chicks aged 21 days or more; assign unique engraved UL flags."
+    paste(
+      "Recapture chicks aged 21 days or more; assign unique engraved UL flags.",
+      "The 3-week cutoff is a guide: decide in hand using morphometrics.",
+      "Notes list metal rings of banded chicks; 'N seen' is the number encountered at the latest visit."
+    )
   )
   expect_identical(
     heading("Untrapped brood")$subtitle,
@@ -628,7 +636,7 @@ test_that("parent summary subtitle explains hatch intervals", {
   body_text <- paste(body, collapse = "\n")
 
   expect_true(grepl(
-    "Brood labels use chick band colour; symbols match the map. For active nests, \"Est. Hatch\" is days until hatch (negative = overdue); for broods, negative values are days since hatch.",
+    "Brood labels use chick band colour; an F after a brood label means at least one chick has an engraved flag. Symbols match the map. For active nests, \"Est. Hatch\" is days until hatch (negative = overdue); for broods, negative values are days since hatch.",
     body_text,
     fixed = TRUE
   ))
@@ -1619,6 +1627,154 @@ test_that("H nests use unique age-C rings when brood size is unresolved", {
   expect_identical(
     observed$`Clutch–Brood`[observed$Nest == "B0211"],
     "3–1"
+  )
+})
+
+
+test_that("latest chick encounters deduplicate same-day ringless duplicates", {
+  app <- load_main_app()
+  count_latest <- app$env$todo_pdf_latest_chick_encounter_counts
+
+  encounters <- data.frame(
+    nest_id = c("B0520", "B0520", "B0521", "C0615", "C0615"),
+    date = as.Date(rep("2026-10-22", 5)),
+    source = c("capture", "resighting", "resighting", "capture", "resighting"),
+    event_id = c("capture-1", "resight-1", "resight-2", "capture-2", "resight-3"),
+    ring = c("CP20218", NA, NA, "CP20310", "CP20302"),
+    stringsAsFactors = FALSE
+  )
+
+  observed <- count_latest(
+    encounters,
+    as.Date("2026-10-27")
+  )
+
+  expect_identical(
+    observed[observed$nest_id == "B0520", latest_chick_count],
+    1L
+  )
+  expect_identical(
+    observed[observed$nest_id == "B0520", latest_chick_ring_list],
+    "CP20218"
+  )
+  expect_identical(
+    observed[observed$nest_id == "B0521", latest_chick_count],
+    1L
+  )
+  expect_identical(
+    observed[observed$nest_id == "C0615", latest_chick_count],
+    1L
+  )
+  expect_identical(
+    observed[observed$nest_id == "C0615", latest_chick_ring_list],
+    "CP20310"
+  )
+})
+
+
+test_that("flagging notes separate latest count from captured ring identities", {
+  app <- load_main_app()
+  prepare <- app$env$todo_pdf_prepare
+
+  todo <- data.frame(
+    nest_id = "C0615",
+    reference_date = as.Date("2026-10-27"),
+    todo = "Broods to recapture for flagging",
+    notes = "recapture chicks",
+    nest_state = "H",
+    clutch_size = 0,
+    brood_size = 3,
+    min_days_to_hatch = -31,
+    last_visit_days_ago = 25,
+    M_mark = "X-X",
+    F_mark = "X-X",
+    stringsAsFactors = FALSE
+  )
+  chick_captures <- data.frame(
+    nest_id = rep("C0615", 3),
+    age = rep("C", 3),
+    ring = c("CP20301", "CP20302", "CP20310"),
+    site = rep("CR", 3),
+    date = as.Date(c("2026-09-26", "2026-09-26", "2026-09-28")),
+    stringsAsFactors = FALSE
+  )
+  chick_encounters <- data.frame(
+    nest_id = "C0615",
+    date = as.Date("2026-09-28"),
+    source = "capture",
+    event_id = "capture-3",
+    ring = "CP20310",
+    stringsAsFactors = FALSE
+  )
+
+  observed <- prepare(
+    todo = todo,
+    available_combos = data.frame(mark = paste0("MOCK-", seq_len(30))),
+    chick_captures = chick_captures,
+    chick_encounters = chick_encounters
+  )$rows
+
+  row <- observed[observed$Todo == "Broods to recapture for flagging", ]
+  expect_identical(row$`Clutch–Brood`, "0–1")
+  expect_identical(
+    row$Notes,
+    "1 seen from: CP20301, CP20302, CP20310"
+  )
+})
+
+
+test_that("H-photo notes explain latest encounter versus photo progress", {
+  app <- load_main_app()
+  prepare <- app$env$todo_pdf_prepare
+
+  todo <- data.frame(
+    nest_id = c("B0520", "A0511"),
+    reference_date = as.Date(rep("2026-10-27", 2)),
+    todo = rep("Hiding spot photos needed", 2),
+    notes = c(
+      "2/3 chicks with rclass 'H' photos",
+      "0/2 chicks with rclass 'H' photos"
+    ),
+    nest_state = rep("H", 2),
+    clutch_size = c(0, 0),
+    brood_size = c(2, 2),
+    min_days_to_hatch = c(-6, -1),
+    last_visit_days_ago = c(5, 1),
+    M_mark = NA,
+    F_mark = NA,
+    stringsAsFactors = FALSE
+  )
+  chick_captures <- data.frame(
+    nest_id = rep("B0520", 3),
+    age = rep("C", 3),
+    ring = c("CP20216", "CP20217", "CP20218"),
+    site = rep("CR", 3),
+    date = as.Date(c("2026-10-21", "2026-10-21", "2026-10-22")),
+    stringsAsFactors = FALSE
+  )
+  chick_encounters <- data.frame(
+    nest_id = "B0520",
+    date = as.Date("2026-10-22"),
+    source = "capture",
+    event_id = "capture-3",
+    ring = "CP20218",
+    stringsAsFactors = FALSE
+  )
+
+  observed <- prepare(
+    todo = todo,
+    available_combos = data.frame(mark = paste0("MOCK-", seq_len(30))),
+    chick_captures = chick_captures,
+    chick_encounters = chick_encounters
+  )$rows
+
+  expect_identical(
+    observed$Notes[observed$Nest == "B0520"],
+    "latest encounter: 1 chick; H photos: 2/3"
+  )
+  expect_identical(
+    observed$Notes[observed$Nest == "A0511"],
+    "latest encounter: not available; H photos: 0/2"
   )
 })
 

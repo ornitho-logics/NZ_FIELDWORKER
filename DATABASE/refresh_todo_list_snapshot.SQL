@@ -160,9 +160,21 @@ WITH sr AS (
   WHERE variable = 'reference_date'
     AND value IS NOT NULL
 ),
-chick_events AS (
+/*
+  Resolve missing R/C nest IDs from the latest unambiguous prior ring-linked
+  brood. Explicit nest IDs are never overwritten: a chick can mix between
+  broods after hatching, so an explicit later nest remains authoritative for
+  that capture. Ambiguous same-date histories are left unresolved.
+*/
+raw_chick_events AS (
   SELECT
-    c.nest_id,
+    c.pk AS capture_pk,
+    c.date AS event_date,
+    CASE
+      WHEN UPPER(TRIM(COALESCE(c.nest_id, ''))) IN ('', 'NO_NEST')
+      THEN NULL
+      ELSE UPPER(TRIM(c.nest_id))
+    END AS recorded_nest_id,
     NULLIF(
       NULLIF(UPPER(TRIM(COALESCE(c.ring, ''))), ''),
       'NA'
@@ -176,12 +188,60 @@ chick_events AS (
     END AS flag_code
   FROM FIELD_2026_BADOatNZ.CAPTURES c
   CROSS JOIN sr
-  WHERE c.nest_id IS NOT NULL
-    AND TRIM(c.nest_id) <> ''
-    AND UPPER(TRIM(c.nest_id)) <> 'NO_NEST'
-    AND UPPER(TRIM(COALESCE(c.site, ''))) = 'CR'
+  WHERE UPPER(TRIM(COALESCE(c.site, ''))) = 'CR'
     AND c.age = 'C'
     AND c.date <= sr.reference_date
+),
+known_ring_nest_history AS (
+  SELECT
+    capture_pk,
+    event_date,
+    ring_key,
+    recorded_nest_id AS nest_id
+  FROM raw_chick_events
+  WHERE ring_key IS NOT NULL
+    AND recorded_nest_id IS NOT NULL
+),
+latest_prior_ring_date AS (
+  SELECT
+    e.capture_pk,
+    MAX(h.event_date) AS latest_prior_event_date
+  FROM raw_chick_events e
+  JOIN known_ring_nest_history h
+    ON h.ring_key = e.ring_key
+   AND h.event_date <= e.event_date
+  WHERE e.ring_key IS NOT NULL
+    AND e.recorded_nest_id IS NULL
+  GROUP BY e.capture_pk
+),
+latest_prior_ring_nests AS (
+  SELECT DISTINCT
+    e.capture_pk,
+    h.nest_id
+  FROM raw_chick_events e
+  JOIN latest_prior_ring_date d
+    ON d.capture_pk = e.capture_pk
+  JOIN known_ring_nest_history h
+    ON h.ring_key = e.ring_key
+   AND h.event_date = d.latest_prior_event_date
+),
+resolved_prior_ring_nests AS (
+  SELECT
+    capture_pk,
+    MAX(nest_id) AS inferred_nest_id
+  FROM latest_prior_ring_nests
+  GROUP BY capture_pk
+  HAVING COUNT(*) = 1
+),
+chick_events AS (
+  SELECT
+    COALESCE(e.recorded_nest_id, inferred.inferred_nest_id) AS nest_id,
+    e.ring_key,
+    e.flag_code
+  FROM raw_chick_events e
+  LEFT JOIN resolved_prior_ring_nests inferred
+    ON inferred.capture_pk = e.capture_pk
+  WHERE COALESCE(e.recorded_nest_id, inferred.inferred_nest_id) IS NOT NULL
 )
 SELECT
   chick_events.nest_id,
@@ -745,7 +805,8 @@ SELECT
   3 AS confidence_rank
 FROM tmp_todo_closure_broods b
 JOIN FIELD_2026_BADOatNZ.ADULT_PARENT_NEST_ASSOCIATIONS a
-  ON a.nest_id = b.brood_id
+  ON CONVERT(a.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+     = CONVERT(b.brood_id USING utf8mb4) COLLATE utf8mb4_general_ci
  AND a.association_selected = 1
  AND a.association_ambiguous = 0
  AND a.sex IN ('M', 'F')
@@ -760,7 +821,8 @@ SELECT DISTINCT
   2 AS confidence_rank
 FROM tmp_todo_closure_broods b
 JOIN FIELD_2026_BADOatNZ.ADULT_IDENTITY_MATCHES m
-  ON m.nest_id = b.brood_id
+  ON CONVERT(m.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+     = CONVERT(b.brood_id USING utf8mb4) COLLATE utf8mb4_general_ci
  AND m.sex IN ('M', 'F')
  AND m.is_ambiguous_match = 0
  AND COALESCE(m.n_candidate_identities, 0) = 1
@@ -916,9 +978,11 @@ JOIN FIELD_2026_BADOatNZ.ADULT_PARENT_NEST_ASSOCIATIONS a
  AND TRIM(a.nest_id) <> ''
  AND UPPER(TRIM(a.nest_id)) <> 'NO_NEST'
  AND LEFT(TRIM(a.nest_id), 1) <> '-'
- AND a.nest_id <> b.brood_id
+ AND CONVERT(a.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+     <> CONVERT(b.brood_id USING utf8mb4) COLLATE utf8mb4_general_ci
 JOIN FIELD_2026_BADOatNZ.NESTS n
-  ON n.nest_id = a.nest_id
+  ON CONVERT(n.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+     = CONVERT(a.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
  AND UPPER(TRIM(COALESCE(n.site, ''))) = 'CR'
  AND n.date > b.anchor_date
  AND n.date <= b.reference_date
@@ -944,11 +1008,13 @@ JOIN FIELD_2026_BADOatNZ.ADULT_IDENTITY_MATCHES m
  AND TRIM(m.nest_id) <> ''
  AND UPPER(TRIM(m.nest_id)) <> 'NO_NEST'
  AND LEFT(TRIM(m.nest_id), 1) <> '-'
- AND m.nest_id <> b.brood_id
+ AND CONVERT(m.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+     <> CONVERT(b.brood_id USING utf8mb4) COLLATE utf8mb4_general_ci
  AND m.observation_date > b.anchor_date
  AND m.observation_date <= b.reference_date
 JOIN FIELD_2026_BADOatNZ.NESTS n
-  ON n.nest_id = m.nest_id
+  ON CONVERT(n.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+     = CONVERT(m.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
  AND UPPER(TRIM(COALESCE(n.site, ''))) = 'CR'
  AND n.date > b.anchor_date
  AND n.date <= b.reference_date
@@ -1131,7 +1197,8 @@ CREATE TEMPORARY TABLE tmp_todo_closure_reactivation AS
 SELECT c.brood_id, COUNT(*) AS reactivation_evidence_count
 FROM tmp_todo_closure_candidates c
 JOIN FIELD_2026_BADOatNZ.CAPTURES x
-  ON x.nest_id = c.brood_id
+  ON CONVERT(x.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+     = CONVERT(c.brood_id USING utf8mb4) COLLATE utf8mb4_general_ci
  AND x.age = 'C'
  AND UPPER(TRIM(COALESCE(x.site, ''))) = 'CR'
  AND x.date > c.closure_candidate_date
@@ -1141,7 +1208,8 @@ UNION ALL
 SELECT c.brood_id, COUNT(*)
 FROM tmp_todo_closure_candidates c
 JOIN FIELD_2026_BADOatNZ.RESIGHTINGS x
-  ON x.nest_id = c.brood_id
+  ON CONVERT(x.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+     = CONVERT(c.brood_id USING utf8mb4) COLLATE utf8mb4_general_ci
  AND x.age = 'C'
  AND UPPER(TRIM(COALESCE(x.site, ''))) = 'CR'
  AND x.date > c.closure_candidate_date
@@ -1153,7 +1221,8 @@ FROM tmp_todo_closure_candidates c
 JOIN tmp_todo_closure_events x
   ON x.brood_id = c.brood_id
  AND x.identity_confidence = 'high'
- AND x.observed_nest_id = c.brood_id
+ AND CONVERT(x.observed_nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+     = CONVERT(c.brood_id USING utf8mb4) COLLATE utf8mb4_general_ci
  AND x.has_positive_brood_behaviour = 1
  AND x.observation_date > c.closure_candidate_date
  AND x.observation_date <= c.reference_date
@@ -1415,9 +1484,11 @@ latest_nests AS (
     sr.reference_date
   FROM task_context context
   LEFT JOIN initial_clutch_status
-    ON context.nest_id = initial_clutch_status.nest_id
+    ON CONVERT(context.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(initial_clutch_status.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   LEFT JOIN brood_context brood_last_visit
-    ON context.nest_id = brood_last_visit.nest_id
+    ON CONVERT(context.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(brood_last_visit.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
    AND brood_last_visit.reference_date = context.reference_date
    AND brood_last_visit.is_negative_brood = 0
    AND brood_last_visit.has_hatch_evidence = 1
@@ -1530,7 +1601,8 @@ brood_followup_nests AS (
     b.hatch_evidence_date AS hatch_date
   FROM latest_nests n
   JOIN brood_context b
-    ON n.nest_id = b.nest_id
+    ON CONVERT(n.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(b.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
    AND b.reference_date = n.reference_date
   WHERE b.is_negative_brood = 0
     AND b.has_hatch_evidence = 1
@@ -1620,7 +1692,8 @@ adult_capture_interval_status AS (
   FROM todo_parent_source
   CROSS JOIN sr
   LEFT JOIN adult_parent_status adult_capture_timing
-    ON todo_parent_source.nest_id = adult_capture_timing.nest_id
+    ON CONVERT(todo_parent_source.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(adult_capture_timing.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
 ),
 adult_capture_current_clutch_start AS (
   SELECT
@@ -1704,11 +1777,13 @@ adult_capture_age_status AS (
       END AS clutch_completion_confirmed
     FROM adult_capture_current_clutch_start clutch_start
     LEFT JOIN initial_clutch_status
-      ON clutch_start.nest_id = initial_clutch_status.nest_id
+      ON CONVERT(clutch_start.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+         = CONVERT(initial_clutch_status.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
     CROSS JOIN sr
   ) x
   JOIN latest_nests
-    ON x.nest_id = latest_nests.nest_id
+    ON CONVERT(x.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(latest_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   UNION ALL
   SELECT
     b.nest_id,
@@ -1734,7 +1809,8 @@ parent_task_nests AS (
   WHERE NOT EXISTS (
     SELECT 1
     FROM FIELD_2026_BADOatNZ.TODO_BROOD_CLOSURE_STATUS_SNAPSHOT_BUILD closure
-    WHERE closure.brood_id = n.nest_id
+    WHERE CONVERT(closure.brood_id USING utf8mb4) COLLATE utf8mb4_general_ci
+          = CONVERT(n.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
       AND closure.reference_date = n.reference_date
       AND closure.is_presumed_dead = 1
   )
@@ -1742,12 +1818,14 @@ parent_task_nests AS (
   SELECT n.*
   FROM latest_nests n
   JOIN hatched_nests h
-    ON h.nest_id = n.nest_id
+    ON CONVERT(h.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(n.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   WHERE UPPER(TRIM(COALESCE(n.nest_state, ''))) = 'NOTA'
     AND NOT EXISTS (
       SELECT 1
       FROM FIELD_2026_BADOatNZ.TODO_BROOD_CLOSURE_STATUS_SNAPSHOT_BUILD closure
-      WHERE closure.brood_id = n.nest_id
+      WHERE CONVERT(closure.brood_id USING utf8mb4) COLLATE utf8mb4_general_ci
+            = CONVERT(n.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
         AND closure.reference_date = n.reference_date
         AND closure.is_presumed_dead = 1
     )
@@ -1850,16 +1928,24 @@ tag_deployment_candidates AS (
     CASE WHEN EXISTS (
       SELECT 1
       FROM tag_deployment_history history
-      WHERE history.nest_id = parent_task_nests.nest_id
+      WHERE CONVERT(history.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+            = CONVERT(parent_task_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
         AND history.parent_sex = 'M'
-        AND UPPER(TRIM(history.parent_mark)) = UPPER(TRIM(adult_parent_status.M_parent_mark))
+        AND CONVERT(UPPER(TRIM(history.parent_mark)) USING utf8mb4)
+              COLLATE utf8mb4_general_ci
+            = CONVERT(UPPER(TRIM(adult_parent_status.M_parent_mark)) USING utf8mb4)
+              COLLATE utf8mb4_general_ci
     ) THEN 1 ELSE 0 END AS M_new_protocol_geo,
     CASE WHEN EXISTS (
       SELECT 1
       FROM tag_deployment_history history
-      WHERE history.nest_id = parent_task_nests.nest_id
+      WHERE CONVERT(history.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+            = CONVERT(parent_task_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
         AND history.parent_sex = 'F'
-        AND UPPER(TRIM(history.parent_mark)) = UPPER(TRIM(adult_parent_status.F_parent_mark))
+        AND CONVERT(UPPER(TRIM(history.parent_mark)) USING utf8mb4)
+              COLLATE utf8mb4_general_ci
+            = CONVERT(UPPER(TRIM(adult_parent_status.F_parent_mark)) USING utf8mb4)
+              COLLATE utf8mb4_general_ci
     ) THEN 1 ELSE 0 END AS F_new_protocol_geo,
     CASE
       WHEN adult_parent_status.M_confirmed_unbanded = 1
@@ -1879,9 +1965,11 @@ tag_deployment_candidates AS (
     END AS initial_deployment_eligible
   FROM parent_task_nests
   JOIN adult_parent_status
-    ON parent_task_nests.nest_id = adult_parent_status.nest_id
+    ON CONVERT(parent_task_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(adult_parent_status.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   LEFT JOIN adult_capture_age_status
-    ON parent_task_nests.nest_id = adult_capture_age_status.nest_id
+    ON CONVERT(parent_task_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(adult_capture_age_status.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   WHERE LEFT(TRIM(parent_task_nests.nest_id), 1) IN ('B', 'C')
     AND COALESCE(adult_parent_status.M_is_dead, 0) = 0
     AND COALESCE(adult_parent_status.F_is_dead, 0) = 0
@@ -2162,7 +2250,8 @@ todo_untrapped_parent_candidate AS (
           AND EXISTS (
             SELECT 1
             FROM hatched_nests hatched
-            WHERE hatched.nest_id = active_nests.nest_id
+            WHERE CONVERT(hatched.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+                  = CONVERT(active_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
           )
         )
       THEN 1
@@ -2336,7 +2425,8 @@ todo_untrapped_parent_candidate AS (
       0 AS is_negative_brood
     FROM active_nests
     LEFT JOIN nest_discovery
-      ON active_nests.nest_id = nest_discovery.nest_id
+      ON CONVERT(active_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+         = CONVERT(nest_discovery.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
     UNION ALL
     SELECT
       n.nest_id,
@@ -2362,9 +2452,11 @@ todo_untrapped_parent_candidate AS (
       0 AS is_negative_brood
     FROM latest_nests n
     JOIN hatched_nests
-      ON n.nest_id = hatched_nests.nest_id
+      ON CONVERT(n.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+         = CONVERT(hatched_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
     LEFT JOIN nest_discovery
-      ON n.nest_id = nest_discovery.nest_id
+      ON CONVERT(n.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+         = CONVERT(nest_discovery.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
     WHERE UPPER(TRIM(COALESCE(n.nest_state, ''))) = 'NOTA'
     UNION ALL
     SELECT
@@ -2395,17 +2487,23 @@ todo_untrapped_parent_candidate AS (
       AND b.reference_date = sr.reference_date
   ) active_nests
   LEFT JOIN adult_parent_status
-    ON active_nests.nest_id = adult_parent_status.nest_id
+    ON CONVERT(active_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(adult_parent_status.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   LEFT JOIN tag_deployment_plan
-    ON active_nests.nest_id = tag_deployment_plan.nest_id
+    ON CONVERT(active_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(tag_deployment_plan.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   LEFT JOIN adult_capture_interval_status
-    ON active_nests.nest_id = adult_capture_interval_status.nest_id
+    ON CONVERT(active_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(adult_capture_interval_status.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   LEFT JOIN adult_capture_age_status
-    ON active_nests.nest_id = adult_capture_age_status.nest_id
+    ON CONVERT(active_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(adult_capture_age_status.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   LEFT JOIN float_summary
-    ON active_nests.nest_id = float_summary.nest_id
+    ON CONVERT(active_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(float_summary.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   LEFT JOIN initial_clutch_status
-    ON active_nests.nest_id = initial_clutch_status.nest_id
+    ON CONVERT(active_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(initial_clutch_status.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   WHERE (
       active_nests.is_negative_brood = 1
       OR
@@ -2793,7 +2891,8 @@ parent_units AS (
     nest_discovery.first_found_date
   FROM active_nests
   LEFT JOIN nest_discovery
-    ON active_nests.nest_id = nest_discovery.nest_id
+    ON CONVERT(active_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(nest_discovery.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   UNION ALL
   SELECT
     n.nest_id,
@@ -2808,9 +2907,11 @@ parent_units AS (
     nest_discovery.first_found_date
   FROM latest_nests n
   JOIN hatched_nests
-    ON n.nest_id = hatched_nests.nest_id
+    ON CONVERT(n.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(hatched_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   LEFT JOIN nest_discovery
-    ON n.nest_id = nest_discovery.nest_id
+    ON CONVERT(n.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(nest_discovery.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   WHERE UPPER(TRIM(COALESCE(n.nest_state, ''))) = 'NOTA'
   UNION ALL
   SELECT
@@ -2955,7 +3056,8 @@ todo_parent_resighting_existing AS (
     parent_units.lon
   FROM parent_units
   JOIN adult_parent_status association
-    ON parent_units.nest_id = association.nest_id
+    ON CONVERT(parent_units.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(association.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   WHERE association.M_resight_association_pending = 1
      OR association.F_resight_association_pending = 1
   UNION ALL
@@ -3002,7 +3104,8 @@ todo_parent_resighting_existing AS (
     parent_units.lon
   FROM parent_units
   LEFT JOIN adult_parent_status association
-    ON parent_units.nest_id = association.nest_id
+    ON CONVERT(parent_units.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(association.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   WHERE (
       association.nest_id IS NULL
       OR COALESCE(association.M_unknown_status, 0) = 1
@@ -3011,7 +3114,8 @@ todo_parent_resighting_existing AS (
     AND NOT EXISTS (
       SELECT 1
       FROM todo_untrapped_parent candidate
-      WHERE candidate.nest_id = parent_units.nest_id
+      WHERE CONVERT(candidate.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+            = CONVERT(parent_units.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
     )
 ),
 todo_parent_resighting AS (
@@ -3081,13 +3185,17 @@ todo_unprocessed_nest AS (
     active_nests.lon
   FROM active_nests
   JOIN processing_summary
-    ON active_nests.nest_id = processing_summary.nest_id
+    ON CONVERT(active_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(processing_summary.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   LEFT JOIN adult_parent_status
-    ON active_nests.nest_id = adult_parent_status.nest_id
+    ON CONVERT(active_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(adult_parent_status.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   LEFT JOIN adult_capture_age_status
-    ON active_nests.nest_id = adult_capture_age_status.nest_id
+    ON CONVERT(active_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(adult_capture_age_status.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   LEFT JOIN initial_clutch_status
-    ON active_nests.nest_id = initial_clutch_status.nest_id
+    ON CONVERT(active_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(initial_clutch_status.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   WHERE UPPER(TRIM(COALESCE(active_nests.species, ''))) = 'BADO'
     AND UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I', 'PP', 'PD')
     AND COALESCE(adult_capture_age_status.clutch_completion_confirmed, 0) = 1
@@ -3124,14 +3232,18 @@ todo_take_scrape_photos AS (
     active_nests.lon
   FROM active_nests
   LEFT JOIN photo_summary
-    ON active_nests.nest_id = photo_summary.nest_id
+    ON CONVERT(active_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(photo_summary.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   JOIN nest_discovery
-    ON active_nests.nest_id = nest_discovery.nest_id
+    ON CONVERT(active_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(nest_discovery.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   LEFT JOIN adult_parent_status
-    ON active_nests.nest_id = adult_parent_status.nest_id
+    ON CONVERT(active_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(adult_parent_status.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   LEFT JOIN FIELD_2026_BADOatNZ.ADULT_SCRAPE_RESIGHTING_STATUS
     adult_resighting_association_status
-    ON active_nests.nest_id = adult_resighting_association_status.nest_id
+    ON CONVERT(active_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(adult_resighting_association_status.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   WHERE UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) = 'S'
     AND COALESCE(photo_summary.n_photo_rows, 0) = 0
     AND (
@@ -3173,19 +3285,25 @@ todo_reprocess_nest AS (
     active_nests.lon
   FROM active_nests
   JOIN processing_summary
-    ON active_nests.nest_id = processing_summary.nest_id
+    ON CONVERT(active_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(processing_summary.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   JOIN latest_clutch_history
-    ON active_nests.nest_id = latest_clutch_history.nest_id
+    ON CONVERT(active_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(latest_clutch_history.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
    AND latest_clutch_history.row_num = 1
   LEFT JOIN latest_clutch_processing_status
-    ON active_nests.nest_id = latest_clutch_processing_status.nest_id
+    ON CONVERT(active_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(latest_clutch_processing_status.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   LEFT JOIN clutch_at_processing
-    ON active_nests.nest_id = clutch_at_processing.nest_id
+    ON CONVERT(active_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(clutch_at_processing.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
    AND clutch_at_processing.row_num = 1
   LEFT JOIN initial_clutch_status
-    ON active_nests.nest_id = initial_clutch_status.nest_id
+    ON CONVERT(active_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(initial_clutch_status.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   LEFT JOIN adult_parent_status
-    ON active_nests.nest_id = adult_parent_status.nest_id
+    ON CONVERT(active_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(adult_parent_status.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   WHERE processing_summary.last_processed_datetime IS NOT NULL
     AND UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I', 'PP', 'PD')
     AND COALESCE(initial_clutch_status.processing_flotation_exempt, 0) = 0
@@ -3220,12 +3338,15 @@ todo_clutch_check AS (
     active_nests.lon
   FROM active_nests
   JOIN latest_nest_event
-    ON active_nests.nest_id = latest_nest_event.nest_id
+    ON CONVERT(active_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(latest_nest_event.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
    AND latest_nest_event.row_num = 1
   JOIN adult_capture_current_clutch_start
-    ON active_nests.nest_id = adult_capture_current_clutch_start.nest_id
+    ON CONVERT(active_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(adult_capture_current_clutch_start.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   LEFT JOIN adult_parent_status
-    ON active_nests.nest_id = adult_parent_status.nest_id
+    ON CONVERT(active_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(adult_parent_status.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   WHERE UPPER(TRIM(COALESCE(active_nests.nest_state, ''))) IN ('F', 'I', 'PP', 'PD')
     AND latest_nest_event.clutch_size IN (1, 2)
     AND DATEDIFF(
@@ -3242,7 +3363,8 @@ todo_clutch_check AS (
     AND NOT EXISTS (
       SELECT 1
       FROM FIELD_2026_BADOatNZ.TODO_NEST_HISTORY prior_nest_event
-      WHERE prior_nest_event.nest_id = active_nests.nest_id
+      WHERE CONVERT(prior_nest_event.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+            = CONVERT(active_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
         AND prior_nest_event.date <= latest_nest_event.event_date
         AND prior_nest_event.clutch_size IS NOT NULL
         AND prior_nest_event.clutch_size > latest_nest_event.clutch_size
@@ -3254,7 +3376,8 @@ todo_clutch_check AS (
     AND NOT EXISTS (
       SELECT 1
       FROM FIELD_2026_BADOatNZ.EGGS_HATCH_PREDICTION stable_one_egg
-      WHERE stable_one_egg.nest_id = active_nests.nest_id
+      WHERE CONVERT(stable_one_egg.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+            = CONVERT(active_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
         AND stable_one_egg.calibration_match_type = 'stable one-egg/no increase'
     )
 ),
@@ -3318,7 +3441,8 @@ todo_nest_check AS (
     active_nests.lon
   FROM active_nests
   LEFT JOIN adult_parent_status
-    ON active_nests.nest_id = adult_parent_status.nest_id
+    ON CONVERT(active_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(adult_parent_status.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   WHERE active_nests.clutch_size IS NULL
      OR active_nests.clutch_size > 0
     AND (
@@ -3354,7 +3478,8 @@ todo_nest_check AS (
       OR NOT EXISTS (
         SELECT 1
         FROM brood_context brood_evidence
-        WHERE brood_evidence.nest_id = active_nests.nest_id
+        WHERE CONVERT(brood_evidence.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+              = CONVERT(active_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
           AND brood_evidence.reference_date = active_nests.reference_date
           AND brood_evidence.is_negative_brood = 0
           AND brood_evidence.has_hatch_evidence = 1
@@ -3389,9 +3514,11 @@ todo_untrapped_brood AS (
     brood_followup_nests.lon
   FROM brood_followup_nests
   LEFT JOIN chick_captures
-    ON brood_followup_nests.nest_id = chick_captures.nest_id
+    ON CONVERT(brood_followup_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(chick_captures.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   LEFT JOIN adult_parent_status
-    ON brood_followup_nests.nest_id = adult_parent_status.nest_id
+    ON CONVERT(brood_followup_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(adult_parent_status.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   WHERE COALESCE(chick_captures.n_chick_captures, 0) = 0
     AND DATEDIFF(
           brood_followup_nests.reference_date,
@@ -3417,9 +3544,11 @@ todo_untrapped_brood AS (
   FROM brood_context b
   CROSS JOIN sr
   LEFT JOIN chick_captures
-    ON b.nest_id = chick_captures.nest_id
+    ON CONVERT(b.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(chick_captures.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   LEFT JOIN adult_parent_status
-    ON b.nest_id = adult_parent_status.nest_id
+    ON CONVERT(b.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(adult_parent_status.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   WHERE b.is_negative_brood = 1
     AND b.reference_date = sr.reference_date
     AND COALESCE(chick_captures.n_chick_captures, 0) = 0
@@ -3466,9 +3595,11 @@ todo_broods_to_recapture_for_flagging AS (
     brood_followup_nests.lon
   FROM brood_followup_nests
   LEFT JOIN chick_captures
-    ON brood_followup_nests.nest_id = chick_captures.nest_id
+    ON CONVERT(brood_followup_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(chick_captures.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   LEFT JOIN adult_parent_status
-    ON brood_followup_nests.nest_id = adult_parent_status.nest_id
+    ON CONVERT(brood_followup_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(adult_parent_status.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   WHERE DATEDIFF(
           brood_followup_nests.reference_date,
           brood_followup_nests.hatch_date
@@ -3514,9 +3645,11 @@ todo_broods_to_recapture_for_flagging AS (
   FROM brood_context b
   CROSS JOIN sr
   LEFT JOIN chick_captures
-    ON b.nest_id = chick_captures.nest_id
+    ON CONVERT(b.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(chick_captures.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   LEFT JOIN adult_parent_status
-    ON b.nest_id = adult_parent_status.nest_id
+    ON CONVERT(b.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(adult_parent_status.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   WHERE b.is_negative_brood = 1
     AND b.reference_date = sr.reference_date
     AND DATEDIFF(b.reference_date, b.discovery_date) >= 21
@@ -3568,11 +3701,14 @@ todo_hiding_spot_photos AS (
     brood_followup_nests.lon
   FROM brood_followup_nests
   LEFT JOIN hiding_spot_photos
-    ON brood_followup_nests.nest_id = hiding_spot_photos.nest_id
+    ON CONVERT(brood_followup_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(hiding_spot_photos.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   LEFT JOIN chick_captures
-    ON brood_followup_nests.nest_id = chick_captures.nest_id
+    ON CONVERT(brood_followup_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(chick_captures.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   LEFT JOIN adult_parent_status
-    ON brood_followup_nests.nest_id = adult_parent_status.nest_id
+    ON CONVERT(brood_followup_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(adult_parent_status.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   WHERE DATEDIFF(
         brood_followup_nests.reference_date,
         brood_followup_nests.hatch_date
@@ -3607,11 +3743,14 @@ todo_hiding_spot_photos AS (
   FROM brood_context b
   CROSS JOIN sr
   LEFT JOIN hiding_spot_photos
-    ON b.nest_id = hiding_spot_photos.nest_id
+    ON CONVERT(b.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(hiding_spot_photos.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   LEFT JOIN chick_captures
-    ON b.nest_id = chick_captures.nest_id
+    ON CONVERT(b.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(chick_captures.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   LEFT JOIN adult_parent_status
-    ON b.nest_id = adult_parent_status.nest_id
+    ON CONVERT(b.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(adult_parent_status.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   WHERE b.is_negative_brood = 1
     AND b.reference_date = sr.reference_date
     AND DATEDIFF(b.reference_date, b.discovery_date) BETWEEN 1 AND 6
@@ -3646,7 +3785,8 @@ todo_nota_nest_check AS (
     nota_followup_nests.lon
   FROM nota_followup_nests
   LEFT JOIN adult_parent_status
-    ON nota_followup_nests.nest_id = adult_parent_status.nest_id
+    ON CONVERT(nota_followup_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(adult_parent_status.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
 )
 SELECT
   t.*,
@@ -3682,14 +3822,16 @@ SELECT
   tag_deployment_plan.M_is_au_migrant,
   tag_deployment_plan.F_is_au_migrant,
   CASE
-    WHEN t.todo IN ('Untrapped parent', 'Parent capture', 'Parent resighting')
+    WHEN CONVERT(t.todo USING utf8mb4) COLLATE utf8mb4_general_ci
+         IN ('Untrapped parent', 'Parent capture', 'Parent resighting')
      AND t.min_days_to_hatch IS NOT NULL
      AND CEILING(t.min_days_to_hatch) <= 5
     THEN CONCAT(
       GREATEST(0, CEILING(t.min_days_to_hatch)),
       ' to H'
     )
-    WHEN t.todo = 'Untrapped parent'
+    WHEN CONVERT(t.todo USING utf8mb4) COLLATE utf8mb4_general_ci
+         = 'Untrapped parent'
     THEN CONCAT(COALESCE(t.days_overdue, 0), ' since F')
     ELSE CAST(t.days_overdue AS CHAR)
   END AS overdue_label
@@ -3717,21 +3859,25 @@ FROM (
   SELECT * FROM todo_nota_nest_check
 ) t
 LEFT JOIN adult_parent_status
-  ON t.nest_id = adult_parent_status.nest_id
+  ON CONVERT(t.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+     = CONVERT(adult_parent_status.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
 LEFT JOIN tag_deployment_plan
-  ON t.nest_id = tag_deployment_plan.nest_id
+  ON CONVERT(t.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+     = CONVERT(tag_deployment_plan.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
 -- WRYB remains available to map/summary consumers, but is not a Cass
 -- operational task in TODO_LIST.
 WHERE NOT EXISTS (
   SELECT 1
   FROM FIELD_2026_BADOatNZ.NESTS_LATEST wryb_nest
-  WHERE wryb_nest.nest_id = t.nest_id
+  WHERE CONVERT(wryb_nest.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+        = CONVERT(t.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
     AND UPPER(TRIM(COALESCE(wryb_nest.species, ''))) = 'WRYB'
 )
 AND NOT EXISTS (
   SELECT 1
   FROM FIELD_2026_BADOatNZ.TODO_BROOD_CLOSURE_STATUS_SNAPSHOT_BUILD closure
-  WHERE closure.brood_id = t.nest_id
+  WHERE CONVERT(closure.brood_id USING utf8mb4) COLLATE utf8mb4_general_ci
+        = CONVERT(t.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
     AND closure.reference_date = t.reference_date
     AND closure.is_presumed_dead = 1
 );

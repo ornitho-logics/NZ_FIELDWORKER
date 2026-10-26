@@ -837,3 +837,31 @@ invented-data test for all three photo-bearing exports passes 25 tests. The
 external canonical protocol was not edited by this branch, so the local v1.3.6
 mirror remains a staged synchronization artifact until that separate file is
 updated through its own approved workflow.
+
+## 2026-10-26 — Age-C measurement-based flagging boundary
+
+The user supplied a sanitized summary of seven current-season recaptured chicks
+that had received engraved flags and requested a measurement-based distinction
+between age-C `capture_status = R` and `capture_status = C` warnings. The supplied
+minimums were tarsus 27.70, culmen 13.80, weight 22.80, and total_head 38.80
+(total_head was available for only three of the seven birds); no wing values were
+available.
+
+The tracked CAPTURES warning export and local protocol mirror were updated to
+version **1.3.10**. Status-R warning ceilings are now tarsus 26.99, culmen
+13.79, and weight 21.99. These values implement the explicit operational rule
+that a chick below tarsus 27 or weight 22 should not be treated as flag-ready,
+while keeping the comparison strict despite the interval validator's inclusive
+endpoints. Status-C lower review limits are tarsus 27.70, culmen 13.80,
+total_head 38.80, and weight 22.80; existing broad upper bounds were retained
+because the supplied sample does not support new maxima. `total_head` and `wing`
+remain save-blocked for age-C status-R rows by the separate morphometric presence
+rule. The range checks remain warnings and do not infer or force
+`capture_status`.
+
+The architecture handoff and `AGENTS.md` were updated to describe the new
+boundary, the small-sample limitation for total_head, and the distinction between
+the tracked local protocol mirror, inspector export, and live DB-managed
+inspectors. No live database, live inspector row, credentials, or raw field data
+were accessed or changed. No commit or push was performed; the unrelated
+`main/R/pdf_todo.R` working-tree modification remains protected.

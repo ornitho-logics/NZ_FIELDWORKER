@@ -30,14 +30,14 @@ inspector/protocol work, not evidence that live inspectors have been deployed.
   narrow protocol-mirror reconciliation updates only the local protocol
   identity and the age-C CAPTURES status-R/status-C documentation.
 
-The external canonical working protocol was version **1.3.5**, generated
-2026-10-24, when the earlier documentation baseline was prepared. The tracked
-local mirror on this branch is updated to proposed version **1.3.9**, generated
-2026-10-26. Version 1.3.9 records the age-C `capture_status = R` morphometric
-envelope and the age-C `capture_status = C` recapture exception described below,
-while retaining the prior photo-range identity and
+The external canonical working protocol remains version **1.3.5**, generated
+2026-10-24. The tracked
+local mirror on this branch is updated to proposed version **1.3.10**, generated
+2026-10-26. Version 1.3.10 records the measurement-based age-C `capture_status = R`
+and `capture_status = C` boundary described below, while retaining the age-C
+changed-band recapture exception and the prior photo-range identity and
 same-session H-photo rules. Because the external working file is outside this
-repository and is not changed by this branch, v1.3.7 is a reviewed local
+repository and is not changed by this branch, v1.3.10 is a reviewed local
 protocol/documentation artifact, not evidence that the external copy, live
 inspectors, or deployed portal have been synchronized.
 
@@ -292,16 +292,20 @@ routine recaptures do not generate a flood of low-value warnings. Age-C `F` and
 `R` requirements are otherwise unchanged, and this local protocol mirror does
 not establish live deployment.
 
-Version 1.3.8 separates the age-C status-R morphometric warning envelope from
-the older-chick status-C envelope. Status-R review limits are tarsus 18.43–25.50,
-culmen 6.47–12.50, and weight 6.73–18.00. These ceilings include every observed
-status-R value in the latest local dump while remaining below the observed
-status-C values used to justify the changed-band workflow. `total_head` and
-`wing` remain hard-disallowed for age-C status-R rows, so they have no status-R
-warning interval. The limits are warnings only and are fixed review thresholds,
-not dynamically recomputed percentiles.
+Version 1.3.8 and 1.3.9 separated the age-C status-R morphometric warning
+envelope from the older-chick status-C envelope and clarified its message. Version
+1.3.10 now uses the supplied seven flagged-chick measurements and the explicit
+operational cutoff. Status-R review limits are tarsus 18.43–26.99, culmen
+6.47–13.79, and weight 6.73–21.99. Status-C lower review limits are tarsus
+27.70, culmen 13.80, total_head 38.80, and weight 22.80; the existing broad
+upper limits remain unchanged, and age-C status-R `total_head` and `wing` remain
+hard-disallowed. The 27/22 boundary means a chick below tarsus 27 or weight 22
+should not be treated as flag-ready. The limits are warnings only and are fixed
+review thresholds, not dynamically recomputed percentiles; the sample's
+total_head minimum is based on only three observations and should be revisited
+if more data accumulate.
 
-Version 1.3.9 makes the status-R warning explicit to fieldworkers: values above
+Version 1.3.10 retains the status-R warning explicit to fieldworkers: values above
 the status-R envelope may indicate that the chick is large enough for a changed-
 band recapture with `capture_status = C` and an engraved flag in `UL`. The
 warning asks the worker to recheck status and measurements and remains

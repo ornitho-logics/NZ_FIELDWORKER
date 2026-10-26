@@ -1004,17 +1004,20 @@ Current reviewed local protocol-mirror identity:
 
 ```text
 protocol_id: bdot_2026_2027_dataentry_validator_protocol
-protocol_version: 1.3.9
+protocol_version: 1.3.10
 generated_on: 2026-10-26
 ```
 
-Version 1.3.9 gives age-C status-R captures a separate conservative
-morphometric warning envelope: tarsus 18.43-25.50, culmen 6.47-12.50, and
-weight 6.73-18.00. The ceilings are above all observed status-R values in the
-latest local dump but below the status-C changed-band observations. `total_head`
-and `wing` remain hard-disallowed for age-C status-R rows. Values above the
-status-R envelope now explain that the chick may be ready for `capture_status =
-C` with an engraved flag in `UL`; the warning remains non-blocking. Version 1.3.7 also
+Version 1.3.10 gives age-C captures a measurement-based status boundary. The
+status-R warning envelope uses tarsus 18.43-26.99, culmen 6.47-13.79, and
+weight 6.73-21.99, so values below the operational cutoffs of tarsus 27 and
+weight 22 are not treated as flag-ready. The status-C lower review boundary is
+tarsus 27.70, culmen 13.80, total_head 38.80, and weight 22.80; its upper
+bounds remain the existing broad review limits because seven flagged chicks do
+not justify new upper limits, and `total_head` and `wing` remain hard-disallowed
+for age-C status-R rows. Values above the status-R envelope now explain that the
+chick may be ready for `capture_status = C` with an engraved flag in `UL`; the
+warning remains non-blocking. Version 1.3.7 also
 supports older-chick CAPTURES recaptures with
 `capture_status = "C"` when the band combination changes. These rows still
 require `tarsus`, `culmen`, and `weight`, preserve the normal location and
@@ -1028,10 +1031,10 @@ captured away from the nest. Version 1.3.2 added save-blocking H-ring format
 and current-CAPTURES existence checks. The H-ring rule remains restricted to
 normalized `rclass = "H"`; ordinary RESIGHTINGS classes may leave `ring` blank.
 
-The tracked protocol mirror is the v1.3.7 review artifact for this update. The
-external canonical working copy and the live `inspectors` table are separate
-artifacts and are not changed or implied to be synchronized by a repository
-commit.
+The tracked protocol mirror is the v1.3.10 review artifact for this update. The
+external canonical working copy remains at v1.3.5 and the live `inspectors`
+table is a separate artifact; neither is changed or implied to be synchronized
+by a repository commit.
 
 Use the latest approved local database snapshot in `DATABASE/` only as a
 read-only alignment reference for mock-data generation and protocol review.
