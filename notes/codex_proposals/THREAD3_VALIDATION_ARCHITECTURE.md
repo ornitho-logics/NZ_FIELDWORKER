@@ -32,8 +32,8 @@ inspector/protocol work, not evidence that live inspectors have been deployed.
 
 The external canonical working protocol was version **1.3.5**, generated
 2026-10-24, when the earlier documentation baseline was prepared. The tracked
-local mirror on this branch is updated to proposed version **1.3.8**, generated
-2026-10-26. Version 1.3.8 records the age-C `capture_status = R` morphometric
+local mirror on this branch is updated to proposed version **1.3.9**, generated
+2026-10-26. Version 1.3.9 records the age-C `capture_status = R` morphometric
 envelope and the age-C `capture_status = C` recapture exception described below,
 while retaining the prior photo-range identity and
 same-session H-photo rules. Because the external working file is outside this
@@ -300,6 +300,17 @@ status-C values used to justify the changed-band workflow. `total_head` and
 `wing` remain hard-disallowed for age-C status-R rows, so they have no status-R
 warning interval. The limits are warnings only and are fixed review thresholds,
 not dynamically recomputed percentiles.
+
+Version 1.3.9 makes the status-R warning explicit to fieldworkers: values above
+the status-R envelope may indicate that the chick is large enough for a changed-
+band recapture with `capture_status = C` and an engraved flag in `UL`. The
+warning asks the worker to recheck status and measurements and remains
+non-blocking. No additional leg-segment rule was needed: status-R rows still
+require complete unchanged input/release combinations and the initial chick
+release layout, while status-C rows still require complete input/release marks,
+a genuine change, and prior input-combination history. The existing status-C
+exceptions for optional older-chick morphometrics, samples, and photo flags
+remain unchanged.
 
 ### RESIGHTINGS
 

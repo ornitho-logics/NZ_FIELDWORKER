@@ -794,7 +794,11 @@ list({
             interval_validator(
               sub,
               v = limits[[age_key]],
-              reason = "This measurement is unusual for the selected age group. Please recheck the measurement and units; if it is correct, keep it and add a note if needed."
+              reason = if (identical(age_key, "C_recap")) {
+                "These measurements are large enough to warrant flagging (i.e., capture_status C with an engraved flag in UL). Please double-check that your capture_status and/or measures are correct. If correct, add a validator bypass comment to the event."
+              } else {
+                "This measurement is unusual for the selected age group. Please recheck the measurement and units; if it is correct, keep it and add a note if needed."
+              }
             )
         }), use.names = TRUE, fill = TRUE)
         if (is.null(out) || nrow(out) == 0) {
@@ -808,7 +812,9 @@ list({
         out[, `:=`(reason, {
             cleaned <- sub("^(ERROR|WARNING):\\s*", "", as.character(reason))
             cleaned[is.na(reason)] <- NA_character_
-            ok_idx <- !is.na(cleaned) & nzchar(cleaned)
+            ok_idx <- !is.na(cleaned) &
+                nzchar(cleaned) &
+                !grepl("validator bypass comment", cleaned, fixed = TRUE)
             cleaned[ok_idx] <- paste0(
                 cleaned[ok_idx],
                 " Please double-check this entry. If it is correct, add a validator bypass comment to the event."
