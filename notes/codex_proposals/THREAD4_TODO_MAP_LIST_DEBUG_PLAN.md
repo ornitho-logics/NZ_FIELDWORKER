@@ -317,6 +317,46 @@ excluded from this PDF-facing brood source. The interactive map combines
 `NESTS_LATEST` and `BROODS_LATEST` separately so it can still show those failed
 closures as `notA`.
 
+### Authoritative Last Visit semantics
+
+For a reference-date-qualified positive brood with hatch evidence, the
+task-facing operational `Last Visit` is the later of:
+
+- the latest qualifying `NESTS` encounter; and
+- the latest qualifying age-C `CAPTURES` or `RESIGHTINGS` encounter linked to
+  that brood.
+
+The first qualifying age-C capture remains hatch evidence. Later age-C events
+update encounter timing only; they do not replace the separate hatch-evidence,
+location, or chick-colour concepts. `BROODS_LATEST` materializes the resulting
+latest encounter, and the refresh/task layers inherit it as
+`last_visit_days_ago`. Parent-task and brood-task ordering, overdue values,
+priority calculations, and PDF `Last Visit` labels therefore use the same
+operational timing wherever those consumers use that field.
+
+Negative broods use their latest qualifying encounter across linked
+`CAPTURES` and `RESIGHTINGS` events, while discovery timing remains available
+separately for age-dependent and display logic. All inputs are bounded by the
+active reference date. This changes derived operational timing only: it does
+not rewrite raw rows, redefine hatch evidence, move a map location, change a
+chick-colour label, alter parent identity, or independently change task
+eligibility.
+
+### Same-occasion GPS association boundary
+
+An unlinked non-H age-C `RESIGHTINGS` row may contribute to a brood only when
+it occurs on the same date and has the same `gps_id` and `gps_point` as adult
+evidence carrying one valid nest ID. The adult evidence may be an adult
+`RESIGHTINGS` row or an adult `CAPTURES` row. Direct nest/brood links remain
+authoritative; blank and `NO_NEST` values are not silently promoted. Exactly
+one distinct valid candidate nest ID is required. Multiple candidate IDs,
+absent adult evidence, missing GPS fields, or a date/GPS mismatch remain
+unresolved.
+
+H-class `RESIGHTINGS` remain on the dedicated ring/photo association path and
+are not reclassified through this non-H encounter-timing shortcut. The raw
+`RESIGHTINGS.nest_id` value remains unchanged.
+
 ### `EGGS_HATCH_PREDICTION`
 
 The current five-source hatch-evidence hierarchy is:
@@ -910,6 +950,20 @@ The focused tests cover, using invented/mock data, the following contracts:
   separate chick rings, and reference-date ordering;
 - app wiring, refresh-worker behavior, and server behavior without a live
   database.
+
+The Last Visit/GPS-association regression contract should also cover:
+
+- a positive hatch-evidence brood where the latest qualifying NESTS encounter
+  is newer than the latest age-C encounter;
+- the inverse chronology, where a later qualifying age-C CAPTURES or
+  RESIGHTINGS event updates operational Last Visit timing;
+- preservation of first age-C hatch evidence and independent chick-colour
+  selection after later chick encounters;
+- inheritance of positive and negative `last_visit_datetime`, `days_ago`, and
+  `last_visit_days_ago` through the refresh snapshot and task rows; and
+- same-date/same-GPS resolution from exactly one adult CAPTURES or RESIGHTINGS
+  nest, plus unresolved outcomes for missing GPS, date mismatch, and multiple
+  candidate nests. H rows must remain on the dedicated ring/photo path.
 
 Remaining verification is deployment-sensitive rather than an undefined-view
 gap:
