@@ -29,12 +29,14 @@ inspector/protocol work, not evidence that live inspectors have been deployed.
   live-database restrictions remain authoritative.
 
 The external canonical working protocol was version **1.3.5**, generated
-2026-10-24, when this branch was prepared. The tracked local mirror on this
-branch is updated to proposed version **1.3.6**, generated 2026-10-26, to record
-the photo-range identity and same-session H-photo exception described below.
-Because the external working file is outside this repository and is not changed
-by this branch, v1.3.6 is a staged protocol/documentation update, not evidence
-that the external copy or live inspectors have been synchronized.
+2026-10-24, when the earlier documentation baseline was prepared. The tracked
+local mirror on this branch is updated to proposed version **1.3.7**, generated
+2026-10-26. Version 1.3.7 records the age-C `capture_status = C` recapture
+exception described below, while retaining the prior photo-range identity and
+same-session H-photo rules. Because the external working file is outside this
+repository and is not changed by this branch, v1.3.7 is a reviewed local
+protocol/documentation artifact, not evidence that the external copy, live
+inspectors, or deployed portal have been synchronized.
 
 Version 1.3.4 makes parent/chick co-entry save-blocking within one RESIGHTINGS
 portal submission: every age-C row, including ordinary `rclass = R`, `P`, or `V`
@@ -275,6 +277,18 @@ not an H photo.
 `CAP_013` blocks status `R` when input marks differ from release marks. If prior ring
 history supports a changed-combination recapture, the message directs the worker to
 use status `C`; unavailable history is not treated as proof of no match.
+
+The v1.3.7 CAPTURES update explicitly supports older-chick recaptures with
+`capture_status = C` (a changed band combination). These rows still require the
+core age-C measurements `tarsus`, `culmen`, and `weight`, and retain the normal
+location, ring/mark, and status-change checks. They are exempted from the initial
+F/R chick-release layout and may include older-chick/adult-style measurements,
+sample fields, and photo flags when those observations were actually collected;
+entered optional fields are still checked for valid values and metadata. The
+status-C warning range is broadened to cover plausible older-chick growth so that
+routine recaptures do not generate a flood of low-value warnings. Age-C `F` and
+`R` requirements are otherwise unchanged, and this local protocol mirror does
+not establish live deployment.
 
 ### RESIGHTINGS
 

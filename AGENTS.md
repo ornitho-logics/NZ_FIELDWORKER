@@ -1000,19 +1000,31 @@ Current local protocol path:
 /Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/bdot_db/data/working/bdot_dataentry_validator_protocol.yaml
 ```
 
-Current protocol identity:
+Current reviewed local protocol-mirror identity:
 
 ```text
 protocol_id: bdot_2026_2027_dataentry_validator_protocol
-protocol_version: 1.3.4
-generated_on: 2026-10-10
+protocol_version: 1.3.7
+generated_on: 2026-10-26
 ```
 
-Version 1.3.3 requires a real nest or brood link for age-C first captures and
-permits an optional complete GPS pair for positive-nest chicks captured away
-from the nest. Version 1.3.2 added save-blocking H-ring format and current-
-CAPTURES existence checks. The H-ring rule remains restricted to normalized
-`rclass = "H"`; ordinary RESIGHTINGS classes may leave `ring` blank.
+Version 1.3.7 also supports older-chick CAPTURES recaptures with
+`capture_status = "C"` when the band combination changes. These rows still
+require `tarsus`, `culmen`, and `weight`, preserve the normal location and
+status-change checks, and may include optional older-chick/adult-style
+measurements, samples, and photo flags when entered. They do not have to use
+the initial F/R chick-release layout, and their morphometric warning range is
+broadened to accommodate expected growth. Age-C F/R requirements remain
+unchanged. Version 1.3.3 requires a real nest or brood link for age-C first
+captures and permits an optional complete GPS pair for positive-nest chicks
+captured away from the nest. Version 1.3.2 added save-blocking H-ring format
+and current-CAPTURES existence checks. The H-ring rule remains restricted to
+normalized `rclass = "H"`; ordinary RESIGHTINGS classes may leave `ring` blank.
+
+The tracked protocol mirror is the v1.3.7 review artifact for this update. The
+external canonical working copy and the live `inspectors` table are separate
+artifacts and are not changed or implied to be synchronized by a repository
+commit.
 
 Use the latest approved local database snapshot in `DATABASE/` only as a
 read-only alignment reference for mock-data generation and protocol review.
