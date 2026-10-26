@@ -38,15 +38,14 @@ repository and is not changed by this branch, v1.3.7 is a reviewed local
 protocol/documentation artifact, not evidence that the external copy, live
 inspectors, or deployed portal have been synchronized.
 
-Version 1.3.4 makes parent/chick co-entry save-blocking within one RESIGHTINGS
+Version 1.3.5 makes parent/chick co-entry save-blocking within one RESIGHTINGS
 portal submission: every age-C row, including ordinary `rclass = R`, `P`, or `V`
-rows, must be linked to an age-A parent whose behavior includes `BC` or `FC`,
-and each such parent row must have at least one linked age-C row. Version 1.3.4
+rows, must be linked to an age-A parent whose behavior includes `BC`, `FC`, or
+`AC`, and each such parent row must have at least one linked age-C row. Version 1.3.4
 also separates active-nest `IN`/`NM` state checks from brood-association checks
-and documents `BW` as broken-wing display. The current local RESIGHTINGS
-implementation artifacts additionally contain an `AC` extension; the
-hard-export portion is protected WIP, and the extension is not part of the
-verified protocol identity or a deployment claim. Version
+and documents `BW` as broken-wing display. Version 1.3.5 makes `AC` (Alert with
+chick(s)) equivalent to `BC` and `FC` in the parent/chick, nest-state, GPS, and
+mock-generation rules. Live deployment is still not established. Version
 1.3.3 requires a real nest or brood link for age-C first captures and permits an
 optional complete GPS pair for positive-nest chicks captured away from the nest.
 Version 1.3.2 adds save-blocking H-ring format and current-CAPTURES existence
@@ -386,12 +385,11 @@ Save-time checks can use current table rows, `GPS_POINTS`, current-season tables
 `CAPTURES_ARCHIVE`, and selected nest-history surfaces. Most cross-table history
 checks still must not assume that companion rows are in the same portal submission.
 There is one explicit approved exception: parent/chick co-entry is mandatory when
-the current RESIGHTINGS submission contains age-C rows or age-A `BC`/`FC` rows.
+the current RESIGHTINGS submission contains age-C rows or age-A `BC`/`FC`/`AC` rows.
 The association is tested only within the current submission, using the same date
 and either the same nonblank `nest_id` or the same complete `gps_id/gps_point` pair.
-Saved rows from earlier sessions do not satisfy this hard rule. The protected
-working-tree RESIGHTINGS exports currently extend the qualifying behavior set
-with `AC`; that extension is WIP and is not certified by protocol 1.3.4.
+Saved rows from earlier sessions do not satisfy this hard rule. The qualifying
+parent-with-chicks behavior set is `BC`, `FC`, and `AC` under protocol 1.3.5.
 
 Archive-aware rules distinguish:
 
@@ -415,20 +413,13 @@ post-save/task logic.
 ## Parent/chick co-entry and behavior-stage rules
 
 `RES_005J` is save-blocking and applies to every age-C RESIGHTINGS row, not only
-H-photo rows. Under verified protocol 1.3.4, a chick row may use `rclass = H`,
+H-photo rows. Under verified protocol 1.3.5, a chick row may use `rclass = H`,
 `R`, `P`, or `V`, but it must be accompanied in the same portal submission by an
-age-A row whose comma-separated behavior includes `BC` or `FC`. Conversely, a
-parent row with `BC` or `FC` must have at least one linked age-C row in that
-submission. The parent and chick can be linked by the same valid `nest_id` or by
-the same `gps_id/gps_point` pair; the date must also match. This does not use
+age-A row whose comma-separated behavior includes `BC`, `FC`, or `AC`. Conversely,
+a parent row with `BC`, `FC`, or `AC` must have at least one linked age-C row in
+that submission. The parent and chick can be linked by the same valid `nest_id` or
+by the same `gps_id/gps_point` pair; the date must also match. This does not use
 saved RESIGHTINGS history to bypass the rule.
-
-The current local `RESIGHTINGS_hard.R` and `RESIGHTINGS_warning.R` artifacts add
-`AC` (Alert with chick(s)) to this behavior set. The hard-export change is
-protected WIP, and the official protocol still says `BC`/`FC`; this document
-does not present `AC` as approved or live. A future implementation pass must
-either promote `AC` into both protocol copies and the corresponding UI/helper
-source, or remove the WIP extension after a human decision.
 
 `BW` means broken-wing display, not brood watch. It is a shorebird parent behavior
 that can occur at either the nest stage or the brood stage, so it remains part of
@@ -439,17 +430,14 @@ rule.
 `RES_005D` now restricts adult `IN`/`NM` rows to positive nest_ids whose latest
 state is `F`, `I`, or `H`; `H` remains valid during asynchronous hatching. It no
 longer blocks adult `BW`, `BC`, or `FC` rows merely because the nest is at a later
-state. `RES_005K` requires positive-nest `BC`/`FC` rows to have latest state `H`
+state. `RES_005K` requires positive-nest `BC`/`FC`/`AC` rows to have latest state `H`
 or `notA`, and requires `gps_id/gps_point` for age-C rows and brood-associated
-adult `BW`/`BC`/`FC` rows when a `notA` nest still has `brood_size > 0`. The dirty
-WIP export applies the same state logic to `AC`, but that is not yet protocol-
-verified.
+adult `BW`/`BC`/`FC`/`AC` rows when a `notA` nest still has `brood_size > 0`.
 
 The existing unlinked-H exception remains a narrow row-level exception: mandatory
 H GPS/ring/photo evidence still applies, and the row may omit `nest_id` only under
-the existing conditions. It does not remove the new same-session requirement for
-an accompanying age-A `BC`/`FC` parent under the verified protocol; the dirty
-export extends this to `AC` as protected WIP.
+the existing conditions. It does not remove the same-session requirement for an
+accompanying age-A `BC`/`FC`/`AC` parent.
 
 Thread 2’s schema memo and Thread 4’s TODO/map planning describe a stricter internal
 derived association: prior chick-CAPTURES ring/family evidence plus same-date, exact
@@ -503,10 +491,9 @@ and must not be compiled into save-time inspectors.
 
 ## Deployment status and manual rollout
 
-The verified protocol and local implementation artifacts cover the current v1.3.4
-semantics, but the checkout also contains protected dirty inspector WIP. Live
-deployment is **not established**. No live `inspectors` rows were inspected or
-changed.
+The verified protocol and local implementation artifacts cover the current v1.3.5
+semantics. Live deployment is **not established**. No live `inspectors` rows were
+inspected or changed.
 
 Manual deployment, if separately approved, should be:
 
@@ -547,9 +534,9 @@ The audit covered:
 ## Reconciliation result
 
 The official YAML and mirror are aligned byte-for-byte for verified protocol
-v1.3.4 behavior, including the v1.3.2 and v1.3.3 milestones and H-ring rules.
-The local exports include protected changes that are not yet represented in the
-protocol, notably `AC` in RESIGHTINGS and later photo/NESTS WIP. The unresolved
+v1.3.5 behavior, including the v1.3.2, v1.3.3, and v1.3.4 milestones and H-ring
+rules. The tracked RESIGHTINGS exports are consistent with protocol 1.3.5,
+including `AC`; unrelated later WIP remains outside this focused update. The unresolved
 derived H-association/view discrepancy is still explicitly retained for the
 responsible schema/TODO workstream. Local artifacts do not establish live
 deployment.
@@ -564,8 +551,8 @@ or live database state.
 ### Current authority and state labels
 
 The current authoritative local protocol is the external working file
-`bdot_dataentry_validator_protocol.yaml`, version **1.3.4**, generated
-2026-10-10. The synchronized local mirror under
+`bdot_dataentry_validator_protocol.yaml`, version **1.3.5**, generated
+2026-10-24. The synchronized local mirror under
 `validator_sandbox/xlsx_short_tag_update/` reports the same identity and
 version. The older v1.3.3 and v1.3.2 statements earlier in this handoff are
 historical milestones and must not be read as the current protocol header.
@@ -669,9 +656,9 @@ Verified protocol identity:
 
 ```text
 protocol_id: bdot_2026_2027_dataentry_validator_protocol
-protocol_version: 1.3.4
-generated_on: 2026-10-10
-SHA-256: 1de6c733851c992e296d048bbf35ba5feffda11d1ad7e43c147fe5007359ea7f
+protocol_version: 1.3.5
+generated_on: 2026-10-24
+SHA-256: 8f98882efeb71c468bae1e7b5bf46bee413dce99a490894496768317c9578d94
 ```
 
 The two protocol files are byte-identical. Neither was edited during this
@@ -775,10 +762,10 @@ Thread 4 descriptions.
 
 ### RESIGHTINGS parent/chick and active-nest behavior rules
 
-Under verified protocol 1.3.4, `RES_005J` is save-blocking and covers ordinary
+Under verified protocol 1.3.5, `RES_005J` is save-blocking and covers ordinary
 age-C rows as well as H rows. Every age-C `rclass = H`, `R`, `P`, or `V` row in
 the current portal submission must have an age-A parent row in that same
-submission whose behavior contains `BC` or `FC`. Every qualifying parent row
+submission whose behavior contains `BC`, `FC`, or `AC`. Every qualifying parent row
 must have at least one linked age-C row. Matching requires the same date and
 either the same nonblank `nest_id` or the same complete `gps_id/gps_point` pair.
 Rows already saved in the database do not satisfy this same-session rule.
@@ -792,14 +779,10 @@ association rows require the complete GPS pair. `BW` means broken-wing display,
 not brood watch: it can occur at either nest or brood stage and does not by
 itself trigger the reciprocal parent/chick requirement.
 
-The current local RESIGHTINGS artifacts add `AC` ("Alert with chick(s)") to the
-parent/chick and brood-stage behavior set. The hard-export change is protected
-WIP and represents a divergence
-from the verified protocol, which currently names only `BC` and `FC` in
-`RES_005J` and `RES_005K`. The SQL comment also mentions `AC`, but the repository
-does not provide evidence that a corresponding portal helper is deployed. A
-future authorized implementation task must reconcile the protocol, exports,
-schema comment, and UI/helper source together.
+`AC` means “Alert with chick(s)” and is now an approved parent-with-chicks
+behavior equivalent to `BC` and `FC` in `RES_005J`, `RES_005K`, and the
+mock-generation guidance. The tracked exports are consistent with this protocol
+update. Live deployment remains unestablished.
 
 ### Protected WIP and cross-thread boundaries
 
@@ -900,9 +883,7 @@ photos are one H row per photographed chick with its ring, complete GPS pair,
 and photo metadata. Ordinary resightings may leave `ring` blank.
 
 For RESIGHTINGS, a current-session age-C row must be accompanied by a linked
-age-A parent row with `BC` or `FC`, and the parent row must have a linked chick
-row; the rows share date and either `nest_id` or a complete GPS pair. `IN`/`NM`
-are active-nest behaviors, `BC`/`FC` are brood-association behaviors, and `BW`
-means broken-wing display and can occur at either stage. The current protocol
-does not yet certify `AC`; field guidance must not present that WIP extension as
-live until the protocol, helper text, and inspectors are reconciled together.
+age-A parent row with `BC`, `FC`, or `AC`, and the parent row must have a linked
+chick row; the rows share date and either `nest_id` or a complete GPS pair.
+`IN`/`NM` are active-nest behaviors, `BC`/`FC`/`AC` are brood-association
+behaviors, and `BW` means broken-wing display and can occur at either stage.
