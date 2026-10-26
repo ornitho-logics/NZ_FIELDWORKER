@@ -880,28 +880,51 @@ list({
         z[, `:=`(behav_tokens, lapply(behav, parse_behav))]
         z[, `:=`(is_chick, !is.na(age_key) & age_key == "C")]
         parent_behaviour_codes <- c("IN", "NM", "BW", "BC", "FC", "AC")
+        parent_with_chicks_codes <- c("BC", "FC", "AC")
         z[, `:=`(
             is_parent_behaviour = !is.na(age_key) & age_key == "A" &
                 vapply(behav_tokens, function(tok) any(tok %in% parent_behaviour_codes), logical(1))
+        )]
+        z[, `:=`(
+            is_parent_with_chicks = !is.na(age_key) & age_key == "A" &
+                vapply(behav_tokens, function(tok) any(tok %in% parent_with_chicks_codes), logical(1))
         )]
         if (!"ring" %in% names(z)) {
             z[, ring := NA_character_]
         }
         gps_id_key <- trimws(as.character(z$gps_id))
         gps_point_key <- trimws(as.character(z$gps_point))
-        parent_same_gps <- vapply(seq_len(nrow(z)), function(i) {
-            if (isTRUE(blankish(z$gps_id[i])) || isTRUE(blankish(z$gps_point[i]))) {
-                return(FALSE)
+        is_valid_brood_link <- function(v) {
+            raw <- trimws(as.character(v))
+            !is.na(v) & nzchar(raw) & toupper(raw) != "NA" & toupper(raw) != "NO_NEST"
+        }
+        same_session_parent_nests <- lapply(seq_len(nrow(z)), function(i) {
+            event_date_i <- z$event_date[[i]]
+            gps_id_i <- gps_id_key[[i]]
+            gps_point_i <- gps_point_key[[i]]
+            if (!isTRUE(z$is_chick[[i]]) ||
+                is.na(event_date_i) ||
+                isTRUE(blankish(z$gps_id[[i]])) ||
+                isTRUE(blankish(z$gps_point[[i]]))) {
+                return(character())
             }
-            any(
-                !is.na(z$age) & trimws(as.character(z$age)) == "A" &
-                    !blankish(z$gps_id) & !blankish(z$gps_point) &
-                    !blankish(z$LL) & !blankish(z$LR) &
-                    gps_id_key == gps_id_key[i] &
-                    gps_point_key == gps_point_key[i]
-            )
-        }, logical(1))
-        z[, `:=`(parent_same_gps, parent_same_gps)]
+            candidates <- z[
+                is_parent_with_chicks &
+                    !is.na(event_date) &
+                    event_date == event_date_i &
+                    !blankish(gps_id) &
+                    !blankish(gps_point) &
+                    gps_id_key == gps_id_i &
+                    gps_point_key == gps_point_i &
+                    is_valid_brood_link(nest_id),
+                trimws(as.character(nest_id))
+            ]
+            unique(candidates[!is.na(candidates) & nzchar(candidates)])
+        })
+        z[, `:=`(
+            same_session_parent_nest_count = lengths(same_session_parent_nests),
+            parent_unique_gps = lengths(same_session_parent_nests) == 1L
+        )]
         z[, `:=`(ring_present, !blankish(ring))]
         z[, `:=`(
             allow_unlinked_h_chick =
@@ -910,18 +933,30 @@ list({
                 age_key == "C" &
                 !blankish(gps_id) &
                 !blankish(gps_point) &
-                (ring_present | parent_same_gps)
+                (ring_present | parent_unique_gps),
+            allow_unlinked_ordinary_chick =
+                blankish(nest_id) &
+                age_key == "C" &
+                rclass_key %in% c("R", "P", "V", "C") &
+                !blankish(gps_id) &
+                !blankish(gps_point) &
+                parent_unique_gps
         )]
-        z[, `:=`(needs_nest_id, (is_chick & !allow_unlinked_h_chick) | is_parent_behaviour)]
+        z[, `:=`(
+            needs_nest_id,
+            (is_chick & !allow_unlinked_h_chick & !allow_unlinked_ordinary_chick) | is_parent_behaviour
+        )]
         out <- data.table::rbindlist(lapply(seq_len(nrow(z)), function(i) {
             row <- z[i]
             row_is_chick <- isTRUE(row$is_chick)
             row_is_parent_behaviour <- isTRUE(row$is_parent_behaviour)
             row_is_h <- isTRUE(row$rclass_key == "H")
             missing_chick_nest_reason <- if (row_is_h) {
-                "An H-class chick may omit nest_id only when ring is entered or a same-session age-A parent with LL and LR is recorded at the same GPS pair."
+                "An H-class chick may omit nest_id only when ring is entered or a same-date age-A parent using BC, FC, or AC with a valid nest/brood link is recorded at the same GPS pair."
+            } else if (isTRUE(row$same_session_parent_nest_count[[1]] > 1L)) {
+                "This ordinary age-C resighting has ambiguous same-date, same-GPS parent links. Enter nest_id explicitly so the brood association is not guessed."
             } else {
-                "Chick resightings must record nest_id."
+                "An ordinary age-C resighting may omit nest_id only with a complete GPS pair and exactly one same-date, same-GPS age-A parent using BC, FC, or AC with a valid nest/brood link; otherwise enter nest_id."
             }
             missing_parent_nest_reason <- if (any(row$behav_tokens[[1]] %in% c("BC", "FC", "AC"))) {
                 "Adult BC/FC/AC resightings that associate a parent with chicks must include nest_id. If the brood is mobile after notA, also enter both gps_id and gps_point."
