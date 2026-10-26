@@ -130,6 +130,15 @@ test_that("TODO task assembly consumes the bounded context input", {
     "CREATE TABLE FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_SNAPSHOT_BUILD (",
     fixed = TRUE
   )
+  expect_match(refresh_sql, "raw_chick_events AS (", fixed = TRUE)
+  expect_match(refresh_sql, "known_ring_nest_history AS (", fixed = TRUE)
+  expect_match(refresh_sql, "latest_prior_ring_date AS (", fixed = TRUE)
+  expect_match(refresh_sql, "HAVING COUNT(*) = 1", fixed = TRUE)
+  expect_match(
+    refresh_sql,
+    "COALESCE(e.recorded_nest_id, inferred.inferred_nest_id)",
+    fixed = TRUE
+  )
   expect_match(
     refresh_sql,
     "INDEX idx_todo_chick_capture_context_nest (nest_id)",

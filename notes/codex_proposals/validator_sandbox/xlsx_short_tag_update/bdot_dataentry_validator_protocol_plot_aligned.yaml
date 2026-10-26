@@ -1,5 +1,5 @@
 protocol_id: bdot_2026_2027_dataentry_validator_protocol
-protocol_version: 1.3.9
+protocol_version: 1.3.10
 generated_on: 2026-10-26
 generated_from:
   repo: /Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/bdot_db
@@ -15,6 +15,12 @@ purpose: >
   and post-save / season-wide QA checks.
 
 revision_history:
+  - version: 1.3.10
+    generated_on: 2026-10-26
+    changes:
+      - Rebased the age-C status-R morphometric warning envelope on the seven flagged-chick measurements supplied for this season: status-R values remain below the operational flagging cutoffs of tarsus 27.00 and weight 22.00, with culmen below 13.80; the inclusive interval implementation therefore uses upper bounds 26.99, 13.79, and 21.99.
+      - Set the age-C status-C lower review boundary to the supplied flagged-chick minima: tarsus 27.70, culmen 13.80, weight 22.80, and optional total_head 38.80. Retained the existing broad upper bounds because the small sample does not support new upper limits, and retained the existing hard prohibition on total_head and wing for status-R rows.
+      - Clarified that these are warning-level measurement envelopes: they support review of status and measurements but do not infer or force capture_status, and values below the status-R cutoffs should not be treated as flag-ready measurements.
   - version: 1.3.9
     generated_on: 2026-10-26
     changes:
@@ -1586,9 +1592,12 @@ table_rules:
           For age == 'J', use tarsus 23.22-30.75, culmen 12.46-16.36, total_head 40.62-43.58, wing 49.28-124.23, and weight 18.58-43.80.
           For age == 'C' with capture_status == 'F' or another non-R/C status, use tarsus 18.43-29.52, culmen 6.47-15.63,
           total_head 37.01-39.99, wing 21.99-93.37, and weight 6.73-40.38. For age == 'C' with capture_status == 'R', use
-          tarsus 18.43-25.50, culmen 6.47-12.50, and weight 6.73-18.00; total_head and wing remain hard-disallowed by CAP_018.
-          For age == 'C' with capture_status == 'C', use the broader older-chick changed-band intervals tarsus 18.43-33.96,
-          culmen 6.47-20.42, total_head 37.01-49.34, wing 21.99-138.00, and weight 6.73-77.16. For a status-R value outside
+          tarsus 18.43-26.99, culmen 6.47-13.79, and weight 6.73-21.99; these upper bounds keep status-R values below the
+          operational flagging cutoffs of tarsus 27.00 and weight 22.00, while keeping culmen below the supplied flagged-chick
+          minimum of 13.80. Total_head and wing remain hard-disallowed by CAP_018. For age == 'C' with capture_status == 'C',
+          use tarsus 27.70-33.96, culmen 13.80-20.42, total_head 38.80-49.34, wing 21.99-138.00, and weight 22.80-77.16.
+          These lower bounds use the supplied flagged-chick minima; the separate status-R ceilings implement the explicit
+          operational rule that a chick below 27 tarsus or 22 weight should not be treated as flag-ready. For a status-R value outside
           its interval, report: 'These measurements are large enough to warrant flagging (i.e., capture_status C with an engraved
           flag in UL). Please double-check that your capture_status and/or measures are correct. If correct, add a validator bypass
           comment to the event.' Warn only; do not block saving.

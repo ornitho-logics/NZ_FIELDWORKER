@@ -33,6 +33,127 @@ list({
     out
 }, {
     out <- try_validator({
+        empty <- data.table::data.table(rowid = integer(), variable = character(), reason = character())
+        norm_chr <- function(v) {
+            raw <- trimws(as.character(v))
+            raw[is.na(v) | !nzchar(raw) | raw == "NA"] <- NA_character_
+            raw
+        }
+        parse_date <- function(v) {
+            raw <- norm_chr(v)
+            suppressWarnings(as.Date(raw))
+        }
+
+        current <- data.table::copy(x)
+        if (!"rowid" %in% names(current)) {
+            current[, `:=`(rowid, .I)]
+        }
+        current[, `:=`(
+            ring_key = norm_chr(ring),
+            nest_key = norm_chr(nest_id),
+            age_key = toupper(norm_chr(age)),
+            status_key = toupper(norm_chr(capture_status)),
+            event_date = parse_date(date)
+        )]
+        target <- current[
+            age_key == "C" &
+                status_key %in% c("R", "C") &
+                !is.na(ring_key) &
+                !is.na(nest_key) &
+                nest_key != "NO_NEST" &
+                !is.na(event_date),
+            .(rowid, ring_key, nest_key, event_date)
+        ]
+        if (nrow(target) == 0) {
+            empty
+        } else {
+            ref <- tryCatch(
+                data.table::as.data.table(db_get(
+                    "SELECT pk, ring, nest_id, age, capture_status, date FROM CAPTURES"
+                )),
+                error = function(e) data.table::data.table()
+            )
+            if (nrow(ref) > 0) {
+                ref[, `:=`(
+                    ring_key = norm_chr(ring),
+                    nest_key = norm_chr(nest_id),
+                    age_key = toupper(norm_chr(age)),
+                    status_key = toupper(norm_chr(capture_status)),
+                    event_date = parse_date(date)
+                )]
+                ref <- ref[
+                    age_key == "C" &
+                        status_key == "F" &
+                        !is.na(ring_key) &
+                        !is.na(nest_key) &
+                        nest_key != "NO_NEST" &
+                        !is.na(event_date),
+                    .(ring_key, nest_key, event_date)
+                ]
+            } else {
+                ref <- data.table::data.table(
+                    ring_key = character(),
+                    nest_key = character(),
+                    event_date = as.Date(character())
+                )
+            }
+
+            current_f <- current[
+                age_key == "C" &
+                    status_key == "F" &
+                    !is.na(ring_key) &
+                    !is.na(nest_key) &
+                    nest_key != "NO_NEST" &
+                    !is.na(event_date),
+                .(ring_key, nest_key, event_date)
+            ]
+            f_events <- unique(data.table::rbindlist(list(ref, current_f), fill = TRUE))
+            if (nrow(f_events) == 0) {
+                empty
+            } else {
+                target[, f_nests_differ := vapply(seq_len(.N), function(i) {
+                    f_nests <- unique(f_events[
+                        ring_key == target$ring_key[i] &
+                            event_date <= target$event_date[i],
+                        nest_key
+                    ])
+                    length(f_nests) > 0 && !target$nest_key[i] %in% f_nests
+                }, logical(1))]
+                flagged <- target[f_nests_differ == TRUE]
+                if (nrow(flagged) == 0) {
+                    empty
+                } else {
+                    flagged[, .(
+                        rowid,
+                        variable = "nest_id",
+                        reason = paste(
+                            "This age-C R/C capture uses a different nest_id from the chick's earlier F capture.",
+                            "Post-hatch brood mixing can make that biologically correct; please verify the ring, date, and location rather than automatically reverting to the F-event nest."
+                        )
+                    )]
+                }
+            }
+        }
+    }, nam = "CAP_W012 post-hatch brood mixing")
+    out <- data.table::as.data.table(out)
+    if ("reason" %in% names(out)) {
+        out[, `:=`(reason, {
+            cleaned <- sub("^(ERROR|WARNING):\\s*", "", as.character(reason))
+            cleaned[is.na(reason)] <- NA_character_
+            ok_idx <- !is.na(cleaned) & nzchar(cleaned)
+            cleaned[ok_idx] <- paste0(
+                cleaned[ok_idx],
+                " Please double-check this entry. If it is correct, add a validator bypass comment to the event."
+            )
+            cleaned
+        })]
+    }
+    if ("type" %in% names(out)) {
+        out[, `:=`(type, NULL)]
+    }
+    out
+}, {
+    out <- try_validator({
         z <- data.table::copy(x)
         if (!"rowid" %in% names(z)) {
             z[, `:=`(rowid, .I)]
@@ -777,11 +898,11 @@ list({
           C_recap = data.table::data.table(
             variable = c("tarsus", "culmen", "weight"),
             lq = c(18.43, 6.47, 6.73),
-            uq = c(25.50, 12.50, 18.00)
+            uq = c(26.99, 13.79, 21.99)
           ),
           C_change = data.table::data.table(
             variable = c("tarsus", "culmen", "total_head", "wing", "weight"),
-            lq = c(18.43, 6.47, 37.01, 21.99, 6.73),
+            lq = c(27.70, 13.80, 38.80, 21.99, 22.80),
             uq = c(33.96, 20.42, 49.34, 138.00, 77.16)
           )
         )

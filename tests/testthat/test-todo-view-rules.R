@@ -615,7 +615,11 @@ test_that("positive brood Last Visit uses the latest nest or chick encounter", {
   )
   expect_match(
     sql,
-    "LEFT JOIN brood_context brood_last_visit\n    ON context.nest_id = brood_last_visit.nest_id",
+    paste0(
+      "LEFT JOIN brood_context brood_last_visit\n",
+      "    ON CONVERT(context.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci\n",
+      "       = CONVERT(brood_last_visit.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci"
+    ),
     fixed = TRUE
   )
   expect_match(sql, "brood_last_visit.is_negative_brood = 0", fixed = TRUE)
@@ -638,7 +642,11 @@ test_that("brood photo follow-up uses the unified brood evidence source", {
 
   expect_match(
     sql,
-    "JOIN brood_context b\n    ON n.nest_id = b.nest_id",
+    paste0(
+      "JOIN brood_context b\n",
+      "    ON CONVERT(n.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci\n",
+      "       = CONVERT(b.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci"
+    ),
     fixed = TRUE
   )
   expect_match(sql, "b.has_hatch_evidence = 1", fixed = TRUE)
@@ -732,6 +740,13 @@ test_that("hiding-photo TODO counts distinct captured and photographed rings", {
     ),
     collapse = "\n"
   )
+  schema_sql <- paste(
+    readLines(
+      app_file("DATABASE", "views.SQL"),
+      warn = FALSE
+    ),
+    collapse = "\n"
+  )
 
   expect_match(
     sql,
@@ -741,6 +756,17 @@ test_that("hiding-photo TODO counts distinct captured and photographed rings", {
   expect_match(sql, "COUNT(*) AS n_chick_captures", fixed = TRUE)
   expect_match(sql, "n_flagged_chick_rings", fixed = TRUE)
   expect_match(sql, "n_unringed_chick_captures", fixed = TRUE)
+  for (source_sql in list(sql, schema_sql)) {
+    expect_match(source_sql, "raw_chick_events AS (", fixed = TRUE)
+    expect_match(source_sql, "known_ring_nest_history AS (", fixed = TRUE)
+    expect_match(source_sql, "latest_prior_ring_date AS (", fixed = TRUE)
+    expect_match(source_sql, "HAVING COUNT(*) = 1", fixed = TRUE)
+    expect_match(
+      source_sql,
+      "COALESCE(e.recorded_nest_id, inferred.inferred_nest_id)",
+      fixed = TRUE
+    )
+  }
   expect_match(
     sql,
     "COUNT(DISTINCT h.ring) AS n_hiding_spot_photos",
@@ -1568,7 +1594,10 @@ test_that("pair completion requires current-nest deployment provenance", {
 
   expect_match(
     sql,
-    "history.nest_id = parent_task_nests.nest_id",
+    paste0(
+      "CONVERT(history.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci\n",
+      "            = CONVERT(parent_task_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci"
+    ),
     fixed = TRUE
   )
   expect_match(sql, "history.parent_sex = 'M'", fixed = TRUE)

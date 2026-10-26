@@ -103,14 +103,12 @@ todo_pdf_as_numeric <- function(x) {
 }
 
 
-todo_pdf_latest_chick_encounter_counts <- function(
+todo_pdf_normalize_chick_encounters <- function(
   chick_encounters,
   reference_date = NULL
 ) {
   empty_output <- data.table(
-    nest_id = character(),
-    latest_encounter_date = as.Date(character()),
-    latest_chick_count = integer()
+    nest_id = character()
   )
   if (
     is.null(chick_encounters)
@@ -132,12 +130,9 @@ todo_pdf_latest_chick_encounter_counts <- function(
     encounters <- encounters[encounter_date <= as.Date(reference_date)]
   }
   if (!nrow(encounters)) {
-    return(empty_output)
+    return(data.table())
   }
 
-  # A ring is the stable chick identity across captures and resightings.  A
-  # ringless row is still one observed chick encounter, so retain its source
-  # and event id rather than silently treating all ringless rows as duplicates.
   if (!"ring" %in% names(encounters)) {
     encounters[, ring := NA_character_]
   }
@@ -155,22 +150,338 @@ todo_pdf_latest_chick_encounter_counts <- function(
   if (!"event_id" %in% names(encounters)) {
     encounters[, event_id := seq_len(.N)]
   }
+
+  # A ring is the stable chick identity across captures and resightings.  A
+  # ringless event is retained only when it cannot be matched to a ringed
+  # event from the same brood on the same date.  This prevents one chick from
+  # being counted twice when a capture and a ringless resighting describe the
+  # same occasion, while preserving genuinely ringless encounters.
+  ringed_dates <- unique(
+    encounters[!is.na(ring_key), .(nest_id, encounter_date)]
+  )
+  if (nrow(ringed_dates)) {
+    ringed_date_keys <- paste(
+      ringed_dates$nest_id,
+      ringed_dates$encounter_date,
+      sep = "\u001f"
+    )
+    encounters[, nest_date_key := paste(
+      nest_id,
+      encounter_date,
+      sep = "\u001f"
+    )]
+    encounters <- encounters[
+      !is.na(ring_key)
+        | !(nest_date_key %chin% ringed_date_keys)
+    ]
+    encounters[, nest_date_key := NULL]
+  }
+
   encounters[, event_key := fifelse(
     !is.na(ring_key),
     paste0("ring:", ring_key),
     paste0(source, ":", as.character(event_id))
   )]
 
+  encounters[]
+}
+
+
+todo_pdf_latest_chick_encounter_counts <- function(
+  chick_encounters,
+  reference_date = NULL
+) {
+  empty_output <- data.table(
+    nest_id = character(),
+    latest_encounter_date = as.Date(character()),
+    latest_chick_count = integer(),
+    latest_chick_ring_list = character()
+  )
+  encounters <- todo_pdf_normalize_chick_encounters(
+    chick_encounters,
+    reference_date
+  )
+  if (!nrow(encounters)) {
+    return(empty_output)
+  }
+
   encounters[, latest_encounter_date := max(encounter_date), by = nest_id]
+  # A same-date capture is the authoritative in-hand encounter when it is
+  # accompanied by a resighting row.  Prefer capture rows for that date so
+  # one chick is not counted twice for a single field occasion; if there is
+  # no capture on the latest date, use the latest resighting rows.
   latest <- encounters[
     encounter_date == latest_encounter_date,
-    .(
-      latest_encounter_date = latest_encounter_date[1L],
-      latest_chick_count = uniqueN(event_key)
-    ),
+  ]
+  latest[, capture_on_latest_date := any(source == "capture"), by = nest_id]
+  latest <- latest[
+    !capture_on_latest_date | source == "capture"
+  ]
+  latest <- latest[
+    , .(
+        latest_encounter_date = latest_encounter_date[1L],
+        latest_chick_count = uniqueN(event_key),
+        latest_chick_ring_list = paste(
+          sort(unique(ring_key[!is.na(ring_key)])),
+          collapse = ", "
+        )
+      ),
     by = nest_id
   ]
   latest[]
+}
+
+
+todo_pdf_captured_chick_ring_lists <- function(chick_captures) {
+  empty_output <- data.table(
+    nest_id = character(),
+    captured_chick_ring_list = character()
+  )
+  if (
+    is.null(chick_captures)
+      || !nrow(chick_captures)
+      || !all(c("nest_id", "ring") %in% names(chick_captures))
+  ) {
+    return(empty_output)
+  }
+
+  captures <- data.table(chick_captures)
+  captures[, nest_id := trimws(as.character(nest_id))]
+  captures[, ring_key := toupper(trimws(as.character(ring)))]
+  captures[
+    is.na(ring_key)
+      | !nzchar(ring_key)
+      | ring_key %chin% c("NA", "NULL", "N/A"),
+    ring_key := NA_character_
+  ]
+  captures <- captures[
+    !is.na(nest_id)
+      & nzchar(nest_id)
+      & !is.na(ring_key)
+  ]
+  if (!nrow(captures)) {
+    return(empty_output)
+  }
+
+  captures[
+    , .(
+      captured_chick_ring_list = paste(
+        sort(unique(ring_key)),
+        collapse = ", "
+      )
+    ),
+    by = nest_id
+  ][]
+}
+
+
+todo_pdf_chick_event_context_sql <- function(reference_date = NULL) {
+  reference_date <- as.Date(reference_date)
+  reference_date_sql <- if (!is.na(reference_date)) {
+    paste0(
+      "CAST('",
+      format(reference_date, "%Y-%m-%d"),
+      "' AS DATE)"
+    )
+  } else {
+    "(SELECT value FROM settings WHERE variable = 'reference_date' LIMIT 1)"
+  }
+
+  glue::glue(
+  "
+  WITH
+  adult_nest_events AS (
+    SELECT
+      r.date AS event_date,
+      r.gps_id,
+      r.gps_point,
+      TRIM(r.nest_id) AS nest_id
+    FROM RESIGHTINGS r
+    WHERE UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'
+      AND r.age = 'A'
+      AND r.nest_id IS NOT NULL
+      AND TRIM(r.nest_id) <> ''
+      AND UPPER(TRIM(r.nest_id)) <> 'NO_NEST'
+      AND r.date <= {reference_date_sql}
+
+    UNION ALL
+
+    SELECT
+      c.date AS event_date,
+      c.gps_id,
+      c.gps_point,
+      TRIM(c.nest_id) AS nest_id
+    FROM CAPTURES c
+    WHERE UPPER(TRIM(COALESCE(c.site, ''))) = 'CR'
+      AND c.age = 'A'
+      AND c.nest_id IS NOT NULL
+      AND TRIM(c.nest_id) <> ''
+      AND UPPER(TRIM(c.nest_id)) <> 'NO_NEST'
+      AND c.date <= {reference_date_sql}
+  ),
+  same_occasion_chick_gps_candidates AS (
+    SELECT
+      chick.pk AS resighting_pk,
+      adult.nest_id AS adult_nest_id
+    FROM RESIGHTINGS chick
+    JOIN adult_nest_events adult
+      ON adult.event_date = chick.date
+     AND adult.gps_id = chick.gps_id
+     AND adult.gps_point = chick.gps_point
+    WHERE UPPER(TRIM(COALESCE(chick.site, ''))) = 'CR'
+      AND chick.age = 'C'
+      AND UPPER(TRIM(COALESCE(chick.rclass, ''))) <> 'H'
+      AND chick.date <= {reference_date_sql}
+      AND chick.gps_id IS NOT NULL
+      AND chick.gps_point IS NOT NULL
+      AND (
+        chick.nest_id IS NULL
+        OR TRIM(chick.nest_id) = ''
+        OR UPPER(TRIM(chick.nest_id)) = 'NO_NEST'
+      )
+  ),
+  same_occasion_chick_gps_summary AS (
+    SELECT
+      resighting_pk,
+      CASE
+        WHEN COUNT(DISTINCT adult_nest_id) = 1
+        THEN MIN(adult_nest_id)
+        ELSE NULL
+      END AS resolved_nest_id
+    FROM same_occasion_chick_gps_candidates
+    GROUP BY resighting_pk
+  ),
+  raw_capture_events AS (
+    SELECT
+      c.pk AS capture_pk,
+      c.date AS event_date,
+      CASE
+        WHEN UPPER(TRIM(COALESCE(c.nest_id, ''))) IN ('', 'NO_NEST')
+        THEN NULL
+        ELSE UPPER(TRIM(c.nest_id))
+      END AS recorded_nest_id,
+      NULLIF(
+        NULLIF(UPPER(TRIM(COALESCE(c.ring, ''))), ''),
+        'NA'
+      ) AS ring_key,
+      c.site,
+      c.gps_id,
+      c.gps_point,
+      c.caught,
+      c.age,
+      c.LL,
+      c.LR
+    FROM CAPTURES c
+    WHERE UPPER(TRIM(COALESCE(c.site, ''))) = 'CR'
+      AND c.age = 'C'
+      AND c.date <= {reference_date_sql}
+  ),
+  known_ring_nest_history AS (
+    SELECT
+      capture_pk,
+      event_date,
+      ring_key,
+      recorded_nest_id AS nest_id
+    FROM raw_capture_events
+    WHERE ring_key IS NOT NULL
+      AND recorded_nest_id IS NOT NULL
+  ),
+  latest_prior_ring_date AS (
+    SELECT
+      e.capture_pk,
+      MAX(h.event_date) AS latest_prior_event_date
+    FROM raw_capture_events e
+    JOIN known_ring_nest_history h
+      ON h.ring_key = e.ring_key
+     AND h.event_date <= e.event_date
+    WHERE e.ring_key IS NOT NULL
+      AND e.recorded_nest_id IS NULL
+    GROUP BY e.capture_pk
+  ),
+  latest_prior_ring_nests AS (
+    SELECT DISTINCT
+      e.capture_pk,
+      h.nest_id
+    FROM raw_capture_events e
+    JOIN latest_prior_ring_date d
+      ON d.capture_pk = e.capture_pk
+    JOIN known_ring_nest_history h
+      ON h.ring_key = e.ring_key
+     AND h.event_date = d.latest_prior_event_date
+  ),
+  resolved_prior_ring_nests AS (
+    SELECT
+      capture_pk,
+      MAX(nest_id) AS inferred_nest_id
+    FROM latest_prior_ring_nests
+    GROUP BY capture_pk
+    HAVING COUNT(*) = 1
+  ),
+  capture_events AS (
+    SELECT
+      COALESCE(e.recorded_nest_id, inferred.inferred_nest_id) AS nest_id,
+      e.event_date AS date,
+      'capture' AS source,
+      CAST(e.capture_pk AS CHAR(64)) AS event_id,
+      e.ring_key AS ring,
+      e.site,
+      e.gps_id,
+      e.gps_point,
+      e.caught,
+      e.age,
+      e.LL,
+      e.LR
+    FROM raw_capture_events e
+    LEFT JOIN resolved_prior_ring_nests inferred
+      ON inferred.capture_pk = e.capture_pk
+    WHERE COALESCE(e.recorded_nest_id, inferred.inferred_nest_id) IS NOT NULL
+  ),
+  resighting_events AS (
+    SELECT DISTINCT
+      COALESCE(
+        h_assoc.resolved_nest_id,
+        gps_assoc.resolved_nest_id,
+        NULLIF(
+          NULLIF(TRIM(r.nest_id), ''),
+          'NO_NEST'
+        )
+      ) AS nest_id,
+      r.date,
+      'resighting' AS source,
+      CAST(r.pk AS CHAR(64)) AS event_id,
+      NULLIF(
+        NULLIF(UPPER(TRIM(COALESCE(r.ring, ''))), ''),
+        'NA'
+      ) AS ring,
+      r.site,
+      r.gps_id,
+      r.gps_point,
+      CAST(NULL AS CHAR(32)) AS caught,
+      r.age,
+      r.LL,
+      r.LR
+    FROM RESIGHTINGS r
+    LEFT JOIN RESIGHTINGS_H_BROOD_ASSOCIATIONS h_assoc
+      ON r.pk = h_assoc.resighting_pk
+    LEFT JOIN same_occasion_chick_gps_summary gps_assoc
+      ON r.pk = gps_assoc.resighting_pk
+    WHERE UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'
+      AND r.age = 'C'
+      AND r.date <= {reference_date_sql}
+      AND (
+        (
+          r.nest_id IS NOT NULL
+          AND TRIM(r.nest_id) <> ''
+          AND UPPER(TRIM(r.nest_id)) <> 'NO_NEST'
+        )
+        OR h_assoc.resolved_nest_id IS NOT NULL
+        OR gps_assoc.resolved_nest_id IS NOT NULL
+      )
+  )
+  SELECT * FROM capture_events
+  UNION ALL
+  SELECT * FROM resighting_events
+  ")
 }
 
 
@@ -404,7 +715,8 @@ todo_pdf_prepare_nest_summary <- function(
   todo = NULL,
   chick_captures = NULL,
   hatch_prediction = NULL,
-  parent_status = NULL
+  parent_status = NULL,
+  chick_context = NULL
 ) {
   nests <- data.table(nests_latest)
   if ("species" %in% names(nests)) {
@@ -623,6 +935,39 @@ todo_pdf_prepare_nest_summary <- function(
     )
   ]
 
+  # The refresh-time chick context is the authoritative ring-level source for
+  # flag completion. In particular, it includes flags on R/C captures whose
+  # nest_id was inferred from prior ring history, which cannot be recovered
+  # from the PDF's direct CAPTURES input alone. This marker is presentation
+  # only: it does not alter task eligibility or brood status.
+  summary[, Flagged := FALSE]
+  if (
+    !is.null(chick_context)
+      && nrow(chick_context)
+      && all(c("nest_id", "n_flagged_chick_rings") %in% names(chick_context))
+  ) {
+    flagged <- data.table(chick_context)
+    flagged[, Nest := trimws(as.character(nest_id))]
+    flagged[, n_flagged_chick_rings := todo_pdf_as_numeric(
+      n_flagged_chick_rings
+    )]
+    flagged <- flagged[
+      !is.na(Nest)
+        & nzchar(Nest)
+        & !is.na(n_flagged_chick_rings)
+        & n_flagged_chick_rings > 0,
+      .(Nest, Flagged = TRUE)
+    ]
+    flagged <- flagged[!duplicated(Nest)]
+    if (nrow(flagged)) {
+      flagged_rows <- match(flagged$Nest, summary$Nest)
+      flagged_rows <- flagged_rows[!is.na(flagged_rows)]
+      if (length(flagged_rows)) {
+        summary[flagged_rows, Flagged := TRUE]
+      }
+    }
+  }
+
   # Reuse no-float chronology predictions from EGGS_HATCH_PREDICTION for
   # summary rows that are not represented by a current TODO_LIST task.
   if (
@@ -817,6 +1162,7 @@ todo_pdf_prepare_nest_summary <- function(
     summary,
     c(
       "Nest", "Est. Hatch", "Male", "Female", "Symbol", "SymbolColor",
+      "Flagged",
       "LabelFill", "LabelText"
     )
   )
@@ -977,7 +1323,8 @@ todo_pdf_prepare <- function(
   chick_captures = NULL,
   hatch_prediction = NULL,
   parent_status = NULL,
-  chick_encounters = NULL
+  chick_encounters = NULL,
+  chick_context = NULL
 ) {
   if (is.null(todo)) {
     todo <- todo_pdf_query_tasks()
@@ -1266,6 +1613,7 @@ todo_pdf_prepare <- function(
     chick_encounters,
     refdate
   )
+  captured_ring_lists <- todo_pdf_captured_chick_ring_lists(chick_captures)
   if (nrow(latest_chick_counts)) {
     for (i in seq_len(nrow(latest_chick_counts))) {
       brood_id <- latest_chick_counts$nest_id[[i]]
@@ -1280,11 +1628,17 @@ todo_pdf_prepare <- function(
       todo_dt[
         todo == "Broods to recapture for flagging"
           & nest_id == brood_id,
-        notes := paste0(
-          "recapture chicks; assign flags (",
-          latest_count,
-          " pending)"
-        )
+        notes := {
+          ring_list <- captured_ring_lists[
+            nest_id == brood_id,
+            captured_chick_ring_list
+          ]
+          if (length(ring_list) && nzchar(ring_list[[1L]])) {
+            paste0(latest_count, " seen from: ", ring_list[[1L]])
+          } else {
+            paste0(latest_count, " seen; no metal-ring IDs available")
+          }
+        }
       ]
     }
   }
@@ -1404,7 +1758,8 @@ todo_pdf_prepare <- function(
       todo_dt,
       chick_captures,
       hatch_prediction,
-      parent_status
+      parent_status,
+      chick_context
     )
   )
 }
@@ -1414,11 +1769,30 @@ todo_pdf_heading <- function(todo_name) {
     todo_name,
     "Hiding spot photos needed" = list(
       title = "Broods to photograph",
-      subtitle = "Find each brood; take in-situ and tent photos before chicks are 7 days old."
+      subtitle = paste(
+        "Find each brood; take in-situ and tent photos before chicks are 7 days old.",
+        "Notes show H-photo rings / captured chick-ring identities."
+      )
     ),
     "Broods to recapture for flagging" = list(
       title = "Broods to recapture for flagging",
-      subtitle = "Recapture chicks aged 21 days or more; assign unique engraved UL flags."
+      subtitle = paste(
+        "Recapture chicks aged 21 days or more; assign unique engraved UL flags.",
+        "The 3-week cutoff is a guide: decide in hand using morphometrics.",
+        "Notes list metal rings of banded chicks; 'N seen' is the number encountered at the latest visit."
+      ),
+      subtitle_typst = paste(
+        "Recapture chicks aged 21 days or more; assign unique engraved UL flags.",
+        "The 3-week cutoff is a guide: decide in hand using morphometrics.",
+        "Notes list metal rings of banded chicks; 'N seen' is the number encountered at the latest visit.",
+        "#strong[Do not flag chicks if weight < 22 g or tarsus < 27 mm.]"
+      ),
+      subtitle_markdown = paste(
+        "Recapture chicks aged 21 days or more; assign unique engraved UL flags.",
+        "The 3-week cutoff is a guide: decide in hand using morphometrics.",
+        "Notes list metal rings of banded chicks; 'N seen' is the number encountered at the latest visit.",
+        "**Do not flag chicks if weight < 22 g or tarsus < 27 mm.**"
+      )
     ),
     "Unprocessed nest" = list(
       title = "Nests to process",
@@ -1671,7 +2045,7 @@ todo_pdf_nest_summary_table <- function(
     stripe_fill <- '#f1f3f3'
     white_fill <- '#ffffff'
     cells <- c(
-      glue('table.cell(fill: rgb("{header_fill}"))[#strong[Nest]]'),
+      glue('table.cell(fill: rgb("{header_fill}"))[#strong[Nest/Brood]]'),
       glue('table.cell(fill: rgb("{header_fill}"))[#strong[Est.#linebreak()Hatch]]'),
       glue('table.cell(fill: rgb("{header_fill}"))[#strong[Male]]'),
       glue('table.cell(fill: rgb("{header_fill}"))[#strong[Female]]')
@@ -1691,6 +2065,13 @@ todo_pdf_nest_summary_table <- function(
       )
       has_chick_label <- !is.na(block$LabelFill[row]) &&
         nzchar(block$LabelFill[row])
+      flagged_marker <- if (
+        "Flagged" %in% names(block) && isTRUE(block$Flagged[row])
+      ) {
+        "  #h(2pt)  #strong[F]"
+      } else {
+        ""
+      }
       nest_cell <- if (nzchar(block$Nest[row])) {
         if (has_chick_label) {
           glue(
@@ -1704,6 +2085,7 @@ todo_pdf_nest_summary_table <- function(
             glue('    inset: (x: 3pt, y: {label_inset_y}pt),'),
             '  )[#text(fill: rgb("{block$LabelText[row]}"))',
             '[#strong[{typst_content(block$Nest[row])}]]]',
+            flagged_marker,
             ']'
           )
         } else {
@@ -1712,6 +2094,7 @@ todo_pdf_nest_summary_table <- function(
             '  #text(size: {symbol_size}pt, fill: rgb("{block$SymbolColor[row]}"))[{glyph}]',
             '  #h(1pt)',
             '  #strong[{typst_content(block$Nest[row])}]',
+            flagged_marker,
             ']'
           )
         }
@@ -1787,13 +2170,14 @@ todo_pdf_summary_block <- function(
   }
 
   title <- "#align(left)[#text(size: 10pt, weight: \"bold\")[Summary of currently active nests and broods]]"
-  subtitle <- "#align(left)[#emph[#text(size: 8pt)[Brood labels use chick band colour; symbols match the map. For active nests, \"Est. Hatch\" is days until hatch (negative = overdue); for broods, negative values are days since hatch.]]]"
+  subtitle <- "#align(left)[#emph[#text(size: 8pt)[Brood labels use chick band colour; an F after a brood label means at least one chick has an engraved flag. Symbols match the map. For active nests, \"Est. Hatch\" is days until hatch (negative = overdue); for broods, negative values are days since hatch.]]]"
 
   if (isTRUE(keep_tables_together)) {
     return(c(
       "```{=typst}",
       "#block(breakable: false)[",
       title,
+      "#v(-0.15em)",
       subtitle,
       todo_pdf_nest_summary_table(summary, raw = TRUE),
       "]",
@@ -1806,6 +2190,7 @@ todo_pdf_summary_block <- function(
     "```{=typst}",
     "#v(-0.35em)",
     title,
+    "#v(-0.15em)",
     subtitle,
     "```",
     "",
@@ -2160,7 +2545,9 @@ todo_pdf_body <- function(
           "#block(breakable: false)[",
           glue("#heading(level: 2)[{heading$title}]"),
           if (!is.null(heading$subtitle)) {
-            glue("#emph[{heading$subtitle}]")
+            glue(
+              "#emph[{heading$subtitle_typst %||% heading$subtitle}]"
+            )
           },
           task_table,
           "]",
@@ -2173,7 +2560,12 @@ todo_pdf_body <- function(
           glue("## {heading$title}"),
           "",
           if (!is.null(heading$subtitle)) {
-            c(glue("*{heading$subtitle}*"), "")
+            c(
+              glue(
+                "*{heading$subtitle_markdown %||% heading$subtitle}*"
+              ),
+              ""
+            )
           },
           task_table
         )
@@ -2186,6 +2578,9 @@ todo_pdf_body <- function(
       out <- c(
         out,
         "```{=typst}",
+        "#v(0.9em)",
+        "```",
+        "```{=typst}",
         "#block(breakable: false)[",
         "#heading(level: 2)[Team marks]",
         "#emph[Use non-Lime 1.5x bands for the geolocator spacer on the tibia; use 2x bands on the tarsi.]",
@@ -2196,11 +2591,17 @@ todo_pdf_body <- function(
         ),
         "]",
         "```",
+        "```{=typst}",
+        "#v(0.9em)",
+        "```",
         ""
       )
     } else {
       out <- c(
         out,
+        "```{=typst}",
+        "#v(0.9em)",
+        "```",
         "## Team marks",
         "",
         "*Use non-Lime 1.5x bands for the geolocator spacer on the tibia; use 2x bands on the tarsi.*",
@@ -2209,6 +2610,9 @@ todo_pdf_body <- function(
           team_marks,
           column_widths = c(12, rep(8, ncol(team_marks) - 1L))
         ),
+        "```{=typst}",
+        "#v(0.9em)",
+        "```",
         ""
       )
     }
@@ -2423,63 +2827,42 @@ todo_pdf_save <- function(
       "SELECT * FROM spatial_objects WHERE variable = 'study_area'"
     )
   }
-  if (is.null(chick_captures)) {
-    chick_captures <- DBq("
-      SELECT nest_id, date, caught, age, site, ring, LL, LR, pk
-      FROM CAPTURES
-      WHERE age = 'C'
-        AND site = 'CR'
-        AND nest_id IS NOT NULL
-        AND TRIM(nest_id) NOT IN ('', 'NO_NEST')
-    ")
+  pdf_reference_date <- if (
+    "reference_date" %in% names(todo) && nrow(todo)
+  ) {
+    as.Date(todo$reference_date[[1L]])
+  } else {
+    get_reference_date()
   }
-  if (is.null(chick_encounters)) {
-    chick_encounters <- DBq(
-      "
-      SELECT
-        CAST(nest_id AS CHAR(64)) AS nest_id,
-        date,
-        'capture' AS source,
-        CAST(pk AS CHAR(64)) AS event_id,
-        ring
-      FROM CAPTURES
-      WHERE age = 'C'
-        AND site = 'CR'
-        AND nest_id IS NOT NULL
-        AND TRIM(nest_id) NOT IN ('', 'NO_NEST')
-
-      UNION ALL
-
-      SELECT
-        CAST(chick.nest_id AS CHAR(64)) AS nest_id,
-        chick.date,
-        'resighting' AS source,
-        CAST(chick.pk AS CHAR(64)) AS event_id,
-        chick.ring
-      FROM RESIGHTINGS chick
-      WHERE chick.age = 'C'
-        AND chick.site = 'CR'
-        AND chick.nest_id IS NOT NULL
-        AND TRIM(chick.nest_id) NOT IN ('', 'NO_NEST')
-        AND EXISTS (
-          SELECT 1
-          FROM RESIGHTINGS adult
-          WHERE adult.age = 'A'
-            AND adult.site = chick.site
-            AND adult.nest_id = chick.nest_id
-            AND adult.date = chick.date
-        )
-      ",
+  if (is.null(chick_captures) || is.null(chick_encounters)) {
+    chick_event_context <- DBq(
+      todo_pdf_chick_event_context_sql(pdf_reference_date),
       derived_merge_off = TRUE
     )
-    if ("error" %in% names(chick_encounters)) {
+    if ("error" %in% names(chick_event_context)) {
       stop(
         paste0(
           "Could not load linked chick encounters for the to-do PDF: ",
-          as.character(chick_encounters$error[[1L]])
+          as.character(chick_event_context$error[[1L]])
         ),
         call. = FALSE
       )
+    }
+    chick_event_context <- data.table(chick_event_context)
+    if (is.null(chick_captures)) {
+      chick_captures <- chick_event_context[source == "capture"]
+    }
+    if (is.null(chick_encounters)) {
+      chick_encounters <- chick_event_context[, .(
+        nest_id,
+        date,
+        source,
+        event_id,
+        ring,
+        site,
+        gps_id,
+        gps_point
+      )]
     }
   }
   if (is.null(hatch_prediction)) {
@@ -2496,6 +2879,16 @@ todo_pdf_save <- function(
   if ("error" %in% names(parent_status)) {
     parent_status <- NULL
   }
+  chick_context <- DBq(
+    "
+    SELECT nest_id, n_flagged_chick_rings
+    FROM TODO_CHICK_CAPTURE_CONTEXT_INPUT
+    ",
+    derived_merge_off = TRUE
+  )
+  if ("error" %in% names(chick_context)) {
+    chick_context <- NULL
+  }
   pdf <- todo_pdf_prepare(
     todo,
     available_combos,
@@ -2503,7 +2896,8 @@ todo_pdf_save <- function(
     chick_captures,
     hatch_prediction,
     parent_status,
-    chick_encounters
+    chick_encounters,
+    chick_context
   )
 
   todo_pdf_map_save(
