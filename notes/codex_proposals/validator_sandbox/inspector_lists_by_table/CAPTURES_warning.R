@@ -750,7 +750,14 @@ list({
         }
         age_key <- toupper(trimws(as.character(z$age)))
         status_key <- toupper(trimws(as.character(z$capture_status)))
-        z[, `:=`(range_group, ifelse(age_key == "C" & status_key == "C", "C_change", age_key))]
+        z[, `:=`(
+            range_group,
+            ifelse(
+                age_key == "C" & status_key == "C",
+                "C_change",
+                ifelse(age_key == "C" & status_key == "R", "C_recap", age_key)
+            )
+        )]
         limits <- list(
           A = data.table::data.table(
             variable = c("tarsus", "culmen", "total_head", "head_white", "head_black", "rufous_band", "wing", "weight"),
@@ -766,6 +773,11 @@ list({
             variable = c("tarsus", "culmen", "total_head", "wing", "weight"),
             lq = c(18.43, 6.47, 37.01, 21.99, 6.73),
             uq = c(29.52, 15.63, 39.99, 93.37, 40.38)
+          ),
+          C_recap = data.table::data.table(
+            variable = c("tarsus", "culmen", "weight"),
+            lq = c(18.43, 6.47, 6.73),
+            uq = c(25.50, 12.50, 18.00)
           ),
           C_change = data.table::data.table(
             variable = c("tarsus", "culmen", "total_head", "wing", "weight"),
