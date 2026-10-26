@@ -1,5 +1,5 @@
 protocol_id: bdot_2026_2027_dataentry_validator_protocol
-protocol_version: 1.3.8
+protocol_version: 1.3.9
 generated_on: 2026-10-26
 generated_from:
   repo: /Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/bdot_db
@@ -15,6 +15,11 @@ purpose: >
   and post-save / season-wide QA checks.
 
 revision_history:
+  - version: 1.3.9
+    generated_on: 2026-10-26
+    changes:
+      - Updated the age-C status-R morphometric warning to explain that measurements above the status-R envelope may indicate a chick ready for status-C recapture with an engraved UL flag; the warning remains non-blocking.
+      - Confirmed that status-R rows retain the initial chick release layout and unchanged input/release combination, while status-C rows retain complete changed-combination, prior-input-history, optional older-chick measurement, and photo/sample rules.
   - version: 1.3.8
     generated_on: 2026-10-26
     changes:
@@ -1583,7 +1588,10 @@ table_rules:
           total_head 37.01-39.99, wing 21.99-93.37, and weight 6.73-40.38. For age == 'C' with capture_status == 'R', use
           tarsus 18.43-25.50, culmen 6.47-12.50, and weight 6.73-18.00; total_head and wing remain hard-disallowed by CAP_018.
           For age == 'C' with capture_status == 'C', use the broader older-chick changed-band intervals tarsus 18.43-33.96,
-          culmen 6.47-20.42, total_head 37.01-49.34, wing 21.99-138.00, and weight 6.73-77.16. Warn only; do not block saving.
+          culmen 6.47-20.42, total_head 37.01-49.34, wing 21.99-138.00, and weight 6.73-77.16. For a status-R value outside
+          its interval, report: 'These measurements are large enough to warrant flagging (i.e., capture_status C with an engraved
+          flag in UL). Please double-check that your capture_status and/or measures are correct. If correct, add a validator bypass
+          comment to the event.' Warn only; do not block saving.
         dataentry_translation_hint: builtin:interval_validator
       - rule_id: CAP_W011
         severity: warning
