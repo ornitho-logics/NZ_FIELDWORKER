@@ -797,8 +797,8 @@ biological-rule decision.
 > `notes/codex_proposals/THREAD3_VALIDATION_ARCHITECTURE.md` in full. Perform
 > a read-only validation-workstream audit from the current checkout. Preserve
 > all dirty files and do not access live databases, credentials, or DB-managed
-> inspectors. Verify both protocol YAML files and their checksum, compare the
-> 1.3.4 protocol with all tracked hard/warning exports, and separate approved
+> inspectors. Verify the external protocol version and the staged local mirror
+> version 1.3.6, compare the protocol with all tracked hard/warning exports, and separate approved
 > behavior from protected WIP and historical material. Use invented/mock data
 > only. Report discrepancies, do not edit implementation, and stop before any
 > staging, commit, push, paste, deployment, or PR action.
@@ -807,3 +807,33 @@ The replacement thread must report what was inspected, what the protocol says,
 which local artifacts diverge, what remains protected or uncertain, whether any
 live state was inspected, and which documentation or mock checks were run. It
 must not infer live deployment from a tracked export or a local mock pass.
+
+## 2026-10-26 — Exact — photo-range validation documentation update
+
+The user requested that documentation and protocol material associated with the
+merged photo-overlap inspector PR be reconciled and staged on
+`codex/sync-validator-protocol-ac-2026-10-26`, alongside the existing Thread 4
+protocol work. This is a documentation/protocol update only; it does not write
+the live `inspectors` table, deploy validators, or modify biological data.
+
+The tracked local protocol mirror is advanced to version **1.3.6**, generated
+2026-10-26. The new revision records the exact `GLOBAL_005` photo identity and
+reuse rules:
+
+- a terminal roll-frame prefix is part of the image identity, so `101-4122` and
+  `102-4122` are different images;
+- a final filename extension is ignored for the numeric comparison;
+- multiple age-C `rclass = H` RESIGHTINGS rows may share a range only when they
+  use the same camera and date and share either the same nonblank `nest_id` or
+  the same complete `gps_id/gps_point` pair;
+- adult `P`/`V` rows, cross-table CAPTURES/NESTS/RESIGHTINGS rows, and H rows with
+  different linkage remain conflicts; and
+- an edited saved row is not compared against its own stored `pk`.
+
+The architecture handoff was updated to describe the same rules, the distinction
+between the merged implementation and live deployment, and the fact that the
+external working protocol file remains outside this repository. The focused
+invented-data test for all three photo-bearing exports passes 25 tests. The
+external canonical protocol was not edited by this branch, so the local v1.3.6
+mirror remains a staged synchronization artifact until that separate file is
+updated through its own approved workflow.

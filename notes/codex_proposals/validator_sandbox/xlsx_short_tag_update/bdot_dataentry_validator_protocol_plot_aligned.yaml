@@ -1,6 +1,6 @@
 protocol_id: bdot_2026_2027_dataentry_validator_protocol
-protocol_version: 1.3.5
-generated_on: 2026-10-24
+protocol_version: 1.3.6
+generated_on: 2026-10-26
 generated_from:
   repo: /Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/bdot_db
   script_of_record: /Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/bdot_db/R/mock_badoatnz_portal_data.R
@@ -15,6 +15,12 @@ purpose: >
   and post-save / season-wide QA checks.
 
 revision_history:
+  - version: 1.3.6
+    generated_on: 2026-10-26
+    changes:
+      - Clarified GLOBAL_005 photo identity so terminal roll-frame prefixes are part of the image number: 101-4122 and 102-4122 are different images, while a final filename extension is ignored for comparison.
+      - Allowed only same-session age-C rclass H RESIGHTINGS rows to share a photo range when they use the same camera and date and share either the same nonblank nest_id or the same complete gps_id/gps_point pair.
+      - Kept photo ranges globally unique for all other combinations, including adult P/V rows and cross-table CAPTURES, NESTS, and RESIGHTINGS rows; an edited saved row does not conflict with its own stored pk.
   - version: 1.3.5
     generated_on: 2026-10-24
     changes:
@@ -489,6 +495,13 @@ negative_brood_methodology:
     same_occasion: >
       A chick captured and photographed in its hiding spot on the same occasion requires separate CAPTURES and
       H-class RESIGHTINGS rows. These are not duplicate records.
+    photo_range_reuse: >
+      GLOBAL_005 treats a terminal roll-frame prefix as part of the image identity. For example, 101-4122 and
+      102-4122 are different images; a final filename extension is ignored when comparing the numeric identity.
+      Multiple age-C rclass H RESIGHTINGS rows may share a range only when they use the same camera and date and
+      share either the same nonblank nest_id or the same complete gps_id/gps_point pair. Adult P/V rows, cross-table
+      CAPTURES/NESTS/RESIGHTINGS rows, and H rows with different linkage remain conflicts. When an existing saved row
+      is edited, its own stored pk is excluded from the comparison.
   save_time_scope: >
     Cross-table chick-photo, parent-linkage, and same-event checks remain warnings or post-save QA when the required
     companion row may be entered in a separate portal session.
@@ -536,10 +549,14 @@ global_rules:
       scope: cross_table
       applies_to_tables: [NESTS, CAPTURES, RESIGHTINGS]
       columns: [photo_start, photo_end]
-      description: Every individual image number inside every photo range must be globally unique across tables.
+      description: Every individual image number inside every photo range must be unique across events, except for same-session age-C H RESIGHTINGS rows.
       logic: >
-        Parse each photo_start/photo_end range into its full integer sequence.
-        No image number may occur in more than one row across NESTS, CAPTURES, and RESIGHTINGS.
+        Parse each photo_start/photo_end range into its full integer sequence. For a terminal roll-frame pattern,
+        preserve the roll prefix as the higher-order component and the four-digit frame as the lower-order component;
+        therefore 101-4122 and 102-4122 are distinct. Ignore a final filename extension. No image number may occur
+        in more than one event across NESTS, CAPTURES, and RESIGHTINGS unless both events are age-C rclass H
+        RESIGHTINGS rows using the same camera and date and sharing either the same nonblank nest_id or the same
+        complete gps_id/gps_point pair. Exclude an edited row's own stored pk from its comparison set.
       dataentry_translation_hint: custom:cross_table_archive_logic
   warning_rules:
     - rule_id: GLOBAL_W001
@@ -1047,7 +1064,7 @@ table_rules:
       - rule_id: NEST_M013
         description: In a small number of mock nest histories, a pD row should be followed by a later I row to show that the desertion was only presumed rather than confirmed. Those recovered histories should then later close again, for example with a sequence such as pD -> I -> D -> notA. These examples document that later active states may follow pD, whereas no later active state should follow pP, P, or D.
       - rule_id: NEST_M014
-        description: Across the mock workbook, every individual image number inside every photo_start/photo_end range must stay globally unique across CAPTURES, NESTS, and RESIGHTINGS. The mock generator should audit the combined workbook and fail if any overlap remains.
+        description: Across the mock workbook, every individual image number inside every photo_start/photo_end range must stay globally unique across CAPTURES, NESTS, and RESIGHTINGS except for the approved same-session age-C H RESIGHTINGS sharing rule. The mock generator should audit the combined workbook and fail on all other overlaps.
       - rule_id: NEST_M015
         description: Every mock H visit with brood_size greater than 0 should have at least brood_size same-day age-C rows across mock CAPTURES and RESIGHTINGS for the same nest_id. Only the first H visit with clutch_size 0 and brood_size greater than 0 may be the terminal H visit; later chick observations belong only in CAPTURES or RESIGHTINGS, apart from an optional final notA closure row in NESTS, which may retain clutch_size 0 and brood_size greater than 0.
 
