@@ -93,7 +93,8 @@ test_that("to-do headings use the current operational subtitles", {
     heading("Hiding spot photos needed")$subtitle,
     paste(
       "Find each brood; take in-situ and tent photos before chicks are 7 days old.",
-      "Notes show H-photo rings / captured chick-ring identities."
+      "Clutch–Brood shows the latest encountered chick count when available.",
+      "Notes show latest encounter count and H-photo progress (photographed / captured)."
     )
   )
   expect_identical(
@@ -1718,6 +1719,62 @@ test_that("flagging notes separate latest count from captured ring identities", 
   expect_identical(
     row$Notes,
     "1 seen from: CP20301, CP20302, CP20310"
+  )
+})
+
+
+test_that("H-photo notes explain latest encounter versus photo progress", {
+  app <- load_main_app()
+  prepare <- app$env$todo_pdf_prepare
+
+  todo <- data.frame(
+    nest_id = c("B0520", "A0511"),
+    reference_date = as.Date(rep("2026-10-27", 2)),
+    todo = rep("Hiding spot photos needed", 2),
+    notes = c(
+      "2/3 chicks with rclass 'H' photos",
+      "0/2 chicks with rclass 'H' photos"
+    ),
+    nest_state = rep("H", 2),
+    clutch_size = c(0, 0),
+    brood_size = c(2, 2),
+    min_days_to_hatch = c(-6, -1),
+    last_visit_days_ago = c(5, 1),
+    M_mark = NA,
+    F_mark = NA,
+    stringsAsFactors = FALSE
+  )
+  chick_captures <- data.frame(
+    nest_id = rep("B0520", 3),
+    age = rep("C", 3),
+    ring = c("CP20216", "CP20217", "CP20218"),
+    site = rep("CR", 3),
+    date = as.Date(c("2026-10-21", "2026-10-21", "2026-10-22")),
+    stringsAsFactors = FALSE
+  )
+  chick_encounters <- data.frame(
+    nest_id = "B0520",
+    date = as.Date("2026-10-22"),
+    source = "capture",
+    event_id = "capture-3",
+    ring = "CP20218",
+    stringsAsFactors = FALSE
+  )
+
+  observed <- prepare(
+    todo = todo,
+    available_combos = data.frame(mark = paste0("MOCK-", seq_len(30))),
+    chick_captures = chick_captures,
+    chick_encounters = chick_encounters
+  )$rows
+
+  expect_identical(
+    observed$Notes[observed$Nest == "B0520"],
+    "latest encounter: 1 chick; H photos: 2/3"
+  )
+  expect_identical(
+    observed$Notes[observed$Nest == "A0511"],
+    "latest encounter: not available; H photos: 0/2"
   )
 })
 

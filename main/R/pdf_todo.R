@@ -103,6 +103,44 @@ todo_pdf_as_numeric <- function(x) {
 }
 
 
+todo_pdf_hiding_photo_note <- function(notes, latest_counts = NULL) {
+  notes <- as.character(notes)
+  if (!length(notes)) {
+    return(notes)
+  }
+
+  vapply(seq_along(notes), function(i) {
+    note <- trimws(notes[[i]])
+    photo_fraction <- sub(
+      ".*?([0-9]+/[0-9]+) chicks with rclass ['’]H['’] photos.*",
+      "\\1",
+      note,
+      perl = TRUE
+    )
+    if (!grepl("^[0-9]+/[0-9]+$", photo_fraction)) {
+      return(note)
+    }
+
+    latest_count <- if (!is.null(latest_counts)) {
+      suppressWarnings(as.numeric(latest_counts[[i]]))
+    } else {
+      NA_real_
+    }
+    latest_text <- if (!is.na(latest_count)) {
+      paste0(
+        "latest encounter: ",
+        latest_count,
+        if (latest_count == 1) " chick" else " chicks"
+      )
+    } else {
+      "latest encounter: not available"
+    }
+
+    paste0(latest_text, "; H photos: ", photo_fraction)
+  }, character(1))
+}
+
+
 todo_pdf_normalize_chick_encounters <- function(
   chick_encounters,
   reference_date = NULL
@@ -1643,6 +1681,24 @@ todo_pdf_prepare <- function(
     }
   }
 
+  hiding_photo_rows <- todo_dt$todo == "Hiding spot photos needed"
+  if (any(hiding_photo_rows)) {
+    latest_for_hiding <- if (nrow(latest_chick_counts)) {
+      latest_chick_counts$latest_chick_count[
+        match(
+          todo_dt$nest_id[hiding_photo_rows],
+          latest_chick_counts$nest_id
+        )
+      ]
+    } else {
+      rep(NA_integer_, sum(hiding_photo_rows))
+    }
+    todo_dt[hiding_photo_rows, notes := todo_pdf_hiding_photo_note(
+      notes,
+      latest_for_hiding
+    )]
+  }
+
   # Re-evaluate the display state after age-C captures have filled an
   # otherwise missing/zero brood size for a terminal hatched nest.
   final_zero_clutch_with_brood <- (
@@ -1771,7 +1827,8 @@ todo_pdf_heading <- function(todo_name) {
       title = "Broods to photograph",
       subtitle = paste(
         "Find each brood; take in-situ and tent photos before chicks are 7 days old.",
-        "Notes show H-photo rings / captured chick-ring identities."
+        "Clutch–Brood shows the latest encountered chick count when available.",
+        "Notes show latest encounter count and H-photo progress (photographed / captured)."
       )
     ),
     "Broods to recapture for flagging" = list(
