@@ -28,10 +28,13 @@ inspector/protocol work, not evidence that live inspectors have been deployed.
 - `AGENTS.md` was not changed in this update; its standing human-control and
   live-database restrictions remain authoritative.
 
-The current authoritative protocol is version **1.3.4**, generated 2026-10-10.
-The official YAML and local mirror are byte-identical with SHA-256:
-
-`1de6c733851c992e296d048bbf35ba5feffda11d1ad7e43c147fe5007359ea7f`
+The external canonical working protocol was version **1.3.5**, generated
+2026-10-24, when this branch was prepared. The tracked local mirror on this
+branch is updated to proposed version **1.3.6**, generated 2026-10-26, to record
+the photo-range identity and same-session H-photo exception described below.
+Because the external working file is outside this repository and is not changed
+by this branch, v1.3.6 is a staged protocol/documentation update, not evidence
+that the external copy or live inspectors have been synchronized.
 
 Version 1.3.4 makes parent/chick co-entry save-blocking within one RESIGHTINGS
 portal submission: every age-C row, including ordinary `rclass = R`, `P`, or `V`
@@ -148,16 +151,22 @@ The source-of-truth SQL is in `DATABASE/`, not older `Admin/db_structure.SQL` pa
 
 ## Rule inventory by functional area
 
-The parsed v1.3.4 protocol contains these rule families. The exact rule IDs and
-descriptions remain in the YAML; this section explains their implementation role.
+The v1.3.4 protocol established these rule families; the staged branch mirror
+adds the v1.3.5 AC revision and v1.3.6 photo-range clarification. The exact rule
+IDs and descriptions remain in the YAML; this section explains their implementation role.
 
 ### Shared rules
 
 Hard shared rules cover field-season date range, allowed site values, blank system
 fields (`nov` and related upload flags), GPS pair completeness/existence, and global
-photo-number uniqueness. Shared warning rules cover GPS timestamp plausibility and
-other review-only timing/context checks. Photo and GPS rules are cross-table where the
-submitted event depends on `GPS_POINTS` or an image range used elsewhere.
+photo-number uniqueness. The photo rule preserves terminal roll-frame prefixes
+(so `101-4122` and `102-4122` are different images) and ignores a final filename
+extension. Its only reuse exception is for age-C `rclass = H` RESIGHTINGS rows
+from the same camera and date that share either the same nonblank `nest_id` or the
+same complete `gps_id/gps_point` pair. Adult `P`/`V` rows and cross-table rows do
+not receive that exception. Shared warning rules cover GPS timestamp plausibility
+and other review-only timing/context checks. Photo and GPS rules are cross-table
+where the submitted event depends on `GPS_POINTS` or an image range used elsewhere.
 
 ### OBSERVERS
 
@@ -289,7 +298,8 @@ The H-class contract is:
 - the approved H band layout remains enforced;
 - GPS pair, camera, photo start, and photo end are required and valid;
 - photo end cannot precede photo start, and the image range must not overlap an image
-  already used by another event;
+  already used by another event, except for the approved same-session age-C H-photo
+  reuse rule described above;
 - `behav` may be blank for H, but entered chick behavior must use permitted codes;
 - a positive-nest H row must not precede that nest’s first NESTS `F`, `I`, or `H`
   event; same-day entry is allowed.
@@ -346,6 +356,15 @@ therefore have one CAPTURES row for handling/banding/tent photos and a separate 
 for its hiding-spot photo. Negative H rows additionally require the negative ID and
 both direct GPS fields. CAPTURES `chick_hide_photo` is retained for compatibility but
 is not the normal hiding-photo record.
+
+Photo-range identity is rollover-aware. A terminal `roll-frame` value is compared
+using the roll prefix and four-digit frame together, so `101-4122` cannot collide
+with `102-4122`; a final filename extension is ignored. `GLOBAL_005` remains a
+save-blocking cross-table check for all ordinary reuse, including adult `P`/`V`
+RESIGHTINGS rows and CAPTURES/NESTS/RESIGHTINGS combinations. The narrow exception
+allows multiple age-C H rows to document one same-camera, same-date photo session
+when they share the same nonblank `nest_id` or the same complete GPS pair. When an
+existing saved row is edited, its own stored `pk` is excluded from the comparison.
 
 ## Cross-table, chronology, and history boundaries
 
@@ -773,11 +792,31 @@ schema comment, and UI/helper source together.
 The checkout was already dirty before this documentation pass. Relevant
 protected validator WIP includes `CAPTURES_hard.R`, `NESTS_hard.R`,
 `NESTS_warning.R`, and `RESIGHTINGS_hard.R`; other tracked dirty files include
-SQL, PDF code, tests, and handoffs. The WIP includes, among other things,
-AC-related RESIGHTINGS logic, photo-overlap handling for same-session H rows,
-NESTS terminal-state/clutch changes, and an adult `HA` capture rule. None of
-these changes was approved, reformatted, staged, committed, pushed, pasted to
-the DB, or described as live by this task.
+SQL, PDF code, tests, and handoffs. AC-related RESIGHTINGS logic, NESTS
+terminal-state/clutch changes, and an adult `HA` capture rule remain protected
+WIP in that checkout. The photo-overlap handling for same-session H rows is no
+longer part of that protected WIP: it was merged in PR #150, and this branch adds
+the corresponding protocol/documentation reconciliation. Live inspector state
+remains unknown.
+
+### 2026-10-26 photo-range validation reconciliation
+
+The photo-overlap implementation from merged PR #150 is represented by the
+tracked `CAPTURES_hard.R`, `NESTS_hard.R`, and `RESIGHTINGS_hard.R` exports. Each
+photo-bearing biological table now checks its own submitted rows and the other
+two photo-bearing tables, excludes the same saved row by table plus `pk` during
+edits, strips a final filename extension for comparison, and preserves a
+terminal roll-frame prefix as part of image identity. Thus `101-4122` and
+`102-4122` are distinct.
+
+The only intentional shared-range exception is multiple age-C H-class
+RESIGHTINGS rows from the same camera and date that share either the same
+nonblank `nest_id` or the same complete `gps_id/gps_point` pair. Adult P/V rows,
+cross-table CAPTURES/NESTS/RESIGHTINGS rows, and H rows with different linkage
+remain save-blocking conflicts. The focused invented-data test covers all three
+exports, self-edit exclusion, same-session H sharing, genuine conflicts, and
+roll-frame separation; it passes 25 tests. This local test and the tracked
+exports do not establish live inspector deployment.
 
 Thread boundaries are deliberate:
 
