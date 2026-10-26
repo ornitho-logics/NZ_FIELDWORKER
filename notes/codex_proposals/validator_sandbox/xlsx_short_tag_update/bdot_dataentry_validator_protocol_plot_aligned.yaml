@@ -1,0 +1,2320 @@
+protocol_id: bdot_2026_2027_dataentry_validator_protocol
+protocol_version: 1.3.5
+generated_on: 2026-10-24
+generated_from:
+  repo: /Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/bdot_db
+  script_of_record: /Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/bdot_db/R/mock_badoatnz_portal_data.R
+  archive_sql: /Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/bdot_db/data/db_local_backups/BADOatNZ_29Jun26.sql
+  validator_docs:
+    - https://ornitho-logics.github.io/DataEntry/articles/writing-validators.html
+purpose: >
+  Machine-readable rule protocol for implementing DataEntry validators and related
+  cross-table QA logic for the 2026-2027 Banded Dotterel field-season portal.
+  These rules are derived from the mock-data generation logic agreed in this thread.
+  Use this file as the specification for save-time blockers, warning-level validators,
+  and post-save / season-wide QA checks.
+
+revision_history:
+  - version: 1.3.5
+    generated_on: 2026-10-24
+    changes:
+      - Added AC (Alert with chick(s)) as a parent-with-chicks behaviour equivalent to BC and FC in RESIGHTINGS parent/chick co-entry, nest-state, GPS-linkage, and mock-generation rules; no other biological rule was changed.
+  - version: 1.3.4
+    generated_on: 2026-10-10
+    changes:
+      - Made the same-session parent/chick association save-blocking in RESIGHTINGS: every age-C event, including ordinary rclass R, P, or V rows, must have an age-A parent with behav BC or FC linked by the same date and nest_id or gps_id/gps_point; every BC/FC parent row must have at least one linked age-C row in the same submission.
+      - Narrowed the ended-nest blocker so adult IN/NM rows require a latest positive-nest state of F, I, or H, while brood-association BC/FC rows are governed by the separate H/notA state rule and are not blocked merely because the nest has ended.
+      - Required positive-nest BC/FC rows to correspond to latest nest_state H or notA, and required gps_id/gps_point for age-C rows and BW/BC/FC parent rows when a notA nest still has brood_size greater than zero.
+      - Documented BW as broken-wing display, a shorebird parent behaviour that can occur at either nest or brood stages; it is not a brood-watch code and does not by itself trigger the reciprocal BC/FC chick-event requirement.
+  - version: 1.3.3
+    generated_on: 2026-09-30
+    changes:
+      - Required CAPTURES rows with age C and capture_status F to carry a real positive nest_id or negative brood ID; blank nest_id and NO_NEST are no longer accepted for this first chick-capture context.
+      - Made gps_id and gps_point optional for positive-nest age-C first captures, while allowing a complete GPS pair when the chick was captured away from the nest; partial pairs remain invalid and supplied pairs remain subject to GPS_POINTS validation.
+      - Retained mandatory GPS for negative brood IDs and the ordinary direct-GPS branch for other unlinked CAPTURES rows.
+  - version: 1.3.2
+    generated_on: 2026-09-30
+    changes:
+      - Required normalized rclass H RESIGHTINGS ring values to use the CP metal-ring format CP12345 or CP-12345.
+      - Required every nonblank H-class ring to already exist in current-season CAPTURES, because a hiding-spot photo is recorded only after the chick has been banded.
+      - Added focused hard-rule checks for invalid prefixes such as PC20315, missing CAPTURES history, and equivalent CP/CP-dash representations; ring remains nullable for non-H RESIGHTINGS classes.
+  - version: 1.3.1
+    generated_on: 2026-09-29
+    changes:
+      - Added warning rule RES_005H to compare a RESIGHTINGS sex entry with the bird's original capture history.
+      - Match the individual by ring when available or by the existing canonical partial leg-mark signature; prefer
+        CAPTURES_ARCHIVE gen_sex when it is nonblank, otherwise use archive field_sex, and fall back to current
+        CAPTURES field_sex when no definitive archive match exists.
+      - Treat M and MU as the same male group and F and FU as the same female group; do not flag U or ambiguous
+        capture history as a definitive contradiction, and keep the check warning-level because history can be
+        incomplete or uncertain.
+  - version: 1.3.0
+    generated_on: 2026-09-29
+    changes:
+      - Required every RESIGHTINGS row with normalized rclass H to use age C; the existing age-C sex U rule remains save-blocking.
+      - Made blank, whitespace-only, and textual NA values in the six core H fields count as missing in the H mandatory-field check.
+      - Revised the unlinked-H nest_id exception so a blank nest_id is allowed only with the mandatory GPS pair plus either a nonblank H ring or a same-session age-A event at the same GPS pair with LL and LR recorded.
+      - Added save-blocking H chick band-layout checks for the M band on UL/UR and the single colour band on LL/LR.
+      - Extended positive-nest RESIGHTINGS chronology to accept the first same-day-or-earlier NESTS event with nest_state F, I, or H.
+  - version: 1.2.9
+    generated_on: 2026-09-29
+    changes:
+      - Extended NEST_W002 so a blank clutch_size is also flagged when hatch_state is populated and contains N, even when no photo fields are entered.
+  - version: 1.2.8
+    generated_on: 2026-09-29
+    changes:
+      - Added warning rule NEST_W002 to flag a blank clutch_size when NESTS photo flags or photo metadata indicate that nest or tent photographs were collected.
+      - Kept the rule warning-level so photo evidence prompts correction without blocking unusual but possible records; the existing NESTS photo metadata and clutch_size format rules remain unchanged.
+  - version: 1.2.7
+    generated_on: 2026-09-29
+    changes:
+      - Clarified CAP_013 handling for status R rows whose entered input mark differs from the corresponding release mark: when the ring is present in CAPTURES_ARCHIVE or current-season CAPTURES history, the save-blocking message directs the fieldworker to change capture_status to C.
+      - Preserved the generic status-R mismatch error when prior ring history is unavailable, and retained the independent requirement that statuses R and C contain complete input and release mark positions.
+  - version: 1.2.6
+    generated_on: 2026-09-28
+    changes:
+      - Added warning rule CAP_W013 to flag in situ, insitu, and in-situ wording in CAPTURES.comments when age is C and direct the fieldworker to record hiding-spot photos as a separate RESIGHTINGS rclass H event.
+  - version: 1.2.5
+    generated_on: 2026-09-28
+    changes:
+      - Required every RESIGHTINGS row with normalized rclass H to carry both direct gps_id and gps_point, including positive nest-linked H rows; ordinary positive nest-linked non-H rows retain the established nest-location branch.
+      - Added the H-specific fieldworker-facing GPS message while retaining GPS_POINTS pair validation and the existing H ring and photo metadata requirements.
+  - version: 1.2.4
+    generated_on: 2026-09-28
+    changes:
+      - Removed the automatic live NESTS bird_inc-versus-RESIGHTINGS comparison because RESIGHTINGS has no event-time field and same-date nest/observer/GPS matches do not prove that two rows describe the same visit.
+      - Retained the approved bird_inc code-set validation and documented exact-event comparison as manual or future post-save QA only.
+  - version: 1.2.3
+    generated_on: 2026-09-28
+    changes:
+      - Removed the exact same-day H-visit chick-event count from the live NESTS warning inspector because CAPTURES and RESIGHTINGS may be entered later or in separate portal sessions.
+      - Retained chick-linkage review as post-save QA, where later age-C CAPTURES or RESIGHTINGS are considered and the check never blocks the original NESTS save.
+      - Kept non-negative whole-number brood_size validation and all nest-state chronology rules unchanged.
+  - version: 1.2.2
+    generated_on: 2026-09-28
+    changes:
+      - Allowed WRYB in the NESTS species code list for mixed-species Cass River nest records.
+      - Added the Cass River WRYB positive nest_id pattern WR + two-digit gps_id + two-digit sequence, while retaining the existing BADO A/B/C pattern and non-Cass BADO BA pattern.
+      - Clarified that this is a NESTS-specific species and identifier exception; it does not silently broaden unrelated table-specific species policies.
+  - version: 1.2.1
+    generated_on: 2026-09-27
+    changes:
+      - Added the nullable RESIGHTINGS.ring field to the protocol target columns and made a nonblank normalized ring value a save-blocking requirement whenever normalized rclass is H.
+      - Clarified that the H-class ring is the metal-ring code for the hiding-spot-photo individual, is reported on variable ring, and does not replace UL, LL, UR, or LR.
+      - Kept ring nullable for all other RESIGHTINGS classes and deliberately added no CAPTURES-specific ring regex or live cross-table ring-consistency error.
+  - version: 1.2.0
+    generated_on: 2026-09-27
+    changes:
+      - Defined negative nest_ids as operational brood identifiers for broods of unknown origin: no eggs were observed, no nest was found, and no stationary nest location is known.
+      - Required negative-ID CAPTURES and RESIGHTINGS rows to carry the negative nest_id together with both gps_id and gps_point, with the pair validated against GPS_POINTS; GPS does not conflict with a negative brood ID.
+      - Allowed the first negative-brood event to be either CAPTURES or RESIGHTINGS and required one row per observed or captured individual, including repeated X-X rows for unbanded parents or chicks.
+      - Clarified that negative IDs are invalid in NESTS and EGGS and that NESTS must direct observed birds to RESIGHTINGS or captured birds to CAPTURES.
+      - Made H-class RESIGHTINGS the hiding-spot photo record and limited CAPTURES chick_hide_photo to blank or 0 while retaining chick_tent_photo for tent photos.
+      - Removed the mock-only assumption that negative broods normally start in CAPTURES.
+  - version: 1.1.5
+    generated_on: 2026-09-25
+    changes:
+      - Made CAPTURES location fields mutually exclusive: a real nest-linked capture uses nest_id without gps_id/gps_point, while an unlinked capture uses both gps_id and gps_point without a real nest_id.
+      - Kept NO_NEST as the explicit unlinked-capture sentinel, which belongs to the GPS branch rather than counting as a biological nest link.
+  - version: 1.1.4
+    generated_on: 2026-09-25
+    changes:
+      - Allowed an otherwise-unlinked RESIGHTINGS chick row with rclass H to omit nest_id when both GPS fields and an informative leg-mark/ring code are entered.
+      - Clarified that the H-chick identity exception used an informative value in UL, LL, UR, or LR rather than an X/M-only placeholder; the later RESIGHTINGS.ring field and H-class ring requirement are documented in protocol 1.2.1.
+  - version: 1.1.3
+    generated_on: 2026-09-25
+    changes:
+      - Allowed one final notA closure with clutch_size 0 and brood_size greater than 0 immediately after a terminal H row with clutch_size 0 and brood_size greater than 0.
+      - Clarified that this post-hatch notA closure may follow hiding-spot work recorded in RESIGHTINGS and does not require an intervening D row.
+      - Updated the NESTS warning rule so this valid terminal-H-to-notA sequence is not flagged by the no-eggs-with-chicks review.
+  - version: 1.1.2
+    generated_on: 2026-09-24
+    changes:
+      - Made CAPTURES tag_action field requirements explicit for D, R, S, and N records.
+      - Added chronological CAPTURES tag lifecycle validation across saved rows and the current paste session.
+      - Prevented active tags from being redeployed, required S and R tags to be active on the same ring, and required N replacements to remove an active previously deployed tag from that ring.
+      - Allowed a tag_id to be deployed again only after an earlier R retrieval recorded that tag in tag_id_in.
+      - Required the release tag in an N event to be globally new within current-season CAPTURES history.
+  - version: 1.1.1
+    generated_on: 2026-09-23
+    changes:
+      - Defined an H row with clutch_size 0 and brood_size greater than 0 as the one terminal hatch visit for a nest history.
+      - Allowed repeated non-terminal H visits while eggs remain, but prohibited any later H visit after the first terminal H row.
+      - Required warning-level cross-table review that each H visit with chicks has at least one same-day chick CAPTURES or RESIGHTINGS row per chick.
+      - Retained chick-event linkage as a warning rather than a save blocker because linked table records may be entered in separate portal sessions.
+  - version: 1.1.0
+    generated_on: 2026-09-22
+    changes:
+      - Synchronized the official protocol and local mirror to the current per-table hard and warning inspector exports.
+      - Documented the current portal output contract: rowid, variable, and reason are displayed; a type column is not currently surfaced.
+      - Reconciled EGGS event matching, hard egg_id checks, and mock-only float-timing expectations.
+      - Reconciled NESTS opening-state, GPS-on-first-event, one-F, tally, notA, pD, clutch, bird_inc, hatch-state, and photo-event semantics.
+      - Reconciled CAPTURES schema assumptions, conditional GPS requirements, ring format, photo coherence, NO_NEST, archive-aware identity checks, and current marking rules.
+      - Reconciled RESIGHTINGS conditional GPS requirements, partial-mark history matching, nest linkage, social-parent review, pre-discovery, and dead-after-death rules.
+      - Reconciled RESIGHTINGS_PUBLIC source, tibia-placement, and partial-mark history behavior.
+      - Removed stale live-warning semantics that are now mock-only or no longer implemented.
+
+severity_definitions:
+  error: Block save. Entry must be corrected before commit.
+  warning: Allow manual review or save-with-review depending on portal design.
+  post_save_qa: Do not block a single row save. Run after save or on table refresh.
+  mock_generation_only: Distributional target used only to shape or audit mock data generation; never implement as a live data-entry validator, warning, or post-save portal rule.
+
+mock_generation_only_contract:
+  applies_to_sections:
+    - mock_generation_only_rules
+    - season_qc_targets
+  classification: mock_generation_only
+  use_for_live_dataentry_validation: false
+  use_for_save_blocking_validation: false
+  use_for_warning_validation: false
+  use_for_post_save_portal_validation: false
+  use_for_mock_generation_qc_only: true
+  ignore_when_validating_real_data_entry: true
+  description: >
+    Any content stored under mock_generation_only_rules or season_qc_targets is mock-data-generation
+    metadata only. These sections exist to shape or audit simulated datasets and must not be translated
+    into live portal validators, warning rules, save blockers, or post-save checks for manually entered
+    field data.
+
+dataentry_contract:
+  runtime_table_symbol: x
+  return_columns_required:
+    - rowid
+    - variable
+    - reason
+  portal_display_columns:
+    - variable
+    - reason
+    - rowid
+  visible_type_column: false
+  severity_carrier: Separate TABLE_hard and TABLE_warning inspector rows and the matching hard_rules / warning_rules protocol sections.
+  reason_message_convention: >
+    Store concise fieldworker-facing reasons without ERROR: or WARNING: prefixes. Current inspector wrappers
+    remove stale severity prefixes and append a polite request to double-check the entry and add a validator
+    bypass comment when the unusual value is genuinely correct.
+  no_issue_return: Return zero rows with the same required columns.
+  wrapper_function: try_validator
+  wrapper_argument: nam
+  inspector_container: list
+  preserve_rowid_when_subsetting: true
+  preferred_builtin_patterns:
+    missing_required_fields: is.na_validator
+    allowed_value_sets: is.element_validator
+    duplicates_against_reference: is.duplicate_validator
+    regex_checks: is.regexp_validator
+  preferred_custom_patterns:
+    row_logic: "{ ... return data.table(rowid, variable, reason) ... }"
+    grouped_logic_current_table: "{ z <- copy(x); ... }"
+    cross_table_archive_logic: "{ z <- copy(x); archive <- ...; current_other_table <- ...; ... }"
+  implementation_principles:
+    - Use local helper objects inside curly braces so validators remain self-contained.
+    - Load reference tables explicitly rather than assuming they are attached.
+    - Implement exact-column validation before behavioural validation.
+    - Separate save blockers from season-level QA targets.
+    - Organize live save-time inspectors into only two categories: TABLE_hard and TABLE_warning.
+    - Reassign any legacy TABLE_format_residual rules into either hard_rules or warning_rules.
+
+execution_order:
+  - Validate column presence and allowed value sets.
+  - Validate row-level missingness and within-row coherence.
+  - Validate grouped rules within the current table.
+  - Validate cross-table rules using current-season companion tables.
+  - Validate archive-dependent rules using historical BADOatNZ tables.
+  - Run post-save QA summaries for distributional targets.
+
+target_tables:
+  OBSERVERS:
+    columns: [name, observer, start, stop, gps_id, cam_id, nznbbs_number]
+  EGGS:
+    columns: [species, observer, date, time_visit, nest_id, egg_id, float_angle, float_surface, float_location, cam_id, photo_start, photo_end, harddrive_id, comments, nov]
+  NESTS:
+    columns: [species, site, date, time_visit, observer, nest_id, nest_state, hatch_state, bird_inc, gps_id, gps_point, clutch_size, brood_size, cam_id, photo_start, photo_end, nest_photo, tent_photo, comments, nov]
+  CAPTURES:
+    columns: [date, caught, released, species, site, book_id, form_id, observer, capture_status, capture_method, nest_id, caught_with, parents, gps_id, gps_point, eggs_handled, field_sex, age, ring, UL_in, LL_in, UR_in, LR_in, UL, LL, UR, LR, tarsus, culmen, total_head, head_white, head_black, rufous_band, wing, brood_patch, weight, wt_w_tag, moult_left, moult_right, fat, breast_samp, primary_samp, blood_samp, other_sample, feather_wear, tag_id_in, tag_id, tag_type, tag_action, cam_id, photo_start, photo_end, mugshot_photo, wing_photo, chick_tent_photo, chick_hide_photo, comments, falcon_upload, observer_upload, nov]
+  RESIGHTINGS:
+    columns: [species, observer, gps_id, gps_point, date, site, rclass, UL, LL, UR, LR, ring, sex, age, behav, nest_id, cam_id, photo_start, photo_end, comments, falcon_upload, nov]
+  RESIGHTINGS_PUBLIC:
+    columns: [species, observer, time, date, latitude, longitude, easting, northing, sex, UL, LL, UR, LR, behav, num_photos, source, source_identifier, country, site, comments_obs, comments_db, falcon_upload, nov]
+
+runtime_dependencies:
+  required_reference_tables:
+    OBSERVERS:
+      key_fields: [observer]
+      required_fields: [observer, name, start, stop, gps_id, cam_id, nznbbs_number]
+    GPS_POINTS:
+      purpose: Required to confirm that any entered gps_id / gps_point event location was uploaded from the handheld GPS before event entry.
+      minimum_fields: [gps_id, gps_point, datetime_]
+    CAPTURES_ARCHIVE:
+      purpose: Historical combo validation, morphometric range derivation, prior marked individual lookup.
+      minimum_fields: [date, ring, capture_status, age, nest_id, UL, LL, UR, LR, field_sex, tag_id]
+    NESTS:
+      purpose: Required for EGGS matching, CAPTURES age-stage logic, and RESIGHTINGS brood logic.
+      minimum_fields: [nest_id, date, time_visit, observer, nest_state, hatch_state, clutch_size, brood_size]
+    EGGS:
+      purpose: Required for NESTS event matching and hatch-state float logic.
+      minimum_fields: [nest_id, date, time_visit, observer, egg_id, float_angle, float_surface, float_location, comments]
+    CAPTURES:
+      purpose: Required for RESIGHTINGS combo provenance and brood logic.
+      minimum_fields: [date, caught, species, site, nest_id, age, capture_status, ring, UL, LL, UR, LR, chick_tent_photo, chick_hide_photo]
+    RESIGHTINGS:
+      purpose: Required for CAPTURES chick photo logic and optional for manual or post-save NESTS bird_inc review.
+      minimum_fields: [date, gps_id, gps_point, nest_id, age, rclass, UL, LL, UR, LR, sex]
+      conditional_fields: [ring when rclass is H]
+
+global_context:
+  fieldseason:
+    start: 2026-07-01
+    end: 2027-07-31
+  allowed_species: [BADO, WRYB]
+  allowed_sites:
+    - AR
+    - AU
+    - CH
+    - CL
+    - CR
+    - HC
+    - HR
+    - KK
+    - KP
+    - KT
+    - MB
+    - MR
+    - MS
+    - OD
+    - OK
+    - OM
+    - PB
+    - PR
+    - TA
+    - TO
+    - TP
+    - TR
+    - TS
+    - WA
+    - WN
+    - WS
+  all_falcon_upload_must_be_na: false
+  all_nov_must_be_na: true
+  positive_nest_regex_cr: "^[ABC](0[1-9]|[1-9][0-9])(0[1-9]|[1-9][0-9])$"
+  positive_nest_regex_cr_wryb: "^WR(0[1-9]|[1-9][0-9])(0[1-9]|[1-9][0-9])$"
+  positive_nest_regex_non_cr: "^BA(0[1-9]|[1-9][0-9])(0[1-9]|[1-9][0-9])$"
+  negative_brood_nest_regex_cr: "^-[ABC](0[1-9]|[1-9][0-9])(0[1-9]|[1-9][0-9])$"
+  negative_brood_nest_regex: "^-BA(0[1-9]|[1-9][0-9])(0[1-9]|[1-9][0-9])$"
+  cr_plot_assignment:
+    description: >
+      In mock data, the Cass River plot letter in nest_id must be assigned from the
+      supplied A/B/C polygons rather than arbitrarily. The same CR nest_id must then be
+      propagated consistently across NESTS, EGGS, CAPTURES, and RESIGHTINGS.
+    positive_nest_anchor_rule: >
+      For positive CR nest_ids, use the first NESTS row with non-missing gps_id and
+      gps_point as the nest-location anchor.
+    negative_brood_anchor_rule: >
+      For negative brood-only CR nest_ids, use the earliest current-season CAPTURES or
+      RESIGHTINGS row with non-missing gps_id and gps_point as the brood-location anchor.
+    fallback_rule: >
+      If the anchor point falls outside all three polygons, assign the plot letter from the
+      nearest polygon boundary to that anchor point rather than from off-nest captures or
+      resightings, which may occur away from the nest itself.
+    polygons_wkt:
+      A: "POLYGON ((170.4691 -43.87211, 170.4691 -43.87213, 170.46905 -43.8722, 170.46901 -43.87229, 170.46897 -43.87238, 170.46897 -43.87247, 170.46895 -43.87252, 170.46895 -43.87261, 170.46894 -43.8727, 170.46894 -43.87276, 170.46892 -43.87283, 170.46892 -43.8729, 170.4689 -43.87297, 170.46888 -43.87306, 170.46889 -43.87313, 170.46884 -43.87319, 170.46885 -43.87328, 170.4688 -43.87333, 170.46881 -43.87342, 170.46879 -43.87349, 170.46877 -43.87356, 170.46882 -43.87362, 170.46892 -43.87363, 170.46901 -43.87367, 170.46911 -43.87369, 170.46921 -43.87369, 170.46936 -43.8737, 170.46945 -43.87372, 170.46955 -43.87372, 170.4697 -43.87376, 170.46984 -43.87377, 170.47001 -43.87379, 170.47013 -43.87382, 170.47023 -43.87384, 170.4704 -43.87386, 170.4705 -43.87386, 170.47059 -43.87388, 170.47069 -43.87389, 170.47091 -43.87389, 170.47105 -43.87389, 170.47115 -43.87387, 170.47127 -43.87385, 170.47136 -43.87384, 170.47158 -43.87383, 170.47173 -43.87383, 170.47187 -43.87382, 170.47202 -43.87381, 170.47204 -43.8738, 170.47216 -43.8738, 170.47228 -43.87378, 170.47238 -43.87378, 170.4725 -43.87374, 170.47262 -43.87372, 170.47274 -43.87369, 170.47286 -43.87367, 170.47301 -43.87363, 170.47308 -43.87361, 170.4732 -43.8736, 170.4733 -43.8736, 170.47344 -43.87361, 170.47354 -43.87363, 170.47369 -43.87363, 170.47381 -43.87363, 170.47391 -43.87365, 170.4741 -43.87367, 170.47447 -43.87368, 170.47462 -43.8737, 170.47467 -43.87372, 170.47482 -43.87372, 170.47494 -43.87372, 170.47504 -43.87372, 170.47519 -43.87372, 170.47526 -43.87372, 170.47541 -43.87372, 170.47555 -43.87374, 170.47565 -43.87374, 170.47578 -43.87375, 170.4759 -43.87379, 170.47605 -43.87381, 170.47607 -43.87382, 170.47632 -43.87386, 170.47637 -43.87388, 170.47654 -43.8739, 170.47669 -43.87391, 170.47679 -43.87393, 170.47691 -43.87395, 170.47703 -43.87395, 170.47718 -43.87398, 170.4773 -43.874, 170.4774 -43.87402, 170.4776 -43.87407, 170.4777 -43.87411, 170.47777 -43.87415, 170.4779 -43.87422, 170.47799 -43.87429, 170.47804 -43.87434, 170.47809 -43.87441, 170.47819 -43.87448, 170.47829 -43.87454, 170.47842 -43.87459, 170.47852 -43.87466, 170.47861 -43.8747, 170.47874 -43.8747, 170.47886 -43.87473, 170.47896 -43.87475, 170.47908 -43.87477, 170.4792 -43.8748, 170.4793 -43.87486, 170.47937 -43.87491, 170.47942 -43.87498, 170.47947 -43.87503, 170.47962 -43.87507, 170.47979 -43.87511, 170.48001 -43.87514, 170.48018 -43.87518, 170.4803 -43.87519, 170.48045 -43.87523, 170.4805 -43.87525, 170.48065 -43.8753, 170.48072 -43.87534, 170.48089 -43.87541, 170.48099 -43.87546, 170.48109 -43.87551, 170.48118 -43.87556, 170.48126 -43.8756, 170.4814 -43.87565, 170.48153 -43.87569, 170.48157 -43.87569, 170.48167 -43.87569, 170.48182 -43.87567, 170.48192 -43.87567, 170.48209 -43.87567, 170.48213 -43.87565, 170.48233 -43.87565, 170.4825 -43.87565, 170.48257 -43.87563, 170.48272 -43.87563, 170.48279 -43.87562, 170.48291 -43.87558, 170.48301 -43.87555, 170.48316 -43.87549, 170.48323 -43.87546, 170.48335 -43.87542, 170.48343 -43.87542, 170.48353 -43.87541, 170.48365 -43.87539, 170.48377 -43.87539, 170.48389 -43.87537, 170.48404 -43.87537, 170.48409 -43.87537, 170.48423 -43.87537, 170.48431 -43.87537, 170.48443 -43.87537, 170.48453 -43.87535, 170.48467 -43.87534, 170.48472 -43.87534, 170.48484 -43.87532, 170.48494 -43.87528, 170.48504 -43.87523, 170.48516 -43.87519, 170.48524 -43.87516, 170.48536 -43.87516, 170.4855 -43.87519, 170.48565 -43.87519, 170.48575 -43.87519, 170.48587 -43.87521, 170.48597 -43.87519, 170.48611 -43.87518, 170.48619 -43.87516, 170.48633 -43.87514, 170.48653 -43.87511, 170.48668 -43.87509, 170.48678 -43.87509, 170.4869 -43.87516, 170.48697 -43.87521, 170.48714 -43.87532, 170.48721 -43.87537, 170.48726 -43.87539, 170.48735 -43.87542, 170.48745 -43.87542, 170.48757 -43.87542, 170.4877 -43.87542, 170.48782 -43.87544, 170.48794 -43.87541, 170.48809 -43.87532, 170.48816 -43.87528, 170.48824 -43.87523, 170.48826 -43.87519, 170.48829 -43.87511, 170.48832 -43.87502, 170.48839 -43.87495, 170.48859 -43.87488, 170.48866 -43.87484, 170.48866 -43.87479, 170.48857 -43.87473, 170.48845 -43.8747, 170.48835 -43.87468, 170.48823 -43.87465, 170.48816 -43.87461, 170.48808 -43.87456, 170.48799 -43.87452, 170.48784 -43.87445, 170.48777 -43.8744, 170.4877 -43.87436, 170.48758 -43.87429, 170.48746 -43.87422, 170.48743 -43.8742, 170.48731 -43.87413, 170.48722 -43.87408, 170.48709 -43.874, 170.487 -43.87395, 170.48692 -43.87393, 170.4868 -43.8739, 170.4867 -43.87392, 170.48656 -43.87392, 170.48638 -43.8739, 170.48631 -43.87388, 170.48619 -43.87385, 170.48616 -43.87383, 170.48609 -43.87379, 170.48602 -43.87372, 170.48595 -43.87367, 170.4859 -43.87359, 170.48588 -43.87352, 170.48585 -43.87347, 170.48585 -43.87336, 170.48585 -43.87329, 170.48583 -43.8732, 170.48581 -43.87313, 170.48578 -43.87306, 170.48576 -43.87299, 170.48574 -43.87291, 170.48571 -43.87284, 170.48562 -43.87279, 170.48547 -43.87275, 170.48535 -43.8727, 170.48517 -43.87265, 170.48512 -43.87261, 170.485 -43.87257, 170.4849 -43.87252, 170.48478 -43.87247, 170.48468 -43.87243, 170.48458 -43.87241, 170.48446 -43.87236, 170.48441 -43.87234, 170.48424 -43.87231, 170.48409 -43.87225, 170.48399 -43.87221, 170.48385 -43.87216, 170.48377 -43.87212, 170.48363 -43.87203, 170.4835 -43.87198, 170.48335 -43.87191, 170.48321 -43.87187, 170.48306 -43.87182, 170.48296 -43.87176, 170.48286 -43.87169, 170.48279 -43.8716, 170.48271 -43.87153, 170.48261 -43.87149, 170.48247 -43.87147, 170.48239 -43.87144, 170.48224 -43.87144, 170.48209 -43.87142, 170.482 -43.87138, 170.48187 -43.87134, 170.48167 -43.87131, 170.48155 -43.87127, 170.4814 -43.8712, 170.48135 -43.87118, 170.48125 -43.87113, 170.48113 -43.87107, 170.48098 -43.87105, 170.48088 -43.87103, 170.48073 -43.87101, 170.48063 -43.87098, 170.48056 -43.87092, 170.48046 -43.87087, 170.48038 -43.8708, 170.48028 -43.87074, 170.48021 -43.87069, 170.48011 -43.87062, 170.48001 -43.87058, 170.47989 -43.87053, 170.47976 -43.87049, 170.47966 -43.87047, 170.47954 -43.87043, 170.47941 -43.87042, 170.47934 -43.8704, 170.47919 -43.87036, 170.47906 -43.87033, 170.47899 -43.87029, 170.47889 -43.87027, 170.47877 -43.87023, 170.47864 -43.87021, 170.47852 -43.87018, 170.47832 -43.87012, 170.47822 -43.87008, 170.47814 -43.87007, 170.47801 -43.87004, 170.47786 -43.87004, 170.47771 -43.87004, 170.47761 -43.87002, 170.47744 -43.87002, 170.47726 -43.87002, 170.47721 -43.87, 170.47701 -43.87, 170.47691 -43.87, 170.47676 -43.86998, 170.47659 -43.86998, 170.47644 -43.86996, 170.47629 -43.86996, 170.47613 -43.86994, 170.47601 -43.86994, 170.47591 -43.86994, 170.47573 -43.86992, 170.47561 -43.86992, 170.47546 -43.86992, 170.47536 -43.86992, 170.47521 -43.86992, 170.47511 -43.8699, 170.47493 -43.8699, 170.47483 -43.8699, 170.47466 -43.8699, 170.47463 -43.86992, 170.47453 -43.86992, 170.47438 -43.86992, 170.47423 -43.86992, 170.47408 -43.86992, 170.47393 -43.86993, 170.47383 -43.86993, 170.47373 -43.86993, 170.47358 -43.86995, 170.47346 -43.86997, 170.47334 -43.86999, 170.47319 -43.87003, 170.47306 -43.87005, 170.47296 -43.87008, 170.47287 -43.87012, 170.47277 -43.87016, 170.47267 -43.87019, 170.47255 -43.87027, 170.47248 -43.8703, 170.47238 -43.87034, 170.47226 -43.8704, 170.47218 -43.87044, 170.47209 -43.87047, 170.47202 -43.87057, 170.47188 -43.87066, 170.47178 -43.87066, 170.47173 -43.87066, 170.4716 -43.87068, 170.47153 -43.87068, 170.47138 -43.87072, 170.47126 -43.87074, 170.47124 -43.87074, 170.47112 -43.87079, 170.47102 -43.87083, 170.47092 -43.87087, 170.47083 -43.87089, 170.47068 -43.87093, 170.47056 -43.87095, 170.47049 -43.87095, 170.47039 -43.87096, 170.4703 -43.87098, 170.4702 -43.87102, 170.47013 -43.8711, 170.47006 -43.87117, 170.46997 -43.87126, 170.46986 -43.87134, 170.46979 -43.87139, 170.46969 -43.87145, 170.46957 -43.8715, 170.4695 -43.87156, 170.46943 -43.8716, 170.46937 -43.87169, 170.46932 -43.87173, 170.46925 -43.87182, 170.46907 -43.87209, 170.4691 -43.87211))"
+      B: "POLYGON ((170.46828 -43.87507, 170.46834 -43.87512, 170.46839 -43.87513, 170.46846 -43.87515, 170.46854 -43.87519, 170.46864 -43.87521, 170.46873 -43.87523, 170.46881 -43.87526, 170.46885 -43.87528, 170.46893 -43.8753, 170.46901 -43.87532, 170.4691 -43.87535, 170.4692 -43.87539, 170.46928 -43.87541, 170.4694 -43.87545, 170.46944 -43.87546, 170.46952 -43.87548, 170.46961 -43.87551, 170.46969 -43.87555, 170.46984 -43.87559, 170.46986 -43.8756, 170.46994 -43.87562, 170.47002 -43.87564, 170.47007 -43.87566, 170.47016 -43.8757, 170.47024 -43.87572, 170.47029 -43.87573, 170.47037 -43.87575, 170.47042 -43.87577, 170.47053 -43.8758, 170.47057 -43.87582, 170.47063 -43.87584, 170.4707 -43.87586, 170.47078 -43.8759, 170.47088 -43.87593, 170.47099 -43.87597, 170.47111 -43.87602, 170.47123 -43.87606, 170.47139 -43.87611, 170.4715 -43.87615, 170.4716 -43.87619, 170.47168 -43.87622, 170.47181 -43.87626, 170.47191 -43.87629, 170.47194 -43.8763, 170.47205 -43.87633, 170.47214 -43.87635, 170.47222 -43.87639, 170.47233 -43.87642, 170.47241 -43.87644, 170.47251 -43.87646, 170.47259 -43.87648, 170.47265 -43.8765, 170.47272 -43.87652, 170.47278 -43.87653, 170.47286 -43.87654, 170.47292 -43.87656, 170.47316 -43.87663, 170.47324 -43.87665, 170.47332 -43.87666, 170.47343 -43.87666, 170.47349 -43.87667, 170.47357 -43.8767, 170.47365 -43.87672, 170.47373 -43.87675, 170.47381 -43.8768, 170.47389 -43.87682, 170.47397 -43.87684, 170.47408 -43.87688, 170.47417 -43.87691, 170.47424 -43.87693, 170.47434 -43.87698, 170.47444 -43.87701, 170.47449 -43.87703, 170.47458 -43.87707, 170.47467 -43.8771, 170.47473 -43.87714, 170.47487 -43.87718, 170.47492 -43.8772, 170.47505 -43.87723, 170.47513 -43.87726, 170.47525 -43.87729, 170.47536 -43.87731, 170.47547 -43.87734, 170.47555 -43.87737, 170.4756 -43.87738, 170.47567 -43.8774, 170.47575 -43.87744, 170.47589 -43.87747, 170.47602 -43.87749, 170.47613 -43.87752, 170.4762 -43.87755, 170.47631 -43.87758, 170.47641 -43.87761, 170.4765 -43.87763, 170.47658 -43.87764, 170.47665 -43.87767, 170.47672 -43.87768, 170.47678 -43.8777, 170.47687 -43.87774, 170.47695 -43.87776, 170.47704 -43.87779, 170.47709 -43.8778, 170.47717 -43.87781, 170.47721 -43.87784, 170.47729 -43.87787, 170.47745 -43.87797, 170.4775 -43.87797, 170.47757 -43.87795, 170.47763 -43.87796, 170.47768 -43.87798, 170.47772 -43.87799, 170.47778 -43.87802, 170.47791 -43.87803, 170.47797 -43.87805, 170.47804 -43.87806, 170.47815 -43.87809, 170.47816 -43.8781, 170.47829 -43.87812, 170.47835 -43.87814, 170.4785 -43.87816, 170.47859 -43.87819, 170.47871 -43.87822, 170.47876 -43.87823, 170.47885 -43.87826, 170.47894 -43.87829, 170.479 -43.87831, 170.47909 -43.87833, 170.4791 -43.87834, 170.47918 -43.87836, 170.47926 -43.87839, 170.47936 -43.87842, 170.47945 -43.87845, 170.47953 -43.87847, 170.47959 -43.87849, 170.47963 -43.8785, 170.47969 -43.87852, 170.47978 -43.87855, 170.47989 -43.87858, 170.47996 -43.87859, 170.48001 -43.8786, 170.48014 -43.87862, 170.48023 -43.87864, 170.48027 -43.87865, 170.48033 -43.87867, 170.48041 -43.87868, 170.48045 -43.87872, 170.4805 -43.87876, 170.48055 -43.8788, 170.4806 -43.8788, 170.48065 -43.8788, 170.48062 -43.87883, 170.48059 -43.87887, 170.48055 -43.87892, 170.48052 -43.87895, 170.48057 -43.87908, 170.48054 -43.87909, 170.48051 -43.87914, 170.48047 -43.87921, 170.48044 -43.87925, 170.48042 -43.8793, 170.48039 -43.87935, 170.48035 -43.87942, 170.48031 -43.87946, 170.48028 -43.87951, 170.48024 -43.87957, 170.4802 -43.87961, 170.48016 -43.87965, 170.48011 -43.87972, 170.48006 -43.87978, 170.48003 -43.87983, 170.47998 -43.87989, 170.47996 -43.87991, 170.47994 -43.87996, 170.4799 -43.88002, 170.47987 -43.88007, 170.47984 -43.8801, 170.47982 -43.88015, 170.47979 -43.88019, 170.47974 -43.88025, 170.47968 -43.88032, 170.47967 -43.88034, 170.4796 -43.88041, 170.47953 -43.88048, 170.47947 -43.88056, 170.47941 -43.88063, 170.47937 -43.88069, 170.47933 -43.88074, 170.47929 -43.88077, 170.47925 -43.88084, 170.47924 -43.8809, 170.47925 -43.88096, 170.47926 -43.88099, 170.47932 -43.88105, 170.47935 -43.88108, 170.4794 -43.88112, 170.47947 -43.88114, 170.47959 -43.88118, 170.47972 -43.88124, 170.47977 -43.88127, 170.47987 -43.88133, 170.47993 -43.88136, 170.48003 -43.88141, 170.48009 -43.88144, 170.48025 -43.88151, 170.4804 -43.88155, 170.48044 -43.88155, 170.48057 -43.88153, 170.48068 -43.88152, 170.48079 -43.88151, 170.48085 -43.88151, 170.48099 -43.8815, 170.48109 -43.88151, 170.48113 -43.88151, 170.48123 -43.88152, 170.4813 -43.88154, 170.48137 -43.88157, 170.4814 -43.88158, 170.48145 -43.8816, 170.48152 -43.88163, 170.48162 -43.88163, 170.48166 -43.88163, 170.48172 -43.88162, 170.48179 -43.88161, 170.48184 -43.88161, 170.4819 -43.88161, 170.48201 -43.88161, 170.48214 -43.8816, 170.48222 -43.8816, 170.48228 -43.88163, 170.4823 -43.88163, 170.48255 -43.88165, 170.48269 -43.88167, 170.48282 -43.88168, 170.48294 -43.88169, 170.48306 -43.88169, 170.48318 -43.88168, 170.48324 -43.88167, 170.48329 -43.88166, 170.48336 -43.88164, 170.48342 -43.88162, 170.48353 -43.88158, 170.48364 -43.88156, 170.48371 -43.88153, 170.48381 -43.88152, 170.48391 -43.8815, 170.48398 -43.88149, 170.48403 -43.88148, 170.48409 -43.88147, 170.48417 -43.88147, 170.48427 -43.88147, 170.48431 -43.88148, 170.48442 -43.88149, 170.48454 -43.88151, 170.48459 -43.88152, 170.48467 -43.88153, 170.48479 -43.88154, 170.48502 -43.88157, 170.48506 -43.88158, 170.48513 -43.88159, 170.48524 -43.88158, 170.48526 -43.88158, 170.48535 -43.88157, 170.48541 -43.88156, 170.48547 -43.88152, 170.48551 -43.88147, 170.48557 -43.88142, 170.48565 -43.88136, 170.4857 -43.8813, 170.48577 -43.88122, 170.48581 -43.88118, 170.48588 -43.88113, 170.48594 -43.88108, 170.48602 -43.88103, 170.48602 -43.88101, 170.48608 -43.88098, 170.4861 -43.88099, 170.48618 -43.88095, 170.48624 -43.88078, 170.48629 -43.88071, 170.48633 -43.88061, 170.48636 -43.88056, 170.48641 -43.88046, 170.48647 -43.88032, 170.48652 -43.88024, 170.48657 -43.88015, 170.48661 -43.88009, 170.48669 -43.87999, 170.48677 -43.87987, 170.4868 -43.87982, 170.48685 -43.87977, 170.48691 -43.87971, 170.48693 -43.87968, 170.48696 -43.87964, 170.48705 -43.87961, 170.48718 -43.87957, 170.48721 -43.87954, 170.48726 -43.87947, 170.48731 -43.87937, 170.48733 -43.87936, 170.48738 -43.8793, 170.48742 -43.87926, 170.48747 -43.87923, 170.48751 -43.8792, 170.48756 -43.87916, 170.48761 -43.87912, 170.48764 -43.87908, 170.48767 -43.87905, 170.48772 -43.879, 170.48775 -43.87897, 170.48779 -43.87893, 170.4878 -43.87889, 170.48777 -43.87882, 170.48768 -43.87877, 170.4876 -43.87871, 170.48753 -43.87867, 170.48746 -43.87864, 170.48735 -43.87861, 170.48732 -43.8786, 170.48725 -43.87857, 170.48721 -43.87855, 170.48715 -43.87853, 170.48709 -43.87851, 170.48702 -43.87849, 170.48693 -43.87848, 170.48686 -43.87848, 170.48679 -43.8785, 170.48668 -43.8785, 170.48659 -43.8785, 170.48653 -43.87851, 170.48646 -43.87853, 170.4864 -43.87853, 170.48636 -43.87853, 170.48625 -43.87853, 170.48617 -43.87854, 170.48605 -43.87852, 170.48596 -43.87851, 170.4859 -43.8785, 170.48585 -43.87848, 170.48579 -43.87846, 170.48572 -43.87843, 170.48568 -43.87839, 170.4856 -43.87835, 170.48558 -43.87831, 170.4855 -43.87827, 170.48543 -43.87823, 170.48533 -43.87819, 170.48527 -43.87817, 170.4852 -43.87815, 170.48516 -43.87814, 170.48508 -43.87812, 170.48501 -43.87812, 170.48492 -43.87814, 170.48481 -43.87815, 170.48475 -43.87816, 170.48469 -43.87818, 170.48461 -43.87819, 170.48455 -43.87819, 170.48441 -43.87819, 170.48429 -43.87821, 170.48421 -43.8782, 170.48416 -43.87819, 170.48409 -43.87815, 170.48399 -43.8781, 170.48393 -43.87807, 170.48379 -43.87801, 170.48371 -43.878, 170.48362 -43.87796, 170.48356 -43.87796, 170.48341 -43.87792, 170.48329 -43.87789, 170.48317 -43.87787, 170.48313 -43.87786, 170.48305 -43.87786, 170.48299 -43.87787, 170.48289 -43.87789, 170.48276 -43.87791, 170.48265 -43.87791, 170.48253 -43.87793, 170.48243 -43.87794, 170.48237 -43.87794, 170.48228 -43.87795, 170.4822 -43.87793, 170.4821 -43.87792, 170.48204 -43.87792, 170.48196 -43.8779, 170.48187 -43.87787, 170.48178 -43.87784, 170.48172 -43.87781, 170.48169 -43.87779, 170.48163 -43.87775, 170.48157 -43.87771, 170.48148 -43.87765, 170.48147 -43.87765, 170.48133 -43.87759, 170.48119 -43.87755, 170.48113 -43.87753, 170.48107 -43.87751, 170.48104 -43.8775, 170.48097 -43.87748, 170.48089 -43.87746, 170.48083 -43.87743, 170.48078 -43.87741, 170.48072 -43.87738, 170.48065 -43.87733, 170.48058 -43.8773, 170.48049 -43.87726, 170.48035 -43.87717, 170.48034 -43.87715, 170.48026 -43.87708, 170.48018 -43.87703, 170.48013 -43.87699, 170.48009 -43.87694, 170.47996 -43.87682, 170.47993 -43.87678, 170.47986 -43.8767, 170.47986 -43.87669, 170.47977 -43.87661, 170.47973 -43.87658, 170.47964 -43.8765, 170.47961 -43.87648, 170.47954 -43.87643, 170.4795 -43.87641, 170.47945 -43.87637, 170.47935 -43.8763, 170.47929 -43.87625, 170.47926 -43.87623, 170.47921 -43.87619, 170.47917 -43.87613, 170.47911 -43.87606, 170.47906 -43.876, 170.47899 -43.87594, 170.4789 -43.87589, 170.47886 -43.87586, 170.4788 -43.87583, 170.47871 -43.87584, 170.47866 -43.87586, 170.47857 -43.87587, 170.47849 -43.8759, 170.47843 -43.87591, 170.47836 -43.87594, 170.4783 -43.87596, 170.47825 -43.87597, 170.47814 -43.876, 170.47805 -43.87601, 170.47799 -43.87603, 170.47787 -43.87606, 170.47775 -43.87607, 170.47767 -43.87607, 170.47758 -43.87609, 170.47744 -43.87613, 170.47735 -43.87614, 170.47724 -43.87614, 170.47709 -43.87617, 170.47695 -43.87619, 170.47689 -43.87619, 170.47681 -43.87619, 170.4768 -43.8762, 170.47668 -43.87622, 170.4766 -43.87624, 170.47653 -43.87626, 170.47644 -43.87628, 170.47635 -43.87632, 170.47623 -43.87635, 170.47612 -43.87636, 170.47608 -43.87639, 170.47597 -43.8764, 170.47586 -43.87641, 170.47573 -43.87642, 170.47559 -43.87644, 170.47548 -43.87645, 170.47542 -43.87646, 170.4753 -43.87646, 170.47521 -43.87647, 170.4752 -43.87648, 170.4751 -43.87647, 170.47502 -43.87647, 170.47495 -43.87646, 170.47482 -43.87644, 170.47471 -43.87641, 170.47466 -43.8764, 170.47461 -43.87638, 170.47455 -43.87636, 170.47449 -43.87635, 170.4744 -43.87631, 170.47437 -43.87628, 170.4743 -43.87624, 170.47422 -43.87623, 170.47414 -43.87621, 170.47408 -43.87619, 170.474 -43.87617, 170.47392 -43.87615, 170.47378 -43.87614, 170.4737 -43.87615, 170.47363 -43.87611, 170.47352 -43.87607, 170.47344 -43.87606, 170.47338 -43.87605, 170.47328 -43.87603, 170.4732 -43.87601, 170.47314 -43.87599, 170.47304 -43.87595, 170.47296 -43.87594, 170.47291 -43.87591, 170.47286 -43.8759, 170.47274 -43.87586, 170.47265 -43.87583, 170.4726 -43.8758, 170.4725 -43.87577, 170.47245 -43.87575, 170.47234 -43.87573, 170.47227 -43.87572, 170.47226 -43.87572, 170.47219 -43.8757, 170.47211 -43.87569, 170.47205 -43.87568, 170.47194 -43.87567, 170.47186 -43.87567, 170.4718 -43.87564, 170.4717 -43.87561, 170.47163 -43.87557, 170.47154 -43.87552, 170.47142 -43.87545, 170.47137 -43.87542, 170.47132 -43.87538, 170.47128 -43.87535, 170.47124 -43.87529, 170.47122 -43.87526, 170.47117 -43.87518, 170.47116 -43.87511, 170.47116 -43.87506, 170.47119 -43.87502, 170.47122 -43.87497, 170.47126 -43.87491, 170.47128 -43.87486, 170.47127 -43.8748, 170.47117 -43.87476, 170.47109 -43.87477, 170.47096 -43.87474, 170.47088 -43.87473, 170.47052 -43.87472, 170.47046 -43.87472, 170.4704 -43.87474, 170.47031 -43.87474, 170.47024 -43.87474, 170.47018 -43.87474, 170.47012 -43.87475, 170.47002 -43.87475, 170.46996 -43.87475, 170.46988 -43.87474, 170.46982 -43.87474, 170.46975 -43.87472, 170.46967 -43.8747, 170.4696 -43.87469, 170.46953 -43.87467, 170.46947 -43.87464, 170.4694 -43.87464, 170.46932 -43.87463, 170.46927 -43.87461, 170.4692 -43.87459, 170.46913 -43.87458, 170.46907 -43.87456, 170.46898 -43.87453, 170.46893 -43.87452, 170.46887 -43.87451, 170.4688 -43.8745, 170.46874 -43.87452, 170.46869 -43.87456, 170.46865 -43.8746, 170.46862 -43.87465, 170.4686 -43.8747, 170.46857 -43.87477, 170.46853 -43.87482, 170.46852 -43.87487, 170.46848 -43.87492, 170.46843 -43.87498, 170.46837 -43.87503, 170.46834 -43.87506, 170.46828 -43.87507))"
+      C: "POLYGON ((170.49106 -43.88141, 170.49116 -43.88141, 170.49128 -43.88143, 170.49138 -43.88145, 170.49149 -43.88149, 170.49156 -43.88152, 170.49161 -43.8816, 170.49169 -43.88167, 170.49177 -43.88174, 170.49184 -43.88178, 170.49197 -43.88183, 170.49204 -43.88189, 170.49217 -43.88196, 170.49225 -43.88202, 170.49232 -43.88207, 170.49242 -43.88213, 170.49248 -43.88218, 170.4926 -43.88226, 170.49268 -43.88231, 170.4928 -43.88237, 170.49288 -43.88238, 170.49298 -43.88242, 170.4931 -43.88246, 170.49325 -43.88247, 170.49338 -43.88251, 170.49347 -43.88253, 170.4936 -43.88255, 170.49372 -43.88256, 170.49385 -43.88256, 170.49397 -43.8826, 170.49405 -43.88263, 170.49415 -43.88267, 170.49422 -43.88273, 170.49427 -43.8828, 170.49432 -43.88287, 170.49435 -43.88296, 170.49438 -43.88303, 170.49438 -43.88313, 170.49436 -43.88322, 170.49433 -43.88331, 170.49431 -43.8834, 170.49431 -43.88349, 170.49429 -43.88362, 170.49427 -43.88369, 170.49424 -43.8838, 170.49424 -43.88385, 170.49424 -43.88392, 170.49422 -43.88399, 170.49422 -43.8841, 170.49422 -43.88417, 170.49428 -43.88426, 170.49433 -43.88435, 170.49443 -43.88444, 170.4945 -43.88448, 170.49458 -43.88455, 170.49468 -43.8846, 170.4948 -43.88468, 170.49485 -43.88471, 170.4949 -43.88478, 170.49495 -43.88485, 170.49493 -43.88493, 170.49488 -43.885, 170.49468 -43.88507, 170.49466 -43.88514, 170.49449 -43.88512, 170.49439 -43.88516, 170.49434 -43.88523, 170.49429 -43.88528, 170.49425 -43.88535, 170.49422 -43.88543, 170.4942 -43.88551, 170.49418 -43.88558, 170.49415 -43.88569, 170.49413 -43.88576, 170.49408 -43.88587, 170.49406 -43.88596, 170.49404 -43.88601, 170.49402 -43.88606, 170.49399 -43.88615, 170.49397 -43.88626, 170.49395 -43.88636, 170.49393 -43.88647, 170.49393 -43.88654, 170.49393 -43.88668, 170.49393 -43.88673, 170.49396 -43.88684, 170.49398 -43.88687, 170.49403 -43.88694, 170.49413 -43.887, 170.49423 -43.88705, 170.49435 -43.88714, 170.49443 -43.88719, 170.4945 -43.88722, 170.49457 -43.88728, 170.49462 -43.88735, 170.49467 -43.88742, 170.49472 -43.8875, 170.49477 -43.88757, 170.4948 -43.88766, 170.49482 -43.88773, 170.49485 -43.88782, 170.49485 -43.88789, 170.49485 -43.88797, 170.49483 -43.88806, 170.49485 -43.88813, 170.49488 -43.88822, 170.4949 -43.88829, 170.49495 -43.88837, 170.495 -43.88848, 170.49508 -43.88856, 170.49515 -43.88861, 170.49522 -43.88868, 170.4953 -43.88872, 170.49537 -43.8888, 170.49544 -43.88886, 170.49549 -43.88894, 170.49552 -43.88899, 170.49557 -43.88908, 170.49562 -43.88917, 170.49567 -43.88922, 170.49571 -43.88929, 170.49572 -43.88937, 170.49567 -43.88946, 170.4956 -43.88953, 170.4955 -43.88961, 170.49543 -43.88968, 170.49536 -43.88978, 170.49534 -43.8899, 170.49531 -43.88996, 170.49529 -43.89002, 170.49529 -43.89011, 170.49529 -43.89021, 170.49529 -43.89028, 170.4953 -43.89038, 170.4953 -43.8905, 170.4953 -43.89064, 170.4953 -43.89067, 170.49528 -43.89079, 170.49525 -43.89087, 170.49523 -43.89092, 170.49521 -43.89104, 170.49519 -43.89111, 170.49516 -43.8912, 170.49514 -43.89128, 170.49512 -43.89135, 170.49507 -43.89147, 170.49505 -43.89153, 170.49502 -43.89158, 170.495 -43.89163, 170.49498 -43.89172, 170.49493 -43.89184, 170.49491 -43.89195, 170.49489 -43.89205, 170.49489 -43.89214, 170.49487 -43.89219, 170.49485 -43.89229, 170.49482 -43.89241, 170.4948 -43.89247, 170.49475 -43.89259, 170.49476 -43.89261, 170.49471 -43.89271, 170.49466 -43.89277, 170.49462 -43.89286, 170.49455 -43.89296, 170.49448 -43.89304, 170.49448 -43.89306, 170.49441 -43.89314, 170.49436 -43.89325, 170.49432 -43.89335, 170.49432 -43.89337, 170.4943 -43.89345, 170.49428 -43.89355, 170.49428 -43.89365, 170.49428 -43.89372, 170.49437 -43.89378, 170.49456 -43.89382, 170.49461 -43.89382, 170.49471 -43.89383, 170.4949 -43.89385, 170.49501 -43.89386, 170.49518 -43.89386, 170.49534 -43.89387, 170.49537 -43.89387, 170.49549 -43.89387, 170.4956 -43.89385, 170.49572 -43.89385, 170.49579 -43.89383, 170.49591 -43.89382, 170.49612 -43.89377, 170.49619 -43.89375, 170.49629 -43.89372, 170.49643 -43.89367, 170.49652 -43.89364, 170.49662 -43.89362, 170.49671 -43.89359, 170.49683 -43.89356, 170.49699 -43.89352, 170.49716 -43.89349, 170.4973 -43.89346, 170.49735 -43.89344, 170.49744 -43.89342, 170.49754 -43.89339, 170.49763 -43.89339, 170.49773 -43.89339, 170.49785 -43.89337, 170.49796 -43.89338, 170.49799 -43.89342, 170.49766 -43.89341, 170.49768 -43.89341, 170.49782 -43.89339, 170.49792 -43.89337, 170.49806 -43.89336, 170.49823 -43.89333, 170.49832 -43.89331, 170.49844 -43.89329, 170.49851 -43.89328, 170.49865 -43.89326, 170.49879 -43.89321, 170.49896 -43.89316, 170.4991 -43.89311, 170.49915 -43.89311, 170.49925 -43.89306, 170.49936 -43.89301, 170.49946 -43.89298, 170.49958 -43.89293, 170.4997 -43.89288, 170.49979 -43.89284, 170.49996 -43.89278, 170.50013 -43.89273, 170.50037 -43.89264, 170.5006 -43.89256, 170.5007 -43.89251, 170.50084 -43.89244, 170.50094 -43.89241, 170.50108 -43.89234, 170.5012 -43.89228, 170.50128 -43.89224, 170.50144 -43.89216, 170.50156 -43.89206, 170.50164 -43.89194, 170.50169 -43.89187, 170.50171 -43.89182, 170.50171 -43.89177, 170.50171 -43.89167, 170.50169 -43.89162, 170.50164 -43.89154, 170.50157 -43.89147, 170.5015 -43.8914, 170.50143 -43.89135, 170.50136 -43.89127, 170.50129 -43.8912, 170.50119 -43.89111, 170.50112 -43.89103, 170.50103 -43.89096, 170.50096 -43.89088, 170.50091 -43.89081, 170.50084 -43.89071, 170.50079 -43.89062, 170.50077 -43.89055, 170.50074 -43.8905, 170.5007 -43.89042, 170.50065 -43.89035, 170.50063 -43.8903, 170.50058 -43.89023, 170.50051 -43.89013, 170.50048 -43.89008, 170.50041 -43.88999, 170.50034 -43.8899, 170.50027 -43.8898, 170.50022 -43.88973, 170.50017 -43.8897, 170.50013 -43.88963, 170.50005 -43.88953, 170.50001 -43.88946, 170.49998 -43.88941, 170.49994 -43.88934, 170.49986 -43.88925, 170.49977 -43.8892, 170.49969 -43.88918, 170.49957 -43.88915, 170.49943 -43.8891, 170.49936 -43.88906, 170.49926 -43.88903, 170.49926 -43.88894, 170.49929 -43.88884, 170.49929 -43.88877, 170.49929 -43.88868, 170.49926 -43.88861, 170.49921 -43.88853, 170.49919 -43.88846, 170.49914 -43.88839, 170.49909 -43.88832, 170.49907 -43.88825, 170.49895 -43.88815, 170.49892 -43.88809, 170.49892 -43.88801, 170.49892 -43.88792, 170.4989 -43.88783, 170.4989 -43.88773, 170.49888 -43.88766, 170.49888 -43.88759, 170.49888 -43.88748, 170.49885 -43.88738, 170.49885 -43.88731, 170.49885 -43.88724, 170.49885 -43.88713, 170.49885 -43.8871, 170.4989 -43.88696, 170.49893 -43.88689, 170.49895 -43.88682, 170.49898 -43.88675, 170.499 -43.88668, 170.49903 -43.88657, 170.49903 -43.88648, 170.49903 -43.88636, 170.49905 -43.88625, 170.49905 -43.8862, 170.49905 -43.88608, 170.49905 -43.88597, 170.49908 -43.88592, 170.49908 -43.88585, 170.4991 -43.88578, 170.49913 -43.88571, 170.49917 -43.8856, 170.49922 -43.88551, 170.49925 -43.88544, 170.4993 -43.88537, 170.49932 -43.88528, 170.49932 -43.88523, 170.49935 -43.88512, 170.49935 -43.88505, 170.49935 -43.8849, 170.49935 -43.88489, 170.49933 -43.8848, 170.4993 -43.88467, 170.4993 -43.88465, 170.49928 -43.88458, 170.49925 -43.88449, 170.49923 -43.8844, 170.4992 -43.88431, 170.49918 -43.88424, 170.49916 -43.88415, 170.49911 -43.88408, 170.49908 -43.88399, 170.49906 -43.88393, 170.49903 -43.88383, 170.49901 -43.88372, 170.49898 -43.8837, 170.49896 -43.88361, 170.49893 -43.8835, 170.49891 -43.88343, 170.49889 -43.88334, 170.49886 -43.88325, 170.49886 -43.88314, 170.49886 -43.88308, 170.49886 -43.88299, 170.49886 -43.88288, 170.49889 -43.88279, 170.49894 -43.88274, 170.49901 -43.88268, 170.49911 -43.88265, 170.49921 -43.88261, 170.49931 -43.88257, 170.49943 -43.88252, 170.49961 -43.88247, 170.49963 -43.88247, 170.49978 -43.88241, 170.49988 -43.88236, 170.49993 -43.88234, 170.50008 -43.88226, 170.50013 -43.88223, 170.50016 -43.88215, 170.50011 -43.88208, 170.50003 -43.88203, 170.49996 -43.88195, 170.49989 -43.8819, 170.49984 -43.88182, 170.49976 -43.88175, 170.49971 -43.8817, 170.49966 -43.88164, 170.49959 -43.88157, 170.49951 -43.88149, 170.49944 -43.88146, 170.49936 -43.88138, 170.49929 -43.88131, 170.49921 -43.88124, 170.49916 -43.88118, 170.49906 -43.88116, 170.49896 -43.88112, 170.49879 -43.88111, 170.49866 -43.88107, 170.49849 -43.88103, 170.49841 -43.88102, 170.49834 -43.881, 170.49819 -43.88096, 170.49806 -43.88092, 170.49789 -43.88085, 170.49774 -43.88078, 170.49764 -43.88074, 170.49751 -43.88065, 170.49739 -43.88057, 170.49724 -43.88054, 170.49711 -43.88054, 170.49704 -43.88054, 170.49689 -43.88054, 170.49676 -43.88058, 170.49666 -43.88059, 170.49656 -43.88061, 170.49646 -43.88065, 170.49634 -43.88069, 170.49626 -43.88072, 170.49611 -43.88076, 170.49604 -43.88076, 170.49581 -43.88074, 170.49574 -43.88074, 170.49561 -43.88074, 170.49544 -43.88073, 170.49541 -43.88071, 170.49531 -43.88069, 170.49521 -43.88065, 170.49509 -43.8806, 170.49496 -43.88056, 170.49483 -43.88052, 170.49476 -43.8805, 170.49463 -43.8805, 170.49453 -43.88054, 170.49439 -43.88062, 170.49424 -43.88064, 170.49406 -43.88067, 170.49396 -43.88067, 170.49376 -43.88069, 170.49359 -43.88067, 170.49349 -43.88066, 170.49339 -43.8806, 170.49328 -43.88053, 170.49321 -43.88047, 170.49313 -43.8804, 170.49305 -43.88034, 170.49293 -43.88028, 170.49285 -43.88025, 170.4927 -43.88023, 170.4926 -43.88021, 170.49248 -43.88021, 170.49238 -43.88021, 170.49225 -43.88021, 170.49213 -43.88023, 170.49203 -43.88023, 170.49193 -43.88029, 170.49188 -43.88034, 170.49181 -43.88042, 170.49178 -43.88049, 170.49179 -43.88058, 170.49176 -43.88071, 170.49174 -43.88077, 170.49172 -43.88082, 170.49167 -43.8809, 170.49162 -43.88095, 170.49155 -43.88101, 170.49145 -43.88105, 170.49138 -43.88112, 170.49128 -43.88116, 170.49123 -43.88123, 170.49111 -43.88138, 170.49106 -43.88141))"
+  chick_colour_regex: "^(R|B|G|W|O|L|Y)$"
+  juvenile_flag_regex: "^FW[A-Z0-9]{2}$"
+  geotag_ur_regex: "^T[RBGWOLY]$"
+  resighting_tag_ur_regex: "^T[A-Z0-9]{0,5}[RBGWOLY]$"
+  hhmm_time_regex: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+  tarsus_band_regex: "^(X|M|[OYWBRGL]{1,2})$"
+  tibia_band_regex: "^(X|O|Y|W|B|R|G|L|M|F[A-Z0-9]{3}|T|T[A-Z0-9]{0,5}[RBGWOLY])$"
+  observer_upload_rule:
+    default: observer_upload should equal observer
+    kg_exception: if observer == KG then observer_upload must equal KG
+  hatch_state_notes:
+    grammar: Each component is a positive count followed by C, S, N, or CC. Components may appear in any order.
+    examples: [3N, 1S2N, 2N1S, 1C1S1N, 2N1C, 1C2N]
+    clutch_max: 3
+
+observer_reference:
+  roster:
+    - {observer: ADO, name: "August Davidson-Onsgard", start: 2026-08-17, stop: 2026-11-22, gps_id: 9, cam_id: C5, nznbbs_number: "1705"}
+    - {observer: AW, name: "Andrea Wittenzellner", start: 2026-11-17, stop: 2026-12-10, gps_id: 8, cam_id: C8, nznbbs_number: "1523"}
+    - {observer: BK, name: "Bart Kempenaers", start: 2026-10-29, stop: 2026-11-22, gps_id: 1, cam_id: C2, nznbbs_number: "1430"}
+    - {observer: CG, name: "Carol Gilsenan", start: 2026-10-05, stop: 2026-10-24, gps_id: 7, cam_id: C7, nznbbs_number: "1699"}
+    - {observer: EK, name: "Eunbi Kwon", start: 2026-10-29, stop: 2026-11-22, gps_id: 5, cam_id: C4, nznbbs_number: "1545"}
+    - {observer: HP, name: "Dr. Hanna Prüter", start: 2026-10-02, stop: 2026-10-22, gps_id: 7, cam_id: C6, nznbbs_number: "1494"}
+    - {observer: KD, name: "Kaspar Delhey", start: 2026-09-04, stop: 2026-09-29, gps_id: 10, cam_id: C1, nznbbs_number: "1570"}
+    - {observer: KG, name: "Katie Gray", start: 2026-08-17, stop: 2027-01-14, gps_id: 3, cam_id: C3, nznbbs_number: "0922"}
+    - {observer: KT, name: "Kim Teltscher", start: 2026-10-06, stop: 2026-11-01, gps_id: 6, cam_id: C9, nznbbs_number: "1489"}
+    - {observer: LEH, name: "Luke Eberhart-Hertel", start: 2026-08-17, stop: 2026-09-16, gps_id: 2, cam_id: C10, nznbbs_number: "0811"}
+    - {observer: MV, name: "Mihai Valcu", start: 2026-10-29, stop: 2026-11-22, gps_id: 21, cam_id: C11, nznbbs_number: "1574"}
+    - {observer: PS, name: "Peter Santema", start: 2026-10-29, stop: 2026-11-14, gps_id: null, cam_id: C12, nznbbs_number: null}
+  dropped_people_already_excluded:
+    - Bonnie Feng
+    - Michael Ramsbottom
+    - Paul Gasson
+    - Richard Gray
+    - Shideen Nathan-Ngaronoa
+    - Andrea Hirschberg
+
+shared_helper_spec:
+  derived_fields:
+    visible_combo_release: >
+      User-facing release quartet built from [UL, LL, UR, LR] after shortening any
+      tag-style UR value such as TDB123Y to TY for display comparisons.
+    visible_combo_capture_in: >
+      User-facing input quartet built from [UL_in, LL_in, UR_in, LR_in] after shortening
+      any tag-style UR_in value such as TDB123Y to TY for display comparisons.
+    canonical_combo_release: >
+      Canonical adult colour-combo identity derived from [UL, LL, UR, LR] by collapsing
+      classic right-side colour pairs and tag-style equivalents to the same colour pair.
+      Example: LL='YO', UR='X', LR='YG' and LL='YO', UR='TY', LR='G' both map to YO|YG.
+    canonical_combo_capture_in: >
+      Canonical adult colour-combo identity derived from [UL_in, LL_in, UR_in, LR_in]
+      using the same normalization as canonical_combo_release.
+    parent_identity_key: >
+      For adult combo-history and duplicate-prevention logic, use the canonical adult
+      colour-combo identity rather than the raw visible quartet.
+    age_group_from_field_sex:
+      M_group: [M, MU]
+      F_group: [F, FU]
+      U_group: [U]
+    parse_hatch_state:
+      input: string_or_na
+      output_fields: [count_C, count_S, count_N, total]
+      rules:
+        - Missing hatch_state means treat as unknown, not as zero eggs.
+        - Total must never exceed 3.
+        - Counts may stay the same or progress forward only across time.
+    parse_photo_range:
+      input_fields: [photo_start, photo_end]
+      output: full_integer_sequence_between_start_and_end_inclusive
+      rules:
+        - photo_start and photo_end may use any prefix, but they should end either with a terminal numeric suffix or with a terminal roll-frame pattern such as 100-9925.
+        - If a terminal roll-frame pattern is present, treat the left side of the hyphen as the higher-order roll number and the right side as the lower-order frame number.
+        - Under this rollover-aware numbering, 100-9925 is earlier than 101-0097.
+        - If no terminal roll-frame pattern is present, fall back to the terminal numeric suffix.
+        - photo_start must not be later than photo_end under this comparison.
+    event_key_eggs_nests: [nest_id, date, time_visit, observer]
+    simultaneous_resighting_key: [date, gps_id, gps_point, nest_id]
+    simultaneous_capture_key: [date, caught, nest_id]
+  temporal_order_rule:
+    description: >
+      When comparing events across tables, use the date plus the relevant time field if available.
+      For tables without a time field, use date and then table-specific logic or save-order fallback.
+  archive_combo_lookup_rule:
+    description: >
+      A combo is considered previously existing only if its canonical adult colour-combo
+      identity occurs in historical CAPTURES or in current-season CAPTURES with an earlier
+      event date/time than the row being validated.
+      For CAPTURES, RESIGHTINGS, and RESIGHTINGS_PUBLIC combo comparisons, do not let the
+      raw visible quartet control uniqueness on its own. Collapse tag-style UR forms to
+      their colour-pair equivalent so that classic UR = X, LR = YG and tag-style
+      UR = TY, LR = G both compare as the same canonical right pair YG.
+      Visible/display forms should still be preserved in the actual mock data and event
+      records when a geotag is biologically present.
+  adult_capture_targeting_rule:
+    description: >
+      A nest-associated adult should be captured only if it is unbanded, if it is a locally
+      recruited bird still carrying a chick-like marking scheme that must be upgraded to a full
+      adult scheme, or if it is targeted for a geotag deployment. Previously marked adults that
+      do not meet those conditions may be represented only in RESIGHTINGS.
+
+post_write_canonicalization:
+  required_sort_orders:
+    OBSERVERS: [start, stop, gps_id, observer, name]
+    EGGS: [date, time_visit, nest_id, egg_id, observer]
+    NESTS: [date, time_visit, gps_id, gps_point, nest_id, observer]
+    CAPTURES: [date, caught, released, gps_id, gps_point, nest_id, ring]
+    RESIGHTINGS: [date, gps_id, gps_point, nest_id, observer, UL, LL, UR, LR]
+    RESIGHTINGS_PUBLIC: [date, time, country, site, observer, source_identifier]
+  notes:
+    - Sorting is not a save blocker but should be applied before export or QA summaries.
+    - Photo sequences should be re-checked after sort if numbering is assigned in chronological order.
+    - After any mock-repair step that rewrites visible band fields, rerun a canonical adult combo audit before export.
+    - That audit must use canonical adult colour-combo identity rather than the raw visible quartet, so tag-style forms such as UR = TY, LR = G are treated as the same duplicate-prevention identity as UR = X, LR = YG.
+
+negative_brood_methodology:
+  semantics:
+    description: >
+      A negative nest_id is an operational brood identifier for a brood of unknown origin. No eggs were observed,
+      no nest was found, and no stationary nest location is known. The leading '-' is semantically meaningful and
+      must be retained exactly as entered.
+    valid_tables: [CAPTURES, RESIGHTINGS]
+    invalid_tables: [NESTS, EGGS]
+    no_nest_distinction: >
+      NO_NEST means that an event was not associated with any nest or brood. A negative nest_id means that the event
+      was associated with a known brood whose original nest is unknown.
+    examples:
+      cass_river: [-A0203, -B0204, -C0201]
+      non_cass: [-BA0202]
+  location_contract:
+    negative_id: >
+      Every CAPTURES or RESIGHTINGS row with a negative nest_id must contain that negative nest_id together with both
+      gps_id and gps_point. The GPS pair must already exist in GPS_POINTS. Direct GPS does not conflict with a
+      negative brood ID because the brood has no NESTS location to inherit.
+    positive_id: >
+      A positive nest-linked CAPTURES or RESIGHTINGS row uses the established nest-location branch and ordinarily
+      leaves gps_id and gps_point blank.
+    no_nest: >
+      Blank or NO_NEST events remain on the direct-GPS branch and require both gps_id and gps_point.
+    gps_pair: >
+      gps_id and gps_point are a pair: neither may be supplied without the other, and GLOBAL_005A checks the pair
+      against GPS_POINTS.
+  discovery_and_identity:
+    first_event: >
+      The first event for a negative brood may be CAPTURES or RESIGHTINGS. Do not require CAPTURES to occur first.
+    one_row_per_individual: >
+      Enter one row for each observed parent or chick in RESIGHTINGS and one row for each captured parent or chick
+      in CAPTURES. Repeated X-X rows for distinct unbanded parents or chicks are valid and must not be deduplicated.
+    marks: >
+      Banded parents use observed marks. Unbanded parents may use LL = X and LR = X; unbanded chicks may use the
+      permitted unbanded mark fields. Chicks normally use age C and sex U.
+    persistence: >
+      Every subsequent negative-ID CAPTURES or RESIGHTINGS encounter retains the same negative nest_id and carries
+      that event's gps_id and gps_point.
+  photo_methodology:
+    hiding_spot: >
+      A chick hiding-spot photo is a separate RESIGHTINGS row with age C and rclass H, normally the relevant positive
+      or negative nest_id, both direct GPS fields, and required photo metadata. Every H row must carry both gps_id and
+      gps_point, including when a positive nest_id is present; the GPS pair must pass GPS_POINTS validation. It must
+      also carry a nonblank ring value containing the individual's metal-ring code. This ring requirement is specific
+      to H and does not replace UL, LL, UR, or LR. An advanced unlinked-H exception may omit nest_id under RES_005B's
+      mandatory GPS condition when ring is nonblank or a same-session age-A parent with LL and LR is recorded at the
+      same GPS pair. behav may remain blank for rclass H under RES_001.
+    tent_photo: >
+      A captured chick's CAPTURES row records handling/banding and any tent photo through chick_tent_photo and the
+      CAPTURES photo sequence. chick_hide_photo is retained for schema compatibility but should be blank or 0;
+      hiding-spot photos belong in H-class RESIGHTINGS.
+    same_occasion: >
+      A chick captured and photographed in its hiding spot on the same occasion requires separate CAPTURES and
+      H-class RESIGHTINGS rows. These are not duplicate records.
+  save_time_scope: >
+    Cross-table chick-photo, parent-linkage, and same-event checks remain warnings or post-save QA when the required
+    companion row may be entered in a separate portal session.
+
+global_rules:
+  hard_rules:
+    - rule_id: GLOBAL_002
+      severity: error
+      scope: row
+      applies_to_tables: [EGGS, NESTS, CAPTURES, RESIGHTINGS, RESIGHTINGS_PUBLIC]
+      columns: [date]
+      description: Dates must fall within the 2026-2027 field season.
+      logic: "date >= 2026-07-01 and date <= 2027-07-31"
+      dataentry_translation_hint: custom:row_logic
+    - rule_id: GLOBAL_003
+      severity: error
+      scope: row
+      applies_to_tables: [CAPTURES, RESIGHTINGS]
+      columns: [site]
+      description: If site is present, it must be a valid BDOT site code.
+      logic: "site is NA or site in allowed_sites"
+      dataentry_translation_hint: builtin:is.element_validator_with_nullable_wrapper
+    - rule_id: GLOBAL_004
+      severity: error
+      scope: row
+      applies_to_tables: [CAPTURES, RESIGHTINGS, NESTS]
+      columns: [falcon_upload, nov]
+      description: nov must stay blank, and falcon_upload may be blank or use the binary values 0 and 1.
+      logic: "falcon_upload is NA or falcon_upload in ['0', '1']; nov is NA"
+      dataentry_translation_hint: custom:row_logic
+    - rule_id: GLOBAL_005A
+      severity: error
+      scope: cross_table
+      applies_to_tables: [NESTS, CAPTURES, RESIGHTINGS]
+      columns: [gps_id, gps_point]
+      description: Any entered gps_id / gps_point event location must already exist in GPS_POINTS.
+      logic: >
+        Whenever both gps_id and gps_point are entered on a row, the pair must already exist in
+        GPS_POINTS. Field protocol requires users to first download their handheld GPS via gpxui
+        into GPS_POINTS and GPS_TRACKS, and only then enter biological events into NESTS,
+        CAPTURES, or RESIGHTINGS.
+      dataentry_translation_hint: custom:cross_table_archive_logic
+    - rule_id: GLOBAL_005
+      severity: error
+      scope: cross_table
+      applies_to_tables: [NESTS, CAPTURES, RESIGHTINGS]
+      columns: [photo_start, photo_end]
+      description: Every individual image number inside every photo range must be globally unique across tables.
+      logic: >
+        Parse each photo_start/photo_end range into its full integer sequence.
+        No image number may occur in more than one row across NESTS, CAPTURES, and RESIGHTINGS.
+      dataentry_translation_hint: custom:cross_table_archive_logic
+  warning_rules:
+    - rule_id: GLOBAL_W001
+      severity: warning
+      scope: cross_table
+      applies_to_tables: [NESTS, CAPTURES, RESIGHTINGS]
+      columns: [gps_id, gps_point, date]
+      description: gps_id / gps_point chronology may be reviewed across event tables, but should not be enforced as a save-time blocker.
+      logic: >
+        Across NESTS, CAPTURES, and RESIGHTINGS, repeated gps_point values within a gps_id
+        or strong backward jumps in gps_point numbering may indicate a numbering issue and can
+        be reviewed after save. Because users may enter different tables in different sequences,
+        do not enforce this as a live save-time validator and do not assume strict cross-table
+        chronological ordering during portal entry.
+      dataentry_translation_hint: post_save
+    - rule_id: GLOBAL_W003
+      severity: warning
+      scope: cross_table
+      applies_to_tables: [NESTS, CAPTURES]
+      columns: [gps_id, gps_point, date]
+      description: The GPS waypoint timestamp should usually match the first biological use of that waypoint within about two hours.
+      logic: >
+        For a row with gps_id and gps_point, identify whether that row is the first biological use of
+        that waypoint across current-season NESTS, CAPTURES, and RESIGHTINGS.
+        Only for that first use, compare the row event datetime to GPS_POINTS.datetime_.
+        Accept either a direct NZ-local interpretation of GPS_POINTS.datetime_ or a UTC-stored
+        interpretation converted forward into Pacific/Auckland local time.
+        Flag a warning only if both interpretations differ from the biological event time by more than two hours.
+        Later re-use of an already-established waypoint should not trigger this warning.
+        RESIGHTINGS is excluded because it lacks an event-time field.
+      dataentry_translation_hint: custom:cross_table_archive_logic
+    - rule_id: GLOBAL_W004
+      severity: warning
+      scope: cross_table
+      applies_to_tables: [RESIGHTINGS]
+      columns: [gps_id, gps_point, date]
+      description: The GPS waypoint date should usually match the first biological use of that waypoint.
+      logic: >
+        For a RESIGHTINGS row with gps_id and gps_point, identify whether that row is the first
+        biological use of that waypoint across current-season NESTS, CAPTURES, and RESIGHTINGS.
+        Only for that first use, compare RESIGHTINGS.date to the date component of GPS_POINTS.datetime_.
+        Accept either a direct NZ-local interpretation of GPS_POINTS.datetime_ or a UTC-stored
+        interpretation converted forward into Pacific/Auckland local time.
+        Flag a warning only if neither interpretation matches the RESIGHTINGS date.
+        Later re-use of an already-established waypoint should not trigger this warning.
+      dataentry_translation_hint: custom:cross_table_archive_logic
+  mock_generation_only_rules:
+    - rule_id: GLOBAL_001
+      description: Mock data use BADO for the main field-season workflow, with the approved WRYB exception for NESTS Cass River records.
+      logic: "for NESTS, species in ['BADO', 'WRYB']; for other field-season tables, species == 'BADO'"
+    - rule_id: GLOBAL_M001
+      description: Most events occur in September and October, with a late-September median.
+    - rule_id: GLOBAL_M002
+      description: Most capture and field event times occur between 07:00 and 19:00.
+    - rule_id: GLOBAL_W002
+      description: Avoid repeating identical comments more than three times across the whole mock database.
+      logic: "count identical non-empty comment strings across all comment columns; flag counts > 3"
+    - rule_id: GLOBAL_M003
+      description: 90 percent of CAPTURES are associated with site CR.
+    - rule_id: GLOBAL_M004
+      description: Every CR plot-linked event waypoint must resolve to coordinates inside the expected A/B/C polygon after every mock repair pass.
+      logic: >
+        For every CR NESTS, CAPTURES, or RESIGHTINGS row whose nest_id begins with A, B, or C
+        after removing any leading minus sign, the referenced gps_id/gps_point must resolve to
+        coordinates in GPS_POINTS that fall inside the polygon implied by that plot letter.
+        If a waypoint is tied to a single implied plot but falls outside that polygon, nudge the
+        corresponding GPS_POINTS coordinates just inside the expected polygon.
+    - rule_id: GLOBAL_M005
+      description: GPS_POINTS.datetime_ should match the first biological use of each waypoint key in NZ local time.
+      logic: >
+        For every gps_id/gps_point used in NESTS, CAPTURES, or RESIGHTINGS, assign GPS_POINTS.datetime_
+        from the first biological event using that key.
+        Use the event time from NESTS.time_visit or CAPTURES.caught when available.
+        For RESIGHTINGS-only keys, use the event date with a neutral daytime placeholder.
+        Prefer exporting the resulting datetime_ values in Pacific/Auckland local time.
+        If a downstream upload workflow stores them as UTC-like naive timestamps instead,
+        validator logic must still accept the equivalent Pacific/Auckland biological date and time.
+    - rule_id: GLOBAL_M006
+      description: GPS_TRACKS datetime series should be rebuilt from the corrected GPS_POINTS table in NZ local time.
+      logic: >
+        After GPS_POINTS coordinates and datetime_ values are updated, regenerate GPS_TRACKS so that
+        each segment clusters around the corresponding GPS point's date and time and remains consistent
+        with the biological event tables that use that waypoint.
+    - rule_id: GLOBAL_M007
+      description: Mock biological-event waypoints should move forward within each gps_id when ordered by event datetime.
+      logic: >
+        Across mock NESTS, CAPTURES, and RESIGHTINGS rows, ensure every non-missing gps_id/gps_point
+        pair is unique and that gps_point values increase with event datetime inside each gps_id.
+        If chronology conflicts appear after other mock edits, renumber the biological event rows
+        deterministically and then realign GPS_POINTS.datetime_ and regenerated GPS_TRACKS to those
+        corrected first-use timestamps.
+
+table_rules:
+  OBSERVERS:
+    hard_rules:
+      - rule_id: OBS_001
+        severity: error
+        scope: row
+        columns: [observer, name, start, stop]
+        description: Observer rows must exactly match the approved 2026-2027 roster.
+        logic: >
+          observer must exist in observer_reference.roster.
+          name, start, stop, gps_id, cam_id, and nznbbs_number should match the approved reference.
+          Prefer locking this table rather than free-entry validation.
+        dataentry_translation_hint: reference_locked_table
+      - rule_id: OBS_002
+        severity: error
+        scope: row
+        columns: [start, stop]
+        description: start must be on or before stop.
+        logic: "start <= stop"
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: OBS_003
+        severity: error
+        scope: grouped
+        columns: [observer]
+        description: observer code must be unique.
+        logic: "no duplicate observer codes"
+        dataentry_translation_hint: custom:grouped_logic_current_table
+    warning_rules: []
+
+  EGGS:
+    hard_rules:
+      - rule_id: EGG_001
+        severity: error
+        scope: row
+        columns: [species, observer, date, time_visit, nest_id, egg_id]
+        description: Core EGGS fields are mandatory.
+        logic: "species, observer, date, time_visit, nest_id, and egg_id must all be non-missing"
+        dataentry_translation_hint: builtin:is.na_validator
+      - rule_id: EGG_002
+        severity: error
+        scope: row
+        columns: [observer, date]
+        description: observer must exist in OBSERVERS and be active on the event date.
+        logic: "observer in OBSERVERS and OBSERVERS.start <= date <= OBSERVERS.stop"
+        dataentry_translation_hint: custom:cross_table_archive_logic
+      - rule_id: EGG_003
+        severity: error
+        scope: grouped
+        columns: [nest_id, date, time_visit]
+        description: All EGGS rows for the same nest_id should belong to the same egg-check event.
+        logic: >
+          Within the current submitted EGGS rows, for each non-missing nest_id:
+          all non-missing dates must collapse to a single date, and all valid hh:mm time_visit
+          values must span no more than five minutes.
+          If a nest_id appears with more than one date, flag the current submitted rows for that nest_id.
+          If the time_visit span for that nest_id exceeds five minutes, flag the current submitted rows
+          for that nest_id.
+        dataentry_translation_hint: custom:cross_table_archive_logic
+      - rule_id: EGG_004
+        severity: error
+        scope: row
+        columns: [nest_id]
+        description: EGGS cannot use negative brood-only nest IDs because those broods have no known nest or egg history.
+        logic: >
+          Reject any nest_id that starts with '-'. Negative IDs describe broods of unknown origin and must be entered
+          in RESIGHTINGS or CAPTURES, not EGGS. EGGS requires a positive Cass or non-Cass nest_id.
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: EGG_006
+        severity: error
+        scope: row
+        columns: [float_location, float_angle, float_surface]
+        description: Float fields must follow the bottom / suspended / surface logic, with float_angle allowed from 0 to 90 where applicable.
+        logic: >
+          If float_location == 'bottom' and float_angle is entered: float_angle must be between 0 and 90 inclusive and float_surface must be NA.
+          If float_location == 'suspended' and float_angle is entered: float_angle must be between 85 and 90 inclusive and float_surface must be NA.
+          If float_location == 'surface' and float_angle is entered: float_angle must be between 75 and 90 inclusive and float_surface must be 0, 1, 2, or 3.
+          Use the fieldworker-facing reason: when float_location is "surface" a "float_surface" value (0, 1, 2, or 3) is needed indicating the mm above the surface.
+          Missing float_angle or missing float_location is handled as a warning rather than a save-blocking error.
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: EGG_009
+        severity: error
+        scope: cross_table
+        columns: [nest_id, date, time_visit, observer, egg_id]
+        description: egg_id must be unique within an EGGS event and must not exceed the clutch_size recorded for the matching NESTS event.
+        logic: >
+          Within a unique EGGS event key, egg_id must not duplicate and must be a positive integer.
+          Normalize time_visit to hh:mm before matching EGGS rows to NESTS rows.
+          If the matching NESTS event key [nest_id, date, time_visit, observer] exists, the maximum egg_id
+          recorded for that EGGS event must be less than or equal to the clutch_size in that NESTS row.
+        dataentry_translation_hint: custom:cross_table_archive_logic
+    warning_rules:
+      - rule_id: EGG_005
+        severity: warning
+        scope: cross_table
+        columns: [nest_id, date, time_visit, observer]
+        description: Every unique EGGS event should match a same-day NESTS event for the same nest_id and observer within one hour.
+        logic: >
+          Build unique EGGS event keys from [nest_id, date, time_visit, observer]. Normalize date and time
+          representations before comparison so database Date/POSIX values and portal character values compare
+          consistently. A matching NESTS row must have the same nest_id, calendar date, and observer, with a
+          valid time_visit no more than 60 minutes before or after the EGGS time_visit. This tolerance allows
+          minor shifts between recording the nest visit and entering the egg floatation rows.
+        dataentry_translation_hint: custom:cross_table_archive_logic
+      - rule_id: EGG_007
+        severity: warning
+        scope: row
+        columns: [comments, float_angle, float_surface, float_location]
+        description: Eggs described as starred or pipping should not be floated.
+        logic: >
+          If comments mention 'star', 'starred', 'pip', or 'pipping', then float_angle, float_surface,
+          and float_location should all be NA.
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: EGG_W003
+        severity: warning
+        scope: row
+        columns: [float_angle, float_location]
+        description: Missing floatation fields should usually be reviewed.
+        logic: >
+          If float_angle is missing, warn.
+          If float_location is missing, warn.
+          Use the reason:
+          "Usually an EGGS event has floatation data. If the egg was not floated (e.g., hatch sign), then make a comment and make the correct event in NESTS (e.g., fill out \"hatch_state\")"
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: EGG_W004
+        severity: warning
+        scope: grouped
+        columns: [nest_id, float_angle, float_surface, float_location]
+        description: Eggs from the same nest_id should not differ too widely in developmental stage based on floatation.
+        logic: >
+          Use the same floatation-development logic as EGGS_HATCH_PREDICTION:
+          for each egg, match its float_location plus nearest float_angle and float_surface calibration
+          in predict_hatching, then derive predicted_days_since_laying.
+          For each current EGGS event key [nest_id, date, normalized time_visit, observer], compare the current
+          rows plus any already saved EGGS rows with that same event key.
+          If the predicted_days_since_laying span within that egg-check event exceeds 7 days, flag the current
+          rows for review.
+          Use the reason:
+          "Based on their floatation data, the developmental stage of this nest's eggs differ by more than 7 days, please double-check your floatation data"
+        dataentry_translation_hint: custom:cross_table_archive_logic
+      - rule_id: EGG_W001
+        severity: warning
+        scope: grouped
+        columns: [nest_id, float_angle, float_surface, float_location]
+        description: Float data within the same nest_id should be similar and should not vary unrealistically.
+        logic: >
+          Within a nest_id, float stage should not jump from early bottom stages to very late surface stages
+          over a short interval unless justified by date progression.
+        dataentry_translation_hint: post_save
+    mock_generation_only_rules:
+      - rule_id: EGG_008
+        description: Late-stage starred or pipping egg comments in mock EGGS data should be reflected in the matching mock NESTS hatch_state.
+        logic: >
+          For a mock EGGS event where one or more egg comments mention star/pip, aggregate the clutch event and derive the hatch_state:
+          starred or pipping eggs contribute S, eggs with explicit no hatch sign contribute N.
+          The matching mock NESTS row for the same event key should encode the same S/N totals.
+      - rule_id: EGG_M001
+        description: 85 percent of nests have float data in week 1 of development, 10 percent in week 2, and 5 percent later.
+      - rule_id: EGG_M002
+        description: Mock EGGS event keys should align to the photographed NESTS visit used for floatation, and that visit should occur on the F date for most nests or otherwise within two days of the F date. In practice, about 85 percent of nests should have floatation and photo data on the F visit itself, with the remaining delayed examples still anchored to an existing photographed visit no more than two days after F. Copy that photographed visit's date, time_visit, and observer into the EGGS rows. If no photographed NESTS visit with clutch_size of at least 1 exists on F day or within two days after F, omit the EGGS event for that nest because there were no eggs available to float under the mock protocol.
+      - rule_id: EGG_M003
+        description: Most EGGS comments are blank; late-stage no-float comments should be rare.
+
+  NESTS:
+    hard_rules:
+      - rule_id: NEST_001
+        severity: error
+        scope: row
+        columns: [species, site, date, time_visit, observer, nest_id, nest_state]
+        description: Core NESTS fields are mandatory.
+        logic: "species, site, date, time_visit, observer, nest_id, and nest_state must all be non-missing"
+        dataentry_translation_hint: builtin:is.na_validator
+      - rule_id: NEST_001A
+        severity: error
+        scope: row
+        columns: [species]
+        description: NESTS species codes currently allow BADO and WRYB.
+        logic: "species in ['BADO', 'WRYB']"
+        dataentry_translation_hint: builtin:is.element_validator
+      - rule_id: NEST_002
+        severity: error
+        scope: row
+        columns: [observer, date]
+        description: observer must exist in OBSERVERS and be active on the event date.
+        logic: "observer in OBSERVERS and OBSERVERS.start <= date <= OBSERVERS.stop"
+        dataentry_translation_hint: custom:cross_table_archive_logic
+      - rule_id: NEST_003
+        severity: error
+        scope: row
+        columns: [nest_id, site]
+        description: NESTS cannot contain negative brood-only nest IDs; observed birds belong in RESIGHTINGS and captured birds belong in CAPTURES.
+        logic: >
+          If nest_id starts with '-', reject the row with the fieldworker-facing reason:
+          "Negative nest IDs describe broods of unknown origin and cannot be entered in NESTS. Enter each observed bird
+          in RESIGHTINGS or each captured bird in CAPTURES using the negative nest ID."
+          If site == 'CR' and species == 'WRYB', nest_id must match positive_nest_regex_cr_wryb.
+          If site == 'CR' and species != 'WRYB', nest_id must match positive_nest_regex_cr.
+          If site != 'CR' and species == 'BADO', nest_id must match positive_nest_regex_non_cr; retain the current inspector scope for other species.
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: NEST_014
+        severity: error
+        scope: cross_table
+        columns: [nest_id, nest_state]
+        description: New scrape and discovery nest IDs must not reuse an observer/GPS running tally across CR plots or legacy BA prefixes.
+        logic: >
+          Apply only to rows where nest_state is S or F and nest_id matches a positive CR or BA nest ID.
+          All follow-up states (I, H, pP, pD, P, D, and notA) are excluded before any tally parsing
+          or existing-NESTS lookup, irrespective of which observer records the follow-up visit.
+          Parse the identifier as prefix + two-digit observer/GPS code + two-digit running tally.
+          The shared discovery identity is the observer/GPS code plus running tally; ignore the CR plot prefix
+          A/B/C or the non-CR BA prefix when checking whether that tally has already been used.
+          First check whether the exact nest_id is already present in NESTS: if it is, any later S or F row is
+          a follow-up visit and is excluded from tally checking. Within the submitted batch, multiple S/F rows
+          for the same exact nest_id likewise describe one discovery and are allowed.
+          For remaining new discovery identities, query existing NESTS rows with nest_state S or F and compare
+          their observer/GPS-code plus tally with the current submitted rows.
+          A different nest_id that reuses the same observer/GPS code and tally is an error, for example
+          B0203 prevents A0203, C0203, and BA0203 from being used for another discovery.
+          Suggest the submitted prefix with the next unused tally after the highest assigned tally for that observer/GPS code.
+        dataentry_translation_hint: custom:cross_table_archive_logic
+      - rule_id: NEST_004
+        severity: error
+        scope: row
+        columns: [nest_state]
+        description: Allowed NESTS states for this field season are restricted.
+        logic: "nest_state in ['S', 'F', 'I', 'H', 'pP', 'pD', 'P', 'D', 'notA', 'O']"
+        dataentry_translation_hint: builtin:is.element_validator
+      - rule_id: NEST_005
+        severity: error
+        scope: row
+        columns: [bird_inc]
+        description: bird_inc, when present, must be M, F, FM, MF, U, or E.
+        logic: "bird_inc is NA or bird_inc in ['M', 'F', 'FM', 'MF', 'U', 'E']"
+        dataentry_translation_hint: builtin:is.element_validator_with_nullable_wrapper
+      - rule_id: NEST_007
+        severity: error
+        scope: grouped
+        columns: [nest_id, date, time_visit, nest_state, clutch_size, gps_id, gps_point]
+        description: Nest-state progression must be chronological and biologically plausible.
+        logic: >
+          Order rows within nest_id by date and time_visit. When those values tie,
+          previously submitted NESTS history precedes the current submitted row.
+          The first chronological event must be S or F and must record both gps_id and gps_point.
+          This first event is the only event for that nest_id that may record gps_id and gps_point.
+          If an S event starts the history, a later F event must leave both GPS fields blank.
+          If its clutch_size is 0, it must use S rather than F.
+          After S, subsequent events may be S, F, or one final notA closure.
+          Each nest_id may contain at most one F event.
+          After F, I, or pD, subsequent events may be I, H, pP, P, pD, D, notA, or O.
+          S and F may not recur after an active history has moved beyond the opening S/F phase.
+          O means other: it requires a non-blank comment and does not reset the latest biological nest state.
+          A non-terminal pD event may follow F or I and may later be followed by active states such as I or H,
+          or by a later terminal state.
+          An H event with clutch_size greater than 0 is an active, non-terminal hatch visit and may be followed by another H visit.
+          The first H event with clutch_size == 0 and brood_size > 0 is the terminal hatch visit for that nest history.
+          A terminal H, pP, P, or D event may follow F, I, H, or pD where biologically appropriate.
+          The terminal H, pP, P, or D row itself is valid.
+          After a terminal H, pP, P, or D row, at most one final notA row may occur; a later H row is not allowed.
+          In particular, one final notA row with clutch_size == 0 and brood_size > 0 may directly follow
+          a terminal H row with clutch_size == 0 and brood_size > 0. This is the permitted post-hatch
+          closure after the brood has been handled as RESIGHTINGS or CAPTURES, including hiding-spot
+          work recorded as RESIGHTINGS rclass H, and it does not require an intervening D row.
+          A final notA row may directly follow S, F, or pD, including closure of an opening scrape-only S sequence.
+          If notA occurs, it must be the final event.
+          H cannot be followed by I.
+        dataentry_translation_hint: custom:grouped_logic_current_table
+      - rule_id: NEST_009
+        severity: error
+        scope: grouped
+        columns: [nest_id, hatch_state]
+        description: hatch_state progression cannot reverse.
+        logic: >
+          For a given nest_id through time, N may change to S or C, and S may change to C.
+          C may not revert to S or N.
+          S may not revert to N.
+        dataentry_translation_hint: custom:grouped_logic_current_table
+      - rule_id: NEST_013
+        severity: error
+        scope: row
+        columns: [nest_state, bird_inc, hatch_state, clutch_size, brood_size]
+        description: notA rows usually represent an inactive empty nest record, while same-submission D-to-notA closure may retain the observed clutch count; a final notA after terminal H may retain the brood count; scrape-only S rows cannot contain eggs or chicks.
+        logic: >
+          If nest_state == 'D', clutch_size may retain the number of eggs observed at desertion.
+          If nest_state == 'notA', hatch_state must be NA and clutch_size must equal 0,
+          except when the immediately preceding chronological event for the same nest_id in the current submission
+          is nest_state D and the notA row retains the same clutch_size as that D row.
+          A single final notA row is also valid when it immediately follows a terminal H row with
+          clutch_size == 0 and brood_size > 0; in that post-hatch closure case notA keeps clutch_size == 0
+          and may retain the observed brood_size > 0. This exception does not require a D row and should
+          not be flagged as a continued NESTS event merely because the brood count is retained.
+          A D row and its closing notA row may use the same date and time_visit; for state-sequence validation,
+          D is evaluated before notA when their timestamps are identical, regardless of current-table row order.
+          A notA timestamp earlier than its associated D timestamp is invalid.
+          bird_inc is allowed for every valid nest_state and is checked only against the approved bird_inc values.
+          If nest_state == 'S', clutch_size must equal 0 and brood_size must be blank or equal 0.
+        dataentry_translation_hint: custom:row_logic
+    warning_rules:
+      - rule_id: NEST_006
+        severity: warning
+        scope: row
+        columns: [hatch_state]
+        description: hatch_state should parse cleanly and will usually total no more than 3 eggs.
+        logic: >
+          Parse counts of C, S, and N in any component order.
+          Total count_C + count_S + count_N should usually be <= 3.
+          Flag malformed strings or negative / zero counts.
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: NEST_008
+        severity: warning
+        scope: grouped
+        columns: [nest_id, clutch_size, nest_state, brood_size]
+        description: Clutch size will usually stay the same or increase before a confirmed hatch, but occasional decreases can reflect a hatched chick that was not seen.
+        logic: >
+          Order rows within nest_id chronologically.
+          Before the first clear H event, clutch_size should usually stay the same or increase.
+          Flag decreases for review, but allow the possibility that an egg hatched and brood_size was NA because the chick was not seen.
+          A decrease into nest_state pD, D, pP, P, or notA is allowed, because closure rows may collapse clutch_size to 0.
+          If the nest begins at clutch_size 1 or 2, the next event within 1-2 days should usually increase toward 3, unless that next event is pD, D, pP, P, or notA.
+        dataentry_translation_hint: custom:grouped_logic_current_table
+      - rule_id: NEST_010
+        severity: warning
+        scope: row
+        columns: [nest_state, brood_size, clutch_size, hatch_state]
+        description: H rows should usually be internally coherent, but rare infertile or unhatched eggs can create exceptions.
+        logic: >
+          If nest_state == 'H', brood_size should usually be > 0.
+          clutch_size + brood_size should usually be <= 3.
+          An H row with clutch_size == 0 and brood_size > 0 is valid as the first and only terminal hatch visit.
+          If hatch_state is present, it will usually contain at least one C or S component, but allow review-only exceptions
+          where remaining eggs were infertile or unhatched.
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: NEST_010B
+        severity: warning
+        scope: row
+        columns: [nest_state, clutch_size, brood_size]
+        description: Outside the first terminal H visit, a row with no eggs but one or more chicks is usually no longer a NESTS event, except for the single final post-hatch notA closure immediately after that terminal H visit.
+        logic: >
+          If clutch_size == 0 and brood_size >= 1, and nest_state is not one of ['H', 'pP', 'P'], flag for review,
+          except when the row is the single final notA row immediately following a terminal H row for the same nest_id
+          with clutch_size == 0 and brood_size > 0.
+          The first H row with clutch_size == 0 and brood_size > 0 is allowed as the terminal hatch visit under NEST_007.
+          The permitted final notA closure after that H row may retain brood_size > 0 and is also valid under NEST_007.
+          These chicks should usually be represented as RESIGHTINGS rows, or CAPTURES rows if captured,
+          rather than as a continued NESTS event.
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: NEST_010C
+        severity: warning
+        scope: row
+        columns: [nest_state, clutch_size, brood_size]
+        description: Predated or possibly predated rows should usually record no remaining eggs or chicks in NESTS.
+        logic: >
+          If nest_state is in ['pP', 'P'], clutch_size should equal 0.
+          If nest_state is in ['pP', 'P'], brood_size should be blank or 0.
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: NEST_011
+        severity: warning
+        scope: grouped
+        columns: [nest_id, cam_id, photo_start, photo_end, nest_photo, tent_photo, nest_state, clutch_size]
+        description: Multiple NESTS photo events should usually be limited to a documented early clutch-size increase.
+        logic: >
+          Allow complete photo metadata on any valid nest_state; do not infer that photos are invalid from
+          nest_state alone.
+          Most nest_ids should have only one photo event.
+          A nest history that starts with clutch_size 1 or 2 and later increases to a larger clutch_size
+          up to 3 may have two photo events:
+          one at the smaller clutch_size and one after the clutch has increased.
+        dataentry_translation_hint: custom:grouped_logic_current_table
+      - rule_id: NEST_W002
+        severity: warning
+        scope: row
+        columns: [clutch_size, hatch_state, cam_id, photo_start, photo_end, nest_photo, tent_photo]
+        description: A photographed or egg-state-recorded NESTS visit should record the clutch_size observed during that visit.
+        logic: >
+          If clutch_size is blank and any of nest_photo or tent_photo equals 1, or any of cam_id, photo_start,
+          or photo_end is entered, or hatch_state is populated and contains N, report variable clutch_size with a
+          reminder to enter the observed clutch_size; use 0 when no eggs were present. This is a warning rather than
+          a save blocker.
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: NEST_W001
+        severity: warning
+        scope: grouped
+        columns: [nest_id, date]
+        description: Visit scheduling should follow float-derived expectations.
+        logic: >
+          Use the earliest EGGS float stage to estimate clutch completion.
+          After day 20 since clutch completion, visits should occur roughly every 3 days.
+          Once hatch_state first contains S or C, visits should shift to daily.
+        dataentry_translation_hint: post_save
+    mock_generation_only_rules:
+      - rule_id: NEST_M001
+        description: Average number of events per nest_id is around 3, with min 1 and max 5.
+      - rule_id: NEST_M002
+        description: Most nests start at clutch size 3; starts at 1 or 2 are rare.
+      - rule_id: NEST_M003
+        description: Only the first event within a nest_id carries gps_id and gps_point; for most histories this is the initial F row, but if a scrape S row exists then that S row alone carries the GPS metadata. This is a mock-data pattern only and should not be enforced as a save-time cross-table chronology rule, because different tables may be entered in different sequences.
+      - rule_id: NEST_M004
+        description: Scrape-start histories are rare; approximately 2 percent of nest_ids begin with nest_state S, and any S row must be the first event and be followed immediately by F.
+      - rule_id: NEST_M005
+        description: In mock NESTS data, the numeric components of hatch_state should sum exactly to clutch_size; for H rows, hatch_state describes only the eggs still in the clutch, not the chicks already counted in brood_size.
+      - rule_id: NEST_M006
+        description: In mock cross-table data, a positive nest_id should not reach its first terminal pP, P, D, or notA row before the last linked active-breeding event in other tables. This includes later EGGS events, later adult CAPTURES still tied to that nest_id, and later adult RESIGHTINGS with behav IN or NM. Because pD is only a possible desertion state, later active events may still follow pD and should not be blocked by this mock-generation rule. If later parent-linked events exist, either delay the terminal NESTS row or assign a new nest_id to the later breeding attempt.
+      - rule_id: NEST_M007
+        description: In mock data, the plot letter of each CR nest_id must be derived from the supplied A/B/C polygons and then propagated consistently across NESTS, EGGS, CAPTURES, and RESIGHTINGS.
+      - rule_id: NEST_M008
+        description: In mock NESTS data, every row with nest_state pP or P must be normalized as a terminal predation row. Set clutch_size to 0, set brood_size to 0 or leave it blank, and leave hatch_state blank on those rows, including after any later mock-history reshaping steps such as adding notA rows.
+      - rule_id: NEST_M009
+        description: In mock NESTS data, nests with matching EGGS float data should usually have exactly one photographed NESTS visit, and that photographed float visit should fall on the F row for most nests or otherwise within two days after F. Repeated photo events within the same nest history should occur only when clutch_size changes between visits. Stable-clutch revisit histories should usually retain just one photo event.
+      - rule_id: NEST_M010
+        description: About 5 percent of mock nest histories may show an early clutch-size increase representing continued laying at an early developmental stage. In these rare cases, the first visit should have clutch_size 1 or 2, the second visit should occur exactly one day later, and the second visit should have a larger clutch_size. The earlier lower-clutch visit should usually carry the photographed float event, while the later increased-clutch visit may remain unphotographed so the to-do logic can generate a follow-up photos-only task even though the nest was already photographed on the earlier visit.
+      - rule_id: NEST_M011
+        description: Every mock nest history should end with exactly one final notA row. That notA visit should follow the last closure state for the breeding attempt and may occur any time from the same date and time as the preceding closure event up to seven days later. The preceding closure event may be H, pP, P, D, or pD. When the preceding closure is terminal H, the final notA may retain clutch_size 0 and brood_size greater than 0.
+      - rule_id: NEST_M012
+        description: If a mock nest history would otherwise remain open on an active state such as F or I, insert a pD row first to represent presumed desertion and then append the single final notA row after that closure event. This keeps each mock history explicitly closed while distinguishing presumed from confirmed terminal outcomes.
+      - rule_id: NEST_M013
+        description: In a small number of mock nest histories, a pD row should be followed by a later I row to show that the desertion was only presumed rather than confirmed. Those recovered histories should then later close again, for example with a sequence such as pD -> I -> D -> notA. These examples document that later active states may follow pD, whereas no later active state should follow pP, P, or D.
+      - rule_id: NEST_M014
+        description: Across the mock workbook, every individual image number inside every photo_start/photo_end range must stay globally unique across CAPTURES, NESTS, and RESIGHTINGS. The mock generator should audit the combined workbook and fail if any overlap remains.
+      - rule_id: NEST_M015
+        description: Every mock H visit with brood_size greater than 0 should have at least brood_size same-day age-C rows across mock CAPTURES and RESIGHTINGS for the same nest_id. Only the first H visit with clutch_size 0 and brood_size greater than 0 may be the terminal H visit; later chick observations belong only in CAPTURES or RESIGHTINGS, apart from an optional final notA closure row in NESTS, which may retain clutch_size 0 and brood_size greater than 0.
+
+  CAPTURES:
+    hard_rules:
+      - rule_id: CAP_001
+        severity: error
+        scope: row
+        columns: [date, caught, species, site, observer, capture_status, capture_method, nest_id, gps_id, gps_point, field_sex, age, ring, UL, LL, UR, LR]
+        description: Primary CAPTURES fields are mandatory; first-capture chicks require a real nest or brood link, while GPS remains optional for positive nest-linked first captures and mandatory for negative broods or other unlinked rows.
+        logic: >
+          Require date, caught, species, site, observer, capture_status, capture_method, field_sex, age, and ring on every row.
+          If age == 'C' and capture_status == 'F', require a positive biological nest_id or a negative brood ID;
+          blank nest_id and NO_NEST are not valid substitutes for this first chick-capture link. For this specific
+          first-capture chick context, gps_id and gps_point may both be blank when the capture occurred at the nest,
+          or may both be entered when the chick was captured away from the nest. A partial GPS pair is invalid.
+          If nest_id is a positive biological nest ID on any other row, require gps_id and gps_point to be blank and
+          use the nest location. If nest_id starts with '-', require that negative brood ID together with both gps_id
+          and gps_point because the brood has no NESTS location. If nest_id is blank or NO_NEST on any other row,
+          require both gps_id and gps_point on the unlinked direct-GPS branch. In every branch, reject a partial GPS
+          pair and reject a row with neither a valid location representation nor the required direct GPS pair.
+          GLOBAL_005A confirms any complete GPS pair in GPS_POINTS.
+          Require UL, LL, UR, and LR unless capture_status == 'D'.
+          If capture_status == 'D', UL, LL, UR, and LR must be blank and the recovered combo belongs only in UL_in, LL_in, UR_in, and LR_in.
+          released may be NA only if capture_status == 'D' and is handled by CAP_005.
+          Secondary completeness fields and age/status-specific expectations are handled by downstream CAP rules and warnings.
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: CAP_001A
+        severity: error
+        scope: row
+        columns: [ring]
+        description: Each CAPTURES ring must use the current metal-ring identifier format.
+        logic: "When ring is entered, it must match ^CP-?[0-9]{5}$, for example CP12345 or CP-12345."
+        dataentry_translation_hint: builtin:is.regexp_validator
+      - rule_id: CAP_002
+        severity: error
+        scope: row
+        columns: [observer, date]
+        description: observer must exist in OBSERVERS and be active on the event date.
+        logic: "observer in OBSERVERS and OBSERVERS.start <= date <= OBSERVERS.stop"
+        dataentry_translation_hint: custom:cross_table_archive_logic
+      - rule_id: CAP_003
+        severity: error
+        scope: row
+        columns: [book_id, form_id]
+        description: book_id is restricted to 1-5 and form_id must be positive.
+        logic: "book_id in [1,2,3,4,5] and form_id >= 1"
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: CAP_004
+        severity: error
+        scope: grouped
+        columns: [book_id, form_id]
+        description: form_id must be unique within book_id and must represent only one event.
+        logic: "no duplicate [book_id, form_id] pairs within CAPTURES"
+        dataentry_translation_hint: custom:grouped_logic_current_table
+      - rule_id: CAP_005
+        severity: error
+        scope: row
+        columns: [caught, released, capture_status]
+        description: caught must be before released unless the bird was dead on capture.
+        logic: >
+          If capture_status != 'D': caught < released whenever both times are entered.
+          If capture_status == 'D': released must be NA.
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: CAP_006
+        severity: error
+        scope: row
+        columns: [capture_status]
+        description: Allowed capture_status values are F, R, C, D.
+        logic: "capture_status in ['F', 'R', 'C', 'D']"
+        dataentry_translation_hint: builtin:is.element_validator
+      - rule_id: CAP_006B
+        severity: error
+        scope: row
+        columns: [capture_method, nest_id]
+        description: Certain capture methods are only valid when a nest-linked context is recorded.
+        logic: >
+          If capture_method == 'TN', nest_id must be positive.
+          TN is not allowed with NO_NEST, blank nest_id, or negative brood-only nest_id values.
+          If capture_method == 'TB', nest_id must be positive or negative.
+          TB is not allowed with NO_NEST or blank nest_id values.
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: CAP_009
+        severity: error
+        scope: row
+        columns: [nest_id, site]
+        description: When entered, nest_id format depends on site and brood status; age-C first captures require a real nest or brood ID, and negative brood IDs also require the direct GPS pair checked by CAP_001.
+        logic: >
+          nest_id may be blank when both gps_id and gps_point provide the capture location, except that age == 'C'
+          with capture_status == 'F' requires a positive nest_id or negative brood ID and does not accept NO_NEST.
+          If nest_id == 'NO_NEST': accept it for contexts other than age == 'C' with capture_status == 'F'.
+          Else if nest_id starts with '-' and site == 'CR': nest_id must match negative_brood_nest_regex_cr and CAP_001 must find both gps_id and gps_point.
+          Else if nest_id starts with '-': nest_id must match negative_brood_nest_regex.
+          Negative nest IDs on non-Cass sites must also satisfy CAP_001's mandatory GPS pair.
+          Else if site == 'CR': nest_id must match positive_nest_regex_cr.
+          Else: nest_id must match positive_nest_regex_non_cr.
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: CAP_010
+        severity: error
+        scope: row
+        columns: [field_sex, age]
+        description: field_sex is age-constrained.
+        logic: >
+          If age in ['C', 'J'], field_sex must be 'U'.
+          If age == 'A', field_sex must be one of M, MU, F, FU.
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: CAP_013
+        severity: error
+        scope: row
+        columns: [UL_in, LL_in, UR_in, LR_in, UL, LL, UR, LR, capture_status]
+        description: Band-position logic must follow capture_status.
+        logic: >
+          If capture_status == 'F': UL_in, LL_in, UR_in, LR_in must all equal 'X', and release combo must not be all X.
+          If capture_status == 'R': input combo must equal release combo. If any nonblank input mark differs from its corresponding release mark and the normalized ring is present in CAPTURES_ARCHIVE or current-season CAPTURES history, block the save on capture_status with: 'Looks like you changed the bands on this bird after recapture, capture_status should be 'C''. If prior ring history is unavailable, use the generic status-R mismatch message.
+          If capture_status == 'C': at least one input position must be non-X and input combo must differ from release combo in at least one position.
+          If capture_status == 'D': UL, LL, UR, and LR must all be blank, while UL_in, LL_in, UR_in, and LR_in record the recovered combo.
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: CAP_014
+        severity: error
+        scope: row
+        columns: [site, age, UL, LL, UR, LR, capture_status]
+        description: Site-specific age-dependent release mark schemes are constrained.
+        logic: >
+          If age == 'C' and site == 'CR':
+          UL must be blank or X, LL must match chick_colour_regex, UR must be 'M', LR must be blank or X,
+          and capture_status must be 'F' or 'R'.
+          If age == 'C' and site != 'CR':
+          UL must be 'M', LL must be blank or X, UR must be blank or X, LR must match chick_colour_regex,
+          and capture_status must be 'F' or 'R'.
+          If age == 'J':
+          UL must match juvenile_flag_regex, LL must be blank or X, UR must be 'M', LR must be blank or X,
+          and capture_status must be 'F' or 'C'.
+          If age == 'A' and capture_status != 'D' and site == 'CR':
+          LL must be one of YR, YO, YY, GY, BY, WY, OY, or LY.
+          If age == 'A' and capture_status != 'D' and site != 'CR':
+          LL must not be one of YR, YO, YY, GY, BY, WY, OY, or LY.
+          If capture_status == 'D', UL, LL, UR, and LR are expected to be blank and are exempt from this adult LL rule.
+          Adult rows must not use the CR chick scheme, the non-CR chick scheme, or the juvenile release scheme.
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: CAP_015
+        severity: error
+        scope: cross_table
+        columns: [nest_id, date, age]
+        description: Positive-nest chick and juvenile captures are only allowed after the nest has demonstrably hatched.
+        logic: >
+          If age in ['C', 'J'] and nest_id is positive, the nest_id must exist in NESTS.
+          There must be an earlier or same-day NESTS record for that nest_id.
+          There must be a prior or same-day hatch indication via nest_state == 'H' or hatch_state containing S/C before the capture event.
+        dataentry_translation_hint: custom:cross_table_archive_logic
+      - rule_id: CAP_015B
+        severity: error
+        scope: cross_table
+        columns: [nest_id, date, caught]
+        description: Positive nest-linked CAPTURES cannot predate the first NESTS F discovery event for that nest_id.
+        logic: >
+          Restrict this rule to positive nest_id values only.
+          Ignore NO_NEST and negative brood-only nest_id values.
+          Look up the earliest current-season NESTS row for that nest_id where nest_state == 'F'.
+          If no such F row exists, flag the CAPTURES row.
+          Compare the CAPTURES event datetime using [date, caught] against the first F datetime using [date, time_visit].
+          If the CAPTURES event occurs earlier than that first F discovery event, flag the row.
+        dataentry_translation_hint: custom:cross_table_archive_logic
+      - rule_id: CAP_016
+        severity: error
+        scope: cross_table
+        columns: [capture_status, UL, LL, UR, LR, UL_in, LL_in, UR_in, LR_in, date]
+        description: Previously marked combinations must really be previously existing.
+        logic: >
+          Before comparing combinations, normalize any UR or UR_in value that starts with T and ends with
+          a valid colour letter to T plus that final colour letter, so that short GEO-tag codes such as TY
+          match earlier long-form archive strings such as TDB123Y.
+          If capture_status == 'R', the release combo [UL,LL,UR,LR] must already exist in CAPTURES_ARCHIVE
+          or in current-season CAPTURES at an earlier date/time.
+          If capture_status == 'C', the input combo [UL_in,LL_in,UR_in,LR_in] must already exist in CAPTURES_ARCHIVE
+          or in current-season CAPTURES at an earlier date/time.
+        dataentry_translation_hint: custom:cross_table_archive_logic
+      - rule_id: CAP_016B
+        severity: warning
+        scope: cross_table
+        columns: [nest_id, age, capture_status, UL_in, LL_in, UR_in, LR_in, tag_id]
+        description: Full-combination adult captures linked to a live nest should usually be limited to first marking, immature remarking, or tag deployment.
+        logic: >
+          Restrict to positive nest_ids, age == 'A', and capture_status != 'D'.
+          Dead-on-capture adults are exempt from this rule.
+          A nest-associated adult capture is justified only if at least one of the following is true:
+          1) the bird is unbanded before capture, operationalized as capture_status == 'F' and all input positions are X;
+          2) the bird was previously banded but still carries a local-recruit / immature-like scheme requiring adult remarking,
+             operationalized as an existing combo_in that is not already a full adult marked scheme;
+          3) the bird is targeted for geotag deployment, operationalized by a non-missing release tag_id / geotag UR scheme.
+          Previously marked adults already carrying an adequate unique adult combo and not receiving a tag
+          should not require CAPTURES linkage to a nest and may be represented through RESIGHTINGS instead.
+          Treat this as a review-level warning rather than a save-blocking error.
+        dataentry_translation_hint: custom:cross_table_archive_logic
+      - rule_id: CAP_017
+        severity: error
+        scope: row
+        columns: [age, UR, UR_in, tag_id, tag_type, tag_action, wt_w_tag, tag_id_in]
+        description: Geotag deployment fields must agree with the UR encoding.
+        logic: >
+          If age in ['C', 'J']:
+          UR and UR_in must not use the GEO-tag short form,
+          and tag_action, tag_type, tag_id, tag_id_in, and wt_w_tag must all be NA.
+          If age == 'A':
+          GEO tags in CAPTURES now use a short UR / UR_in code of T plus the final colour letter only,
+          for example TY, rather than embedding the tag_id in UR.
+          If tag_action == D: tag_id must be non-missing and tag_id_in must be NA.
+          If tag_action == R: tag_id_in must be non-missing and tag_id must be NA.
+          If tag_action == S: tag_id_in and tag_id must both be non-missing and equal.
+          If tag_action == N: tag_id_in and tag_id must both be non-missing and different.
+          If UR matches geotag_ur_regex:
+          tag_id must be non-missing,
+          tag_type must equal GEO,
+          and tag_action must be one of D, S, or N.
+          If UR_in matches geotag_ur_regex:
+          tag_id_in must be non-missing,
+          tag_type must equal GEO,
+          and tag_action must be one of S, N, or R.
+          If tag_action == O:
+          tag_id and tag_id_in must both be NA,
+          UR and UR_in must not use the GEO-tag short form,
+          and wt_w_tag must equal '0'.
+          If no tag is present at capture or release:
+          tag_type must be NA,
+          tag_action must equal O,
+          and wt_w_tag must equal '0'.
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: CAP_017B
+        severity: error
+        scope: cross_table
+        columns: [date, caught, ring, tag_id_in, tag_id, tag_action]
+        description: Tag actions must follow a valid chronological deployment and retrieval history.
+        logic: >
+          Combine saved current-season CAPTURES history with valid D, R, S, and N rows in the current
+          data-entry session, ordered by date, caught time, saved rows before current rows at a tie,
+          and current row order. Do not let a current row that fails this lifecycle rule establish tag
+          history for a later current row.
+          For D, tag_id may be new, or it may be a previously deployed tag whose latest earlier tag event
+          is R with that tag recorded in tag_id_in. A tag that is still active may not receive another D.
+          For S, tag_id_in and tag_id must identify the same tag, and that tag must be active on the same ring
+          from an earlier D, N, or S event.
+          For R, tag_id_in must identify a tag that is active on the same ring from an earlier D, N, or S event,
+          and tag_id must remain blank.
+          For N, tag_id_in must identify an active tag on the same ring and that tag must have an earlier D
+          deployment to that ring. The release tag_id must differ from tag_id_in and must not have appeared
+          previously as a deployed release tag under D or N for any bird.
+          If saved CAPTURES history cannot be read, return a row-level tag_action issue explaining that the
+          tag-history check was unavailable; do not return variable = NA and do not assume the history is empty.
+        dataentry_translation_hint: custom:cross_table_current_session_logic
+      - rule_id: CAP_018
+        severity: error
+        scope: row
+        columns: [tarsus, culmen, total_head, head_white, head_black, rufous_band, wing, weight, age]
+        description: Morphometric field presence depends on age, with juvenile wing values optional.
+        logic: >
+          If age == 'A': tarsus, culmen, total_head, head_white, head_black, rufous_band, wing, and weight must all be non-missing.
+          If age == 'C': tarsus, culmen, and weight must be non-missing, while total_head, head_white, head_black, rufous_band, and wing must be NA.
+          If age == 'J': tarsus, culmen, and weight must be non-missing, while total_head, head_white, head_black, and rufous_band must be NA; wing may be non-missing or NA.
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: CAP_019
+        severity: error
+        scope: row
+        columns: [brood_patch, age]
+        description: brood_patch is age-constrained.
+        logic: >
+          If age == 'A', brood_patch must equal '1' or '0'.
+          If age in ['C', 'J'], brood_patch must be NA.
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: CAP_020
+        severity: error
+        scope: row
+        columns: [moult_left, moult_right, age]
+        description: Moult is mainly recorded on adults, but juveniles may occasionally have scores.
+        logic: >
+          If age == 'A', at least one of moult_left or moult_right must be non-missing.
+          If age == 'C', moult_left and moult_right must both be NA.
+          If age == 'J', moult_left and moult_right may be non-missing or NA.
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: CAP_021
+        severity: error
+        scope: row
+        columns: [breast_samp, primary_samp, age]
+        description: Feather sampling flags are age-constrained in this workflow.
+        logic: >
+          If age == 'A', breast_samp and primary_samp must each be recorded as 0 or 1.
+          If age in ['C', 'J'], breast_samp in ['0', NA] and primary_samp in ['0', NA].
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: CAP_021B
+        severity: error
+        scope: row
+        columns: [eggs_handled, age, nest_id]
+        description: eggs_handled is required for nest-linked adult captures.
+        logic: >
+          If eggs_handled is entered, it must be one of ['0', '1'].
+          If age == 'A' and nest_id is non-missing and non-blank and nest_id != 'NO_NEST' and does not start with '-', eggs_handled must be one of ['0', '1'].
+          In all other cases, eggs_handled may be left blank.
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: CAP_022
+        severity: error
+        scope: row
+        columns: [blood_samp]
+        description: blood_samp must be blank or use a valid sample code.
+        logic: "blood_samp is NA or blood_samp in ['BQ', 'BF', 'BE']"
+        dataentry_translation_hint: builtin:is.element_validator
+      - rule_id: CAP_023
+        severity: error
+        scope: row
+        columns: [feather_wear, age]
+        description: feather_wear is mainly recorded on adults, and only occasionally on juveniles.
+        logic: >
+          If age == 'A', feather_wear must be one of ['0', '1', '2', '3'].
+          If age == 'J', feather_wear may be one of ['0', '1', '2', '3'] or NA.
+          If age == 'C', feather_wear must be NA.
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: CAP_024
+        severity: error
+        scope: row
+        columns: [parents, age]
+        description: parents is only applicable to chicks and juveniles.
+        logic: >
+          If age == 'A', parents must be NA.
+          If age in ['C', 'J'], parents must be one of MF, F, M, U1, U2, O.
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: CAP_026
+        severity: error
+        scope: grouped
+        columns: [date, caught, nest_id, age]
+        description: No capture event may contain more than 3 chicks.
+        logic: >
+          Within a simultaneous capture event key, count rows where age == 'C'.
+          Count must be <= 3.
+        dataentry_translation_hint: custom:grouped_logic_current_table
+      - rule_id: CAP_027
+        severity: error
+        scope: row
+        columns: [mugshot_photo, wing_photo, chick_tent_photo, chick_hide_photo, age]
+        description: Photo-flag requirements are age-specific.
+        logic: >
+          If age == 'A': mugshot_photo and wing_photo must each be recorded as 0 or 1; chick_tent_photo
+          and chick_hide_photo must be blank or 0.
+          If age == 'J': chick_tent_photo and chick_hide_photo must be blank or 0; mugshot_photo and
+          wing_photo should be blank.
+          If age == 'C': chick_tent_photo must be recorded as 0 or 1, while chick_hide_photo must be blank or 0
+          because a hiding-spot image is a separate age-C, rclass-H RESIGHTINGS row; mugshot_photo and wing_photo
+          must be blank.
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: CAP_028
+        severity: error
+        scope: row
+        columns: [cam_id, photo_start, photo_end, mugshot_photo, wing_photo, chick_tent_photo, chick_hide_photo]
+        description: CAPTURES photo metadata must be complete, internally ordered, and present when any photo flag is set.
+        logic: >
+          If any photo flag equals 1, cam_id, photo_start, and photo_end must all be entered.
+          If any one of cam_id, photo_start, or photo_end is entered, all three must be entered.
+          Compare terminal roll-frame values using the roll as the higher-order component, so 100-9925
+          is earlier than 101-0097; otherwise compare the trailing numeric suffix. photo_end must not be
+          earlier than photo_start.
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: CAP_030
+        severity: error
+        scope: row
+        columns: [UL_in, LL_in, UR_in, LR_in, UL, LL, UR, LR]
+        description: Leg-mark fields must not use comma-separated codes.
+        logic: >
+          If any input or release leg-mark field contains a comma, flag that field. Leg markings must be
+          entered as compact strings such as RR rather than comma-separated strings such as R,R or R, R.
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: CAP_031
+        severity: error
+        scope: row
+        columns: [observer_upload]
+        description: Every capture event must identify the observer who entered the record.
+        logic: >
+          observer_upload must be present and must contain two or three uppercase letters.
+        dataentry_translation_hint: custom:row_logic
+    warning_rules:
+      - rule_id: CAP_007
+        severity: warning
+        scope: row
+        columns: [age, capture_status]
+        description: capture_status patterns vary by age, but some combinations are more likely than others.
+        logic: >
+          All capture_status levels can occur at any age and should not be blocked on that basis alone.
+          However, age == 'C' is most likely to have capture_status == 'F'.
+          Age == 'J' is most likely to have capture_status in ['F', 'C'].
+          Differences should be flagged for review rather than blocked.
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: CAP_008
+        severity: warning
+        scope: row
+        columns: [age, capture_method]
+        description: capture_method patterns vary by age, but some combinations are more likely than others.
+        logic: >
+          Unusual capture_method values can occur and should not be blocked on that basis alone.
+          However, age == 'C' is most likely to have capture_method == 'HA'.
+          Age in ['A', 'J'] is most likely to have capture_method in ['MM', 'TN'].
+          Differences should be flagged for review rather than blocked.
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: CAP_011
+        severity: warning
+        scope: grouped
+        columns: [nest_id, field_sex, age]
+        description: For a positive nest_id, there is usually only one male-coded adult and one female-coded adult capture in the season.
+        logic: >
+          Restrict to positive nest_ids and age A.
+          Map M/MU to male group and F/FU to female group.
+          More than one distinct adult of the same sex group associated with a nest_id is unlikely and should be flagged for review, but not blocked.
+        dataentry_translation_hint: custom:grouped_logic_current_table
+      - rule_id: CAP_012
+        severity: warning
+        scope: row
+        columns: [ring]
+        description: First-marking rings should usually be unique across current-season and historical capture history, but repeated use for the same individual may need review rather than blocking.
+        logic: >
+          Restrict the check to rows where capture_status == 'F' and ring is non-missing.
+          Compare those current x rows to CAPTURES and CAPTURES_ARCHIVE.
+          If a first-marking ring already exists in current-season or historical capture history, or is duplicated within the submitted x rows,
+          flag the current first-marking rows for review rather than blocking, because an intentional same-individual recapture history may exist on non-F rows.
+        dataentry_translation_hint: custom:grouped_logic_current_table
+      - rule_id: CAP_012B
+        severity: warning
+        scope: cross_table
+        columns: [ring, UL, LL, UR, LR]
+        description: Unique release leg markings should not be linked to more than one distinct ring.
+        logic: >
+          Build canonical_combo_release from [UL,LL,UR,LR].
+          Treat classic and tag-style equivalents as the same duplicate-prevention identity, so that
+          a classic right side stored as UR = X, LR = YG and a tagged right side stored as
+          UR = TY, LR = G both compare as the same canonical pair YG.
+          Exclude chick release schemes that are intentionally non-unique, and exclude all-X blank release combos.
+          Compare current x rows to CAPTURES and CAPTURES_ARCHIVE.
+          If the same non-chick canonical_combo_release is linked to more than one distinct non-missing ring across those sources,
+          flag the current x rows using that combo for review.
+          Use a fieldworker-facing message that says duplicated leg markings should be double checked and corrected by recapture if needed.
+        dataentry_translation_hint: custom:cross_table_archive_logic
+      - rule_id: CAP_025
+        severity: warning
+        scope: grouped
+        columns: [date, caught, nest_id, caught_with, age]
+        description: caught_with should usually reflect simultaneous capture composition.
+        logic: >
+          For rows sharing [date, caught, nest_id], derive the simultaneous family composition.
+          Adults in brood events should reference M/F and chick count consistently.
+          Chick rows should describe simultaneous sibling count or be blank when alone.
+        dataentry_translation_hint: custom:grouped_logic_current_table
+      - rule_id: CAP_029
+        severity: warning
+        scope: cross_table
+        columns: [nest_id, chick_hide_photo, chick_tent_photo]
+        description: Chick capture photo flags should agree with separate H-class hiding-spot resightings when both records exist.
+        logic: >
+          If a nest_id has any RESIGHTINGS row with age == 'C' and rclass == 'H',
+          then corresponding CAPTURES rows for age == 'C' at that nest_id should usually have chick_tent_photo == '1'
+          and chick_hide_photo blank or '0'. The H-class row is a separate individual event, may be on the same occasion,
+          and is not a duplicate capture. Apply this warning to positive and negative nest IDs; do not block separate
+          portal submissions merely because the companion row has not yet been entered.
+        dataentry_translation_hint: custom:cross_table_archive_logic
+      - rule_id: CAP_W001
+        severity: warning
+        scope: row
+        columns: [caught, released]
+        description: Most captures should occur between 07:00 and 19:00 local time.
+        logic: "flag if caught or released falls outside 07:00-19:00"
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: CAP_W002
+        severity: warning
+        scope: row
+        columns: [gps_id, observer]
+        description: gps_id should usually match the observer's default gps_id.
+        logic: "compare gps_id to OBSERVERS.gps_id for observer and warn on mismatch"
+        dataentry_translation_hint: custom:cross_table_archive_logic
+      - rule_id: CAP_W004
+        severity: warning
+        scope: row
+        columns: [blood_samp]
+        description: Nearly all captures should use blood_samp == BQ.
+        logic: "warn when blood_samp != 'BQ'"
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: CAP_W008
+        severity: warning
+        scope: row
+        columns: [UR, tag_id, wt_w_tag]
+        description: Tagged birds will usually have wt_w_tag == 1, so wt_w_tag == 0 should be reviewed.
+        logic: >
+          If UR matches geotag_ur_regex, meaning a short GEO code such as TY, or if tag_id is non-missing,
+          wt_w_tag == '0' is unusual and should be flagged for review,
+          but not blocked.
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: CAP_W011
+        severity: warning
+        scope: cross_table
+        columns: [nest_id, date, caught, age, field_sex]
+        description: Opposite-sex adult captures at the same positive nest_id should usually be spaced by at least 36 hours.
+        logic: >
+          Restrict to age == 'A', positive nest_id values, and field_sex values that map to male or female groups.
+          Compare current x rows to both the current x table and existing CAPTURES rows for the same nest_id.
+          If an opposite-sex adult capture is recorded less than 36 hours before or after the current row,
+          flag the current row for review.
+          Use the fieldworker-facing message about parents being caught less than 36 hours apart and the risk of added disturbance.
+        dataentry_translation_hint: custom:cross_table_archive_logic
+      - rule_id: CAP_W012
+        severity: warning
+        scope: row
+        columns: [cam_id, photo_start, photo_end, mugshot_photo, wing_photo, chick_tent_photo, chick_hide_photo]
+        description: Complete CAPTURES photo metadata should usually correspond to at least one recorded photo type.
+        logic: >
+          If cam_id, photo_start, and photo_end are all entered but none of mugshot_photo, wing_photo,
+          chick_tent_photo, or chick_hide_photo equals 1, flag the row for review.
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: CAP_W013
+        severity: warning
+        scope: row
+        columns: [age, comments]
+        description: Chick CAPTURES comments that mention in situ photography should be reviewed because hiding-spot photos belong in RESIGHTINGS.
+        logic: >
+          Normalize comments case-insensitively and detect the phrase in situ with optional spaces, hyphens, or
+          underscores, including insitu and in-situ. When age == 'C' and the phrase is present, report variable
+          comments with: 'It looks like you are trying to enter hiding spot photos (in situ photos) into a capture
+          event of a chick. These should be entered as a separate RESIGHTINGS event with rclass H.'
+        dataentry_translation_hint: custom:row_logic
+    mock_generation_only_rules:
+      - rule_id: CAP_M012
+        description: In mock CAPTURES data, observer_upload should always be a valid observer code.
+        logic: >
+          observer_upload should be in OBSERVERS.observer.
+      - rule_id: CAP_M000A
+        description: In mock CAPTURES data, non-nest-linked events should use NO_NEST rather than a blank nest_id.
+        logic: >
+          If a CAPTURES event is not associated with a nest or brood,
+          set nest_id to NO_NEST.
+      - rule_id: CAP_M000B
+        description: In mock CAPTURES data, TN and TB should only occur on nest-linked rows.
+        logic: >
+          If capture_method == 'TN', generate only positive nest_id values.
+          If capture_method == 'TB', generate only positive or negative nest_id values.
+          For NO_NEST rows, use a non-nest method such as MM or HA instead.
+      - rule_id: CAP_M000C
+        description: Mock negative-brood captures must model mobile broods and may be the first discovery event.
+        logic: >
+          Include Cass and non-Cass negative nest_id examples. Every negative-ID CAPTURES row must carry the
+          negative nest_id plus both gps_id and gps_point, and the pair must exist in mock GPS_POINTS. Include
+          discovery occasions with multiple captured individuals, including repeated X-X marks only when those rows
+          represent distinct unbanded parents or chicks. Do not assume that a CAPTURES row precedes RESIGHTINGS.
+      - rule_id: CAP_W006
+        description: In mock CAPTURES data, injury or bleeding comments should be rare and must be genuinely applicable.
+        logic: "flag comments matching injury/bleeding keywords for manual review"
+      - rule_id: CAP_M001
+        description: A small minority of mock CAPTURES rows are dead-on-capture.
+        logic: >
+          When capture_status == 'D', UL, LL, UR, and LR should all be blank,
+          while UL_in, LL_in, UR_in, and LR_in retain the combo the bird was recovered with.
+      - rule_id: CAP_M002
+        description: Roughly half of all captures are F, one third C, and the remainder R once age-specific constraints are applied.
+      - rule_id: CAP_M003
+        description: Approximately 50 adults receive geotag deployments, recorded with short UR/UR_in forms such as TY rather than embedded-ID strings.
+      - rule_id: CAP_M003B
+        description: Some adult status-C mock rows should be historical quartet recaptures that receive a new GEO tag.
+        logic: >
+          For a subset of age == 'A', capture_status == 'C', and tag_action == 'D' rows,
+          the input combo [UL_in, LL_in, UR_in, LR_in] should match a historical adult quartet in the local BADOatNZ backup.
+          The release combo should then keep the M band on the same upper-leg side as the input combo,
+          keep LL unchanged, convert the first colour of LR_in into the short GEO tag code on the opposite upper segment,
+          and keep the second colour of LR_in as LR.
+      - rule_id: CAP_M004
+        description: Adult captures are sex-timed, with males mostly early/late and females mostly daytime.
+      - rule_id: CAP_M005
+        description: Most moult_left values are 0(10), with a few asymmetrical or active-moult adults.
+      - rule_id: CAP_M006
+        description: For positive nest_ids, opposite-sex adult parent captures are usually staggered by at least 36 hours.
+        logic: >
+          For each positive nest_id in mock CAPTURES data, opposite-sex adult captures should not be closer than 36 hours apart.
+      - rule_id: CAP_M007
+        description: F-capture ring numbers are chronological; R and C ring numbers are not necessarily chronological.
+      - rule_id: CAP_M008
+        description: Mock chick and juvenile CAPTURES rows must leave all tag fields blank.
+        logic: >
+          If age in ['C', 'J'], tag_action, tag_type, tag_id, tag_id_in, and wt_w_tag should all be blank,
+          and neither UR nor UR_in should use the short GEO-tag form.
+      - rule_id: CAP_M009
+        description: Mock brood_patch, feather_wear, and fat values should follow the age-specific blank-field rules.
+        logic: >
+          If age == 'C', brood_patch, feather_wear, and fat should all be blank.
+          If age == 'J', brood_patch should be blank.
+      - rule_id: CAP_M010
+        description: Mock adult release combinations should avoid both current-season duplicates and historic BADOatNZ reuse.
+        logic: >
+          For non-chick adult release combinations in mock CAPTURES data,
+          manage uniqueness using canonical adult colour-combo identity rather than the raw visible quartet.
+          Collapse classic and tag-style equivalents to the same duplicate-prevention key,
+          so that UR = X with LR = YG and UR = TY with LR = G both count as the same adult right-side pair YG.
+          Do not reuse the same canonical adult release identity in another mock CAPTURES row,
+          and do not reuse a canonical adult release identity that already appears in the historic BADOatNZ CAPTURES history.
+      - rule_id: CAP_M011
+        description: Mock CAPTURES rows should follow the site- and age-specific release marking scheme.
+        logic: >
+          For age == 'A', if UR matches geotag_ur_regex then LR should carry a single colour band.
+          For age == 'A', if neither UL nor UR matches geotag_ur_regex then LR should carry two colour bands.
+          For age == 'A', the M band should stay on the same upper-leg side between [UL_in, UR_in] and [UL, UR]
+          unless capture_status == 'D', in which case UL, LL, UR, and LR are all blank.
+          For site == 'CR' and age == 'A', LL must be one of YR, YO, YY, GY, BY, WY, OY, or LY.
+          For site != 'CR' and age == 'A', LL must avoid those CR-adult LL combinations.
+          For age == 'J', UL should be a white FW flag code, LL blank/X, UR M, and LR blank/X regardless of site.
+          For site == 'CR' and age == 'C', siblings sharing a nest_id should share one LL colour,
+          with UL blank/X, UR M, and LR blank/X.
+          For site != 'CR' and age == 'C', chicks from the same site should share one LR colour,
+          with UL M, LL blank/X, and UR blank/X.
+          Juvenile status-C rows should carry the appropriate chick-stage input combo for their site.
+
+  RESIGHTINGS:
+    hard_rules:
+      - rule_id: RES_001
+        severity: error
+        scope: row
+        columns: [species, observer, gps_id, gps_point, date, rclass, UL, LL, UR, LR, sex, age, behav, nest_id]
+        description: Core RESIGHTINGS fields are mandatory.
+        logic: >
+          species, observer, date, rclass, sex, and age must be non-missing.
+          For normalized rclass == 'H', blank, whitespace-only, and textual 'NA' values in any of those six fields
+          are also missing and must be reported on the corresponding variable.
+          If normalized rclass == 'H', require both direct gps_id and gps_point regardless of whether nest_id is
+          positive, negative, blank, or NO_NEST. For non-H rows, if nest_id is a positive nest ID, use the linked nest
+          location and ordinarily leave gps_id and gps_point blank. If nest_id starts with '-', require that negative
+          brood ID together with both gps_id and gps_point because the brood has no NESTS location. If nest_id is
+          missing, blank, or NO_NEST on a non-H row, require both GPS fields on the direct GPS branch. Reject partial
+          GPS pairs. GLOBAL_005A confirms any complete GPS pair in GPS_POINTS. For an H row missing either GPS field,
+          report variable gps_id or gps_point with: 'Hiding-spot photo events require both gps_id and gps_point, even
+          when nest_id is recorded.'
+          behav must be non-missing unless rclass == 'H', where a blank behaviour is allowed.
+          For the leg-mark fields, at least one of UL, LL, UR, or LR must be entered.
+          Partial informative entries are allowed, so a known bird may be entered as only LL/LR
+          or only a flag segment such as UR = FWA1.
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: RES_002
+        severity: error
+        scope: row
+        columns: [observer, date]
+        description: observer must exist in OBSERVERS and be active on the event date.
+        logic: "observer in OBSERVERS and OBSERVERS.start <= date <= OBSERVERS.stop"
+        dataentry_translation_hint: custom:cross_table_archive_logic
+      - rule_id: RES_003
+        severity: error
+        scope: row
+        columns: [rclass]
+        description: Allowed resighting classes for this workflow are restricted.
+        logic: "rclass in ['R', 'V', 'P', 'C', 'H']"
+        dataentry_translation_hint: builtin:is.element_validator
+      - rule_id: RES_004
+        severity: error
+        scope: row
+        columns: [rclass, sex, age]
+        description: sex and age codes are restricted, and H-class hiding-spot photos are age-C events.
+        logic: >
+          sex in ['M', 'MU', 'F', 'FU', 'U'].
+          age in ['A', 'J', 'C'].
+          If age in ['C', 'J'], sex must equal 'U'.
+          If normalized rclass == 'H', age must equal 'C'.
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: RES_004B
+        severity: error
+        scope: row
+        columns: [age, behav]
+        description: Chick and juvenile RESIGHTINGS rows are restricted to non-nest-attendance behaviour classes.
+        logic: >
+          Parse behav as comma-separated tokens.
+          If age in ['C', 'J'], every token must be one of ['OB', 'FT', 'AT', 'LF', 'RS', 'FF', 'FA', 'FC', 'PR'].
+          Adult rows may use the wider RESIGHTINGS behaviour vocabulary.
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: RES_004C
+        severity: error
+        scope: row
+        columns: [nest_id, site, species]
+        description: nest_id format depends on site, brood status, and species prefix outside Cass River.
+        logic: >
+          If nest_id is NA, no format check is needed.
+          If site == 'CR', nest_id must match ^-?[ABC][0-9]{4}$.
+          If site != 'CR' and species == 'BADO', nest_id must match ^-?BA[0-9]{4}$.
+          If site != 'CR' and species == 'WRYB', nest_id must match ^-?WR[0-9]{4}$.
+          If site != 'CR' and species == 'SNZD', nest_id must match ^-?SN[0-9]{4}$.
+          If site != 'CR' and species == 'BFDO', nest_id must match ^-?BF[0-9]{4}$.
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: RES_004D
+        severity: error
+        scope: row
+        columns: [UL, LL, UR, LR]
+        description: RESIGHTINGS leg-mark fields must not use comma-separated codes.
+        logic: >
+          If any of UL, LL, UR, or LR contains a comma,
+          flag that field.
+          Leg markings must be entered as compact strings such as RR rather than comma-separated strings such as R,R or R, R.
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: RES_005B
+        severity: error
+        scope: row
+        columns: [nest_id, rclass, age, gps_id, gps_point, ring, UL, LL, UR, LR, behav]
+        description: nest_id is required for linked chick RESIGHTINGS rows, and a negative nest_id satisfies that requirement without a NESTS lookup; otherwise-unlinked H chicks retain the existing narrow exception.
+        logic: >
+          If age == 'C', nest_id must be entered unless all of the following are true:
+          nest_id is blank, rclass == 'H', gps_id and gps_point are both entered, and either ring is nonblank or the
+          current RESIGHTINGS submission contains another age-A event with the same gps_id and gps_point and both LL
+          and LR recorded. This exception is for an unlinked chick hiding-spot photo session; it does not make nest_id
+          optional for other chick classes or when the chick lacks the mandatory GPS pair. RESIGHTINGS.ring is a
+          separate nullable metal-ring field: RES_010 requires it for every H row, and it supplements rather than
+          replaces UL, LL, UR, or LR. The reciprocal same-session parent/chick requirement is specified in RES_005J
+          and applies to all age-C rows, whether rclass is H, R, P, or V.
+          A negative nest_id is a valid linked brood identifier and satisfies the chick, BC/FC/AC, and adult linkage
+          requirements without being looked up in NESTS; RES_001 separately requires both GPS fields for every such row.
+          If behav includes 'BC', 'FC', or 'AC', nest_id must be entered.
+          For adult rows, treat behav including 'IN', 'NM', 'BW', 'BC', 'FC', or 'AC' as nest-parent identity-link candidates.
+          BW means broken-wing display, not brood watch; it may occur at either the nest or brood stage. Only BC and
+          FC and AC are the parent-with-chicks behaviours that trigger the reciprocal same-session age-C requirement.
+          Convert [UL,LL,UR,LR] into a mark using the same logic as the database format_mark function,
+          with UR normalized to T plus the final colour letter when UR starts with T and ends with a valid colour letter.
+          Use the first letter of sex to choose the matching sex-specific mark field in NESTS_LATEST
+          (M_mark for male rows, F_mark for female rows).
+          If that mark is already linked in NESTS_LATEST to one or more candidate nest_id values,
+          then look up the latest current-season NESTS state for each candidate nest_id on or before the RESIGHTINGS date.
+          If any candidate nest has a latest state not in ['pP', 'P', 'D', 'notA'], then the bird is already linked
+          by that date to an active current-season nest and nest_id may be omitted.
+          If no such active candidate nest exists by that date, then the adult IN/NM row must carry nest_id
+          because it is the first active-nest record for that breeding attempt.
+          State-specific IN/NM and BC/FC/AC restrictions are enforced separately by RES_005D and RES_005K.
+        dataentry_translation_hint: custom:cross_table_archive_logic
+      - rule_id: RES_005C
+        severity: error
+        scope: cross_table
+        columns: [nest_id, UL, LL, UR, LR, date]
+        description: Previously marked adults that do not need capture may be linked to nests or brood-only events through RESIGHTINGS.
+        logic: >
+          Compare identities using the normalized RESIGHTINGS tag shorthand rule for UR values that start with T.
+          If an adult RESIGHTINGS row carries positive nest_id or negative brood-only nest_id,
+          allow it when the normalized combo either already exists in CAPTURES_ARCHIVE,
+          already exists in current-season CAPTURES on or before the RESIGHTINGS date,
+          or is later confirmed in current-season CAPTURES for the same nest_id / breeding attempt.
+          This prevents a hard save-time failure when the RESIGHTINGS row is the first current-season
+          nest-parent identity record and the confirming CAPTURES row happens later in the same breeding attempt.
+          In the live DataEntry inspectors, this rule is better implemented as a warning-level review than as a hard blocker.
+        dataentry_translation_hint: custom:cross_table_archive_logic
+      - rule_id: RES_005D
+        severity: error
+        scope: cross_table
+        columns: [nest_id, behav, date]
+        description: Adult IN/NM RESIGHTINGS require a positive nest_id whose latest state is still F, I, or H.
+        logic: >
+          Restrict to age == 'A' rows with positive nest_id values and behav including 'IN' or 'NM'.
+          Look up the most recent current-season NESTS state for that nest_id on or before the RESIGHTINGS date.
+          If that latest state is not one of ['F', 'I', 'H'], flag the row. H remains valid because asynchronous
+          hatching can leave a stationary nest active while eggs and chicks are still being monitored. Use date,
+          time_visit, and pk to choose the latest NESTS event deterministically. If the bird is incubating or
+          maintaining a new breeding attempt after the nest has reached another state, check the nest linkage or use
+          the new nest_id.
+        dataentry_translation_hint: custom:cross_table_archive_logic
+      - rule_id: RES_005J
+        severity: error
+        scope: grouped
+        columns: [date, age, behav, rclass, nest_id, gps_id, gps_point]
+        description: Every age-C RESIGHTINGS event must be accompanied by a linked age-A parent event in the same portal submission, and every BC/FC/AC parent event must be accompanied by linked age-C event(s).
+        logic: >
+          Inspect only the current RESIGHTINGS submission; saved RESIGHTINGS rows must not satisfy this save-time
+          requirement. A link is valid when the date is the same and either both rows carry the same nonblank nest_id
+          other than NO_NEST, or both rows carry the same complete gps_id/gps_point pair. For every age == 'C' row,
+          require at least one age == 'A' row whose comma-separated behav tokens include BC, FC, or AC. The chick rclass
+          may be H, R, P, or V; H-specific ring, GPS, and photo rules remain separate. Conversely, for every age-A
+          row with behav BC, FC, or AC, require at least one linked age-C row in the same submission. Report the chick-side
+          failure on variable age and the parent-side failure on variable behav. This is save-blocking because the
+          field protocol requires parent/chick co-entry whenever chicks are recorded in the current portal session.
+        dataentry_translation_hint: custom:grouped_logic_current_table
+      - rule_id: RES_005K
+        severity: error
+        scope: cross_table
+        columns: [nest_id, nest_state, age, behav, gps_id, gps_point, date]
+        description: Brood-stage parent behaviour and mobile-brood GPS linkage must agree with the latest NESTS state.
+        logic: >
+          Use the latest NESTS row for the positive nest_id on or before the RESIGHTINGS date, ordered by date,
+          time_visit, and pk. For age-A rows with behav BC, FC, or AC, require latest nest_state H or notA; do not apply
+          this state restriction to BW, which means broken-wing display and may occur at either nest or brood stage.
+          When the latest state is notA and brood_size is greater than zero, require both gps_id and gps_point for
+          every age-C row and for age-A rows whose behav includes BW, BC, or FC, or AC. Negative nest_id rows use their
+          existing mandatory GPS rule and do not undergo a NESTS lookup. Missing NESTS history does not create a
+          fabricated state conclusion.
+        dataentry_translation_hint: custom:cross_table_archive_logic
+      - rule_id: RES_005E
+        severity: error
+        scope: cross_table
+        columns: [UL, LL, UR, LR, date]
+        description: A bird cannot be resighted after it has already been recorded dead in CAPTURES.
+        logic: >
+          Compare RESIGHTINGS rows to dead-capture history using the same canonical adult colour-combo identity
+          and informative-segment matching used by the combo-history rules.
+          Allow blank or X-coded UL / UR placeholders to be omitted in the RESIGHTINGS row when the remaining
+          informative segments still identify the bird.
+          A lower-pair-only adult entry such as LL = YO with LR = YY should therefore match the historical
+          adult combo YO-YY, and a flag-only entry such as UR = FWA1 should match a historical FWA1 record
+          even when the other leg segments are left blank.
+          Build dead-capture history from CAPTURES rows where capture_status == 'D' using the recovered input combo
+          from [UL_in, LL_in, UR_in, LR_in], not the blank release fields.
+          If the informative RESIGHTINGS signature matches one of those dead-capture combos and the RESIGHTINGS date is later
+          than the dead-capture date, flag the RESIGHTINGS row.
+        dataentry_translation_hint: custom:cross_table_archive_logic
+      - rule_id: RES_005F
+        severity: error
+        scope: cross_table
+        columns: [nest_id, date]
+        description: Positive nest-linked RESIGHTINGS cannot predate the first NESTS F, I, or H event for that nest_id.
+        logic: >
+          Restrict this rule to positive nest_id values only.
+          Ignore NO_NEST and negative brood-only nest_id values.
+          Look up the earliest current-season NESTS row for that nest_id where nest_state is one of ['F', 'I', 'H'].
+          If no such F, I, or H row exists, flag the RESIGHTINGS row.
+          Because RESIGHTINGS has no event-time field, require only that the RESIGHTINGS date is the same day as
+          or later than the first qualifying NESTS date.
+          If the RESIGHTINGS date is earlier than that first qualifying date, flag the row.
+        dataentry_translation_hint: custom:cross_table_archive_logic
+      - rule_id: RES_009
+        severity: error
+        scope: row
+        columns: [rclass, cam_id, photo_start, photo_end]
+        description: Photo metadata must be complete when required by rclass or when any part is entered.
+        logic: >
+          If rclass is one of ['V', 'P', 'H'], then cam_id, photo_start, and photo_end must all be entered.
+          If any of cam_id, photo_start, or photo_end is non-missing, then all three must be non-missing.
+          photo_start and photo_end must each end with either a terminal numeric suffix or a terminal roll-frame pattern such as 100-9925.
+          If a terminal roll-frame pattern is present, compare it using the roll as the higher-order component, so 100-9925 is earlier than 101-0097.
+          Otherwise fall back to the trailing numeric suffix and require photo_start <= photo_end.
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: RES_009B
+        severity: error
+        scope: row
+        columns: [rclass, cam_id, photo_start, photo_end]
+        description: Fully populated photo metadata requires a photo-oriented RESIGHTINGS class.
+        logic: >
+          If cam_id, photo_start, and photo_end are all entered,
+          then rclass must be one of ['V', 'P', 'H'].
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: RES_010
+        severity: error
+        scope: row
+        columns: [rclass, ring]
+        description: H-class RESIGHTINGS hiding-spot-photo rows require the individual's metal-ring code.
+        logic: >
+          Normalize rclass by trimming whitespace and comparing case-insensitively. When normalized rclass == 'H',
+          ring must be nonblank. Missing, whitespace-only, NA, and textual 'NA' ring values are invalid and must be
+          reported with variable = 'ring' and the fieldworker-facing reason:
+          'A metal-ring code is required for a hiding-spot-photo event (rclass H).'
+          Ring remains nullable for all other RESIGHTINGS classes. This rule does not replace the requirement for
+          informative UL, LL, UR, or LR leg-mark fields. H-ring format and CAPTURES-history requirements are
+          implemented separately as RES_010A and RES_010B.
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: RES_010A
+        severity: error
+        scope: row
+        columns: [rclass, ring]
+        description: H-class RESIGHTINGS ring values must use the CP metal-ring identifier format.
+        logic: >
+          Restrict to normalized rclass == 'H' rows with a nonblank ring after RES_010 has run.
+          Normalize case for comparison and require ^CP-?[0-9]{5}$, accepting CP20315 and CP-20315.
+          Report variable = 'ring' with the reason:
+          'For an H-class chick, ring must use the CP metal-ring format, e.g. CP20315 or CP-20315.'
+          Do not impose this requirement on non-H RESIGHTINGS classes.
+        dataentry_translation_hint: builtin:is.regexp_validator
+      - rule_id: RES_010B
+        severity: error
+        scope: cross_table
+        columns: [rclass, ring]
+        description: Every H-class RESIGHTINGS ring must already exist in current-season CAPTURES.
+        logic: >
+          Restrict to normalized rclass == 'H' rows whose nonblank ring passes RES_010A.
+          Compare the normalized ring to current-season CAPTURES.ring, treating case differences and the optional
+          dash in CP-12345 as equivalent. If no matching CAPTURES ring exists, report variable = 'ring' with the
+          reason: 'An H-class chick ring must already exist in CAPTURES because the chick must have been banded before
+          its hiding-spot photo was taken.' This is a save-blocking check; it does not require a separate archive
+          lookup and does not apply to non-H RESIGHTINGS classes. If CAPTURES cannot be queried, return a ring error
+          stating that the H-class ring could not be confirmed rather than returning a thrown-validator or variable-NA
+          result.
+        dataentry_translation_hint: custom:cross_table_current_table_logic
+      - rule_id: RES_011
+        severity: error
+        scope: row
+        columns: [rclass, age, UL, LL, UR, LR]
+        description: H-class age-C chick leg-band placement must follow the current metal-band and colour-band layout.
+        logic: >
+          Restrict to normalized rclass == 'H' rows; RES_004 separately requires age == 'C'.
+          If UR is the single metal band 'M', UL must be blank. If UR is blank, UL must be the single metal band 'M'.
+          If LL is one single colour band in ['B', 'G', 'R', 'O', 'W', 'L', 'Y'], LR must be blank. If LL is blank,
+          LR must be one single colour band in ['B', 'G', 'R', 'O', 'W', 'L', 'Y'].
+          Report the field that must be corrected. These checks supplement the existing leg-mark format validators;
+          H ring remains a separate required metal-ring identifier and does not replace UL, LL, UR, or LR.
+        dataentry_translation_hint: custom:row_logic
+    warning_rules:
+      - rule_id: RES_005
+        severity: warning
+        scope: cross_table
+        columns: [UL, LL, UR, LR, date]
+        description: Adult RESIGHTINGS combos should usually match a previously existing CAPTURES combo before the resighting event.
+        logic: >
+          Build canonical_combo_release from [UL,LL,UR,LR].
+          Compare adult combo history using the canonical adult colour-combo identity, not the raw visible quartet,
+          so that classic UR = X, LR = YG and tag-style UR = TY, LR = G count as the same
+          right-side colour pair YG.
+          When comparing adult identity, treat blank or X-coded UL / UR placeholders in the RESIGHTINGS row
+          as omittable if the remaining informative segments still identify a previously known bird.
+          A lower-pair-only adult entry such as LL = YO with LR = YY should therefore match the historical
+          adult combo YO-YY, and a flag-only entry such as UR = FWA1 should match a historical FWA1 record
+          even when the other leg segments are left blank.
+          Do not relax matching for any actually entered band, flag, tag, or colour values, and do not
+          relax LL/LR values that are present in the RESIGHTINGS row.
+          Restrict this warning to adult rows.
+          The canonical combo should usually exist in CAPTURES_ARCHIVE or CAPTURES with an earlier date/time than the RESIGHTINGS row.
+          When the only CAPTURES evidence is a dead-on-capture row, compare against the recovered input combo
+          from [UL_in, LL_in, UR_in, LR_in] rather than the blank release fields.
+          If the same adult combo was already recorded earlier in the current RESIGHTINGS batch, do not warn again.
+          If the RESIGHTINGS row already carries nest_id and the same normalized combo is later confirmed
+          in current-season CAPTURES for that same nest_id / breeding attempt, do not warn solely because
+          the CAPTURES confirmation happened later, including when the later confirming CAPTURES row is a dead recovery
+          whose identity is stored only in [UL_in, LL_in, UR_in, LR_in].
+          Treat a failed CAPTURES or CAPTURES_ARCHIVE lookup as unavailable history, not as an empty history table.
+          A positive match from another available history source may still pass. Otherwise, report that the
+          capture-history combination check could not be completed and make no claim that the combination is absent.
+          Near-match combinations that may be off by one or two marks should be flagged for review rather than blocked.
+        dataentry_translation_hint: custom:cross_table_archive_logic
+      - rule_id: RES_005G
+        severity: warning
+        scope: cross_table_temporal
+        columns: [nest_id, sex, age, behav, date, UL, LL, UR, LR]
+        description: Adult social-parent resightings should match the latest earlier adult capture for the same nest and sex.
+        logic: >
+          Apply only when nest_id is populated and is not NO_NEST, age is A, sex is M, MU, F, or FU,
+          and the comma-separated behav tokens include IN or NM. Normalize M and MU to male, and F and FU
+          to female. Within current-season CAPTURES, find the latest strictly earlier age A record for the same
+          nest_id and normalized sex. Normalize the CAPTURES mark with the database format_mark rules, using
+          release fields [UL, LL, UR, LR] and falling back field-by-field to [UL_in, LL_in, UR_in, LR_in] when
+          a release field is blank. Normalize the RESIGHTINGS mark with the same rules. Treat explicit X or XX
+          values on both LL and LR as the informative unbanded mark X-X; do not treat a completely blank or
+          metal/X-placeholder-only resighting as informative. Warn when the informative resighting mark differs
+          from the latest comparable earlier capture mark. A mismatch after capture_method MM may indicate that
+          the captured bird was not the social parent, so this rule must remain a warning and must not block saving.
+          Do not compare different sexes or nest_ids, and do not warn when there is no comparable earlier capture.
+          Because RESIGHTINGS has no event-time field, same-day CAPTURES are not considered earlier for this rule.
+        dataentry_translation_hint: custom:cross_table_temporal_logic
+      - rule_id: RES_005H
+        severity: warning
+        scope: cross_table
+        columns: [sex, ring, UL, LL, UR, LR, date]
+        description: A RESIGHTINGS sex entry should agree with the identified bird's original capture history when that history is definitive.
+        logic: >
+          Use the actual RESIGHTINGS column sex (fieldworker terminology may refer to this as field_sex).
+          Identify the bird by a nonblank normalized ring when available, or by the existing canonical partial
+          leg-mark signature using the same omitted-upper, colour-pair, and tag-style normalization as RES_005.
+          Prefer a definitive CAPTURES_ARCHIVE match; when gen_sex is nonblank use gen_sex, otherwise use archive
+          field_sex. If no definitive archive match exists, use the matching current-season CAPTURES field_sex.
+          Normalize M and MU to the male group and F and FU to the female group. Allow M/MU and F/FU interchangeably.
+          Do not issue a contradiction for U, missing, or otherwise non-definitive sex values, and do not issue one
+          when the matched history contains both male and female groups. When a definite RESIGHTINGS M/F entry
+          conflicts with the matched capture-history group, return variable = sex and warn the fieldworker to check
+          the sex entry. A failed history lookup is unavailable evidence and should produce only a review warning,
+          not a claim that the bird's sex is wrong and not a save-blocking error.
+        dataentry_translation_hint: custom:cross_table_archive_logic
+      - rule_id: RES_008
+        severity: warning
+        scope: grouped
+        columns: [date, gps_id, gps_point, nest_id, age, LL]
+        description: Brood-mixing logic should usually appear only in later RESIGHTINGS events, not CAPTURES.
+        logic: >
+          If a positive-nest resighting event contains more than 3 chick rows,
+          at least one extra chick beyond the initial three should usually have an LL value that differs
+          from the primary chick scheme for that brood event.
+          This mixed-brood pattern should be flagged for review and is expected only in RESIGHTINGS, never in CAPTURES.
+        dataentry_translation_hint: custom:grouped_logic_current_table
+      - rule_id: RES_W001
+        severity: warning
+        scope: row
+        columns: [cam_id, observer]
+        description: cam_id should usually match the observer's default cam_id when photos are present.
+        logic: "if photo_start/photo_end present, compare cam_id to OBSERVERS.cam_id for observer and warn on mismatch"
+        dataentry_translation_hint: custom:cross_table_archive_logic
+      - rule_id: RES_W002
+        severity: warning
+        scope: row
+        columns: [gps_id, observer]
+        description: gps_id should usually match the observer's default gps_id.
+        logic: "compare gps_id to OBSERVERS.gps_id for observer and warn on mismatch"
+        dataentry_translation_hint: custom:cross_table_archive_logic
+    mock_generation_only_rules:
+      - rule_id: RES_007
+        description: Mock negative broods may be discovered first through CAPTURES or RESIGHTINGS.
+        logic: >
+          The first current-season event for a negative nest_id may occur in either CAPTURES or RESIGHTINGS.
+          If the discovery is not a capture, represent every observed tending parent and every observed chick as its
+          own RESIGHTINGS row. If the discovery includes captures, represent every captured individual as its own
+          CAPTURES row; same-day RESIGHTINGS rows are optional. All negative-ID rows carry the negative nest_id,
+          both GPS fields, and a GPS pair present in GPS_POINTS. Repeated X-X rows for distinct unbanded individuals
+          are valid and must not be deduplicated.
+      - rule_id: RES_M001
+        description: About half of chick resighting rows use rclass H.
+      - rule_id: RES_M002
+        description: Roughly 5 percent of RESIGHTINGS rows use negative brood-only nest_ids.
+      - rule_id: RES_M003
+        description: In mock RESIGHTINGS data, every row should carry non-missing gps_id and gps_point.
+      - rule_id: RES_M004
+        description: Approximately 40 percent of RESIGHTINGS rows should carry a non-missing nest_id.
+        logic: >
+          Prioritize explicit nest_id values on chick rows, negative brood-only rows, brood-linked FC/BC rows,
+          and rows with rclass in ['P', 'H', 'C'] that represent close nest-context observations.
+          Among adult IN/NM rows, keep nest_id on only a subset that clearly establishes breeding-attempt
+          context in the mock season. Leave nest_id blank on most general adult resightings so the mock data
+          do not imply that nearly every field observation was tied to a nest.
+      - rule_id: RES_M005
+        description: Adult RESIGHTINGS combos in the mock workbook should be anchored to CAPTURES history.
+        logic: >
+          For each adult RESIGHTINGS row, compare combo history using canonical adult colour-combo identity,
+          not the raw visible quartet.
+          Collapse classic and tag-style equivalents to the same adult identity,
+          so that UR = X with LR = YG and UR = TY with LR = G are treated as the same colour-combo history.
+          Preserve the adult capture-style lower-right segment when reusing that combo:
+          if UR starts with T then LR may be a single colour band, but otherwise LR should be a two-band code.
+          The combo should either already exist in CAPTURES_ARCHIVE or in CAPTURES on or before the RESIGHTINGS date, already exist in an earlier
+          RESIGHTINGS row in the same mock batch, or be later confirmed in CAPTURES for the same breeding attempt via
+          matching nest_id. If none of those conditions hold, the mock generator should reassign that row to an existing
+          captured adult combination rather than inventing a novel adult combo.
+          If a CAPTURES row has capture_status == 'D', treat its recovered input combo from
+          [UL_in, LL_in, UR_in, LR_in] as the terminal identity for that bird and do not generate any later
+          RESIGHTINGS rows with that combo after the dead-capture date.
+      - rule_id: RES_M006
+        description: Brood-association mock RESIGHTINGS should include linked parent and chick rows, while BW may also occur without a chick row.
+        logic: >
+          Include adult RESIGHTINGS rows with behav in ['FC', 'BC'] together with one or more same-date age-C rows
+          linked by nest_id or gps_id/gps_point. The chick rclass may be H, R, P, or V. Include a few BW rows at
+          nest or brood stage without using BW alone as evidence that chicks were individually observed.
+
+  RESIGHTINGS_PUBLIC:
+    hard_rules:
+      - rule_id: PUB_001
+        severity: error
+        scope: row
+        columns: [species, observer, date, sex, UL, LL, UR, LR, source, source_identifier, country]
+        description: Core public resighting fields are mandatory.
+        logic: >
+          species, observer, date, sex, source, source_identifier, and country must be non-missing.
+          For the leg-mark fields, at least one of UL, LL, UR, or LR must be entered.
+          Partial informative entries are allowed, so a known bird may be entered as only LL/LR
+          or only a flag segment such as UR = FWA1.
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: PUB_002
+        severity: error
+        scope: row
+        columns: [species]
+        description: Public resightings are restricted to BADO for this workflow.
+        logic: "species == 'BADO'"
+        dataentry_translation_hint: builtin:is.element_validator
+      - rule_id: PUB_003
+        severity: error
+        scope: row
+        columns: [country]
+        description: country must be a valid public-channel code.
+        logic: "country in ['NZ', 'AU', 'O']"
+        dataentry_translation_hint: builtin:is.element_validator
+      - rule_id: PUB_007
+        severity: error
+        scope: row
+        columns: [time]
+        description: If time is present, it must be a valid hh:mm value.
+        logic: "time is NA or time matches hhmm_time_regex"
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: PUB_008
+        severity: error
+        scope: row
+        columns: [UL, LL, UR, LR]
+        description: RESIGHTINGS_PUBLIC leg-mark fields must not use comma-separated codes.
+        logic: >
+          If any of UL, LL, UR, or LR contains a comma,
+          flag that field.
+          Leg markings must be entered as compact strings such as RR rather than comma-separated strings such as R,R or R, R.
+        dataentry_translation_hint: custom:row_logic
+    warning_rules:
+      - rule_id: PUB_004
+        severity: warning
+        scope: row
+        columns: [source]
+        description: source should usually be a recognized public data source.
+        logic: "case-insensitive source match in ['FALCON', 'Email', 'eBird', 'BirdsNZ', 'Facebook', 'iNaturalist', 'Instagram']"
+        dataentry_translation_hint: builtin:is.element_validator
+      - rule_id: PUB_005
+        severity: warning
+        scope: row
+        columns: [UL, UR]
+        description: Public-resighting tibia fields should contain only tibia-appropriate marks.
+        logic: >
+          When entered, UL and UR should contain only blank/X placeholders, M, a short tag-plus-spacer
+          code such as TY, or an engraved white flag code beginning FW. Colour-only strings on a tibia
+          usually indicate that tarsus bands were split incorrectly across UL/LL or UR/LR and should be
+          reviewed. Do not flag omitted tibia values when informative lower-leg or flag evidence remains.
+        dataentry_translation_hint: custom:row_logic
+      - rule_id: PUB_006
+        severity: warning
+        scope: cross_table
+        columns: [UL, LL, UR, LR, date]
+        description: Public resighting combos should usually already exist in historical or current CAPTURES before the public observation date.
+        logic: >
+          Build canonical_combo_release from [UL,LL,UR,LR].
+          Compare public combo history using the canonical adult colour-combo identity, not the raw visible quartet,
+          so that classic UR = X, LR = YG and tag-style UR = TY, LR = G count as the same
+          right-side colour pair YG.
+          When comparing adult identity, treat blank or X-coded UL / UR placeholders in the RESIGHTINGS_PUBLIC row
+          as omittable if the remaining informative segments still identify a previously known bird.
+          A lower-pair-only adult entry such as LL = YO with LR = YY should therefore match the historical
+          adult combo YO-YY, and a flag-only entry such as UR = FWA1 should match a historical FWA1 record
+          even when the other leg segments are left blank.
+          Do not relax matching for any actually entered band, flag, tag, or colour values and do not
+          relax LL/LR values that are present in the RESIGHTINGS_PUBLIC row.
+          The resulting canonical combo must exist in CAPTURES_ARCHIVE or CAPTURES with an earlier date/time than the
+          public observation date.
+        dataentry_translation_hint: custom:cross_table_archive_logic
+    mock_generation_only_rules:
+      - rule_id: PUB_M001
+        description: RESIGHTINGS_PUBLIC mock rows must always carry a non-blank time.
+        logic: >
+          Do not leave time blank in mock public-resighting rows.
+          When an exact observation time is unknown, use 00:00 as the mock placeholder rather than NA or an empty string.
+      - rule_id: PUB_M002
+        description: RESIGHTINGS_PUBLIC mock rows must use the live DDL sex enum exactly.
+        logic: >
+          Public mock rows must use only M, MU, F, FU, or U.
+          Do not generate legacy uncertainty codes such as M? or F?;
+          if the source implies uncertain sex and the exact live enum is unknown, use U.
+
+post_save_qa_rules:
+  - rule_id: NEST_010D
+    severity: post_save_qa
+    scope: cross_table
+    columns: [nest_id, date, nest_state, brood_size]
+    description: Review H visits with chicks when no linked age-C event has been entered by the QA reference date.
+    logic: >
+      For each NESTS row with nest_state == 'H' and brood_size > 0, review whether any current-season CAPTURES
+      or RESIGHTINGS row with the same positive nest_id and age == 'C' exists on or before the QA reference date.
+      Do not require the event to be on the H date, do not require CAPTURES to precede RESIGHTINGS, and do not
+      block the original NESTS save. A later linked event resolves the delayed-entry review; a count below brood_size
+      may remain a biological QA note rather than a fieldworker validation failure.
+    dataentry_translation_hint: post_save_cross_table_review
+  - rule_id: NEST_012
+    severity: post_save_qa
+    scope: cross_table
+    columns: [bird_inc, nest_id, date]
+    description: Do not infer a bird_inc mismatch from a same-date RESIGHTINGS row without exact event linkage.
+    logic: >
+      RESIGHTINGS currently has no event-time field. A same-date match on nest_id, observer, GPS pair, or site
+      does not prove that the RESIGHTINGS observation and NESTS visit occurred at the same moment. Do not generate
+      an automatic save-time or warning-level mismatch. Only perform a manual/post-save comparison when an exact
+      event key or reliable event-time linkage is available; otherwise retain bird_inc as entered when it passes
+      the approved NESTS code list.
+    dataentry_translation_hint: post_save_manual_review
+
+cross_table_dependency_rules:
+  - rule_id: XREF_001
+    severity: error
+    description: Any unique EGGS event key must exist in NESTS with the same observer and timestamp.
+    source_tables: [EGGS, NESTS]
+  - rule_id: XREF_002
+    severity: error
+    description: CAPTURES age C/J on positive nest_ids require prior or same-day hatch evidence in NESTS.
+    source_tables: [CAPTURES, NESTS]
+  - rule_id: XREF_003
+    severity: error
+    description: RESIGHTINGS and RESIGHTINGS_PUBLIC combos require prior combo existence in CAPTURES history.
+    source_tables: [RESIGHTINGS, RESIGHTINGS_PUBLIC, CAPTURES, CAPTURES_ARCHIVE]
+  - rule_id: XREF_004
+    severity: error
+    description: Chick hide-photo logic in CAPTURES depends on chick H-class events in RESIGHTINGS.
+    source_tables: [CAPTURES, RESIGHTINGS]
+  - rule_id: XREF_005
+    severity: post_save_qa
+    description: bird_inc may be compared with a nest-linked RESIGHTINGS sex value only when exact event linkage is available; same-date matches alone are insufficient.
+    source_tables: [NESTS, RESIGHTINGS]
+  - rule_id: XREF_006
+    severity: error
+    description: >
+      For each positive nest_id, each identified social parent adult must be linked to that breeding attempt
+      at least once in the current season, either through CAPTURES or through the first qualifying RESIGHTINGS row.
+    source_tables: [NESTS, CAPTURES, RESIGHTINGS, CAPTURES_ARCHIVE]
+
+derived_view_spec:
+  social_parentage_view:
+    purpose: >
+      Extract the identities of adults associated with each breeding attempt, regardless of whether the identity
+      was established through CAPTURES or RESIGHTINGS.
+    unit_of_record: one adult identity linked to one nest_id
+    required_source_tables: [CAPTURES, RESIGHTINGS, NESTS]
+    identity_definition: [UL, LL, UR, LR]
+    include_rows:
+      - CAPTURES rows with positive nest_id and age == A
+      - RESIGHTINGS rows with positive nest_id and age == A
+    deduplication_logic: >
+      Within nest_id and adult identity, keep the earliest event in the current season as the identity-linking row.
+      Prefer CAPTURES if CAPTURES and RESIGHTINGS occur on the same event and both establish the same identity.
+    output_fields:
+      - nest_id
+      - adult_identity_combo
+      - first_link_table
+      - first_link_date
+      - first_link_time
+      - observer
+      - sex_inferred
+      - link_basis
+    link_basis_levels:
+      - captured_unbanded_then_marked
+      - captured_for_adult_recode
+      - captured_for_geotag
+      - resighted_previously_marked_no_capture_needed
+    validation_dependencies:
+      - RES_005B
+      - RES_005C
+      - CAP_016B
+      - XREF_006
+
+season_qc_targets:
+  classification: mock_generation_only
+  applies_only_to: mock_data_generation
+  use_for_live_dataentry_validation: false
+  use_for_save_blocking_validation: false
+  use_for_warning_validation: false
+  use_for_post_save_portal_validation: false
+  use_for_mock_generation_qc_only: true
+  ignore_when_validating_real_data_entry: true
+  description: >
+    Distributional and composition targets used only to shape or audit mock data generation.
+    These are not row-level validators, not warning rules, not post-save portal validators,
+    and should not be applied to live or manually entered field data.
+  captures:
+    site_cr_target: "approximately 90 percent"
+    negative_nest_id_target: "approximately 10 percent"
+    dead_capture_target: "exactly 2 rows in mock data"
+    adult_capture_method_target: "approximately 80 percent MM and 20 percent TN"
+    blood_samp_target: "all BQ except one non-BQ row"
+    feather_wear_target:
+      "1": "approximately 80 percent"
+      "2": "approximately 10 percent"
+      "3": "approximately 5 percent"
+      "0": "approximately 5 percent"
+    moult_target:
+      left_only_0_10: "approximately 95 percent of adult rows"
+      asymmetrical: "approximately 3 percent of adult rows"
+      symmetrical_active: "approximately 2 percent of adult rows"
+    observer_upload_target: "observer_upload matches observer for approximately 95 percent of rows, except KG always equals KG"
+  eggs:
+    float_stage_target:
+      week_1: "approximately 85 percent of nests"
+      week_2: "approximately 10 percent of nests"
+      later: "approximately 5 percent of nests"
+  nests:
+    events_per_nest_target:
+      mean: "approximately 3"
+      min: 1
+      max: 5
+    initial_gps_event_target: "only the first event within each nest_id has gps_id and gps_point; if a scrape S row exists, that S row alone carries the GPS metadata"
+    scrape_start_target: "approximately 2 percent of nest_ids"
+    cr_plot_polygon_target: "100 percent of CR nest_ids use A/B/C letters matching the supplied Cass River polygons"
+  resightings:
+    negative_nest_id_target: "approximately 5 percent of rows"
+    chick_rclass_h_target: "approximately 50 percent of chick rows"
+  comments:
+    duplication_cap: "prefer blank over repeating any identical comment more than 3 times across all tables"
+    injury_comment_target: "approximately 99 percent of injury-like comments should be removed or replaced by non-injury comments"
+
+downstream_agent_notes:
+  - Treat hard_rules as the minimum save-time blocker set.
+  - Use warning_rules where the mock script encoded a tendency rather than an absolute biological impossibility.
+  - Treat mock_generation_only_rules and season_qc_targets as mock-only metadata; do not compile them into live validators, warnings, or post-save portal checks.
+  - The CAPTURES archive-combo rules are essential and should be implemented early, because they also constrain RESIGHTINGS and RESIGHTINGS_PUBLIC.
+  - The protocol deliberately uses only the standardized target columns and excludes legacy columns such as site_name and site_code.
+  - RESIGHTINGS.ring is nullable for ordinary classes but mandatory for normalized rclass H; H rows must use the CP metal-ring format and the normalized ring must already exist in current-season CAPTURES. The ring supplements the leg-mark fields.
+  - For RESIGHTINGS, do not require nest_id on every adult row. Require it only when that row establishes the first parent-identity linkage of an adult to a breeding attempt in the current season.
+  - In the mock RESIGHTINGS data, aim for about 40 percent of rows with nest_id. Keep it on most chick rows, brood-linked rows, negative brood-only rows, explicit nest-context P/H/C rows, and only a subset of adult IN/NM rows that establish breeding-attempt context; an unlinked rclass H chick may omit it only when the mandatory GPS pair is present and either ring is nonblank or a same-session age-A parent with LL and LR is recorded at that GPS pair; leave it blank on most general adult resightings.
+  - The intended downstream product is a social-parentage view that merges adult identity links from CAPTURES and RESIGHTINGS.
