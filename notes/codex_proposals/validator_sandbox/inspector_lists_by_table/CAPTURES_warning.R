@@ -6,7 +6,7 @@ list({
         }
         age_key <- toupper(trimws(as.character(z$age)))
         method_key <- toupper(trimws(as.character(z$capture_method)))
-        out <- data.table::rbindlist(list(z[age == "C" & !(capture_status %in% c("F", "R")), .(rowid, variable = "capture_status", reason = "Chick captures should use capture_status F for a first capture or R for a recapture.")], z[age == "J" & !(capture_status %in% c("F", "C")), .(rowid, variable = "capture_status", reason = "This looks like a juvenile capture. Please check capture_status; juveniles usually use F or C.")], z[age == "C" & capture_method != "HA", .(rowid, variable = "capture_method", reason = "This looks like a chick capture. Please check capture_method; chick captures usually use HA.")],
+        out <- data.table::rbindlist(list(z[age == "C" & !(capture_status %in% c("F", "R", "C")), .(rowid, variable = "capture_status", reason = "Chick captures usually use capture_status F, R, or C. Please confirm the status matches the bird's capture history.")], z[age == "J" & !(capture_status %in% c("F", "C")), .(rowid, variable = "capture_status", reason = "This looks like a juvenile capture. Please check capture_status; juveniles usually use F or C.")], z[age == "C" & capture_method != "HA", .(rowid, variable = "capture_method", reason = "This looks like a chick capture. Please check capture_method; chick captures usually use HA.")],
             z[age_key %in% c("A", "J") & !(method_key %in% c("MM", "TN")) & !(age_key == "A" & method_key == "HA"), .(rowid, variable = "capture_method", reason = "Please check capture_method. Adult and juvenile captures usually use MM or TN; age-A HA captures are allowed only under the separate HA timing and nest-linkage rule.")]), use.names = TRUE, fill = TRUE)
         if (nrow(out) == 0) {
             data.table::data.table(rowid = integer(), variable = character(), reason = character())
@@ -748,6 +748,9 @@ list({
         if (!"rowid" %in% names(z)) {
             z[, `:=`(rowid, .I)]
         }
+        age_key <- toupper(trimws(as.character(z$age)))
+        status_key <- toupper(trimws(as.character(z$capture_status)))
+        z[, `:=`(range_group, ifelse(age_key == "C" & status_key == "C", "C_change", age_key))]
         limits <- list(
           A = data.table::data.table(
             variable = c("tarsus", "culmen", "total_head", "head_white", "head_black", "rufous_band", "wing", "weight"),
@@ -763,11 +766,16 @@ list({
             variable = c("tarsus", "culmen", "total_head", "wing", "weight"),
             lq = c(18.43, 6.47, 37.01, 21.99, 6.73),
             uq = c(29.52, 15.63, 39.99, 93.37, 40.38)
+          ),
+          C_change = data.table::data.table(
+            variable = c("tarsus", "culmen", "total_head", "wing", "weight"),
+            lq = c(18.43, 6.47, 37.01, 21.99, 6.73),
+            uq = c(33.96, 20.42, 49.34, 138.00, 77.16)
           )
         )
         out <- data.table::rbindlist(lapply(names(limits), function(age_key) {
             vars <- unique(c(limits[[age_key]]$variable, "rowid"))
-            sub <- z[age == age_key, vars, with = FALSE]
+            sub <- z[range_group == age_key, vars, with = FALSE]
             if (nrow(sub) == 0) {
                 return(NULL)
             }

@@ -1,5 +1,5 @@
 protocol_id: bdot_2026_2027_dataentry_validator_protocol
-protocol_version: 1.3.6
+protocol_version: 1.3.7
 generated_on: 2026-10-26
 generated_from:
   repo: /Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/bdot_db
@@ -15,6 +15,16 @@ purpose: >
   and post-save / season-wide QA checks.
 
 revision_history:
+  - version: 1.3.7
+    generated_on: 2026-10-26
+    changes:
+      - Allowed age-C CAPTURES rows with capture_status C, which represents a recapture where the band combination changed.
+        These older-chick rows no longer have to use the initial F/R chick release layout; CAP_013 and CAP_016 still
+        require complete input and release combinations, a genuine combination change, and prior input-combination history.
+      - Kept tarsus, culmen, and weight mandatory for age-C status-C rows, while allowing optional older-chick measurements,
+        samples, and photo flags with their normal value and metadata checks. Age-C F and R requirements are unchanged.
+      - Added a broader status-C older-chick morphometric review range so expected growth does not generate the young-chick
+        warning volume that previously obscured more important data-entry issues.
   - version: 1.3.6
     generated_on: 2026-10-26
     changes:
@@ -1188,12 +1198,12 @@ table_rules:
         columns: [site, age, UL, LL, UR, LR, capture_status]
         description: Site-specific age-dependent release mark schemes are constrained.
         logic: >
-          If age == 'C' and site == 'CR':
-          UL must be blank or X, LL must match chick_colour_regex, UR must be 'M', LR must be blank or X,
-          and capture_status must be 'F' or 'R'.
-          If age == 'C' and site != 'CR':
-          UL must be 'M', LL must be blank or X, UR must be blank or X, LR must match chick_colour_regex,
-          and capture_status must be 'F' or 'R'.
+          If age == 'C' and capture_status in ['F', 'R'] and site == 'CR':
+          UL must be blank or X, LL must match chick_colour_regex, UR must be 'M', and LR must be blank or X.
+          If age == 'C' and capture_status in ['F', 'R'] and site != 'CR':
+          UL must be 'M', LL must be blank or X, UR must be blank or X, and LR must match chick_colour_regex.
+          If age == 'C' and capture_status == 'C', do not apply the initial-chick release scheme; CAP_013 and CAP_016
+          enforce the complete changed-combination and prior input-combination requirements.
           If age == 'J':
           UL must match juvenile_flag_regex, LL must be blank or X, UR must be 'M', LR must be blank or X,
           and capture_status must be 'F' or 'C'.
@@ -1316,11 +1326,12 @@ table_rules:
       - rule_id: CAP_018
         severity: error
         scope: row
-        columns: [tarsus, culmen, total_head, head_white, head_black, rufous_band, wing, weight, age]
+        columns: [tarsus, culmen, total_head, head_white, head_black, rufous_band, wing, weight, age, capture_status]
         description: Morphometric field presence depends on age, with juvenile wing values optional.
         logic: >
           If age == 'A': tarsus, culmen, total_head, head_white, head_black, rufous_band, wing, and weight must all be non-missing.
-          If age == 'C': tarsus, culmen, and weight must be non-missing, while total_head, head_white, head_black, rufous_band, and wing must be NA.
+          If age == 'C' and capture_status in ['F', 'R']: tarsus, culmen, and weight must be non-missing, while total_head, head_white, head_black, rufous_band, and wing must be NA.
+          If age == 'C' and capture_status == 'C': tarsus, culmen, and weight must be non-missing; the other morphometrics may be entered optionally because this is an older-chick changed-band capture.
           If age == 'J': tarsus, culmen, and weight must be non-missing, while total_head, head_white, head_black, and rufous_band must be NA; wing may be non-missing or NA.
         dataentry_translation_hint: custom:row_logic
       - rule_id: CAP_019
@@ -1399,16 +1410,17 @@ table_rules:
       - rule_id: CAP_027
         severity: error
         scope: row
-        columns: [mugshot_photo, wing_photo, chick_tent_photo, chick_hide_photo, age]
+        columns: [mugshot_photo, wing_photo, chick_tent_photo, chick_hide_photo, age, capture_status]
         description: Photo-flag requirements are age-specific.
         logic: >
           If age == 'A': mugshot_photo and wing_photo must each be recorded as 0 or 1; chick_tent_photo
           and chick_hide_photo must be blank or 0.
           If age == 'J': chick_tent_photo and chick_hide_photo must be blank or 0; mugshot_photo and
           wing_photo should be blank.
-          If age == 'C': chick_tent_photo must be recorded as 0 or 1, while chick_hide_photo must be blank or 0
-          because a hiding-spot image is a separate age-C, rclass-H RESIGHTINGS row; mugshot_photo and wing_photo
-          must be blank.
+          If age == 'C' and capture_status in ['F', 'R']: chick_tent_photo must be recorded as 0 or 1, while chick_hide_photo must be blank or 0
+          because a hiding-spot image is a separate age-C, rclass-H RESIGHTINGS row; mugshot_photo and wing_photo must be blank.
+          If age == 'C' and capture_status == 'C': chick_tent_photo, chick_hide_photo, mugshot_photo, and wing_photo may each be blank or 0/1;
+          any flag set to 1 still requires complete CAPTURES photo metadata under CAP_028.
         dataentry_translation_hint: custom:row_logic
       - rule_id: CAP_028
         severity: error

@@ -862,7 +862,13 @@ list({
                   problems[[length(problems) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = nm, reason = "T codes are only allowed in upper leg positions.")
                 }
             }
-            if (identical(age_val, "C")) {
+            # Status C means the bird was recaptured and its band combination
+            # changed.  An older chick in that workflow is no longer using
+            # the initial chick release layout, so CAP_014 should not apply
+            # its F/R-only chick scheme to this row.  CAP_013 still enforces
+            # the complete input/release combinations and the required
+            # status-C change.
+            if (identical(age_val, "C") && !identical(status_val, "C")) {
                 chick_ok <- if (identical(site_val, "CR")) {
                     is_cr_chick_scheme(
                       one_chr(release_marks_scheme["UL"]),
@@ -1651,7 +1657,9 @@ list({
             row <- z[i]
             problems <- list()
             age_val <- one_chr(row$age)
-            chick_recapture_row <- identical(age_val, "C") && identical(one_chr(row$capture_status), "R")
+            status_val <- one_chr(row$capture_status)
+            chick_recapture_row <- identical(age_val, "C") && identical(status_val, "R")
+            chick_change_row <- identical(age_val, "C") && identical(status_val, "C")
             if (identical(age_val, "A")) {
                 adult_missing <- c(tarsus = is.na(row$tarsus), culmen = is.na(row$culmen), total_head = is.na(row$total_head), head_white = is.na(row$head_white), head_black = is.na(row$head_black), rufous_band = is.na(row$rufous_band), wing = is.na(row$wing), weight = is.na(row$weight))
                 for (nm in names(adult_missing)[adult_missing]) {
@@ -1706,45 +1714,73 @@ list({
                 for (nm in names(chick_missing)[chick_missing]) {
                   problems[[length(problems) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = nm, reason = "Chick captures require this morphometric field.")
                 }
-                for (nm in c("total_head", "head_white", "head_black", "rufous_band", "wing")) {
-                  if (!is.na(row[[nm]])) {
-                    problems[[length(problems) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = nm, reason = "This morphometric field must be blank for chick captures.")
+                if (!chick_change_row) {
+                  for (nm in c("total_head", "head_white", "head_black", "rufous_band", "wing")) {
+                    if (!is.na(row[[nm]])) {
+                      problems[[length(problems) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = nm, reason = "This morphometric field must be blank for chick captures.")
+                    }
                   }
-                }
-                if (!is.na(row$brood_patch)) {
-                  problems[[length(problems) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = "brood_patch", reason = "brood_patch must be blank for chick captures.")
-                }
-                if (!is.na(row$moult_left) || !is.na(row$moult_right)) {
-                  problems[[length(problems) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = "moult_left", reason = "Moult fields must be blank for chick captures.")
-                }
-                if (!is.na(row$feather_wear)) {
-                  problems[[length(problems) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = "feather_wear", reason = "feather_wear must be blank for chick captures.")
-                }
-                if (!is.na(row$fat)) {
-                  problems[[length(problems) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = "fat", reason = "fat must be blank for chick captures.")
+                  if (!is.na(row$brood_patch)) {
+                    problems[[length(problems) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = "brood_patch", reason = "brood_patch must be blank for chick captures.")
+                  }
+                  if (!is.na(row$moult_left) || !is.na(row$moult_right)) {
+                    problems[[length(problems) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = "moult_left", reason = "Moult fields must be blank for chick captures.")
+                  }
+                  if (!is.na(row$feather_wear)) {
+                    problems[[length(problems) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = "feather_wear", reason = "feather_wear must be blank for chick captures.")
+                  }
+                  if (!is.na(row$fat)) {
+                    problems[[length(problems) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = "fat", reason = "fat must be blank for chick captures.")
+                  }
+                } else {
+                  # A status-C older chick may have adult-style measurements
+                  # and photographs recorded, but none of these fields is
+                  # made mandatory merely because the age is still C.
+                  if (!is.na(row$brood_patch) && !(one_chr(row$brood_patch) %in% c("0", "1"))) {
+                    problems[[length(problems) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = "brood_patch", reason = "When entered for a status-C chick capture, brood_patch must be 0 or 1.")
+                  }
+                  feather_val <- one_chr(row$feather_wear)
+                  if (!is.na(feather_val) && !(feather_val %in% c("0", "1", "2", "3"))) {
+                    problems[[length(problems) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = "feather_wear", reason = "When entered for a status-C chick capture, feather_wear must be 0, 1, 2, or 3.")
+                  }
+                  fat_num <- int_val(row$fat)
+                  if (!is.na(fat_num) && !(fat_num %in% 1:8)) {
+                    problems[[length(problems) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = "fat", reason = "When entered for a status-C chick capture, fat must be from 1 to 8.")
+                  }
                 }
                 if (!is.na(row$parents) && !(row$parents %in% c("MF", "F", "M", "U1", "U2", "O"))) {
                   problems[[length(problems) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = "parents", reason = "parents for chicks must be MF, F, M, U1, U2, or O.")
                 }
-                if (!(row$breast_samp %in% c("0", NA_character_))) {
-                  problems[[length(problems) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = "breast_samp", reason = "Chick captures must use breast_samp 0 or blank.")
-                }
-                if (!(row$primary_samp %in% c("0", NA_character_))) {
-                  problems[[length(problems) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = "primary_samp", reason = "Chick captures must use primary_samp 0 or blank.")
+                if (chick_change_row) {
+                  if (!is.na(one_chr(row$breast_samp)) && !(one_chr(row$breast_samp) %in% c("0", "1"))) {
+                    problems[[length(problems) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = "breast_samp", reason = "When entered for a status-C chick capture, breast_samp must be 0 or 1.")
+                  }
+                  if (!is.na(one_chr(row$primary_samp)) && !(one_chr(row$primary_samp) %in% c("0", "1"))) {
+                    problems[[length(problems) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = "primary_samp", reason = "When entered for a status-C chick capture, primary_samp must be 0 or 1.")
+                  }
+                } else {
+                  if (!(row$breast_samp %in% c("0", NA_character_))) {
+                    problems[[length(problems) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = "breast_samp", reason = "Chick captures must use breast_samp 0 or blank.")
+                  }
+                  if (!(row$primary_samp %in% c("0", NA_character_))) {
+                    problems[[length(problems) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = "primary_samp", reason = "Chick captures must use primary_samp 0 or blank.")
+                  }
                 }
                 chick_tent_val <- one_chr(row$chick_tent_photo)
-                if ((!chick_recapture_row && !(chick_tent_val %in% c("0", "1"))) ||
-                    (chick_recapture_row && !is.na(chick_tent_val) && !(chick_tent_val %in% c("0", "1")))) {
+                if ((!chick_recapture_row && !chick_change_row && !(chick_tent_val %in% c("0", "1"))) ||
+                    ((chick_recapture_row || chick_change_row) && !is.na(chick_tent_val) && !(chick_tent_val %in% c("0", "1")))) {
                   problems[[length(problems) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = "chick_tent_photo", reason = "All chick captures must record chick_tent_photo as 0 or 1.")
                 }
                 chick_hide_val <- one_chr(row$chick_hide_photo)
-                if ((!chick_recapture_row && !(chick_hide_val %in% c("0", "1"))) ||
-                    (chick_recapture_row && !is.na(chick_hide_val) && !(chick_hide_val %in% c("0", "1")))) {
+                if ((!chick_recapture_row && !chick_change_row && !(chick_hide_val %in% c("0", "1"))) ||
+                    ((chick_recapture_row || chick_change_row) && !is.na(chick_hide_val) && !(chick_hide_val %in% c("0", "1")))) {
                   problems[[length(problems) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = "chick_hide_photo", reason = "All chick captures must record chick_hide_photo as 0 or 1.")
                 }
-                for (nm in c("mugshot_photo", "wing_photo")) {
-                    if (!is.na(one_chr(row[[nm]]))) {
-                      problems[[length(problems) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = nm, reason = paste0(nm, " must be blank for chick captures."))
+                if (!chick_change_row) {
+                  for (nm in c("mugshot_photo", "wing_photo")) {
+                      if (!is.na(one_chr(row[[nm]]))) {
+                        problems[[length(problems) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = nm, reason = paste0(nm, " must be blank for chick captures."))
+                      }
                     }
                 }
             }
