@@ -25,14 +25,17 @@ inspector/protocol work, not evidence that live inspectors have been deployed.
   revalidate, stage, deploy, or otherwise modify that WIP.
 - No live database was connected to.
 - No live `inspectors` row was queried or changed.
-- `AGENTS.md` was not changed in this update; its standing human-control and
-  live-database restrictions remain authoritative.
+- The earlier recovery pass did not change `AGENTS.md`; its standing
+  human-control and live-database restrictions remain authoritative. A later
+  narrow protocol-mirror reconciliation updates only the local protocol
+  identity and the age-C CAPTURES status-R/status-C documentation.
 
 The external canonical working protocol was version **1.3.5**, generated
 2026-10-24, when the earlier documentation baseline was prepared. The tracked
-local mirror on this branch is updated to proposed version **1.3.7**, generated
-2026-10-26. Version 1.3.7 records the age-C `capture_status = C` recapture
-exception described below, while retaining the prior photo-range identity and
+local mirror on this branch is updated to proposed version **1.3.8**, generated
+2026-10-26. Version 1.3.8 records the age-C `capture_status = R` morphometric
+envelope and the age-C `capture_status = C` recapture exception described below,
+while retaining the prior photo-range identity and
 same-session H-photo rules. Because the external working file is outside this
 repository and is not changed by this branch, v1.3.7 is a reviewed local
 protocol/documentation artifact, not evidence that the external copy, live
@@ -288,6 +291,15 @@ status-C warning range is broadened to cover plausible older-chick growth so tha
 routine recaptures do not generate a flood of low-value warnings. Age-C `F` and
 `R` requirements are otherwise unchanged, and this local protocol mirror does
 not establish live deployment.
+
+Version 1.3.8 separates the age-C status-R morphometric warning envelope from
+the older-chick status-C envelope. Status-R review limits are tarsus 18.43–25.50,
+culmen 6.47–12.50, and weight 6.73–18.00. These ceilings include every observed
+status-R value in the latest local dump while remaining below the observed
+status-C values used to justify the changed-band workflow. `total_head` and
+`wing` remain hard-disallowed for age-C status-R rows, so they have no status-R
+warning interval. The limits are warnings only and are fixed review thresholds,
+not dynamically recomputed percentiles.
 
 ### RESIGHTINGS
 
@@ -717,7 +729,7 @@ inventory, not a request to alter any export.
   `CAP_022`, `CAP_023`, `CAP_024`, `CAP_026`, `CAP_027`, `CAP_028`,
   `CAP_030`, and `CAP_031`. CAPTURES warnings include `CAP_007`, `CAP_008`,
   `CAP_011`, `CAP_012`, `CAP_012B`, `CAP_025`, `CAP_029`, `CAP_W001`,
-  `CAP_W002`, `CAP_W004`, `CAP_W008`, `CAP_W011`, `CAP_W012`, and `CAP_W013`.
+  `CAP_W002`, `CAP_W004`, `CAP_W008`, `CAP_W009`, `CAP_W011`, `CAP_W012`, and `CAP_W013`.
 - RESIGHTINGS hard: `RES_001`, `RES_002`, `RES_003`, `RES_004`, `RES_004B`,
   `RES_004C`, `RES_004D`, `RES_005B`, `RES_005C`, `RES_005D`, `RES_005E`,
   `RES_005F`, `RES_005J`, `RES_005K`, `RES_009`, `RES_009B`, `RES_010`,

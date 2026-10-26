@@ -1,5 +1,5 @@
 protocol_id: bdot_2026_2027_dataentry_validator_protocol
-protocol_version: 1.3.7
+protocol_version: 1.3.8
 generated_on: 2026-10-26
 generated_from:
   repo: /Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/bdot_db
@@ -15,6 +15,12 @@ purpose: >
   and post-save / season-wide QA checks.
 
 revision_history:
+  - version: 1.3.8
+    generated_on: 2026-10-26
+    changes:
+      - Added a separate age-C capture_status R morphometric warning envelope using tarsus 18.43-25.50, culmen 6.47-12.50, and weight 6.73-18.00.
+        These ceilings are above every observed age-C status-R value in the latest local dump while remaining below the status-C changed-band envelope.
+      - Kept total_head and wing disallowed for age-C status-R rows through CAP_018; they therefore have no status-R warning interval.
   - version: 1.3.7
     generated_on: 2026-10-26
     changes:
@@ -1564,6 +1570,21 @@ table_rules:
           wt_w_tag == '0' is unusual and should be flagged for review,
           but not blocked.
         dataentry_translation_hint: custom:row_logic
+      - rule_id: CAP_W009
+        severity: warning
+        scope: row
+        columns: [tarsus, culmen, total_head, wing, weight, age, capture_status]
+        description: Morphometric values outside the age- and capture-status-specific review envelope are unusual and should be checked.
+        logic: >
+          Ignore missing values because CAP_018 controls mandatory-field presence. For age == 'A', use the fixed adult review
+          intervals tarsus 27.84-33.96, culmen 15.47-20.42, total_head 42.02-49.34, wing 118.02-138.00, and weight 49.47-77.16.
+          For age == 'J', use tarsus 23.22-30.75, culmen 12.46-16.36, total_head 40.62-43.58, wing 49.28-124.23, and weight 18.58-43.80.
+          For age == 'C' with capture_status == 'F' or another non-R/C status, use tarsus 18.43-29.52, culmen 6.47-15.63,
+          total_head 37.01-39.99, wing 21.99-93.37, and weight 6.73-40.38. For age == 'C' with capture_status == 'R', use
+          tarsus 18.43-25.50, culmen 6.47-12.50, and weight 6.73-18.00; total_head and wing remain hard-disallowed by CAP_018.
+          For age == 'C' with capture_status == 'C', use the broader older-chick changed-band intervals tarsus 18.43-33.96,
+          culmen 6.47-20.42, total_head 37.01-49.34, wing 21.99-138.00, and weight 6.73-77.16. Warn only; do not block saving.
+        dataentry_translation_hint: builtin:interval_validator
       - rule_id: CAP_W011
         severity: warning
         scope: cross_table

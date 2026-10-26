@@ -1004,11 +1004,16 @@ Current reviewed local protocol-mirror identity:
 
 ```text
 protocol_id: bdot_2026_2027_dataentry_validator_protocol
-protocol_version: 1.3.7
+protocol_version: 1.3.8
 generated_on: 2026-10-26
 ```
 
-Version 1.3.7 also supports older-chick CAPTURES recaptures with
+Version 1.3.8 also gives age-C status-R captures a separate conservative
+morphometric warning envelope: tarsus 18.43-25.50, culmen 6.47-12.50, and
+weight 6.73-18.00. The ceilings are above all observed status-R values in the
+latest local dump but below the status-C changed-band observations. `total_head`
+and `wing` remain hard-disallowed for age-C status-R rows. Version 1.3.7 also
+supports older-chick CAPTURES recaptures with
 `capture_status = "C"` when the band combination changes. These rows still
 require `tarsus`, `culmen`, and `weight`, preserve the normal location and
 status-change checks, and may include optional older-chick/adult-style
