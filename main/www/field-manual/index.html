@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en-NZ"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="manual-source-md5" content="9038e8825b977dfb05b85e530f1fc3ac"><title>BADO Field Manual 2026</title><style>/* Scoped by the reader iframe; does not change dashboard styling. */
+<html lang="en-NZ"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="manual-source-md5" content="4eea25a3983560576cadeaaa332aa6e7"><title>BADO Field Manual 2026</title><style>/* Scoped by the reader iframe; does not change dashboard styling. */
 :root { color-scheme: light; --ink: #23343d; --accent: #315e70; --line: #d8e1e5; }
 * { box-sizing: border-box; }
 html { scroll-padding-top: 110px; }
@@ -72,24 +72,12 @@ pre code { overflow-wrap: anywhere; }
   a { color: inherit; }
   mark { background: none; }
 }</style></head><body><a class="skip-link" href="#manual-content">Skip to manual</a><header class="reader-tools" aria-label="Manual controls"><div class="reader-tools-inner"><a class="contents-button" href="#manual-contents">Contents</a><label for="manual-search">Search manual</label><input id="manual-search" type="search" placeholder="e.g. hiding photographs" aria-controls="manual-search-results" aria-describedby="manual-search-help" autocomplete="off"><button id="manual-clear" type="button">Clear</button><button id="manual-expand" type="button">Expand all</button><button id="manual-collapse" type="button">Collapse all</button></div></header><main><p id="manual-search-help" class="reader-hint">Search words or field names; choose a result to open its section. <a href="manual.md" download>Download Markdown</a></p><p id="manual-search-status" role="status" aria-live="polite"></p><section id="manual-search-results" aria-label="Search results" hidden></section><noscript><p>Search and expand/collapse controls need JavaScript. The manual remains readable: open each section using its heading.</p></noscript><article id="manual-content" tabindex="-1"><h1>BADO Field Manual 2026</h1>
-<p>Cass River · Banded Dotterel / Pohowera<br />
-<strong>Markdown review draft v2.4.10 · Revised 29 October 2026</strong></p>
+<p>Protocols for studying breeding Banded Dotterel / Pohowera<br />
+<strong>Markdown review draft v2.4.11 · Revised 29 October 2026</strong></p>
 <p>This draft aims to describe the field procedures and the data-entry
-validation logic for Banded Dotterel fieldwork during the breeding season.
+validation logic for Banded Dotterel fieldwork throughout New Zealand during the breeding season.
 If the app disagrees with an instruction, keep
 the field record truthful and follow <a href="#section-12">Section 12</a>.</p>
-<h2>Authorship and use of AI</h2>
-<p>Luke Eberhart-Hertel developed, described, and reasoned through the fieldwork methods,
-protocols and underlying logic presented in this manual, including the
-relational data structure and the rules connecting field observations to
-database records. He retains full accountability for these
-methods, decisions, and their scientific reasoning.</p>
-<p>A GPT AI model was used under Luke Eberhart-Hertel's direction to translate the code-based
-logic and protocols into a human-friendly Markdown manual, and to help organise
-and refine its wording and presentation. AI assistance does not transfer
-authorship of the methods or responsibility for their accuracy away from Luke Eberhart-Hertel.</p>
-<p>For questions or clarification, contact Luke Eberhart-Hertel at
-<a href="mailto:luke.eberhart@bi.mpg.de">luke.eberhart@bi.mpg.de</a>.</p>
 <nav id="manual-contents" aria-label="Manual contents"><h2>Contents</h2>
 <ul>
 <li><a href="#section-1">1. How to use this manual</a></li>
@@ -109,6 +97,7 @@ authorship of the methods or responsibility for their accuracy away from Luke Eb
 <li><a href="#section-15">15. Revision record and source notes</a></li>
 <li><a href="#appendix-a">Appendix A. Controlled values</a></li>
 <li><a href="#appendix-b">Appendix B. Field and submission checklists</a></li>
+<li><a href="#authorship">Authorship and use of AI</a></li>
 </ul></nav>
 <a id="section-1"></a>
 <details open>
@@ -117,11 +106,18 @@ authorship of the methods or responsibility for their accuracy away from Luke Eb
 <p>If you have time, please browse this manual before going to the field. You may also consult it from the FIELDWORKER app on your phone in the field if you have data coverage. Start with
 Section 2 if you are unsure which data records an observation/encounter needs. Read the short
 procedure first; use its supporting table when entering the data.</p>
-<p>The procedures apply to all our Banded Dotterel / Pohowera throghout New Zealand. Use <code>BADO</code> for
-the species and <code>CR</code> for the Cass River site or check the site list if working elsewhere in New Zealand. Wrybill nests may also be found and
+<p>The procedures apply to our Banded Dotterel / Pohowera work throughout New Zealand.
+Use <code>BADO</code> for the species and the approved code for your study site. <code>CR</code> means
+Cass River; it is an example here, not the code for every site. Site-specific
+nest-ID schemes, banding patterns and geolocator allocations below are labelled
+examples or project instructions, not permission to apply them at another site.
+Check your team's approved scheme and app configuration with the field lead.
+Wrybill nests may also be found and
 photographed: use <code>WRYB</code> and the team's WR nest IDs. Keep <code>WRYB</code> records separate
 from BADO in your notes. Other species and site codes in the app support wider project work;
 they are not additional procedures covered by this manual.</p>
+<p>Here, a <strong>geolocator/tag</strong> is a tracking unit fitted to a bird, not the Garmin
+GPS or camera. Section 8 explains geolocator deployment, retrieval and tag records.</p>
 <h3>Record what happened</h3>
 <p>Give each bird its own record, even when siblings have the same colour band.
 A bird only seen goes in the resighting form; a bird caught and handled goes
@@ -219,7 +215,7 @@ record, even when they happen on one visit.</p>
 │  └─ Family present → record observed parent(s) and chick(s), shared waypoint [5]
 ├─ Bird caught/handled → one CAPTURES row per bird [6]
 │  ├─ Tent photograph → photo fields on that capture [7]
-│  └─ Device fitted/removed/retained → device fields on that capture [8]
+│  └─ Geolocator/tag fitted/removed/retained → tag fields on that capture [8]
 └─ Chick photographed hiding → separate H-class RESIGHTINGS row per chick [7]
 </code></pre>
 <h3>Equivalent text key</h3>
@@ -235,7 +231,7 @@ chick, using the family waypoint rules. No: do not add absent birds. Go to 5.</l
 <li><strong>Were photographs or videos taken?</strong> Yes: use the appropriate event's photo
 fields; hiding photographs always need separate H rows. No: leave unrelated
 media fields blank. Go to 6.</li>
-<li><strong>Was there a device action, hatch, failure or closure?</strong> Yes: also follow
+<li><strong>Was there a geolocator/tag action, hatch, failure or closure?</strong> Yes: also follow
 Section 8 or 9. No: check the records identified above before leaving.</li>
 </ol>
 <h3>Which nest or brood ID?</h3>
@@ -285,7 +281,7 @@ is not a negative brood ID and must not be filled with a placeholder.</p>
 </tr>
 <tr>
 <td><code>tag_action = R</code></td>
-<td>Device retrieved, not a regular resighting.</td>
+<td>Tag retrieved, not a regular resighting.</td>
 </tr>
 </tbody>
 </table></div>
@@ -419,7 +415,7 @@ exist among the uploaded points. The biological forms use <code>gps_id</code> an
 Garmin GPS and assign the next unused nest ID under the team's naming system (see below).
 Write down the eggs, chicks and attending bird actually seen. Photograph and
 process the nest only as directed by the visit plan and welfare conditions.</p>
-<p>Cass River BADO IDs use an A, B or C plot prefix and the assigned two-digit
+<p>For example, Cass River BADO IDs use an A, B or C plot prefix and the assigned two-digit
 observer/GPS code plus two-digit running tally, for example <code>B0203</code>. Do not
 restart your tally in another plot: B0203 and A0203 must not be assigned as
 different discoveries using the same code/tally. Check the current register.
@@ -960,7 +956,7 @@ notebook. If the family link is uncertain, put it in the handover.</p>
 <h3>Record the bird before and after handling</h3>
 <p>Give each captured bird a new capture record. Read its metal ring and all leg
 marks before making changes. Record the marks at capture separately from
-those at release. Check sample labels and device numbers against the ring
+those at release. Check sample labels and tag numbers against the ring
 while the bird's identity is clear.</p>
 <h3>Which capture status?</h3>
 <ol>
@@ -1066,7 +1062,7 @@ The bird is being examined directly. Do not replace an unreadable mark with
 <tr>
 <td>Photo fields and flags</td>
 <td>Event-dependent</td>
-<td>Section 7. Devices: Section 8.</td>
+<td>Section 7. Tags: Section 8.</td>
 </tr>
 </tbody>
 </table></div>
@@ -1109,7 +1105,7 @@ do not substitute a different tarsus or wing method because the units agree.</p>
 </tr>
 <tr>
 <td>Chick or juvenile</td>
-<td>No device entries.</td>
+<td>No tag entries.</td>
 <td>Leave <code>tag_action</code>, <code>tag_type</code>, <code>tag_id</code>, <code>tag_id_in</code> blank—not O.</td>
 </tr>
 </tbody>
@@ -1206,7 +1202,7 @@ not extend to CAPTURES or create a new partial flag-code format. Explain a
 partly read engraving in comments; do not guess it. A partial mark records
 what you saw but may not identify a parent reliably enough to omit its ID.</p>
 <h3>Chick bands and later flags</h3>
-<p>Cass River status F or R chicks use one colour in LL and metal M in UR, with empty UL/LR
+<p>In the Cass River banding scheme, status F or R chicks use one colour in LL and metal M in UR, with empty UL/LR
 positions represented as X in the capture record. Siblings may share the colour;
 only their metal rings distinguish them individually.</p>
 <p>Follow the <strong>Broods to recapture for flagging</strong> To-Do list and the field lead's
@@ -1334,7 +1330,7 @@ parent is entered as X-X, not omitted.</p>
 <tr>
 <td><code>species</code>, <code>site</code>, <code>date</code>, <code>observer</code></td>
 <td>Required</td>
-<td>Actual field encounter, normally BADO / CR.</td>
+<td>Actual field encounter: BADO and your approved site code, for example CR for Cass River.</td>
 </tr>
 <tr>
 <td><code>age</code>, <code>sex</code>, <code>rclass</code></td>
@@ -1490,7 +1486,7 @@ updated To-Do PDF. Keep a per-chick list of what remains, not just a brood total
 <p>Deployments are spread across nesting phenology to sample residents and migrants
 evenly. Early nests are predicted to contain more residents and later nests
 more migrants; nest timing alone does not identify an individual as either.</p>
-<p>The plan is roughly 50 of the 100 geolocators in the first nesting wave and 50
+<p>For the 2026 Cass River deployment, the plan is roughly 50 of the 100 geolocators in the first nesting wave and 50
 in the second. A possible third wave is expected to contain renesters and
 double-brooding parents, rather than first-time nesters. Luke Eberhart-Hertel monitors the
 waves and directs the team to pause or continue deployment.</p>
@@ -1512,7 +1508,7 @@ leave it unhandled and recheck its current To-Do instructions later.</p>
 <td>A <strong>Parents to capture</strong> instruction for the intended bird and purpose. A resighting-only note is not a deployment instruction.</td>
 </tr>
 <tr>
-<td>Identity and device status</td>
+<td>Identity and tag status</td>
 <td>Reliable bird identity and current tag status. Resolve uncertain identity first unless the current To-Do instruction explicitly allows confirmation at capture.</td>
 </tr>
 <tr>
@@ -1533,7 +1529,7 @@ leave it unhandled and recheck its current To-Do instructions later.</p>
 </tr>
 <tr>
 <td>Stock and follow-up</td>
-<td>Confirm the assigned device and current stock; keep an ineligible mate as pending work.</td>
+<td>Confirm the assigned tag and current stock; keep an ineligible mate as pending work.</td>
 </tr>
 </tbody>
 </table></div>
@@ -1604,14 +1600,14 @@ or its female equivalent asks the team to establish that status and tag only
 when eligible. A <code>resight/tag</code> note is not permission to bypass a closed
 seven-day or 36-hour gate. Without qualifying GEO pair-completion evidence,
 an ordinary <code>band X-X</code> instruction remains banding work, not a deployment.</p>
-<h3>Which device action occurred?</h3>
+<h3>Which geolocator/tag action occurred?</h3>
 <ol>
 <li><strong>Was the adult handled?</strong> No: record what was visible in RESIGHTINGS;
 no deployment/retrieval is claimed. Yes: go to 2.</li>
-<li><strong>No device before or after?</strong> Yes: O. No: go to 3.</li>
-<li><strong>No device before, device fitted?</strong> Yes: D. No: go to 4.</li>
-<li><strong>Device removed with none fitted?</strong> Yes: R. No: go to 5.</li>
-<li><strong>Same device retained?</strong> Yes: S. No, an old device was replaced by a
+<li><strong>No tag before or after?</strong> Yes: O. No: go to 3.</li>
+<li><strong>No tag before, tag fitted?</strong> Yes: D. No: go to 4.</li>
+<li><strong>Tag removed with none fitted?</strong> Yes: R. No: go to 5.</li>
+<li><strong>Same tag retained?</strong> Yes: S. No, an old tag was replaced by a
 different one: N.</li>
 </ol>
 <h3>Supporting table — adult GEO captures only</h3>
@@ -1639,28 +1635,28 @@ Non-tag marks remain the actual observed bands, not automatically X.</p>
 <tr>
 <td><code>D</code> deployment</td>
 <td>Blank</td>
-<td>New outgoing device</td>
+<td>New outgoing tag</td>
 <td><code>GEO</code></td>
 <td>Actual no-tag mark → tag plus known spacer, e.g. TY.</td>
 </tr>
 <tr>
 <td><code>R</code> retrieval</td>
-<td>Removed device</td>
+<td>Removed tag</td>
 <td>Blank</td>
 <td><code>GEO</code></td>
 <td>Tag plus known spacer → actual no-tag release mark.</td>
 </tr>
 <tr>
 <td><code>S</code> retained</td>
-<td>Existing device</td>
-<td>Same device</td>
+<td>Existing tag</td>
+<td>Same tag</td>
 <td><code>GEO</code></td>
 <td>Actual tag/spacer before → actual tag/spacer after.</td>
 </tr>
 <tr>
 <td><code>N</code> replacement</td>
-<td>Old device</td>
-<td>Different new device</td>
+<td>Old tag</td>
+<td>Different new tag</td>
 <td><code>GEO</code></td>
 <td>Actual old tag/spacer → actual new tag/spacer.</td>
 </tr>
@@ -1669,16 +1665,16 @@ Non-tag marks remain the actual observed bands, not automatically X.</p>
 <p>For these adult entries, record <code>wt_w_tag = 0</code> or <code>1</code> to say whether the
 recorded mass included a tag. For O, use 0. Complete the bird's capture status,
 ring, before/after bands and the other required capture fields as well.
-<code>tag_action</code> and <code>capture_status</code> describe different things: removing a device
+<code>tag_action</code> and <code>capture_status</code> describe different things: removing a tag
 does not automatically mean the band combination was unchanged.</p>
-<p>Device history must support the action: retrieval/retention refer to the device
+<p>Tag history must support the action: retrieval/retention refer to the tag
 active on that bird; a replacement has distinct old/new IDs. Check a history
-error against the notebook and refer it rather than changing the device number.</p>
-<p>Chicks and juveniles leave all four device fields blank—not O. A tagged adult
+error against the notebook and refer it rather than changing the tag number.</p>
+<p>Chicks and juveniles leave all four tag fields blank—not O. A tagged adult
 only seen is recorded in RESIGHTINGS with the visible tag/spacer and comments.
-<code>UR = T?</code> records an unread spacer colour, not an unread device ID. Failure to
+<code>UR = T?</code> records an unread spacer colour, not an unread tag ID. Failure to
 see a tag is not proof of retrieval.</p>
-<p>Before release and entry, compare ring and device labels with the written
+<p>Before release and entry, compare ring and tag labels with the written
 record. A retrieved unit is not automatically available for redeployment;
 Luke Eberhart-Hertel must confirm its physical condition and allocation.</p>
 </details>
@@ -1986,7 +1982,7 @@ attempt does not turn that developmental resolution into presumed death.</p>
 <tbody>
 <tr>
 <td>A distinct subsequent attempt</td>
-<td>A different positive CR nest first recorded after the old brood's starting date, with an eligible S, F or I visit by the reference date. Revisiting an older or closed nest does not establish a new attempt.</td>
+<td>In the current Cass River To-Do implementation, a different positive CR nest first recorded after the old brood's starting date, with an eligible S, F or I visit by the reference date. Revisiting an older or closed nest does not establish a new attempt.</td>
 </tr>
 <tr>
 <td>One strongly established former parent</td>
@@ -2287,7 +2283,7 @@ every event needs a value; use the procedure's requirement table.</p>
 </tr>
 <tr>
 <td><code>site</code></td>
-<td>CR for Cass River; supported in NESTS/CAPTURES/RESIGHTINGS, not EGGS. Other site codes serve wider work.</td>
+<td>Approved code for the study site, for example CR for Cass River. Supported in NESTS/CAPTURES/RESIGHTINGS, not EGGS. Check the site dropdown rather than using CR everywhere.</td>
 </tr>
 <tr>
 <td><code>observer</code></td>
@@ -2421,7 +2417,7 @@ every event needs a value; use the procedure's requirement table.</p>
 </tr>
 </tbody>
 </table></div>
-<h3>Measurements, media and devices</h3>
+<h3>Measurements, media and tags</h3>
 <div class="table-scroll" tabindex="0" role="region" aria-label="Supporting table; scroll sideways if needed"><table>
 <thead>
 <tr>
@@ -2472,7 +2468,7 @@ every event needs a value; use the procedure's requirement table.</p>
 </tr>
 <tr>
 <td><code>tag_action</code>, <code>tag_type</code>, <code>tag_id_in</code>, <code>tag_id</code></td>
-<td>Adult device action/type and before/after IDs; Section 8. Blank for chick/juvenile captures.</td>
+<td>Adult tag action/type and before/after IDs; Section 8. Blank for chick/juvenile captures.</td>
 </tr>
 <tr>
 <td><code>eggs_handled</code></td>
@@ -2571,8 +2567,8 @@ the observation is wrong.</p>
 <td>Check before/after bands; a genuine changed combination uses status C.</td>
 </tr>
 <tr>
-<td>Device-history mismatch</td>
-<td>Check ring, old/new device IDs and prior action. Do not alter an ID to manufacture a history.</td>
+<td>Tag-history mismatch</td>
+<td>Check ring, old/new tag IDs and prior action. Do not alter an ID to manufacture a history.</td>
 </tr>
 <tr>
 <td>Measurement warning</td>
@@ -2810,7 +2806,7 @@ family exceptions retain the conditions in Sections 3 and 5.</p>
 </tr>
 <tr>
 <td>Do not enter</td>
-<td>Capture, samples or device action for a bird not handled.</td>
+<td>Capture, samples or tag action for a bird not handled.</td>
 </tr>
 <tr>
 <td>Likely To-Do follow-up</td>
@@ -2950,7 +2946,7 @@ family exceptions retain the conditions in Sections 3 and 5.</p>
 </tr>
 <tr>
 <td>Conditional</td>
-<td>Age-C status R or C direct GPS always; F first chick requires real positive/negative ID. Adult <code>caught_with</code> chicks requires direct GPS. Devices/samples as taken.</td>
+<td>Age-C status R or C direct GPS always; F first chick requires real positive/negative ID. Adult <code>caught_with</code> chicks requires direct GPS. Tags/samples as taken.</td>
 </tr>
 <tr>
 <td>Photographs</td>
@@ -2962,7 +2958,7 @@ family exceptions retain the conditions in Sections 3 and 5.</p>
 </tr>
 <tr>
 <td>Likely To-Do follow-up</td>
-<td>Banding, parent/device work, per-chick photographs or flagging.</td>
+<td>Banding, parent/tag work, per-chick photographs or flagging.</td>
 </tr>
 </tbody>
 </table></div>
@@ -3147,7 +3143,7 @@ family exceptions retain the conditions in Sections 3 and 5.</p>
 </tr>
 <tr>
 <td>Likely To-Do follow-up</td>
-<td>Depends on actual parent/brood/device evidence, not the letter alone.</td>
+<td>Depends on actual parent/brood/tag evidence, not the letter alone.</td>
 </tr>
 </tbody>
 </table></div>
@@ -3172,7 +3168,7 @@ family exceptions retain the conditions in Sections 3 and 5.</p>
 </tr>
 <tr>
 <td>Conditional</td>
-<td>Device history, known spacer colours, <code>wt_w_tag</code> and action-specific IDs. Eligibility/timing assessed before capture.</td>
+<td>Tag history, known spacer colours, <code>wt_w_tag</code> and action-specific IDs. Eligibility/timing assessed before capture.</td>
 </tr>
 <tr>
 <td>Photographs</td>
@@ -3180,7 +3176,7 @@ family exceptions retain the conditions in Sections 3 and 5.</p>
 </tr>
 <tr>
 <td>Do not enter</td>
-<td>Device action on an unhandled sighting; O on a chick; T? on a capture; same-visit mate capture solely to complete a pair.</td>
+<td>Tag action on an unhandled sighting; O on a chick; T? on a capture; same-visit mate capture solely to complete a pair.</td>
 </tr>
 <tr>
 <td>Likely To-Do follow-up</td>
@@ -3217,7 +3213,7 @@ family exceptions retain the conditions in Sections 3 and 5.</p>
 </tr>
 <tr>
 <td>Do not enter</td>
-<td>Bare T; guessed device ID; retrieval inferred from a tag not being seen.</td>
+<td>Bare T; guessed tag ID; retrieval inferred from a tag not being seen.</td>
 </tr>
 <tr>
 <td>Likely To-Do follow-up</td>
@@ -3555,7 +3551,7 @@ family waypoint. Record the observed parents separately. Do not add NESTS or
 EGGS rows.</p>
 <p>Later, the confirmed parent records have resolved both social parents
 unambiguously for -C0402. You see only one of them with two chicks at a new
-waypoint. The approved blank-ID resighting route can apply, but only because of the preceeding encounter when the -C0402 nest_id was created:</p>
+waypoint. The approved blank-ID resighting route can apply, but only because of the preceding encounter when the -C0402 nest_id was created:</p>
 <div class="table-scroll" tabindex="0" role="region" aria-label="Supporting table; scroll sideways if needed"><table>
 <thead>
 <tr>
@@ -3701,14 +3697,14 @@ adult simply to satisfy the check.</p>
 condition/measurement assessment. Its old combination is recorded in the four
 incoming fields; its actual new flag combination goes in the release fields.
 Use <code>capture_status = C</code>, not R, and record both GPS fields even with a known
-positive nest. Tarsus, culmen and weight remain required. No device action is
+positive nest. Tarsus, culmen and weight remain required. No tag action is
 entered for the chick.</p>
 <h3>Replacing a geolocator</h3>
 <p>An eligible adult arrives with GEO-017 and leaves with GEO-044. On its single
 CAPTURES row enter <code>tag_action = N</code>, <code>tag_type = GEO</code>, <code>tag_id_in = GEO-017</code>,
 <code>tag_id = GEO-044</code>, actual before/after spacer marks and <code>wt_w_tag</code> describing
 the recorded mass. Complete its ring and normal capture fields.</p>
-<p>A later resighting describes what was visible then. It is not another device
+<p>A later resighting describes what was visible then. It is not another tag
 replacement, and a tag not seen later is not automatically a retrieval.</p>
 <h3>Final hatch and closure</h3>
 <p>A visit establishes no eggs remaining and two chicks present: record the final
@@ -4039,7 +4035,7 @@ developmental resolution, not a statement that all siblings survived.</p>
 </tr>
 <tr>
 <td>v2.4 review draft, 26 October 2026</td>
-<td>All sections reviewed/redrafted; corrected split-table family entry, capture GPS/status table, blank negative-family IDs, uncertainty notation, H progress/two clocks, egg timing, adult device cells and pre-capture gates. Added consolidated scenarios/examples/checklists and explicit source-state notes.</td>
+<td>All sections reviewed/redrafted; corrected split-table family entry, capture GPS/status table, blank negative-family IDs, uncertainty notation, H progress/two clocks, egg timing, adult tag cells and pre-capture gates. Added consolidated scenarios/examples/checklists and explicit source-state notes.</td>
 </tr>
 <tr>
 <td>v2.4.1, 26 October 2026</td>
@@ -4080,6 +4076,10 @@ developmental resolution, not a statement that all siblings survived.</p>
 <tr>
 <td>v2.4.10, 29 October 2026</td>
 <td>Added the fixed inclusive age-21-to-35 live-encounter window, first suppression on day 36, negative-brood age proxy and later-live reactivation. Explained associated parent-task/summary suppression, late-upload correction and independent notA/juvenile resolution; added a dated worked example.</td>
+</tr>
+<tr>
+<td>v2.4.11, 29 October 2026</td>
+<td>Clarified New Zealand-wide scope and labelled site-specific examples; moved the authorship/AI statement after Appendix B with a contents link; clarified geolocator/tag terminology and corrected spelling. No biological rule or SQL change.</td>
 </tr>
 </tbody>
 </table></div>
@@ -4197,7 +4197,7 @@ inspectors, deploy the app or publish the manual. Those remain separate steps.</
 </tr>
 <tr>
 <td><code>site</code></td>
-<td>CR for Cass River; other dropdown codes serve broader project sites.</td>
+<td>Use your approved study-site code; CR is the Cass River example. Check the dropdown for the code used at your site.</td>
 </tr>
 <tr>
 <td><code>age</code></td>
@@ -4298,7 +4298,7 @@ into evidence that individual chicks were seen.</p>
 </tr>
 </tbody>
 </table></div>
-<h3>Capture, sample and device values</h3>
+<h3>Capture, sample and tag values</h3>
 <div class="table-scroll" tabindex="0" role="region" aria-label="Supporting table; scroll sideways if needed"><table>
 <thead>
 <tr>
@@ -4345,11 +4345,11 @@ into evidence that individual chicks were seen.</p>
 </tr>
 <tr>
 <td><code>tag_action</code></td>
-<td>Adult only: O none; D deployment; R retrieval; S same device retained; N new replacement.</td>
+<td>Adult only: O none; D deployment; R retrieval; S same tag retained; N new replacement.</td>
 </tr>
 <tr>
 <td><code>tag_type</code></td>
-<td>GEO geolocator; GPS/PTT supported for other device work. Chick/juvenile device fields stay blank.</td>
+<td>GEO geolocator; GPS/PTT supported for other tag work. Chick/juvenile tag fields stay blank.</td>
 </tr>
 </tbody>
 </table></div>
@@ -4444,7 +4444,7 @@ separate <code>caught_with = M?</code> convention is not a leg-mark entry.</p>
 <li><input type="checkbox" disabled="" /> Unbanded tending parent recorded X-X; unreadable resighting marks use ?.</li>
 <li><input type="checkbox" disabled="" /> Incoming/release capture marks read directly; no ? in any leg field.</li>
 <li><input type="checkbox" disabled="" /> Each photo sequence identifies subject/ring, camera and full endpoints.</li>
-<li><input type="checkbox" disabled="" /> Tent and hiding sequences distinct; sample/device labels checked.</li>
+<li><input type="checkbox" disabled="" /> Tent and hiding sequences distinct; sample/tag labels checked.</li>
 </ul>
 <h3>Before saving</h3>
 <ul>
@@ -4463,7 +4463,7 @@ separate <code>caught_with = M?</code> convention is not a leg-mark entry.</p>
 <li><input type="checkbox" disabled="" /> Age-C status R or C captures have both GPS fields even with a positive ID.</li>
 <li><input type="checkbox" disabled="" /> Every new H row has an explicit valid positive/negative nest_id, ring, leg observations, gps_id/point and camera/range.</li>
 <li><input type="checkbox" disabled="" /> Class P or V media fields complete; ordinary ring optionality not applied to H.</li>
-<li><input type="checkbox" disabled="" /> Device action, actual old/new IDs and adult-only fields checked.</li>
+<li><input type="checkbox" disabled="" /> Tag action, actual old/new IDs and adult-only fields checked.</li>
 <li><input type="checkbox" disabled="" /> Capture status agrees with before/after combination; samples use own codes.</li>
 <li><input type="checkbox" disabled="" /> A D recovery has actual incoming marks and blank release fields/time, whether age C or J; no flag or sighting invented.</li>
 <li><input type="checkbox" disabled="" /> Unrelated adult captures have blank <code>nest_id</code> and gps_id/point; no placeholder IDs entered. Negative IDs appear only in bird tables.</li>
@@ -4483,6 +4483,23 @@ separate <code>caught_with = M?</code> convention is not a leg-mark entry.</p>
 <li><input type="checkbox" disabled="" /> Unresolved family links, validation discrepancies and unfinished work handed over.</li>
 <li><input type="checkbox" disabled="" /> pP, P or D fate checks remain in the handover until final notA, even if absent from the To-Do PDF.</li>
 </ul>
+</details>
+<a id="authorship"></a>
+<details>
+<summary><strong>Authorship and use of AI</strong></summary>
+<h2>Authorship and use of AI</h2>
+<p>Luke Eberhart-Hertel developed, described, and reasoned through the fieldwork
+methods, protocols and underlying logic presented in this manual, including the
+relational data structure and the rules connecting field observations to
+database records. He retains full accountability for these methods, decisions,
+and their scientific reasoning.</p>
+<p>A GPT AI model was used under Luke Eberhart-Hertel's direction to translate the
+code-based logic and protocols into a human-friendly Markdown manual, and to
+help organise and refine its wording and presentation. AI assistance does not
+transfer authorship of the methods or responsibility for their accuracy away
+from Luke Eberhart-Hertel.</p>
+<p>For questions or clarification, contact Luke Eberhart-Hertel at
+<a href="mailto:luke.eberhart@bi.mpg.de">luke.eberhart@bi.mpg.de</a>.</p>
 </details>
 </article></main><script>(function() {
   "use strict";

@@ -1734,11 +1734,13 @@ todo_pdf_heading <- function(todo_name) {
         "From day 36, broods not encountered during ages 21-35 are presumed dead; later live encounters can restore outstanding brood and parent tasks."
       ),
       subtitle_typst = paste(
+        "#emph[",
         "Recapture chicks aged 21 days or more; assign unique engraved UL flags.",
         "The 3-week cutoff is a guide: decide in hand using morphometrics.",
         "Notes list metal rings of banded chicks; 'N seen' is the number encountered at the latest visit.",
         "From day 36, broods not encountered during ages 21-35 are presumed dead; later live encounters can restore outstanding brood and parent tasks.",
-        "#strong[Do not flag chicks if weight < 22 g or tarsus < 27 mm.]"
+        "#strong[Do not flag chicks if weight < 22 g or tarsus < 27 mm.]",
+        "]"
       ),
       subtitle_markdown = paste(
         "Recapture chicks aged 21 days or more; assign unique engraved UL flags.",
@@ -1785,9 +1787,7 @@ todo_pdf_heading <- function(todo_name) {
     ),
     "notA nest-check" = list(
       title = "Nests requiring a 'notA' closure visit",
-      subtitle = "Confirm closure and enter notA; H-state nests may still be active mobile broods.",
-      title_typst = "#align(left)[#text(size: 10pt, weight: \"bold\")[Nests requiring a 'notA' closure visit]]",
-      subtitle_typst = "#align(left)[#emph[#text(size: 8pt)[Confirm closure and enter notA; H-state nests may still be active mobile broods.]]]"
+      subtitle = "Confirm closure and enter notA; H-state nests may still be active mobile broods."
     ),
     stop(
       glue("Unexpected TODO task value in PDF renderer: {todo_name}"),
@@ -1964,8 +1964,8 @@ todo_pdf_nest_summary_table <- function(
   rows_per_block <- max(block_sizes)
 
   max_font_size <- 8.5
-  label_inset_y <- 2
-  max_inset_y <- 4.5
+  label_inset_y <- 0.75
+  max_inset_y <- 2.25
   target_table_height <- 330
   if (rows_per_block <= 12L) {
     font_size <- max_font_size
@@ -1975,11 +1975,14 @@ todo_pdf_nest_summary_table <- function(
       max_font_size * sqrt(12 / rows_per_block),
       target_table_height * 0.75 / (rows_per_block + 2)
     )
-    inset_y <- max(
-      0,
-      (
-        target_table_height - (rows_per_block + 2) * font_size
-      ) / (2 * (rows_per_block + 1)) - label_inset_y
+    inset_y <- min(
+      max_inset_y,
+      max(
+        0,
+        (
+          target_table_height - (rows_per_block + 2) * font_size
+        ) / (2 * (rows_per_block + 1)) - label_inset_y
+      )
     )
   }
   font_size <- format(round(font_size, 2), trim = TRUE)
@@ -2026,7 +2029,7 @@ todo_pdf_nest_summary_table <- function(
       flagged_marker <- if (
         "Flagged" %in% names(block) && isTRUE(block$Flagged[row])
       ) {
-        "  #h(2pt)  #strong[F]"
+        "#h(1.5pt)#strong[F]"
       } else {
         ""
       }
@@ -2127,8 +2130,8 @@ todo_pdf_summary_block <- function(
     return(character())
   }
 
-  title <- "#align(left)[#text(size: 10pt, weight: \"bold\")[Summary of currently active nests and broods]]"
-  subtitle <- "#align(left)[#emph[#text(size: 8pt)[Brood labels use chick band colour; an F after a brood label means at least one chick has an engraved flag. Symbols match the map. For active nests, \"Est. Hatch\" is days until hatch (negative = overdue); for broods, negative values are days since hatch.]]]"
+  title <- "#align(left)[#text(size: 12pt, weight: \"bold\")[Summary of currently active nests and broods]]"
+  subtitle <- "#align(left)[#emph[#text(size: 9pt)[Brood labels use chick band colour; an F after a brood label means at least one chick has an engraved flag. Symbols match the map. For active nests, \"Est. Hatch\" is days until hatch (negative = overdue); for broods, negative values are days since hatch.]]]"
 
   if (isTRUE(keep_tables_together)) {
     return(c(
@@ -2202,7 +2205,9 @@ todo_pdf_task_table <- function(
   header_fill <- "#dfe5e7"
   stripe_fill <- "#f1f3f3"
   white_fill <- "#ffffff"
-  label_inset_y <- 3
+  # Badge padding is additional to the table's own cell inset. Keep it small
+  # so coloured brood labels do not inflate otherwise single-line rows.
+  label_inset_y <- 0.75
   nest_column <- names(todo_rows)[1]
 
   label_cell <- function(nest_id, row_fill) {
@@ -2292,7 +2297,7 @@ todo_pdf_task_table <- function(
     "#table(",
     glue("  columns: ({columns}),"),
     glue("  align: ({align_text}),"),
-    "  inset: (x: 2.2pt, y: 3pt),",
+    "  inset: (x: 2.2pt, y: 2.25pt),",
     "  stroke: none,",
     paste0("  ", paste(cells, collapse = ",\n  "), ","),
     ")",
@@ -2376,7 +2381,7 @@ todo_pdf_simple_table <- function(
     "#table(",
     glue("  columns: ({columns}),"),
     "  align: center + horizon,",
-    "  inset: (x: 2.2pt, y: 3pt),",
+    "  inset: (x: 2.2pt, y: 2.25pt),",
     "  stroke: none,",
     paste0("  ", paste(cells, collapse = ",\n  "), ","),
     ")",
@@ -2473,8 +2478,6 @@ todo_pdf_body <- function(
       }
 
       parent_resighting_table <- todo == "Parent resighting"
-      special_heading_typst <- !is.null(heading$title_typst) ||
-        !is.null(heading$subtitle_typst)
       title_typst <- if (!is.null(heading$title_typst)) {
         heading$title_typst
       } else {
@@ -2512,7 +2515,7 @@ todo_pdf_body <- function(
             "center", "center", "left"
           )
         },
-        raw = isTRUE(keep_tables_together) || special_heading_typst
+        raw = isTRUE(keep_tables_together)
       )
 
       # Keep the heading, subtitle, and table as one visual unit when the
@@ -2526,18 +2529,6 @@ todo_pdf_body <- function(
           subtitle_typst,
           task_table,
           "]",
-          "```",
-          ""
-        )
-      } else if (special_heading_typst) {
-        out <- c(
-          out,
-          "```{=typst}",
-          "#block(breakable: false)[",
-          title_typst,
-          subtitle_typst,
-          "]",
-          task_table,
           "```",
           ""
         )
@@ -2615,8 +2606,8 @@ todo_pdf_body <- function(
       "```{=typst}",
       "#set page(margin: (x: 1cm, y: 1cm))",
       "#pagebreak()",
-      "#align(left)[#text(size: 10pt, weight: \"bold\")[Map of tasks needed on active nests and broods]]",
-      "#align(left)[#emph[#text(size: 8.5pt)[All active nests and broods are shown. Black labels are nests; coloured labels are broods (chick band colour). Nest points are stationary; brood points show the latest location. White point outline = parent tag deployment; white label outline + italic text = brood photo, flagging, or banding work.]]]",
+      "#align(left)[#text(size: 12pt, weight: \"bold\")[Map of tasks needed on active nests and broods]]",
+      "#align(left)[#emph[#text(size: 9pt)[All active nests and broods are shown. Black labels are nests; coloured labels are broods (chick band colour). Nest points are stationary; brood points show the latest location. White point outline = parent tag deployment; white label outline + italic text = brood photo, flagging, or banding work.]]]",
       "#v(-0.2em)",
       glue('#align(center)[#image("{map_file}", width: 100%)]'),
       "#v(-0.4em)",
