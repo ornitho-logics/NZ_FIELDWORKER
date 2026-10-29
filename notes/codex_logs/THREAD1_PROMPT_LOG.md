@@ -3,6 +3,28 @@
 Status: tracked sanitized history. Raw transcripts and attachments remain
 local/ignored.
 
+## Current supersession notice — 2026-10-26
+
+The entries below preserve historical prompts and decisions; they are not
+current instructions. `NO_NEST` is retired current input. For an unrelated
+age-A CAPTURES event, use blank/SQL NULL `nest_id` plus complete
+`gps_id`/`gps_point`. Do not rewrite historical rows or dumps.
+
+Current AGENTS and the Thread 1 map supersede earlier event/protocol guidance:
+any `?` in any leg field excludes the whole parent event from parent-nest
+evidence unless a verified known metal ring traces current/archived capture
+identity; archive identity never supplies a previous-season current-nest link.
+Conflicting nonblank nest/brood IDs save-block within one same-date/site/GPS
+family encounter, including fully explicit rows and split tables. Separate
+encounters may record brood mixing. `pP`/`P`/`D` allow fate review until final
+`notA`; the rare first-F zero-clutch rejection remains intentional, requiring
+verification/comment and the documented override if correct, not an automatic
+exception. EGGS has no media columns. The reviewed local mirror is v1.3.14,
+distinct from external canonical v1.3.5. Its SC clarification confirms that
+scraping can resolve parent association alone, without becoming a BC/FC/AC
+parent-with-chicks behaviour. Exact final verification uses frozen source hashes.
+No old main/undo/publication instruction below resumes automatically.
+
 Thread role:
 
 - Repository cartographer

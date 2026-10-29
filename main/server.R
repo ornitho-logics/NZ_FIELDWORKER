@@ -229,6 +229,9 @@ function(input, output, session) {
 
     if (!is.null(job)) {
       if (job$state %in% c("queued", "running")) {
+        # Keep elapsed time live even when one SQL stage takes several minutes.
+        # This redraw reads the local job only; it adds no database polling.
+        invalidateLater(1000, session)
         stage <- if (is.null(job$detail) || !nzchar(job$detail)) {
           if (identical(job$state, "queued")) {
             "Waiting to start"
@@ -241,8 +244,11 @@ function(input, output, session) {
 
         return(tags$div(
           class = "todo-snapshot-progress mt-2",
+          `aria-busy` = "true",
           tags$div(
             class = "d-flex align-items-center small text-muted",
+            role = "status",
+            `aria-live` = "polite",
             tags$span(
               class = "spinner-border spinner-border-sm mr-2",
               role = "status",
@@ -251,9 +257,15 @@ function(input, output, session) {
             tags$span(
               glue(
                 "{stage} for reference date {job$refdate}. ",
-                "This may take several minutes."
+                "Some stages take several minutes without a new message."
               )
             )
+          ),
+          tags$p(
+            class = "small text-muted mt-1 mb-1",
+            role = "timer",
+            `aria-live` = "off",
+            todo_snapshot_refresh_elapsed(job)
           ),
           tags$div(
             class = "progress mt-2",

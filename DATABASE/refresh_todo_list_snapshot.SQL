@@ -25,6 +25,13 @@
   the same CAPTURES grouping for untrapped-brood, flagging, and hiding-photo
   task branches while preserving the existing ring and engraved-flag rules.
 
+  The canonical chick-event, target, age-C encounter/latest, juvenile-origin,
+  and context calculations are materialized into connection-local temporary
+  inputs rather than persistent views. The source graph is therefore expanded
+  once for this refresh, and the same-occasion family resolver is never
+  validated or re-expanded during views.SQL deployment. The completed chick
+  aggregate is then the only downstream input for those task branches.
+
   TODO_HIDING_SPOT_PHOTO_CONTEXT_INPUT is handled the same way for the shared
   H-photo evidence aggregate used by both brood task unions.
 
@@ -127,7 +134,66 @@ LIMIT 1;
 
 SET @todo_refresh_id := LAST_INSERT_ID();
 
-/* Repair all internal input boundaries before removing stale BUILD tables. */
+/*
+  Temporary inputs belong to this Adminer connection. Clear any remnants from
+  an interrupted retry before creating the fresh source graph below; do not
+  repeat this cleanup after the graph has been materialized.
+*/
+DROP TEMPORARY TABLE IF EXISTS tmp_todo_hiding_photo_targets;
+DROP TEMPORARY TABLE IF EXISTS tmp_todo_closure_parent_associations;
+DROP TEMPORARY TABLE IF EXISTS tmp_todo_closure_identity_matches;
+DROP TEMPORARY TABLE IF EXISTS tmp_todo_raw_encounter_nest_consensus;
+DROP TEMPORARY TABLE IF EXISTS tmp_todo_chick_capture_events;
+DROP TEMPORARY TABLE IF EXISTS tmp_todo_chick_capture_event_status;
+DROP TEMPORARY TABLE IF EXISTS tmp_todo_chick_capture_targets;
+DROP TEMPORARY TABLE IF EXISTS tmp_todo_chick_capture_context_base;
+DROP TEMPORARY TABLE IF EXISTS tmp_todo_juvenile_origin_events;
+DROP TEMPORARY TABLE IF EXISTS tmp_todo_parent_chick_resighting_associations;
+DROP TEMPORARY TABLE IF EXISTS tmp_todo_ordinary_family_resighting_associations;
+DROP TEMPORARY TABLE IF EXISTS tmp_todo_chick_encounters;
+DROP TEMPORARY TABLE IF EXISTS tmp_todo_chick_latest_encounter_context;
+DROP TEMPORARY TABLE IF EXISTS tmp_todo_chick_capture_context;
+
+/*
+  Reset the chick context pointer before removing a stale BUILD table. This
+  typed, empty boundary is independent of both the old published table and
+  the new BUILD table, so retries cannot retain a dangling view definition.
+  The first 15 columns preserve the historical context contract; the extra
+  encounter columns are nullable extensions used by the current task engine.
+*/
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_INPUT AS
+SELECT
+  CAST(NULL AS CHAR(6)) AS nest_id,
+  CAST(NULL AS SIGNED) AS n_chick_captures,
+  CAST(NULL AS SIGNED) AS n_captured_chick_rings,
+  CAST(NULL AS SIGNED) AS n_flagged_chick_rings,
+  CAST(NULL AS SIGNED) AS n_unringed_chick_captures,
+  CAST(NULL AS SIGNED) AS n_dead_chick_rings,
+  CAST(NULL AS SIGNED) AS n_active_chick_rings,
+  CAST(NULL AS SIGNED) AS n_active_flagged_chick_rings,
+  CAST(NULL AS SIGNED) AS n_active_chick_captures,
+  CAST(NULL AS SIGNED) AS n_unresolved_dead_chick_events,
+  CAST(NULL AS SIGNED) AS observed_brood_size,
+  CAST(NULL AS DATE) AS latest_brood_count_date,
+  CAST(NULL AS SIGNED) AS n_deaths_after_latest_brood_count,
+  CAST(NULL AS SIGNED) AS n_operational_brood_size,
+  CAST(NULL AS CHAR(64)) AS operational_brood_size_source,
+  CAST(NULL AS DATE) AS latest_encounter_date,
+  CAST(NULL AS DATETIME) AS latest_encounter_datetime,
+  CAST(NULL AS SIGNED) AS latest_encounter_count,
+  CAST(NULL AS SIGNED) AS latest_encounter_flagged_count,
+  CAST(NULL AS SIGNED) AS latest_encounter_unflagged_count,
+  CAST(NULL AS SIGNED) AS latest_encounter_unresolved_count,
+  CAST(NULL AS SIGNED) AS latest_encounter_known_dead_count,
+  CAST(NULL AS SIGNED) AS latest_encounter_is_conservative,
+  CAST(NULL AS SIGNED) AS latest_encounter_is_fallback,
+  CAST(NULL AS CHAR(16)) AS latest_encounter_availability,
+  CAST(NULL AS CHAR(255)) AS latest_encounter_ring_list,
+  CAST(NULL AS CHAR(64)) AS latest_encounter_source,
+  CAST(NULL AS CHAR(128)) AS latest_encounter_provenance
+WHERE 1 = 0;
+
+/* Repair all other internal input boundaries before removing stale BUILD tables. */
 CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_INPUT AS
 SELECT *
 FROM FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT;
@@ -153,7 +219,74 @@ SELECT
   reference_date
 FROM FIELD_2026_BADOatNZ.BROODS_LATEST;
 
-CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_INPUT AS
+/*
+  Keep raw encounter conflict evidence independent from proof-eligible parent
+  and chick inputs. This is a veto-only source for inferred same-occasion
+  links; it does not supply an association by itself.
+*/
+CREATE TEMPORARY TABLE tmp_todo_raw_encounter_nest_consensus AS
+WITH sr AS (
+  SELECT value AS reference_date
+  FROM FIELD_2026_BADOatNZ.settings
+  WHERE variable = 'reference_date'
+    AND value IS NOT NULL
+), raw_encounters AS (
+  SELECT
+    c.date AS event_date,
+    c.gps_id,
+    c.gps_point,
+    CASE
+      WHEN UPPER(TRIM(COALESCE(c.nest_id, ''))) IN ('', 'NO_NEST')
+      THEN NULL
+      ELSE UPPER(TRIM(c.nest_id))
+    END AS nest_id
+  FROM FIELD_2026_BADOatNZ.CAPTURES c
+  CROSS JOIN sr
+  WHERE UPPER(TRIM(COALESCE(c.species, ''))) = 'BADO'
+    AND UPPER(TRIM(COALESCE(c.site, ''))) = 'CR'
+    AND c.age IN ('A', 'C')
+    AND c.date <= sr.reference_date
+    AND c.gps_id IS NOT NULL
+    AND c.gps_point IS NOT NULL
+
+  UNION ALL
+
+  SELECT
+    r.date AS event_date,
+    r.gps_id,
+    r.gps_point,
+    CASE
+      WHEN UPPER(TRIM(COALESCE(r.nest_id, ''))) IN ('', 'NO_NEST')
+      THEN NULL
+      ELSE UPPER(TRIM(r.nest_id))
+    END AS nest_id
+  FROM FIELD_2026_BADOatNZ.RESIGHTINGS r
+  CROSS JOIN sr
+  WHERE UPPER(TRIM(COALESCE(r.species, ''))) = 'BADO'
+    AND UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'
+    AND r.age IN ('A', 'C')
+    AND r.date <= sr.reference_date
+    AND r.gps_id IS NOT NULL
+    AND r.gps_point IS NOT NULL
+)
+SELECT
+  raw_encounters.event_date,
+  raw_encounters.gps_id,
+  raw_encounters.gps_point,
+  COUNT(DISTINCT raw_encounters.nest_id) AS n_explicit_nest_ids,
+  MIN(raw_encounters.nest_id) AS explicit_nest_id
+FROM raw_encounters
+WHERE raw_encounters.nest_id IS NOT NULL
+GROUP BY
+  raw_encounters.event_date,
+  raw_encounters.gps_id,
+  raw_encounters.gps_point;
+
+ALTER TABLE tmp_todo_raw_encounter_nest_consensus
+  ADD INDEX idx_tmp_todo_raw_encounter_gps_date
+    (event_date, gps_id, gps_point);
+
+CREATE TEMPORARY TABLE tmp_todo_chick_capture_events AS
 WITH sr AS (
   SELECT value AS reference_date
   FROM FIELD_2026_BADOatNZ.settings
@@ -170,15 +303,33 @@ raw_chick_events AS (
   SELECT
     c.pk AS capture_pk,
     c.date AS event_date,
+    CAST(CONCAT(
+      c.date,
+      ' ',
+      COALESCE(c.released, c.caught, '00:00:00')
+    ) AS DATETIME) AS event_datetime,
+    CASE
+      WHEN c.released IS NOT NULL OR c.caught IS NOT NULL THEN 1
+      ELSE 0
+    END AS event_time_is_observed,
+    c.age,
+    c.capture_status,
+    c.site,
+    c.gps_id,
+    c.gps_point,
     CASE
       WHEN UPPER(TRIM(COALESCE(c.nest_id, ''))) IN ('', 'NO_NEST')
       THEN NULL
       ELSE UPPER(TRIM(c.nest_id))
     END AS recorded_nest_id,
-    NULLIF(
-      NULLIF(UPPER(TRIM(COALESCE(c.ring, ''))), ''),
-      'NA'
-    ) AS ring_key,
+    /* Keep the refresh path identical to the installed view path. */
+    CASE
+      WHEN UPPER(TRIM(COALESCE(c.ring, ''))) IN (
+        '', 'X', 'XX', 'X-X', 'NA', 'N/A'
+      )
+      THEN NULL
+      ELSE REPLACE(UPPER(TRIM(c.ring)), '-', '')
+    END AS ring_key,
     CASE
       WHEN UPPER(NULLIF(TRIM(c.UL), '')) REGEXP '^F[A-Z0-9]+$'
       THEN UPPER(NULLIF(TRIM(c.UL), ''))
@@ -189,28 +340,41 @@ raw_chick_events AS (
   FROM FIELD_2026_BADOatNZ.CAPTURES c
   CROSS JOIN sr
   WHERE UPPER(TRIM(COALESCE(c.site, ''))) = 'CR'
-    AND c.age = 'C'
+    AND c.age IN ('C', 'J')
     AND c.date <= sr.reference_date
+),
+keyed_chick_events AS (
+  SELECT
+    raw.*,
+    CASE
+      WHEN raw.ring_key IS NOT NULL
+      THEN CONCAT('ring:', raw.ring_key)
+      WHEN raw.flag_code IS NOT NULL
+      THEN CONCAT('flag:', raw.flag_code)
+      ELSE NULL
+    END AS origin_key
+  FROM raw_chick_events raw
 ),
 known_ring_nest_history AS (
   SELECT
     capture_pk,
     event_date,
-    ring_key,
+    origin_key,
     recorded_nest_id AS nest_id
-  FROM raw_chick_events
-  WHERE ring_key IS NOT NULL
+  FROM keyed_chick_events
+  WHERE origin_key IS NOT NULL
     AND recorded_nest_id IS NOT NULL
+    AND UPPER(TRIM(COALESCE(capture_status, ''))) IN ('F', 'R', 'C')
 ),
 latest_prior_ring_date AS (
   SELECT
     e.capture_pk,
     MAX(h.event_date) AS latest_prior_event_date
-  FROM raw_chick_events e
+  FROM keyed_chick_events e
   JOIN known_ring_nest_history h
-    ON h.ring_key = e.ring_key
+    ON h.origin_key = e.origin_key
    AND h.event_date <= e.event_date
-  WHERE e.ring_key IS NOT NULL
+  WHERE e.origin_key IS NOT NULL
     AND e.recorded_nest_id IS NULL
   GROUP BY e.capture_pk
 ),
@@ -218,11 +382,11 @@ latest_prior_ring_nests AS (
   SELECT DISTINCT
     e.capture_pk,
     h.nest_id
-  FROM raw_chick_events e
+  FROM keyed_chick_events e
   JOIN latest_prior_ring_date d
     ON d.capture_pk = e.capture_pk
   JOIN known_ring_nest_history h
-    ON h.ring_key = e.ring_key
+    ON h.origin_key = e.origin_key
    AND h.event_date = d.latest_prior_event_date
 ),
 resolved_prior_ring_nests AS (
@@ -235,28 +399,711 @@ resolved_prior_ring_nests AS (
 ),
 chick_events AS (
   SELECT
+    e.capture_pk,
+    e.event_date,
+    e.event_datetime,
+    e.event_time_is_observed,
+    e.age,
+    e.site,
+    e.gps_id,
+    e.gps_point,
     COALESCE(e.recorded_nest_id, inferred.inferred_nest_id) AS nest_id,
+    CASE
+      WHEN e.recorded_nest_id IS NOT NULL THEN 'recorded'
+      WHEN inferred.inferred_nest_id IS NOT NULL THEN 'prior_ring'
+      ELSE 'unresolved'
+    END AS nest_id_source,
+    e.origin_key,
     e.ring_key,
-    e.flag_code
-  FROM raw_chick_events e
+    e.flag_code,
+    e.capture_status
+  FROM keyed_chick_events e
   LEFT JOIN resolved_prior_ring_nests inferred
     ON inferred.capture_pk = e.capture_pk
-  WHERE COALESCE(e.recorded_nest_id, inferred.inferred_nest_id) IS NOT NULL
+  WHERE e.age = 'J'
+     OR COALESCE(e.recorded_nest_id, inferred.inferred_nest_id) IS NOT NULL
 )
 SELECT
+  chick_events.capture_pk,
+  chick_events.event_date,
+  chick_events.event_datetime,
+  chick_events.event_time_is_observed,
+  chick_events.age,
+  chick_events.site,
+  chick_events.gps_id,
+  chick_events.gps_point,
   chick_events.nest_id,
-  COUNT(*) AS n_chick_captures,
-  COUNT(DISTINCT chick_events.ring_key) AS n_captured_chick_rings,
-  COUNT(DISTINCT CASE
-    WHEN chick_events.flag_code IS NOT NULL
-    THEN chick_events.ring_key
-  END) AS n_flagged_chick_rings,
-  SUM(CASE
-    WHEN chick_events.ring_key IS NULL THEN 1
+  chick_events.nest_id_source,
+  chick_events.origin_key,
+  chick_events.ring_key,
+  chick_events.flag_code,
+  chick_events.capture_status
+FROM chick_events;
+
+ALTER TABLE tmp_todo_chick_capture_events
+  ADD INDEX idx_tmp_todo_chick_event_pk (capture_pk),
+  ADD INDEX idx_tmp_todo_chick_event_origin_date (origin_key, event_date),
+  ADD INDEX idx_tmp_todo_chick_event_flag_date (flag_code, event_date);
+
+/*
+  Reuse one event-level bridge classification for the target and aggregate
+  layers. The raw event input remains source-only; this mirror adds the
+  derived bridge fields before any snapshot is materialized.
+*/
+CREATE TEMPORARY TABLE tmp_todo_chick_capture_event_status AS
+WITH chick_events AS (
+  SELECT
+    events.*
+  FROM tmp_todo_chick_capture_events events
+  WHERE events.age = 'C'
+), flag_ring_counts AS (
+  SELECT
+    dead.capture_pk AS dead_capture_pk,
+    COUNT(DISTINCT bridge.ring_key) AS n_bridge_ring_keys,
+    MIN(bridge.ring_key) AS bridge_ring_key
+  FROM chick_events dead
+  JOIN chick_events bridge
+    ON bridge.flag_code = dead.flag_code
+   AND bridge.ring_key IS NOT NULL
+  WHERE UPPER(TRIM(COALESCE(dead.capture_status, ''))) = 'D'
+    AND dead.flag_code IS NOT NULL
+    AND dead.ring_key IS NULL
+  GROUP BY dead.capture_pk
+)
+SELECT
+  events.*,
+  CASE
+    WHEN UPPER(TRIM(COALESCE(events.capture_status, ''))) = 'D'
+     AND events.ring_key IS NULL
+     AND bridge.n_bridge_ring_keys = 1
+    THEN 1
     ELSE 0
-  END) AS n_unringed_chick_captures
-FROM chick_events
-GROUP BY chick_events.nest_id;
+  END AS is_resolved_dead_bridge,
+  CASE
+    WHEN bridge.n_bridge_ring_keys = 1
+    THEN bridge.bridge_ring_key
+    ELSE NULL
+  END AS resolved_dead_ring_key
+FROM chick_events events
+LEFT JOIN flag_ring_counts bridge
+  ON bridge.dead_capture_pk = events.capture_pk;
+
+ALTER TABLE tmp_todo_chick_capture_event_status
+  ADD INDEX idx_tmp_todo_chick_status_pk (capture_pk),
+  ADD INDEX idx_tmp_todo_chick_status_ring (ring_key),
+  ADD INDEX idx_tmp_todo_chick_status_flag (flag_code);
+
+/*
+  Keep one canonical target row per brood/ring. Death resolution is global by
+  normalized ring, while the target's flag state is aggregated across all
+  captures for that brood/ring.
+*/
+CREATE TEMPORARY TABLE tmp_todo_chick_capture_targets AS
+WITH chick_events AS (
+  SELECT
+    events.*
+  FROM tmp_todo_chick_capture_event_status events
+), death_candidates AS (
+  SELECT
+    dead.nest_id,
+    dead.capture_pk AS dead_capture_pk,
+    dead.event_date AS dead_event_date,
+    dead.event_datetime AS dead_event_datetime,
+    dead.event_time_is_observed AS dead_event_time_is_observed,
+    dead.ring_key
+  FROM chick_events dead
+  WHERE UPPER(TRIM(COALESCE(dead.capture_status, ''))) = 'D'
+    AND dead.ring_key IS NOT NULL
+
+  UNION ALL
+
+  SELECT
+    dead.nest_id,
+    dead.capture_pk AS dead_capture_pk,
+    dead.event_date AS dead_event_date,
+    dead.event_datetime AS dead_event_datetime,
+    dead.event_time_is_observed AS dead_event_time_is_observed,
+    dead.resolved_dead_ring_key AS ring_key
+  FROM chick_events dead
+  WHERE dead.is_resolved_dead_bridge = 1
+), confirmed_dead_identity_keys AS (
+  SELECT
+    candidate.ring_key,
+    MAX(candidate.dead_event_datetime) AS dead_event_datetime
+  FROM death_candidates candidate
+  WHERE NOT EXISTS (
+    SELECT 1
+    FROM chick_events later
+    WHERE later.ring_key = candidate.ring_key
+      AND UPPER(TRIM(COALESCE(later.capture_status, ''))) IN ('F', 'R', 'C')
+      AND (
+        later.event_date > candidate.dead_event_date
+        OR (
+          later.event_date = candidate.dead_event_date
+          AND later.event_time_is_observed = 1
+          AND candidate.dead_event_time_is_observed = 1
+          AND (
+            later.event_datetime > candidate.dead_event_datetime
+            OR (
+              later.event_datetime = candidate.dead_event_datetime
+              AND later.capture_pk > candidate.dead_capture_pk
+            )
+          )
+        )
+      )
+  )
+  GROUP BY candidate.ring_key
+), event_status AS (
+  SELECT
+    events.*,
+    CASE
+      WHEN dead.ring_key IS NOT NULL THEN 1
+      ELSE 0
+    END AS is_confirmed_dead
+  FROM chick_events events
+  LEFT JOIN confirmed_dead_identity_keys dead
+    ON dead.ring_key = events.ring_key
+)
+/* The canonical key is exactly one row per nest_id/ring_key. */
+SELECT
+  events.nest_id,
+  events.ring_key,
+  CASE
+    WHEN MAX(events.is_confirmed_dead) = 1 THEN 1
+    ELSE 0
+  END AS is_confirmed_dead,
+  CASE
+    WHEN MAX(events.is_confirmed_dead) = 0 THEN 1
+    ELSE 0
+  END AS is_active_target,
+  MAX(dead.dead_event_datetime) AS dead_event_datetime,
+  MAX(CASE
+    WHEN NULLIF(TRIM(events.flag_code), '') IS NOT NULL THEN 1
+    ELSE 0
+  END) AS has_flagged_capture
+FROM event_status events
+LEFT JOIN confirmed_dead_identity_keys dead
+  ON dead.ring_key = events.ring_key
+WHERE events.ring_key IS NOT NULL
+GROUP BY events.nest_id, events.ring_key;
+
+ALTER TABLE tmp_todo_chick_capture_targets
+  ADD INDEX idx_tmp_todo_chick_target_nest_ring (nest_id, ring_key),
+  ADD INDEX idx_tmp_todo_chick_target_ring (ring_key);
+
+CREATE TEMPORARY TABLE tmp_todo_chick_capture_context_base AS
+WITH sr AS (
+  SELECT value AS reference_date
+  FROM FIELD_2026_BADOatNZ.settings
+  WHERE variable = 'reference_date'
+    AND value IS NOT NULL
+), event_counts AS (
+  SELECT
+    events.nest_id,
+    COUNT(*) AS n_chick_captures,
+    SUM(CASE
+      WHEN events.ring_key IS NULL
+       AND events.is_resolved_dead_bridge = 0
+      THEN 1
+      ELSE 0
+    END) AS n_unringed_chick_captures,
+    SUM(CASE
+      WHEN events.ring_key IS NULL
+       AND UPPER(TRIM(COALESCE(events.capture_status, ''))) = 'D'
+       AND events.is_resolved_dead_bridge = 0
+      THEN 1
+      ELSE 0
+    END) AS n_unresolved_dead_chick_events,
+    SUM(CASE
+      WHEN (
+        events.ring_key IS NULL
+        AND events.is_resolved_dead_bridge = 0
+      )
+        OR targets.is_active_target = 1
+      THEN 1
+      ELSE 0
+    END) AS n_active_chick_captures
+  FROM tmp_todo_chick_capture_event_status events
+  LEFT JOIN tmp_todo_chick_capture_targets targets
+    ON targets.nest_id = events.nest_id
+   AND targets.ring_key = events.ring_key
+  WHERE events.age = 'C'
+  GROUP BY events.nest_id
+), ring_counts AS (
+  SELECT
+    targets.nest_id,
+    COUNT(*) AS n_captured_chick_rings,
+    SUM(targets.is_confirmed_dead) AS n_dead_chick_rings,
+    SUM(targets.is_active_target) AS n_active_chick_rings,
+    SUM(targets.has_flagged_capture) AS n_flagged_chick_rings,
+    SUM(CASE
+      WHEN targets.is_active_target = 1
+       AND targets.has_flagged_capture = 1
+      THEN 1
+      ELSE 0
+    END) AS n_active_flagged_chick_rings
+  FROM tmp_todo_chick_capture_targets targets
+  GROUP BY targets.nest_id
+), latest_brood_counts AS (
+  SELECT
+    n.nest_id,
+    n.brood_size,
+    n.date AS brood_count_date,
+    CAST(CONCAT(n.date, ' ', COALESCE(n.time_visit, '00:00:00')) AS DATETIME)
+      AS brood_count_datetime,
+    ROW_NUMBER() OVER (
+      PARTITION BY n.nest_id
+      ORDER BY n.date DESC, n.time_visit DESC, n.pk DESC
+    ) AS row_num
+  FROM FIELD_2026_BADOatNZ.NESTS n
+  CROSS JOIN sr
+  WHERE UPPER(TRIM(COALESCE(n.site, ''))) = 'CR'
+    AND n.nest_id IS NOT NULL
+    AND TRIM(n.nest_id) <> ''
+    AND LEFT(TRIM(n.nest_id), 1) <> '-'
+    AND UPPER(TRIM(n.nest_id)) <> 'NO_NEST'
+    AND n.brood_size IS NOT NULL
+    AND n.date <= sr.reference_date
+), death_count_after_latest_brood_count AS (
+  SELECT
+    targets.nest_id,
+    COUNT(DISTINCT CASE
+      WHEN brood.brood_count_datetime IS NOT NULL
+       AND targets.dead_event_datetime > brood.brood_count_datetime
+      THEN targets.ring_key
+    END) AS n_deaths_after_latest_brood_count
+  FROM tmp_todo_chick_capture_targets targets
+  LEFT JOIN latest_brood_counts brood
+    ON brood.nest_id = targets.nest_id
+   AND brood.row_num = 1
+  WHERE targets.is_confirmed_dead = 1
+  GROUP BY targets.nest_id
+)
+SELECT
+  events.nest_id,
+  events.n_chick_captures,
+  COALESCE(rings.n_captured_chick_rings, 0) AS n_captured_chick_rings,
+  COALESCE(rings.n_flagged_chick_rings, 0) AS n_flagged_chick_rings,
+  events.n_unringed_chick_captures,
+  COALESCE(rings.n_dead_chick_rings, 0) AS n_dead_chick_rings,
+  COALESCE(rings.n_active_chick_rings, 0) AS n_active_chick_rings,
+  COALESCE(rings.n_active_flagged_chick_rings, 0)
+    AS n_active_flagged_chick_rings,
+  events.n_active_chick_captures,
+  events.n_unresolved_dead_chick_events,
+  brood.brood_size AS observed_brood_size,
+  brood.brood_count_date AS latest_brood_count_date,
+  COALESCE(deaths.n_deaths_after_latest_brood_count, 0)
+    AS n_deaths_after_latest_brood_count,
+  CASE
+    WHEN brood.brood_size IS NULL
+    THEN COALESCE(rings.n_active_chick_rings, 0)
+    WHEN COALESCE(deaths.n_deaths_after_latest_brood_count, 0) = 0
+    THEN GREATEST(
+      brood.brood_size,
+      COALESCE(rings.n_active_chick_rings, 0)
+    )
+    ELSE GREATEST(
+      brood.brood_size - deaths.n_deaths_after_latest_brood_count,
+      COALESCE(rings.n_active_chick_rings, 0)
+    )
+  END AS n_operational_brood_size,
+  CASE
+    WHEN brood.brood_size IS NULL
+    THEN 'captured_live_rings'
+    WHEN COALESCE(deaths.n_deaths_after_latest_brood_count, 0) = 0
+    THEN 'latest_brood_size'
+    ELSE 'latest_brood_size_minus_deaths_after_count'
+  END AS operational_brood_size_source
+FROM event_counts events
+LEFT JOIN ring_counts rings
+  ON rings.nest_id = events.nest_id
+LEFT JOIN latest_brood_counts brood
+  ON brood.nest_id = events.nest_id
+ AND brood.row_num = 1
+LEFT JOIN death_count_after_latest_brood_count deaths
+  ON deaths.nest_id = events.nest_id;
+
+ALTER TABLE tmp_todo_chick_capture_context_base
+  ADD INDEX idx_tmp_todo_chick_context_base_nest (nest_id);
+
+/*
+  A qualifying age-J event resolves the whole brood for task purposes. The
+  origin is anchored to the earliest unambiguous age-C capture with an
+  explicit live nest_id, preferring first-marking captures and falling back to
+  another explicit age-C origin when no first-marking row exists. Later social
+  nest assignments do not replace that origin. Live F/R/C evidence supports
+  the existing resolution/reactivation rules; an origin-linked age-J D row is
+  developmental resolution only and does not prove survival. An explicit J
+  nest_id that conflicts with a stable origin is therefore attributed to the
+  origin for task purposes, without rewriting the raw row; ambiguous origins
+  remain unresolved.
+
+  Capture-origin matching uses event datetimes. RESIGHTINGS have no time field,
+  so an origin-derived resighting must be strictly earlier by date; a same-day
+  capture cannot be treated as proven prior evidence for an untimed sighting.
+*/
+CREATE TEMPORARY TABLE tmp_todo_juvenile_origin_events AS
+WITH sr AS (
+  SELECT value AS reference_date
+  FROM FIELD_2026_BADOatNZ.settings
+  WHERE variable = 'reference_date'
+    AND value IS NOT NULL
+), age_c_origin_evidence AS (
+  SELECT
+    events.origin_key AS origin_lookup_key,
+    events.nest_id,
+    events.event_date,
+    events.event_datetime,
+    CASE
+      WHEN UPPER(TRIM(COALESCE(events.capture_status, ''))) = 'F'
+      THEN 1 ELSE 2
+    END AS origin_priority
+  FROM tmp_todo_chick_capture_events events
+  WHERE events.age = 'C'
+    AND events.nest_id_source = 'recorded'
+    AND events.origin_key IS NOT NULL
+    AND UPPER(TRIM(COALESCE(events.capture_status, ''))) IN ('F', 'R', 'C')
+), flag_ring_links AS (
+  SELECT
+    events.capture_pk AS link_capture_pk,
+    events.flag_code,
+    events.ring_key,
+    events.event_date AS link_event_date,
+    events.event_datetime AS link_event_datetime
+    FROM tmp_todo_chick_capture_events events
+  WHERE events.age = 'C'
+    AND events.nest_id_source IN ('recorded', 'prior_ring')
+    AND events.nest_id IS NOT NULL
+    AND events.ring_key IS NOT NULL
+    AND events.flag_code IS NOT NULL
+    AND UPPER(TRIM(COALESCE(events.capture_status, ''))) IN ('F', 'R', 'C')
+), age_c_origin_priority AS (
+  SELECT
+    origin_lookup_key,
+    MIN(origin_priority) AS origin_priority
+  FROM age_c_origin_evidence
+  GROUP BY origin_lookup_key
+), age_c_origin_dates AS (
+  SELECT
+    evidence.origin_lookup_key,
+    evidence.origin_priority,
+    MIN(evidence.event_date) AS first_origin_date
+  FROM age_c_origin_evidence evidence
+  JOIN age_c_origin_priority priority
+    ON priority.origin_lookup_key = evidence.origin_lookup_key
+   AND priority.origin_priority = evidence.origin_priority
+  GROUP BY evidence.origin_lookup_key, evidence.origin_priority
+), age_c_origin_summary AS (
+  SELECT
+    evidence.origin_lookup_key,
+    dates.first_origin_date,
+    COUNT(DISTINCT evidence.nest_id) AS n_origin_nests,
+    MIN(evidence.nest_id) AS origin_nest_id,
+    MIN(evidence.event_datetime) AS origin_event_datetime
+  FROM age_c_origin_evidence evidence
+  JOIN age_c_origin_dates dates
+    ON dates.origin_lookup_key = evidence.origin_lookup_key
+   AND dates.origin_priority = evidence.origin_priority
+   AND dates.first_origin_date = evidence.event_date
+  GROUP BY evidence.origin_lookup_key, dates.first_origin_date
+), raw_resighting_events AS (
+  SELECT
+    r.pk AS resighting_pk,
+    r.date AS event_date,
+    CASE
+      WHEN UPPER(TRIM(COALESCE(r.nest_id, ''))) IN ('', 'NO_NEST')
+      THEN NULL
+      ELSE UPPER(TRIM(r.nest_id))
+    END AS recorded_nest_id,
+    CASE
+      WHEN UPPER(TRIM(COALESCE(r.ring, ''))) IN (
+        '', 'X', 'XX', 'X-X', 'NA', 'N/A'
+      )
+      THEN NULL
+      ELSE CONCAT(
+        'ring:',
+        REPLACE(UPPER(TRIM(r.ring)), '-', '')
+      )
+    END AS ring_origin_key,
+    CASE
+      WHEN UPPER(NULLIF(TRIM(r.UL), '')) REGEXP '^F[A-Z0-9]+$'
+      THEN CONCAT('flag:', UPPER(NULLIF(TRIM(r.UL), '')))
+      WHEN UPPER(NULLIF(TRIM(r.UR), '')) REGEXP '^F[A-Z0-9]+$'
+      THEN CONCAT('flag:', UPPER(NULLIF(TRIM(r.UR), '')))
+      ELSE NULL
+    END AS flag_origin_key
+  FROM FIELD_2026_BADOatNZ.RESIGHTINGS r
+  CROSS JOIN sr
+  WHERE UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'
+    AND r.age = 'J'
+    AND r.date <= sr.reference_date
+), keyed_resighting_events AS (
+  SELECT
+    raw.*,
+    COALESCE(raw.ring_origin_key, raw.flag_origin_key) AS origin_key
+  FROM raw_resighting_events raw
+), resighting_flag_ring_candidates AS (
+  SELECT
+    current_event.resighting_pk,
+    links.ring_key
+  FROM keyed_resighting_events current_event
+  JOIN flag_ring_links links
+    ON current_event.flag_origin_key = CONCAT('flag:', links.flag_code)
+   AND links.link_event_date < current_event.event_date
+), resighting_flag_ring_summary AS (
+  SELECT
+    resighting_pk,
+    COUNT(DISTINCT ring_key) AS n_ring_keys,
+    MIN(ring_key) AS ring_key
+  FROM resighting_flag_ring_candidates
+  GROUP BY resighting_pk
+), capture_flag_ring_candidates AS (
+  SELECT
+    captures.capture_pk,
+    links.ring_key
+  FROM tmp_todo_chick_capture_events captures
+  JOIN flag_ring_links links
+    ON captures.flag_code = links.flag_code
+   AND (
+     links.link_event_datetime < captures.event_datetime
+     OR (
+       links.link_event_datetime = captures.event_datetime
+       AND links.link_capture_pk < captures.capture_pk
+     )
+   )
+  WHERE captures.age = 'J'
+), capture_flag_ring_summary AS (
+  SELECT
+    capture_pk,
+    COUNT(DISTINCT ring_key) AS n_ring_keys,
+    MIN(ring_key) AS ring_key
+  FROM capture_flag_ring_candidates
+  GROUP BY capture_pk
+), resighting_identity_conflicts AS (
+  SELECT
+    current_event.resighting_pk
+  FROM keyed_resighting_events current_event
+  JOIN resighting_flag_ring_summary flag_bridge
+    ON flag_bridge.resighting_pk = current_event.resighting_pk
+  WHERE current_event.flag_origin_key IS NOT NULL
+    AND (
+      flag_bridge.n_ring_keys <> 1
+      OR (
+        current_event.ring_origin_key IS NOT NULL
+        AND CONCAT('ring:', flag_bridge.ring_key) <> current_event.ring_origin_key
+      )
+    )
+), capture_identity_conflicts AS (
+  SELECT
+    captures.capture_pk
+  FROM tmp_todo_chick_capture_events captures
+  JOIN capture_flag_ring_summary flag_bridge
+    ON flag_bridge.capture_pk = captures.capture_pk
+  WHERE captures.age = 'J'
+    AND captures.flag_code IS NOT NULL
+    AND (
+      flag_bridge.n_ring_keys <> 1
+      OR (
+        captures.ring_key IS NOT NULL
+        AND flag_bridge.ring_key <> captures.ring_key
+      )
+    )
+), resighting_origin_candidates AS (
+  SELECT
+    current_event.resighting_pk,
+    origin.origin_lookup_key,
+    origin.n_origin_nests,
+    origin.origin_nest_id,
+    CASE
+      WHEN current_event.ring_origin_key IS NOT NULL
+       AND origin.origin_lookup_key = current_event.ring_origin_key
+      THEN 1
+      ELSE 2
+    END AS match_priority
+  FROM keyed_resighting_events current_event
+  JOIN age_c_origin_summary origin
+    ON origin.origin_lookup_key = current_event.ring_origin_key
+   AND origin.first_origin_date < current_event.event_date
+  LEFT JOIN resighting_flag_ring_summary flag_bridge
+    ON flag_bridge.resighting_pk = current_event.resighting_pk
+  WHERE current_event.ring_origin_key IS NOT NULL
+    AND (
+      current_event.flag_origin_key IS NULL
+      OR flag_bridge.resighting_pk IS NULL
+      OR (
+        flag_bridge.n_ring_keys = 1
+        AND CONCAT('ring:', flag_bridge.ring_key) = current_event.ring_origin_key
+      )
+    )
+  UNION ALL
+  SELECT
+    current_event.resighting_pk,
+    origin.origin_lookup_key,
+    origin.n_origin_nests,
+    origin.origin_nest_id,
+    2 AS match_priority
+  FROM keyed_resighting_events current_event
+  JOIN resighting_flag_ring_summary bridge
+    ON bridge.resighting_pk = current_event.resighting_pk
+   AND bridge.n_ring_keys = 1
+  JOIN age_c_origin_summary origin
+    ON origin.origin_lookup_key = CONCAT('ring:', bridge.ring_key)
+   AND origin.first_origin_date < current_event.event_date
+  WHERE current_event.ring_origin_key IS NULL
+), resighting_origin_best_priority AS (
+  SELECT
+    resighting_pk,
+    MIN(match_priority) AS match_priority
+  FROM resighting_origin_candidates
+  GROUP BY resighting_pk
+), resighting_origin_summary AS (
+  SELECT
+    candidates.resighting_pk,
+    CASE
+      WHEN MAX(candidates.n_origin_nests) > 1
+      THEN MAX(candidates.n_origin_nests)
+      ELSE COUNT(DISTINCT candidates.origin_nest_id)
+    END AS n_origin_nests,
+    MIN(candidates.origin_nest_id) AS origin_nest_id
+  FROM resighting_origin_candidates candidates
+  JOIN resighting_origin_best_priority best
+    ON best.resighting_pk = candidates.resighting_pk
+   AND best.match_priority = candidates.match_priority
+  GROUP BY candidates.resighting_pk
+), capture_origin_candidates AS (
+  SELECT
+    captures.capture_pk,
+    origin.n_origin_nests,
+    origin.origin_nest_id
+  FROM tmp_todo_chick_capture_events captures
+  JOIN age_c_origin_summary origin
+    ON origin.origin_lookup_key = captures.origin_key
+   AND origin.origin_event_datetime <= captures.event_datetime
+  LEFT JOIN capture_flag_ring_summary flag_bridge
+    ON flag_bridge.capture_pk = captures.capture_pk
+  WHERE captures.age = 'J'
+    AND captures.ring_key IS NOT NULL
+    AND (
+      captures.flag_code IS NULL
+      OR flag_bridge.capture_pk IS NULL
+      OR (
+        flag_bridge.n_ring_keys = 1
+        AND flag_bridge.ring_key = captures.ring_key
+      )
+    )
+  UNION ALL
+  SELECT
+    captures.capture_pk,
+    origin.n_origin_nests,
+    origin.origin_nest_id
+  FROM tmp_todo_chick_capture_events captures
+  JOIN capture_flag_ring_summary bridge
+    ON bridge.capture_pk = captures.capture_pk
+   AND bridge.n_ring_keys = 1
+  JOIN age_c_origin_summary origin
+    ON origin.origin_lookup_key = CONCAT('ring:', bridge.ring_key)
+   AND origin.origin_event_datetime <= captures.event_datetime
+  WHERE captures.age = 'J'
+    AND captures.ring_key IS NULL
+), capture_origin_summary AS (
+  SELECT
+    captures.capture_pk,
+    CASE
+      WHEN MAX(captures.n_origin_nests) > 1
+      THEN MAX(captures.n_origin_nests)
+      ELSE COUNT(DISTINCT captures.origin_nest_id)
+    END AS n_origin_nests,
+    MIN(captures.origin_nest_id) AS origin_nest_id
+  FROM capture_origin_candidates captures
+  GROUP BY captures.capture_pk
+), resolved_capture_events AS (
+  SELECT
+    captures.capture_pk,
+    captures.event_date,
+    CASE
+      WHEN capture_conflict.capture_pk IS NOT NULL
+      THEN NULL
+      WHEN COALESCE(origin.n_origin_nests, 0) = 1
+      THEN origin.origin_nest_id
+      WHEN COALESCE(origin.n_origin_nests, 0) > 1
+      THEN NULL
+      WHEN captures.nest_id_source = 'recorded'
+      THEN captures.nest_id
+      ELSE NULL
+    END AS brood_id,
+    CASE
+      WHEN capture_conflict.capture_pk IS NOT NULL
+      THEN 'unresolved_identity_conflict'
+      WHEN COALESCE(origin.n_origin_nests, 0) = 1
+       AND UPPER(TRIM(COALESCE(captures.capture_status, ''))) = 'D'
+      THEN 'developmental_age_j'
+      WHEN COALESCE(origin.n_origin_nests, 0) = 1
+      THEN 'origin_age_c'
+      WHEN COALESCE(origin.n_origin_nests, 0) > 1
+      THEN 'unresolved_origin_conflict'
+      ELSE 'direct'
+    END AS association_method,
+    captures.capture_status
+  FROM tmp_todo_chick_capture_events captures
+  LEFT JOIN capture_origin_summary origin
+    ON origin.capture_pk = captures.capture_pk
+  LEFT JOIN capture_identity_conflicts capture_conflict
+    ON capture_conflict.capture_pk = captures.capture_pk
+  WHERE captures.age = 'J'
+), resolved_resighting_events AS (
+  SELECT
+    current_event.resighting_pk,
+    current_event.event_date,
+    CASE
+      WHEN resighting_conflict.resighting_pk IS NOT NULL
+      THEN NULL
+      WHEN COALESCE(origin.n_origin_nests, 0) = 1
+      THEN origin.origin_nest_id
+      WHEN COALESCE(origin.n_origin_nests, 0) > 1
+      THEN NULL
+      ELSE current_event.recorded_nest_id
+    END AS brood_id,
+    CASE
+      WHEN resighting_conflict.resighting_pk IS NOT NULL
+      THEN 'unresolved_identity_conflict'
+      WHEN COALESCE(origin.n_origin_nests, 0) = 1
+      THEN 'origin_age_c'
+      WHEN COALESCE(origin.n_origin_nests, 0) > 1
+      THEN 'unresolved_origin_conflict'
+      ELSE 'direct'
+    END AS association_method
+  FROM keyed_resighting_events current_event
+  LEFT JOIN resighting_origin_summary origin
+    ON origin.resighting_pk = current_event.resighting_pk
+  LEFT JOIN resighting_identity_conflicts resighting_conflict
+    ON resighting_conflict.resighting_pk = current_event.resighting_pk
+)
+SELECT
+  captures.brood_id,
+  captures.event_date,
+  'CAPTURES' AS source_table,
+  captures.capture_pk AS source_pk,
+  captures.association_method
+FROM resolved_capture_events captures
+WHERE captures.brood_id IS NOT NULL
+  AND (
+    UPPER(TRIM(COALESCE(captures.capture_status, ''))) IN ('F', 'R', 'C')
+    OR captures.association_method = 'developmental_age_j'
+  )
+UNION ALL
+SELECT
+  resightings.brood_id,
+  resightings.event_date,
+  'RESIGHTINGS' AS source_table,
+  resightings.resighting_pk AS source_pk,
+  resightings.association_method
+FROM resolved_resighting_events resightings
+WHERE resightings.brood_id IS NOT NULL;
+
+ALTER TABLE tmp_todo_juvenile_origin_events
+  ADD INDEX idx_tmp_todo_juvenile_origin_brood_date
+    (brood_id, event_date);
 
 CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.ADULT_CHICK_GPS_PARENT_LINKS_INPUT AS
 SELECT *
@@ -510,104 +1357,6 @@ CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_BROOD_CONT
 SELECT *
 FROM FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_SNAPSHOT_BUILD;
 
-SELECT 'TODO_REFRESH_STAGE|chick_capture_context' AS refresh_stage;
-
-/* Materialize the shared chick-capture aggregate once for all brood tasks. */
-CREATE TABLE FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_SNAPSHOT_BUILD (
-  nest_id VARCHAR(6) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NULL,
-  n_chick_captures BIGINT NULL,
-  n_captured_chick_rings BIGINT NULL,
-  n_flagged_chick_rings BIGINT NULL,
-  n_unringed_chick_captures BIGINT NULL,
-  INDEX idx_todo_chick_capture_context_nest (nest_id)
-);
-
-CREATE TABLE IF NOT EXISTS FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_SNAPSHOT
-LIKE FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_SNAPSHOT_BUILD;
-
-INSERT INTO FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_SNAPSHOT_BUILD (
-  nest_id,
-  n_chick_captures,
-  n_captured_chick_rings,
-  n_flagged_chick_rings,
-  n_unringed_chick_captures
-)
-SELECT
-  nest_id,
-  n_chick_captures,
-  n_captured_chick_rings,
-  n_flagged_chick_rings,
-  n_unringed_chick_captures
-FROM FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_INPUT;
-
-CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_INPUT AS
-WITH sr AS (
-  SELECT value AS reference_date
-  FROM FIELD_2026_BADOatNZ.settings
-  WHERE variable = 'reference_date'
-    AND value IS NOT NULL
-)
-SELECT
-  h.resolved_nest_id AS nest_id,
-  COUNT(DISTINCT h.ring) AS n_hiding_spot_photos
-FROM FIELD_2026_BADOatNZ.RESIGHTINGS_H_BROOD_ASSOCIATIONS h
-JOIN FIELD_2026_BADOatNZ.RESIGHTINGS r
-  ON r.pk = h.resighting_pk
-JOIN FIELD_2026_BADOatNZ.GPS_POINTS g
-  ON r.gps_id = g.gps_id
- AND r.gps_point = g.gps_point
-CROSS JOIN sr
-WHERE h.resolved_nest_id IS NOT NULL
-  AND h.association_method IN (
-    'direct',
-    'same_occasion_adult',
-    'ring_capture'
-  )
-  AND UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'
-  AND r.age = 'C'
-  AND r.rclass = 'H'
-  AND r.date <= sr.reference_date
-  AND r.gps_id IS NOT NULL
-  AND r.gps_point IS NOT NULL
-  AND NULLIF(
-        NULLIF(UPPER(TRIM(COALESCE(r.photo_start, ''))), ''),
-        'NA'
-      ) IS NOT NULL
-  AND NULLIF(
-        NULLIF(UPPER(TRIM(COALESCE(r.photo_end, ''))), ''),
-        'NA'
-      ) IS NOT NULL
-GROUP BY h.resolved_nest_id;
-
-CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_INPUT AS
-SELECT *
-FROM FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_SNAPSHOT_BUILD;
-
-SELECT 'TODO_REFRESH_STAGE|hiding_spot_photos' AS refresh_stage;
-
-/* Materialize the shared H-photo evidence aggregate once for brood tasks. */
-CREATE TABLE FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_SNAPSHOT_BUILD (
-  nest_id VARCHAR(6) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NULL,
-  n_hiding_spot_photos BIGINT NULL,
-  INDEX idx_todo_hiding_spot_photo_context_nest (nest_id)
-);
-
-CREATE TABLE IF NOT EXISTS FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_SNAPSHOT
-LIKE FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_SNAPSHOT_BUILD;
-
-INSERT INTO FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_SNAPSHOT_BUILD (
-  nest_id,
-  n_hiding_spot_photos
-)
-SELECT
-  nest_id,
-  n_hiding_spot_photos
-FROM FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_INPUT;
-
-CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_INPUT AS
-SELECT *
-FROM FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_SNAPSHOT_BUILD;
-
 SELECT 'TODO_REFRESH_STAGE|chick_gps_links' AS refresh_stage;
 
 /* Materialize the GPS-linked parent gate once for the parent build. */
@@ -650,6 +1399,8 @@ CREATE TABLE FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_BUILD (
   reference_date DATE NULL,
   M_selected_mark LONGTEXT NULL,
   F_selected_mark LONGTEXT NULL,
+  M_selected_identity_key VARCHAR(255) NULL,
+  F_selected_identity_key VARCHAR(255) NULL,
   M_association_details LONGTEXT NULL,
   F_association_details LONGTEXT NULL,
   M_association_marks LONGTEXT NULL,
@@ -744,6 +1495,1204 @@ CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_PARENT_STA
 SELECT *
 FROM FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_BUILD;
 
+/*
+  Materialize the two identity projections once after parent status has been
+  built. The S10 chick-parent resolver and the later closure audit consume the
+  same connection-local rows and indexes; neither path re-expands the source
+  identity views independently.
+*/
+CREATE TEMPORARY TABLE tmp_todo_closure_parent_associations AS
+SELECT
+  association.nest_id,
+  association.sex,
+  association.identity_key,
+  association.association_selected,
+  association.association_ambiguous,
+  association.association_evidence_datetime
+FROM FIELD_2026_BADOatNZ.ADULT_PARENT_NEST_ASSOCIATIONS association;
+
+ALTER TABLE tmp_todo_closure_parent_associations
+  ADD INDEX idx_todo_closure_parent_assoc_nest_sex_identity
+    (nest_id, sex, identity_key),
+  ADD INDEX idx_todo_closure_parent_assoc_identity_sex
+    (identity_key, sex);
+
+CREATE TEMPORARY TABLE tmp_todo_closure_identity_matches AS
+SELECT
+  matched.nest_id,
+  matched.sex,
+  matched.identity_key,
+  matched.match_class,
+  matched.is_ambiguous_match,
+  matched.n_candidate_identities,
+  matched.association_evidence_eligible,
+  matched.observation_date,
+  matched.resighting_pk,
+  matched.behav
+FROM FIELD_2026_BADOatNZ.ADULT_IDENTITY_MATCHES matched;
+
+ALTER TABLE tmp_todo_closure_identity_matches
+  ADD INDEX idx_todo_closure_identity_match_nest_sex_identity
+    (nest_id, sex, identity_key),
+  ADD INDEX idx_todo_closure_identity_match_identity_sex_date
+    (identity_key, sex, observation_date),
+  ADD INDEX idx_todo_closure_identity_match_resighting
+    (resighting_pk);
+
+/*
+  S10 is a task-resolution extension of the authoritative parent layer, not a
+  second parent-history algorithm. It handles the narrow case where a negative
+  brood already has exactly one selected M and F in
+  ADULT_PARENT_NEST_ASSOCIATIONS, an unlinked current adult resighting is
+  uniquely matched to one of those selected identities, and an unlinked chick
+  resighting shares that adult event's exact date and GPS pair. The raw rows
+  remain unchanged; ambiguous candidate broods are deliberately excluded.
+*/
+CREATE TEMPORARY TABLE tmp_todo_parent_chick_resighting_associations AS
+WITH sr AS (
+  SELECT value AS reference_date
+  FROM FIELD_2026_BADOatNZ.settings
+  WHERE variable = 'reference_date'
+    AND value IS NOT NULL
+), selected_parent_identities AS (
+  SELECT
+    status.nest_id,
+    'M' AS sex,
+    status.M_selected_identity_key AS identity_key
+  FROM FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_INPUT status
+  WHERE LEFT(TRIM(status.nest_id), 1) = '-'
+    AND status.M_selected_identity_key IS NOT NULL
+  UNION ALL
+  SELECT
+    status.nest_id,
+    'F' AS sex,
+    status.F_selected_identity_key AS identity_key
+  FROM FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_INPUT status
+  WHERE LEFT(TRIM(status.nest_id), 1) = '-'
+    AND status.F_selected_identity_key IS NOT NULL
+), resolved_negative_nests AS (
+  SELECT nest_id
+  FROM selected_parent_identities
+  GROUP BY nest_id
+  HAVING COUNT(DISTINCT sex) = 2
+), selected_parent_proof AS (
+  SELECT
+    selected.nest_id,
+    selected.sex,
+    selected.identity_key,
+    MIN(DATE(association.association_evidence_datetime))
+      AS association_proof_date
+  FROM selected_parent_identities selected
+  JOIN tmp_todo_closure_parent_associations association
+    ON association.nest_id = selected.nest_id
+   AND association.sex = selected.sex
+   AND association.identity_key = selected.identity_key
+   AND association.association_selected = 1
+   AND association.association_ambiguous = 0
+   AND association.association_evidence_datetime IS NOT NULL
+  GROUP BY selected.nest_id, selected.sex, selected.identity_key
+), selected_parent_proof_summary AS (
+  SELECT
+    nest_id,
+    MAX(association_proof_date) AS all_parent_proof_date
+  FROM selected_parent_proof
+  GROUP BY nest_id
+  HAVING COUNT(DISTINCT sex) = 2
+), unlinked_parent_resightings AS (
+  SELECT
+    r.pk AS parent_resighting_pk,
+    r.date AS event_date,
+    r.gps_id,
+    r.gps_point,
+    selected.nest_id,
+    matched.identity_key,
+    matched.sex
+  FROM FIELD_2026_BADOatNZ.RESIGHTINGS r
+  JOIN tmp_todo_closure_identity_matches matched
+    ON matched.resighting_pk = r.pk
+  JOIN selected_parent_identities selected
+    ON selected.identity_key = matched.identity_key
+   AND selected.sex = matched.sex
+  JOIN selected_parent_proof proof
+    ON proof.nest_id = selected.nest_id
+   AND proof.sex = selected.sex
+   AND proof.identity_key = selected.identity_key
+   AND proof.association_proof_date <= r.date
+  JOIN selected_parent_proof_summary all_proof
+    ON all_proof.nest_id = selected.nest_id
+   AND all_proof.all_parent_proof_date <= r.date
+  JOIN resolved_negative_nests resolved
+    ON resolved.nest_id = selected.nest_id
+  CROSS JOIN sr
+  WHERE UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'
+    AND r.age = 'A'
+    AND LEFT(r.sex, 1) IN ('M', 'F')
+    AND (r.nest_id IS NULL OR TRIM(r.nest_id) = '')
+    AND r.date <= sr.reference_date
+    AND r.gps_id IS NOT NULL
+    AND r.gps_point IS NOT NULL
+    AND UPPER(TRIM(COALESCE(r.behav, ''))) REGEXP
+      '(^|[,[:space:]])(BC|FC|AC)([,[:space:]]|$)'
+    AND matched.match_class <> 'unmatched'
+    AND matched.is_ambiguous_match = 0
+    AND COALESCE(matched.n_candidate_identities, 0) = 1
+    AND matched.association_evidence_eligible = 1
+), unlinked_chick_resightings AS (
+  SELECT
+    r.pk AS chick_resighting_pk,
+    r.date AS event_date,
+    r.rclass,
+    r.gps_id,
+    r.gps_point,
+    CASE
+      WHEN UPPER(TRIM(COALESCE(r.ring, ''))) IN (
+        '', 'X', 'XX', 'X-X', 'NA', 'N/A'
+      )
+      THEN NULL
+      ELSE REPLACE(UPPER(TRIM(r.ring)), '-', '')
+    END AS ring_key
+  FROM FIELD_2026_BADOatNZ.RESIGHTINGS r
+  CROSS JOIN sr
+  WHERE UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'
+    AND r.age = 'C'
+    AND (r.nest_id IS NULL OR TRIM(r.nest_id) = '')
+    AND r.date <= sr.reference_date
+    AND r.gps_id IS NOT NULL
+    AND r.gps_point IS NOT NULL
+), candidate_links AS (
+  SELECT
+    chick.chick_resighting_pk,
+    parent.nest_id,
+    chick.ring_key
+  FROM unlinked_chick_resightings chick
+  JOIN unlinked_parent_resightings parent
+    ON parent.event_date = chick.event_date
+   AND parent.gps_id = chick.gps_id
+   AND parent.gps_point = chick.gps_point
+  LEFT JOIN tmp_todo_raw_encounter_nest_consensus encounter
+    ON encounter.event_date = chick.event_date
+   AND encounter.gps_id = chick.gps_id
+   AND encounter.gps_point = chick.gps_point
+  WHERE (
+      UPPER(TRIM(COALESCE(chick.rclass, ''))) <> 'H'
+      OR chick.ring_key IS NOT NULL
+    )
+    AND (
+      COALESCE(encounter.n_explicit_nest_ids, 0) = 0
+      OR (
+        encounter.n_explicit_nest_ids = 1
+        AND encounter.explicit_nest_id = UPPER(TRIM(parent.nest_id))
+      )
+    )
+    AND NOT EXISTS (
+      SELECT 1
+      FROM FIELD_2026_BADOatNZ.CAPTURES conflicting_capture
+      WHERE UPPER(TRIM(COALESCE(conflicting_capture.site, ''))) = 'CR'
+        AND conflicting_capture.age = 'C'
+        AND conflicting_capture.date = chick.event_date
+        AND conflicting_capture.gps_id = chick.gps_id
+        AND conflicting_capture.gps_point = chick.gps_point
+        AND conflicting_capture.nest_id IS NOT NULL
+        AND TRIM(conflicting_capture.nest_id) <> ''
+        AND UPPER(TRIM(conflicting_capture.nest_id)) <> 'NO_NEST'
+        AND UPPER(TRIM(conflicting_capture.nest_id)) <>
+            UPPER(TRIM(parent.nest_id))
+    )
+    AND NOT EXISTS (
+      SELECT 1
+      FROM FIELD_2026_BADOatNZ.RESIGHTINGS conflicting_resighting
+      WHERE UPPER(TRIM(COALESCE(conflicting_resighting.site, ''))) = 'CR'
+        AND conflicting_resighting.age = 'C'
+        AND conflicting_resighting.date = chick.event_date
+        AND conflicting_resighting.gps_id = chick.gps_id
+        AND conflicting_resighting.gps_point = chick.gps_point
+        AND conflicting_resighting.nest_id IS NOT NULL
+        AND TRIM(conflicting_resighting.nest_id) <> ''
+        AND UPPER(TRIM(conflicting_resighting.nest_id)) <> 'NO_NEST'
+        AND UPPER(TRIM(conflicting_resighting.nest_id)) <>
+            UPPER(TRIM(parent.nest_id))
+    )
+), unique_links AS (
+  SELECT
+    chick_resighting_pk,
+    MIN(nest_id) AS nest_id,
+    MAX(ring_key) AS ring_key
+  FROM candidate_links
+  GROUP BY chick_resighting_pk
+  HAVING COUNT(DISTINCT nest_id) = 1
+)
+SELECT
+  chick_resighting_pk AS resighting_pk,
+  nest_id,
+  ring_key AS ring
+FROM unique_links;
+
+
+/*
+  Ordinary positive-brood family evidence is kept event-level so closure
+  reactivation does not depend on BROODS_LATEST's aggregate latest-event
+  shortcut. This mirrors its same-date, exact-GPS adult association, retains
+  the adult source/status fields, and rejects an encounter containing a
+  conflicting explicit chick nest_id. H rows remain in the dedicated H-photo
+  resolver and negative broods remain in the S10 resolver.
+*/
+CREATE TEMPORARY TABLE tmp_todo_ordinary_family_resighting_associations AS
+WITH sr AS (
+  SELECT value AS reference_date
+  FROM FIELD_2026_BADOatNZ.settings
+  WHERE variable = 'reference_date'
+    AND value IS NOT NULL
+), adult_events AS (
+  SELECT
+    r.date AS event_date,
+    r.gps_id,
+    r.gps_point,
+    TRIM(r.nest_id) AS adult_nest_id,
+    'RESIGHTINGS' AS adult_source_table,
+    r.pk AS adult_source_pk,
+    CAST(NULL AS CHAR(1)) AS adult_capture_status,
+    2 AS adult_source_rank
+  FROM FIELD_2026_BADOatNZ.RESIGHTINGS r
+  CROSS JOIN sr
+  WHERE UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'
+    AND r.age = 'A'
+    AND r.nest_id IS NOT NULL
+    AND TRIM(r.nest_id) <> ''
+    AND UPPER(TRIM(r.nest_id)) <> 'NO_NEST'
+    AND LEFT(TRIM(r.nest_id), 1) <> '-'
+    AND r.date <= sr.reference_date
+    AND (
+      NOT (
+        COALESCE(r.UL, '') LIKE '%?%'
+        OR COALESCE(r.LL, '') LIKE '%?%'
+        OR COALESCE(r.UR, '') LIKE '%?%'
+        OR COALESCE(r.LR, '') LIKE '%?%'
+      )
+      OR EXISTS (
+        SELECT 1
+        FROM FIELD_2026_BADOatNZ.CAPTURES captured_ring
+        WHERE NULLIF(REPLACE(UPPER(TRIM(captured_ring.ring)), '-', ''), '') =
+              NULLIF(REPLACE(UPPER(TRIM(r.ring)), '-', ''), '')
+          AND NULLIF(REPLACE(UPPER(TRIM(r.ring)), '-', ''), '') NOT IN (
+            'X', 'XX', 'X-X', 'NA', 'N/A'
+          )
+          AND captured_ring.date <= r.date
+      )
+      OR EXISTS (
+        SELECT 1
+        FROM FIELD_2026_BADOatNZ.CAPTURES_ARCHIVE archive_ring
+        WHERE NULLIF(REPLACE(UPPER(TRIM(archive_ring.ring)), '-', ''), '') =
+              NULLIF(REPLACE(UPPER(TRIM(r.ring)), '-', ''), '')
+          AND NULLIF(REPLACE(UPPER(TRIM(r.ring)), '-', ''), '') NOT IN (
+            'X', 'XX', 'X-X', 'NA', 'N/A'
+          )
+          AND archive_ring.date <= r.date
+      )
+    )
+  UNION ALL
+  SELECT
+    c.date AS event_date,
+    c.gps_id,
+    c.gps_point,
+    TRIM(c.nest_id) AS adult_nest_id,
+    'CAPTURES' AS adult_source_table,
+    c.pk AS adult_source_pk,
+    c.capture_status AS adult_capture_status,
+    1 AS adult_source_rank
+  FROM FIELD_2026_BADOatNZ.CAPTURES c
+  CROSS JOIN sr
+  WHERE UPPER(TRIM(COALESCE(c.site, ''))) = 'CR'
+    AND c.age = 'A'
+    AND c.nest_id IS NOT NULL
+    AND TRIM(c.nest_id) <> ''
+    AND UPPER(TRIM(c.nest_id)) <> 'NO_NEST'
+    AND LEFT(TRIM(c.nest_id), 1) <> '-'
+    AND c.date <= sr.reference_date
+    AND (
+      NOT (
+        COALESCE(c.UL, '') LIKE '%?%'
+        OR COALESCE(c.LL, '') LIKE '%?%'
+        OR COALESCE(c.UR, '') LIKE '%?%'
+        OR COALESCE(c.LR, '') LIKE '%?%'
+      )
+      OR (
+        NULLIF(REPLACE(UPPER(TRIM(c.ring)), '-', ''), '') IS NOT NULL
+        AND NULLIF(REPLACE(UPPER(TRIM(c.ring)), '-', ''), '') NOT IN (
+          'X', 'XX', 'X-X', 'NA', 'N/A'
+        )
+      )
+    )
+), unlinked_chick_events AS (
+  SELECT
+    r.pk AS resighting_pk,
+    r.date AS event_date,
+    r.gps_id,
+    r.gps_point,
+    r.rclass,
+    CASE
+      WHEN UPPER(TRIM(COALESCE(r.ring, ''))) IN (
+        '', 'X', 'XX', 'X-X', 'NA', 'N/A'
+      )
+      THEN NULL
+      ELSE REPLACE(UPPER(TRIM(r.ring)), '-', '')
+    END AS ring_key
+  FROM FIELD_2026_BADOatNZ.RESIGHTINGS r
+  CROSS JOIN sr
+  WHERE UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'
+    AND r.age = 'C'
+    AND UPPER(TRIM(COALESCE(r.rclass, ''))) <> 'H'
+    AND (r.nest_id IS NULL OR TRIM(r.nest_id) = '')
+    AND r.date <= sr.reference_date
+    AND r.gps_id IS NOT NULL
+    AND r.gps_point IS NOT NULL
+), candidate_links AS (
+  SELECT
+    chick.resighting_pk,
+    chick.event_date,
+    chick.rclass,
+    chick.ring_key,
+    adult.adult_nest_id,
+    adult.adult_source_table,
+    adult.adult_source_pk,
+    adult.adult_capture_status,
+    adult.adult_source_rank
+  FROM unlinked_chick_events chick
+  JOIN adult_events adult
+    ON adult.event_date = chick.event_date
+   AND adult.gps_id = chick.gps_id
+   AND adult.gps_point = chick.gps_point
+  JOIN tmp_todo_raw_encounter_nest_consensus encounter
+    ON encounter.event_date = chick.event_date
+   AND encounter.gps_id = chick.gps_id
+   AND encounter.gps_point = chick.gps_point
+   AND encounter.n_explicit_nest_ids = 1
+   AND encounter.explicit_nest_id = UPPER(TRIM(adult.adult_nest_id))
+  WHERE NOT EXISTS (
+    SELECT 1
+    FROM FIELD_2026_BADOatNZ.CAPTURES conflicting_capture
+    WHERE UPPER(TRIM(COALESCE(conflicting_capture.site, ''))) = 'CR'
+      AND conflicting_capture.age = 'C'
+      AND conflicting_capture.date = chick.event_date
+      AND conflicting_capture.gps_id = chick.gps_id
+      AND conflicting_capture.gps_point = chick.gps_point
+      AND conflicting_capture.nest_id IS NOT NULL
+      AND TRIM(conflicting_capture.nest_id) <> ''
+      AND UPPER(TRIM(conflicting_capture.nest_id)) <> 'NO_NEST'
+      AND UPPER(TRIM(conflicting_capture.nest_id)) <>
+          UPPER(TRIM(adult.adult_nest_id))
+  )
+  AND NOT EXISTS (
+    SELECT 1
+    FROM FIELD_2026_BADOatNZ.RESIGHTINGS conflicting_resighting
+    WHERE UPPER(TRIM(COALESCE(conflicting_resighting.site, ''))) = 'CR'
+      AND conflicting_resighting.age = 'C'
+      AND conflicting_resighting.date = chick.event_date
+      AND conflicting_resighting.gps_id = chick.gps_id
+      AND conflicting_resighting.gps_point = chick.gps_point
+      AND conflicting_resighting.nest_id IS NOT NULL
+      AND TRIM(conflicting_resighting.nest_id) <> ''
+      AND UPPER(TRIM(conflicting_resighting.nest_id)) <> 'NO_NEST'
+      AND UPPER(TRIM(conflicting_resighting.nest_id)) <>
+          UPPER(TRIM(adult.adult_nest_id))
+  )
+), candidate_summary AS (
+  SELECT
+    resighting_pk,
+    COUNT(DISTINCT adult_nest_id) AS n_adult_nest_ids
+  FROM candidate_links
+  GROUP BY resighting_pk
+), ranked_candidates AS (
+  SELECT
+    candidate_links.*,
+    ROW_NUMBER() OVER (
+      PARTITION BY candidate_links.resighting_pk
+      ORDER BY
+        candidate_links.adult_source_rank,
+        candidate_links.adult_source_pk
+    ) AS row_num
+  FROM candidate_links
+)
+SELECT
+  ranked.resighting_pk,
+  ranked.event_date,
+  ranked.rclass,
+  ranked.ring_key AS ring,
+  ranked.adult_nest_id AS nest_id,
+  ranked.adult_source_table,
+  ranked.adult_source_pk,
+  ranked.adult_capture_status,
+  'same_occasion_adult' AS association_method
+FROM ranked_candidates ranked
+JOIN candidate_summary summary
+  ON summary.resighting_pk = ranked.resighting_pk
+WHERE summary.n_adult_nest_ids = 1
+  AND ranked.row_num = 1;
+
+
+/*
+  tmp_todo_chick_encounters is the shared age-C encounter layer for
+  flagging, PDF display, and refresh-time task snapshots. It combines
+  reference-date-bounded CAPTURES and RESIGHTINGS rows with an unambiguous
+  nest/brood association. Directly recorded CAPTURES nest links remain
+  eligible without GPS; inferred associations require a valid exact GPS pair.
+  RESIGHTINGS require a valid exact GPS pair.
+
+  Ringed events use the normalized metal-ring identity. A ringless event is
+  retained as an explicitly unresolved identity; it is never discarded just
+  because a ringed event occurred on the same date. When a capture exists on
+  the latest date, it is authoritative for ring-labelled rows; ringless or
+  ambiguous resightings remain as conservative evidence. A resighting flag can
+  resolve to a ring only when prior capture history maps that flag to exactly
+  one ring. Known-dead identities remain visible as conservative evidence but
+  are not counted as live latest encounters.
+*/
+CREATE TEMPORARY TABLE tmp_todo_chick_encounters AS
+WITH sr AS (
+  SELECT value AS reference_date
+  FROM FIELD_2026_BADOatNZ.settings
+  WHERE variable = 'reference_date'
+    AND value IS NOT NULL
+), global_ring_status AS (
+  SELECT
+    ring_key,
+    MAX(is_confirmed_dead) AS is_confirmed_dead,
+    MAX(has_flagged_capture) AS has_flagged_capture
+  FROM tmp_todo_chick_capture_targets
+  WHERE ring_key IS NOT NULL
+  GROUP BY ring_key
+), capture_events AS (
+  SELECT
+    events.capture_pk AS event_pk,
+    events.event_date,
+    events.event_datetime,
+    'CAPTURES' AS source_table,
+    events.nest_id,
+    events.gps_id,
+    events.gps_point,
+    events.ring_key,
+    events.flag_code,
+    events.capture_status,
+    events.nest_id_source,
+    1 AS source_rank,
+    CASE
+      WHEN events.ring_key IS NULL THEN 1
+      ELSE 0
+    END AS is_unresolved_identity,
+    CASE
+      WHEN UPPER(TRIM(COALESCE(events.capture_status, ''))) = 'D'
+        OR COALESCE(targets.is_confirmed_dead, 0) = 1
+      THEN 1
+      ELSE 0
+    END AS is_known_dead,
+    COALESCE(targets.has_flagged_capture, 0) AS has_flagged_capture
+  FROM tmp_todo_chick_capture_events events
+  LEFT JOIN global_ring_status targets
+    ON targets.ring_key = events.ring_key
+  CROSS JOIN sr
+  WHERE events.age = 'C'
+    AND events.nest_id IS NOT NULL
+    AND (
+      events.nest_id_source = 'recorded'
+      OR (
+        events.gps_id IS NOT NULL
+        AND events.gps_point IS NOT NULL
+      )
+    )
+    AND events.event_date <= sr.reference_date
+), raw_resightings AS (
+  SELECT
+    r.pk AS event_pk,
+    r.date AS event_date,
+    CAST(CONCAT(r.date, ' 00:00:00') AS DATETIME) AS event_datetime,
+    r.gps_id,
+    r.gps_point,
+    CASE
+      WHEN UPPER(TRIM(COALESCE(r.nest_id, ''))) IN ('', 'NO_NEST')
+      THEN NULL
+      ELSE UPPER(TRIM(r.nest_id))
+    END AS recorded_nest_id,
+    CASE
+      WHEN UPPER(TRIM(COALESCE(r.ring, ''))) IN (
+        '', 'X', 'XX', 'X-X', 'NA', 'N/A', 'NULL'
+      )
+      THEN NULL
+      ELSE REPLACE(UPPER(TRIM(r.ring)), '-', '')
+    END AS ring_key,
+    CASE
+      WHEN UPPER(NULLIF(TRIM(r.UL), '')) REGEXP '^F[A-Z0-9]+$'
+      THEN UPPER(NULLIF(TRIM(r.UL), ''))
+      WHEN UPPER(NULLIF(TRIM(r.UR), '')) REGEXP '^F[A-Z0-9]+$'
+      THEN UPPER(NULLIF(TRIM(r.UR), ''))
+      ELSE NULL
+    END AS flag_code
+  FROM FIELD_2026_BADOatNZ.RESIGHTINGS r
+  CROSS JOIN sr
+  WHERE UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'
+    AND r.age = 'C'
+    AND r.gps_id IS NOT NULL
+    AND r.gps_point IS NOT NULL
+    AND r.date <= sr.reference_date
+), resighting_primary_nest_candidates AS (
+  SELECT
+    raw.event_pk,
+    raw.recorded_nest_id AS candidate_nest_id,
+    'recorded' AS association_method
+  FROM raw_resightings raw
+  WHERE raw.recorded_nest_id IS NOT NULL
+
+  UNION ALL
+
+  SELECT
+    raw.event_pk,
+    h.resolved_nest_id,
+    h.association_method
+  FROM raw_resightings raw
+  JOIN FIELD_2026_BADOatNZ.RESIGHTINGS_H_BROOD_ASSOCIATIONS h
+    ON h.resighting_pk = raw.event_pk
+  WHERE h.resolved_nest_id IS NOT NULL
+
+  UNION ALL
+
+  SELECT
+    raw.event_pk,
+    ordinary.nest_id,
+    ordinary.association_method
+  FROM raw_resightings raw
+  JOIN tmp_todo_ordinary_family_resighting_associations ordinary
+    ON ordinary.resighting_pk = raw.event_pk
+  WHERE ordinary.nest_id IS NOT NULL
+
+  UNION ALL
+
+  SELECT
+    raw.event_pk,
+    parent_link.nest_id,
+    'parent_chick_same_occasion' AS association_method
+  FROM raw_resightings raw
+  JOIN tmp_todo_parent_chick_resighting_associations parent_link
+    ON parent_link.resighting_pk = raw.event_pk
+  WHERE parent_link.nest_id IS NOT NULL
+), resighting_current_conflicts AS (
+  SELECT raw.event_pk
+  FROM raw_resightings raw
+  JOIN FIELD_2026_BADOatNZ.RESIGHTINGS_H_BROOD_ASSOCIATIONS h
+    ON h.resighting_pk = raw.event_pk
+  WHERE raw.recorded_nest_id IS NULL
+    AND h.resolved_nest_id IS NULL
+    AND COALESCE(h.association_method, '') <> 'ring_capture'
+
+  UNION
+
+  SELECT raw.event_pk
+  FROM raw_resightings raw
+  JOIN tmp_todo_raw_encounter_nest_consensus consensus
+    ON consensus.event_date = raw.event_date
+   AND consensus.gps_id = raw.gps_id
+   AND consensus.gps_point = raw.gps_point
+  WHERE raw.recorded_nest_id IS NULL
+    AND consensus.n_explicit_nest_ids > 1
+), resighting_ring_capture_candidates AS (
+  SELECT
+    raw.event_pk,
+    TRIM(c.nest_id) AS candidate_nest_id,
+    CAST(
+      CONCAT(
+        c.date,
+        ' ',
+        COALESCE(c.released, c.caught, '00:00:00')
+      ) AS DATETIME
+    ) AS capture_datetime
+  FROM raw_resightings raw
+  JOIN FIELD_2026_BADOatNZ.CAPTURES c
+    ON NULLIF(REPLACE(UPPER(TRIM(c.ring)), '-', ''), '') = raw.ring_key
+   AND c.age = 'C'
+   AND UPPER(TRIM(COALESCE(c.site, ''))) = 'CR'
+   AND c.date < raw.event_date
+   AND c.nest_id IS NOT NULL
+   AND TRIM(c.nest_id) <> ''
+   AND UPPER(TRIM(c.nest_id)) <> 'NO_NEST'
+  WHERE raw.recorded_nest_id IS NULL
+    AND raw.ring_key IS NOT NULL
+), resighting_latest_ring_capture_datetime AS (
+  SELECT
+    event_pk,
+    MAX(capture_datetime) AS latest_capture_datetime
+  FROM resighting_ring_capture_candidates
+  GROUP BY event_pk
+), resighting_latest_ring_nest_summary AS (
+  SELECT
+    candidates.event_pk,
+    COUNT(DISTINCT candidates.candidate_nest_id) AS n_candidate_nests,
+    MIN(candidates.candidate_nest_id) AS candidate_nest_id
+  FROM resighting_ring_capture_candidates candidates
+  JOIN resighting_latest_ring_capture_datetime latest
+    ON latest.event_pk = candidates.event_pk
+   AND latest.latest_capture_datetime = candidates.capture_datetime
+  GROUP BY candidates.event_pk
+), resighting_nest_candidates AS (
+  SELECT
+    primary_candidates.event_pk,
+    primary_candidates.candidate_nest_id
+  FROM resighting_primary_nest_candidates primary_candidates
+
+  UNION ALL
+
+  /* Prior-ring history is only a fallback after stronger current evidence. */
+  SELECT
+    raw.event_pk,
+    history.candidate_nest_id
+  FROM raw_resightings raw
+  JOIN resighting_latest_ring_nest_summary history
+    ON history.event_pk = raw.event_pk
+   AND history.n_candidate_nests = 1
+  LEFT JOIN tmp_todo_raw_encounter_nest_consensus consensus
+    ON consensus.event_date = raw.event_date
+   AND consensus.gps_id = raw.gps_id
+   AND consensus.gps_point = raw.gps_point
+  WHERE raw.recorded_nest_id IS NULL
+    AND NOT EXISTS (
+      SELECT 1
+      FROM resighting_current_conflicts conflicts
+      WHERE conflicts.event_pk = raw.event_pk
+    )
+    AND NOT EXISTS (
+      SELECT 1
+      FROM resighting_primary_nest_candidates primary_candidates
+      WHERE primary_candidates.event_pk = raw.event_pk
+    )
+    AND (
+      COALESCE(consensus.n_explicit_nest_ids, 0) = 0
+      OR (
+        consensus.n_explicit_nest_ids = 1
+        AND UPPER(TRIM(consensus.explicit_nest_id)) =
+            UPPER(TRIM(history.candidate_nest_id))
+      )
+    )
+), resighting_nest_summary AS (
+  SELECT
+    raw.event_pk,
+    COUNT(DISTINCT candidates.candidate_nest_id) AS n_candidate_nests,
+    MIN(candidates.candidate_nest_id) AS nest_id
+  FROM raw_resightings raw
+  LEFT JOIN resighting_nest_candidates candidates
+    ON candidates.event_pk = raw.event_pk
+  GROUP BY raw.event_pk
+), resighting_flag_ring_candidates AS (
+  SELECT
+    raw.event_pk,
+    captures.ring_key
+  FROM raw_resightings raw
+  JOIN tmp_todo_chick_capture_events captures
+    ON captures.flag_code = raw.flag_code
+   AND captures.ring_key IS NOT NULL
+   AND captures.event_date < raw.event_date
+   AND UPPER(TRIM(COALESCE(captures.capture_status, ''))) IN ('F', 'R', 'C')
+  WHERE raw.flag_code IS NOT NULL
+), resighting_flag_ring_summary AS (
+  SELECT
+    event_pk,
+    COUNT(DISTINCT ring_key) AS n_candidate_rings,
+    MIN(ring_key) AS ring_key
+  FROM resighting_flag_ring_candidates
+  GROUP BY event_pk
+), resighting_events AS (
+  SELECT
+    raw.event_pk,
+    raw.event_date,
+    raw.event_datetime,
+    'RESIGHTINGS' AS source_table,
+    nest_summary.nest_id,
+    raw.gps_id,
+    raw.gps_point,
+    CASE
+      WHEN raw.ring_key IS NOT NULL THEN raw.ring_key
+      WHEN COALESCE(flag_summary.n_candidate_rings, 0) = 1
+      THEN flag_summary.ring_key
+      ELSE NULL
+    END AS ring_key,
+    raw.flag_code,
+    CAST(NULL AS CHAR(1)) AS capture_status,
+    'resighting' AS nest_id_source,
+    2 AS source_rank,
+    CASE
+      WHEN raw.ring_key IS NOT NULL
+       AND flag_summary.n_candidate_rings IS NOT NULL
+       AND (
+         flag_summary.n_candidate_rings <> 1
+         OR flag_summary.ring_key <> raw.ring_key
+       )
+      THEN 1
+      WHEN raw.ring_key IS NULL
+       AND COALESCE(flag_summary.n_candidate_rings, 0) <> 1
+      THEN 1
+      ELSE 0
+    END AS is_unresolved_identity,
+    CASE
+      WHEN COALESCE(targets.is_confirmed_dead, 0) = 1 THEN 1
+      ELSE 0
+    END AS is_known_dead,
+    COALESCE(targets.has_flagged_capture, 0) AS has_flagged_capture
+  FROM raw_resightings raw
+  JOIN resighting_nest_summary nest_summary
+    ON nest_summary.event_pk = raw.event_pk
+   AND nest_summary.n_candidate_nests = 1
+  LEFT JOIN resighting_flag_ring_summary flag_summary
+    ON flag_summary.event_pk = raw.event_pk
+  LEFT JOIN global_ring_status targets
+    ON targets.ring_key = CASE
+     WHEN raw.ring_key IS NOT NULL THEN raw.ring_key
+     WHEN flag_summary.n_candidate_rings = 1 THEN flag_summary.ring_key
+     ELSE NULL
+   END
+), all_events AS (
+  SELECT * FROM capture_events
+  UNION ALL
+  SELECT * FROM resighting_events
+)
+SELECT
+  all_events.event_pk,
+  all_events.event_date,
+  all_events.event_datetime,
+  all_events.source_table,
+  all_events.nest_id,
+  all_events.gps_id,
+  all_events.gps_point,
+  all_events.ring_key,
+  all_events.flag_code,
+  all_events.capture_status,
+  all_events.nest_id_source,
+  all_events.source_rank,
+    CASE
+      WHEN all_events.ring_key IS NOT NULL
+       AND all_events.is_unresolved_identity = 0
+      THEN CONCAT('ring:', all_events.ring_key)
+    ELSE CONCAT(
+      LOWER(all_events.source_table),
+      ':',
+      all_events.event_pk
+    )
+  END AS event_identity_key,
+  all_events.is_unresolved_identity,
+  all_events.is_known_dead,
+  all_events.has_flagged_capture
+FROM all_events;
+
+ALTER TABLE tmp_todo_chick_encounters
+  ADD INDEX idx_tmp_todo_chick_encounter_nest_date
+    (nest_id, event_date),
+  ADD INDEX idx_tmp_todo_chick_encounter_ring
+    (ring_key);
+
+
+/*
+  This is the only latest age-C encounter calculation. Same-date capture
+  rows suppress duplicate ring-identical resightings, but ringless and
+  differently ringed resightings remain visible. The output deliberately
+  distinguishes live identities, flagged identities, unflagged identities,
+  known deaths, and unresolved identities so no downstream branch can treat
+  an unknown encounter as zero work.
+*/
+CREATE TEMPORARY TABLE tmp_todo_chick_latest_encounter_context AS
+WITH latest_dates AS (
+  SELECT
+    events.nest_id,
+    MAX(events.event_date) AS latest_encounter_date
+  FROM tmp_todo_chick_encounters events
+  JOIN (
+    SELECT value AS reference_date
+    FROM FIELD_2026_BADOatNZ.settings
+    WHERE variable = 'reference_date'
+      AND value IS NOT NULL
+  ) settings
+    ON events.event_date <= settings.reference_date
+  GROUP BY events.nest_id
+), latest_events AS (
+  SELECT events.*
+  FROM tmp_todo_chick_encounters events
+  JOIN latest_dates latest
+    ON latest.nest_id = events.nest_id
+   AND latest.latest_encounter_date = events.event_date
+), latest_capture_rings AS (
+  SELECT DISTINCT
+    events.nest_id,
+    events.event_date AS capture_date,
+    events.ring_key
+  FROM latest_events events
+  WHERE events.source_table = 'CAPTURES'
+    AND events.ring_key IS NOT NULL
+), selected_latest_events AS (
+  SELECT events.*
+  FROM latest_events events
+  WHERE events.source_table = 'CAPTURES'
+     OR events.ring_key IS NULL
+     OR events.is_unresolved_identity = 1
+     OR NOT EXISTS (
+       SELECT 1
+       FROM latest_capture_rings captures
+       WHERE captures.nest_id = events.nest_id
+         AND captures.capture_date = events.event_date
+         AND captures.ring_key = events.ring_key
+     )
+), summary AS (
+  SELECT
+    events.nest_id,
+    MIN(events.event_date) AS latest_encounter_date,
+    MAX(events.event_datetime) AS latest_encounter_datetime,
+    COUNT(DISTINCT CASE
+      WHEN events.is_known_dead = 0 THEN events.event_identity_key
+    END) AS latest_encounter_count,
+    COUNT(DISTINCT CASE
+      WHEN events.is_known_dead = 0
+       AND events.ring_key IS NOT NULL
+       AND events.has_flagged_capture = 1
+      THEN events.ring_key
+    END) AS latest_encounter_flagged_count,
+    COUNT(DISTINCT CASE
+      WHEN events.is_known_dead = 0
+       AND (
+         events.ring_key IS NULL
+         OR events.has_flagged_capture = 0
+       )
+      THEN events.event_identity_key
+    END) AS latest_encounter_unflagged_count,
+    COUNT(DISTINCT CASE
+      WHEN events.is_unresolved_identity = 1
+      THEN events.event_identity_key
+    END) AS latest_encounter_unresolved_count,
+    COUNT(DISTINCT CASE
+      WHEN events.is_known_dead = 1
+      THEN events.event_identity_key
+    END) AS latest_encounter_known_dead_count,
+    MAX(CASE
+      WHEN events.is_unresolved_identity = 1
+        OR events.is_known_dead = 1
+      THEN 1
+      ELSE 0
+    END) AS latest_encounter_is_conservative,
+    MAX(CASE
+      WHEN events.is_unresolved_identity = 1
+        OR events.is_known_dead = 1
+      THEN 1
+      ELSE 0
+    END) AS latest_encounter_is_fallback,
+    CASE
+      WHEN COUNT(DISTINCT CASE
+        WHEN events.is_known_dead = 0 THEN events.event_identity_key
+      END) = 0
+      THEN 'unavailable'
+      WHEN MAX(CASE
+        WHEN events.is_unresolved_identity = 1
+          OR events.is_known_dead = 1
+        THEN 1
+        ELSE 0
+      END) = 1
+      THEN 'conservative'
+      ELSE 'available'
+    END AS latest_encounter_availability,
+    GROUP_CONCAT(
+      DISTINCT CASE
+        WHEN events.is_known_dead = 0 THEN events.ring_key
+      END
+      ORDER BY events.ring_key
+      SEPARATOR ', '
+    ) AS latest_encounter_ring_list,
+    GROUP_CONCAT(DISTINCT events.source_table ORDER BY events.source_table SEPARATOR ', ') AS latest_encounter_source,
+    CASE
+      WHEN MAX(CASE
+        WHEN events.is_unresolved_identity = 1
+          OR events.is_known_dead = 1
+        THEN 1
+        ELSE 0
+      END) = 1
+      THEN 'gps_family_with_unresolved_or_dead_identity'
+      ELSE 'gps_family_resolved_identity'
+    END AS latest_encounter_provenance
+  FROM selected_latest_events events
+  GROUP BY events.nest_id
+)
+SELECT
+  summary.*,
+  settings.reference_date
+FROM summary
+JOIN (
+  SELECT value AS reference_date
+  FROM FIELD_2026_BADOatNZ.settings
+  WHERE variable = 'reference_date'
+    AND value IS NOT NULL
+) settings;
+
+ALTER TABLE tmp_todo_chick_latest_encounter_context
+  ADD INDEX idx_tmp_todo_chick_latest_nest
+    (nest_id);
+
+
+CREATE TEMPORARY TABLE tmp_todo_chick_capture_context AS
+WITH context_units AS (
+  SELECT nest_id
+  FROM tmp_todo_chick_capture_context_base
+  UNION
+  SELECT nest_id
+  FROM tmp_todo_chick_latest_encounter_context
+)
+SELECT
+  context_units.nest_id,
+  base.n_chick_captures,
+  base.n_captured_chick_rings,
+  base.n_flagged_chick_rings,
+  base.n_unringed_chick_captures,
+  base.n_dead_chick_rings,
+  base.n_active_chick_rings,
+  base.n_active_flagged_chick_rings,
+  base.n_active_chick_captures,
+  base.n_unresolved_dead_chick_events,
+  base.observed_brood_size,
+  base.latest_brood_count_date,
+  base.n_deaths_after_latest_brood_count,
+  base.n_operational_brood_size,
+  base.operational_brood_size_source,
+  latest.latest_encounter_date,
+  latest.latest_encounter_datetime,
+  latest.latest_encounter_count,
+  latest.latest_encounter_flagged_count,
+  latest.latest_encounter_unflagged_count,
+  latest.latest_encounter_unresolved_count,
+  latest.latest_encounter_known_dead_count,
+  latest.latest_encounter_is_conservative,
+  latest.latest_encounter_is_fallback,
+  latest.latest_encounter_availability,
+  latest.latest_encounter_ring_list,
+  latest.latest_encounter_source,
+  latest.latest_encounter_provenance
+FROM context_units
+LEFT JOIN tmp_todo_chick_capture_context_base base
+  ON base.nest_id = context_units.nest_id
+LEFT JOIN tmp_todo_chick_latest_encounter_context latest
+  ON latest.nest_id = context_units.nest_id;
+
+SELECT 'TODO_REFRESH_STAGE|chick_capture_context' AS refresh_stage;
+
+/*
+  Materialize the shared chick-capture aggregate after the staged parent
+  boundary is active. The temporary latest-encounter input consumes the
+  same-occasion parent/chick resolver, so doing this earlier would expand the
+  live ADULT_PARENT_STATUS graph before the parent BUILD was available.
+*/
+CREATE TABLE FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_SNAPSHOT_BUILD (
+  nest_id VARCHAR(6) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NULL,
+  n_chick_captures BIGINT NULL,
+  n_captured_chick_rings BIGINT NULL,
+  n_flagged_chick_rings BIGINT NULL,
+  n_unringed_chick_captures BIGINT NULL,
+  n_dead_chick_rings BIGINT NULL,
+  n_active_chick_rings BIGINT NULL,
+  n_active_flagged_chick_rings BIGINT NULL,
+  n_active_chick_captures BIGINT NULL,
+  n_unresolved_dead_chick_events BIGINT NULL,
+  observed_brood_size BIGINT NULL,
+  latest_brood_count_date DATE NULL,
+  n_deaths_after_latest_brood_count BIGINT NULL,
+  n_operational_brood_size BIGINT NULL,
+  operational_brood_size_source VARCHAR(64) NULL,
+  latest_encounter_date DATE NULL,
+  latest_encounter_datetime DATETIME NULL,
+  latest_encounter_count BIGINT NULL,
+  latest_encounter_flagged_count BIGINT NULL,
+  latest_encounter_unflagged_count BIGINT NULL,
+  latest_encounter_unresolved_count BIGINT NULL,
+  latest_encounter_known_dead_count BIGINT NULL,
+  latest_encounter_is_conservative TINYINT NULL,
+  latest_encounter_is_fallback TINYINT NULL,
+  latest_encounter_availability VARCHAR(16) NULL,
+  latest_encounter_ring_list LONGTEXT NULL,
+  latest_encounter_source VARCHAR(64) NULL,
+  latest_encounter_provenance VARCHAR(128) NULL,
+  INDEX idx_todo_chick_capture_context_nest (nest_id)
+);
+
+CREATE TABLE IF NOT EXISTS FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_SNAPSHOT
+LIKE FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_SNAPSHOT_BUILD;
+
+INSERT INTO FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_SNAPSHOT_BUILD (
+  nest_id,
+  n_chick_captures,
+  n_captured_chick_rings,
+  n_flagged_chick_rings,
+  n_unringed_chick_captures,
+  n_dead_chick_rings,
+  n_active_chick_rings,
+  n_active_flagged_chick_rings,
+  n_active_chick_captures,
+  n_unresolved_dead_chick_events,
+  observed_brood_size,
+  latest_brood_count_date,
+  n_deaths_after_latest_brood_count,
+  n_operational_brood_size,
+  operational_brood_size_source,
+  latest_encounter_date,
+  latest_encounter_datetime,
+  latest_encounter_count,
+  latest_encounter_flagged_count,
+  latest_encounter_unflagged_count,
+  latest_encounter_unresolved_count,
+  latest_encounter_known_dead_count,
+  latest_encounter_is_conservative,
+  latest_encounter_is_fallback,
+  latest_encounter_availability,
+  latest_encounter_ring_list,
+  latest_encounter_source,
+  latest_encounter_provenance
+)
+SELECT
+  nest_id,
+  n_chick_captures,
+  n_captured_chick_rings,
+  n_flagged_chick_rings,
+  n_unringed_chick_captures,
+  n_dead_chick_rings,
+  n_active_chick_rings,
+  n_active_flagged_chick_rings,
+  n_active_chick_captures,
+  n_unresolved_dead_chick_events,
+  observed_brood_size,
+  latest_brood_count_date,
+  n_deaths_after_latest_brood_count,
+  n_operational_brood_size,
+  operational_brood_size_source,
+  latest_encounter_date,
+  latest_encounter_datetime,
+  latest_encounter_count,
+  latest_encounter_flagged_count,
+  latest_encounter_unflagged_count,
+  latest_encounter_unresolved_count,
+  latest_encounter_known_dead_count,
+  latest_encounter_is_conservative,
+  latest_encounter_is_fallback,
+  latest_encounter_availability,
+  latest_encounter_ring_list,
+  latest_encounter_source,
+  latest_encounter_provenance
+FROM tmp_todo_chick_capture_context;
+
+/* Feed all downstream task branches from the completed chick aggregate. */
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_INPUT AS
+SELECT *
+FROM FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_SNAPSHOT_BUILD;
+
+DROP TEMPORARY TABLE tmp_todo_chick_capture_context;
+DROP TEMPORARY TABLE tmp_todo_chick_latest_encounter_context;
+DROP TEMPORARY TABLE tmp_todo_chick_encounters;
+
+
+SELECT 'TODO_REFRESH_STAGE|hiding_spot_photos' AS refresh_stage;
+
+/*
+  Keep the published H-photo pointer unchanged while this refresh runs. The
+  full refresh is supported as one MariaDB client session (the app worker and
+  a single Adminer multi-statement execution both satisfy this); the temporary
+  input below is deliberately connection-local and is never published.
+*/
+CREATE TABLE FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_SNAPSHOT_BUILD (
+  nest_id VARCHAR(6) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NULL,
+  n_hiding_spot_photos BIGINT NULL,
+  INDEX idx_todo_hiding_spot_photo_context_nest (nest_id)
+);
+
+CREATE TABLE IF NOT EXISTS FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_SNAPSHOT
+LIKE FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_SNAPSHOT_BUILD;
+
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_INPUT AS
+SELECT *
+FROM FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_SNAPSHOT;
+
+CREATE TEMPORARY TABLE tmp_todo_hiding_photo_targets (
+  nest_id VARCHAR(8) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NULL,
+  ring_key VARCHAR(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NULL,
+  is_active_target TINYINT NULL,
+  INDEX idx_tmp_todo_hiding_targets_nest_ring (nest_id, ring_key)
+);
+
+INSERT INTO tmp_todo_hiding_photo_targets (
+  nest_id,
+  ring_key,
+  is_active_target
+)
+SELECT
+  target.nest_id,
+  target.ring_key,
+  target.is_active_target
+FROM tmp_todo_chick_capture_targets target
+WHERE target.is_active_target = 1;
+
+/*
+  This is the canonical H-photo calculation. H rows use the global resolver's
+  direct, same-occasion-adult, and prior-ring-capture outcomes. The separate
+  authoritative-parent S10 fallback is intentionally not part of this stage:
+  valid H rows already carry an explicit nest_id, while the historical blank-ID
+  cases remain covered by the resolver's canonical ring-capture path. Site/date/
+  GPS/photo predicates, ambiguity exclusions, and distinct active sibling-ring
+  counting are intentionally preserved.
+*/
+INSERT INTO FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_SNAPSHOT_BUILD (
+  nest_id,
+  n_hiding_spot_photos
+)
+WITH sr AS (
+  SELECT value AS reference_date
+  FROM FIELD_2026_BADOatNZ.settings
+  WHERE variable = 'reference_date'
+    AND value IS NOT NULL
+), h_photo_associations AS (
+  SELECT
+    h.resighting_pk,
+    h.ring,
+    h.resolved_nest_id,
+    h.association_method
+  FROM FIELD_2026_BADOatNZ.RESIGHTINGS_H_BROOD_ASSOCIATIONS h
+  WHERE h.resolved_nest_id IS NOT NULL
+    AND h.association_method IN (
+      'direct',
+      'same_occasion_adult',
+      'ring_capture'
+    )
+)
+SELECT
+  h.resolved_nest_id AS nest_id,
+  COUNT(DISTINCT target.ring_key) AS n_hiding_spot_photos
+FROM h_photo_associations h
+JOIN FIELD_2026_BADOatNZ.RESIGHTINGS r
+  ON r.pk = h.resighting_pk
+JOIN tmp_todo_hiding_photo_targets target
+  ON target.nest_id = h.resolved_nest_id
+ AND target.ring_key = REPLACE(UPPER(TRIM(h.ring)), '-', '')
+ AND target.is_active_target = 1
+JOIN FIELD_2026_BADOatNZ.GPS_POINTS g
+  ON r.gps_id = g.gps_id
+ AND r.gps_point = g.gps_point
+CROSS JOIN sr
+WHERE h.resolved_nest_id IS NOT NULL
+  AND h.association_method IN (
+    'direct',
+    'same_occasion_adult',
+    'ring_capture'
+  )
+  AND UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'
+  AND r.age = 'C'
+  AND r.rclass = 'H'
+  AND r.date <= sr.reference_date
+  AND r.gps_id IS NOT NULL
+  AND r.gps_point IS NOT NULL
+  AND NULLIF(
+        NULLIF(UPPER(TRIM(COALESCE(r.photo_start, ''))), ''),
+        'NA'
+      ) IS NOT NULL
+  AND NULLIF(
+        NULLIF(UPPER(TRIM(COALESCE(r.photo_end, ''))), ''),
+        'NA'
+      ) IS NOT NULL
+GROUP BY h.resolved_nest_id;
+
+DROP TEMPORARY TABLE IF EXISTS tmp_todo_hiding_photo_targets;
+
 SELECT 'TODO_REFRESH_STAGE|brood_closure' AS refresh_stage;
 
 /*
@@ -760,13 +2709,16 @@ SELECT 'TODO_REFRESH_STAGE|brood_closure' AS refresh_stage;
 DROP TEMPORARY TABLE IF EXISTS tmp_todo_closure_broods;
 DROP TEMPORARY TABLE IF EXISTS tmp_todo_closure_identities_raw;
 DROP TEMPORARY TABLE IF EXISTS tmp_todo_closure_identities;
+DROP TEMPORARY TABLE IF EXISTS tmp_todo_closure_old_proof;
 DROP TEMPORARY TABLE IF EXISTS tmp_todo_closure_events;
 DROP TEMPORARY TABLE IF EXISTS tmp_todo_closure_parent_summary;
 DROP TEMPORARY TABLE IF EXISTS tmp_todo_closure_later_raw;
 DROP TEMPORARY TABLE IF EXISTS tmp_todo_closure_nest_locations;
 DROP TEMPORARY TABLE IF EXISTS tmp_todo_closure_later_summary;
+DROP TEMPORARY TABLE IF EXISTS tmp_todo_closure_later_pairs;
 DROP TEMPORARY TABLE IF EXISTS tmp_todo_closure_later_best;
 DROP TEMPORARY TABLE IF EXISTS tmp_todo_closure_candidates;
+DROP TEMPORARY TABLE IF EXISTS tmp_todo_closure_success;
 DROP TEMPORARY TABLE IF EXISTS tmp_todo_closure_reactivation;
 
 CREATE TEMPORARY TABLE tmp_todo_closure_broods AS
@@ -804,7 +2756,7 @@ SELECT
   'high' AS identity_confidence,
   3 AS confidence_rank
 FROM tmp_todo_closure_broods b
-JOIN FIELD_2026_BADOatNZ.ADULT_PARENT_NEST_ASSOCIATIONS a
+JOIN tmp_todo_closure_parent_associations a
   ON CONVERT(a.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
      = CONVERT(b.brood_id USING utf8mb4) COLLATE utf8mb4_general_ci
  AND a.association_selected = 1
@@ -820,12 +2772,13 @@ SELECT DISTINCT
   'medium' AS identity_confidence,
   2 AS confidence_rank
 FROM tmp_todo_closure_broods b
-JOIN FIELD_2026_BADOatNZ.ADULT_IDENTITY_MATCHES m
+JOIN tmp_todo_closure_identity_matches m
   ON CONVERT(m.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
      = CONVERT(b.brood_id USING utf8mb4) COLLATE utf8mb4_general_ci
  AND m.sex IN ('M', 'F')
  AND m.is_ambiguous_match = 0
  AND COALESCE(m.n_candidate_identities, 0) = 1
+ AND m.association_evidence_eligible = 1
  AND m.identity_key IS NOT NULL
  AND m.identity_key NOT LIKE 'xx:%';
 
@@ -857,6 +2810,62 @@ ALTER TABLE tmp_todo_closure_identities
   ADD INDEX idx_todo_closure_identity_brood_sex (brood_id, sex),
   ADD INDEX idx_todo_closure_identity_key (identity_key);
 
+CREATE TEMPORARY TABLE tmp_todo_closure_old_proof AS
+SELECT
+  identities.brood_id,
+  identities.sex,
+  identities.identity_key,
+  MIN(DATE(association.association_evidence_datetime))
+    AS old_association_proof_date
+FROM tmp_todo_closure_identities identities
+JOIN tmp_todo_closure_parent_associations association
+  ON CONVERT(association.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+     = CONVERT(identities.brood_id USING utf8mb4) COLLATE utf8mb4_general_ci
+ AND association.sex = identities.sex
+ AND association.identity_key = identities.identity_key
+ AND association.association_selected = 1
+ AND association.association_ambiguous = 0
+ AND association.association_evidence_datetime IS NOT NULL
+GROUP BY identities.brood_id, identities.sex, identities.identity_key;
+
+/*
+  The two-parent fallback may use two distinct, uniquely matched medium
+  identities when neither parent has a selected high-confidence association.
+  Preserve the old-event date for that route without weakening the
+  high-confidence single-parent route above.  The old event is still required
+  to be eligible and unambiguous; it is not an association supplied by a
+  nearby nest or by the later attempt.
+*/
+INSERT INTO tmp_todo_closure_old_proof (
+  brood_id,
+  sex,
+  identity_key,
+  old_association_proof_date
+)
+SELECT
+  identities.brood_id,
+  identities.sex,
+  identities.identity_key,
+  MIN(m.observation_date) AS old_association_proof_date
+FROM tmp_todo_closure_identities identities
+JOIN tmp_todo_closure_identity_matches m
+  ON CONVERT(m.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+     = CONVERT(identities.brood_id USING utf8mb4) COLLATE utf8mb4_general_ci
+ AND m.sex = identities.sex
+ AND m.identity_key = identities.identity_key
+ AND m.is_ambiguous_match = 0
+ AND COALESCE(m.n_candidate_identities, 0) = 1
+ AND m.association_evidence_eligible = 1
+ AND m.observation_date IS NOT NULL
+WHERE identities.identity_confidence = 'medium'
+GROUP BY identities.brood_id, identities.sex, identities.identity_key;
+
+ALTER TABLE tmp_todo_closure_old_proof
+  ADD INDEX idx_todo_closure_old_proof_identity
+    (brood_id, sex, identity_key),
+  ADD INDEX idx_todo_closure_old_proof_date
+    (brood_id, old_association_proof_date);
+
 CREATE TEMPORARY TABLE tmp_todo_closure_events AS
 SELECT
   b.brood_id,
@@ -881,10 +2890,11 @@ SELECT
 FROM tmp_todo_closure_broods b
 JOIN tmp_todo_closure_identities i
   ON i.brood_id = b.brood_id
-JOIN FIELD_2026_BADOatNZ.ADULT_IDENTITY_MATCHES m
+JOIN tmp_todo_closure_identity_matches m
   ON m.identity_key = i.identity_key
  AND m.sex = i.sex
  AND m.is_ambiguous_match = 0
+ AND m.association_evidence_eligible = 1
  AND m.identity_key NOT LIKE 'xx:%'
  AND m.observation_date > b.anchor_date
  AND m.observation_date <= b.reference_date;
@@ -962,30 +2972,51 @@ SELECT
   a.sex AS later_parent_sex,
   a.identity_key AS later_parent_identity,
   a.nest_id AS later_nest_id,
-  MIN(n.date) AS later_nest_date,
+  GREATEST(
+    MIN(n.date),
+    DATE(a.association_evidence_datetime),
+    old_proof.old_association_proof_date
+  )
+    AS later_nest_date,
   'authoritative_selected' AS evidence_type
 FROM tmp_todo_closure_broods b
 JOIN tmp_todo_closure_identities prior
   ON prior.brood_id = b.brood_id
  AND prior.identity_confidence = 'high'
-JOIN FIELD_2026_BADOatNZ.ADULT_PARENT_NEST_ASSOCIATIONS a
+JOIN tmp_todo_closure_parent_associations a
   ON a.identity_key = prior.identity_key
  AND a.sex = prior.sex
  AND a.association_selected = 1
  AND a.association_ambiguous = 0
  AND a.identity_key NOT LIKE 'xx:%'
+ AND a.association_evidence_datetime IS NOT NULL
  AND a.nest_id IS NOT NULL
  AND TRIM(a.nest_id) <> ''
  AND UPPER(TRIM(a.nest_id)) <> 'NO_NEST'
  AND LEFT(TRIM(a.nest_id), 1) <> '-'
  AND CONVERT(a.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
      <> CONVERT(b.brood_id USING utf8mb4) COLLATE utf8mb4_general_ci
+JOIN tmp_todo_closure_old_proof old_proof
+  ON old_proof.brood_id = b.brood_id
+ AND old_proof.sex = prior.sex
+ AND old_proof.identity_key = prior.identity_key
 JOIN FIELD_2026_BADOatNZ.NESTS n
   ON CONVERT(n.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
      = CONVERT(a.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
  AND UPPER(TRIM(COALESCE(n.site, ''))) = 'CR'
+ AND UPPER(TRIM(COALESCE(n.nest_state, ''))) IN ('S', 'F', 'I')
  AND n.date > b.anchor_date
  AND n.date <= b.reference_date
+ AND NOT EXISTS (
+   SELECT 1
+   FROM FIELD_2026_BADOatNZ.NESTS earlier_nest
+   WHERE CONVERT(earlier_nest.nest_id USING utf8mb4)
+         COLLATE utf8mb4_general_ci
+         = CONVERT(n.nest_id USING utf8mb4)
+           COLLATE utf8mb4_general_ci
+     AND UPPER(TRIM(COALESCE(earlier_nest.site, ''))) = 'CR'
+     AND earlier_nest.date <= b.anchor_date
+ )
 GROUP BY b.brood_id, a.sex, a.identity_key, a.nest_id
 UNION
 SELECT
@@ -993,16 +3024,21 @@ SELECT
   m.sex AS later_parent_sex,
   m.identity_key AS later_parent_identity,
   m.nest_id AS later_nest_id,
-  MIN(n.date) AS later_nest_date,
+  GREATEST(
+    MIN(n.date),
+    MIN(m.observation_date),
+    old_proof.old_association_proof_date
+  ) AS later_nest_date,
   'identity_match' AS evidence_type
 FROM tmp_todo_closure_broods b
 JOIN tmp_todo_closure_identities prior
   ON prior.brood_id = b.brood_id
-JOIN FIELD_2026_BADOatNZ.ADULT_IDENTITY_MATCHES m
+JOIN tmp_todo_closure_identity_matches m
   ON m.identity_key = prior.identity_key
  AND m.sex = prior.sex
  AND m.is_ambiguous_match = 0
  AND COALESCE(m.n_candidate_identities, 0) = 1
+ AND m.association_evidence_eligible = 1
  AND m.identity_key NOT LIKE 'xx:%'
  AND m.nest_id IS NOT NULL
  AND TRIM(m.nest_id) <> ''
@@ -1012,12 +3048,27 @@ JOIN FIELD_2026_BADOatNZ.ADULT_IDENTITY_MATCHES m
      <> CONVERT(b.brood_id USING utf8mb4) COLLATE utf8mb4_general_ci
  AND m.observation_date > b.anchor_date
  AND m.observation_date <= b.reference_date
+JOIN tmp_todo_closure_old_proof old_proof
+  ON old_proof.brood_id = b.brood_id
+ AND old_proof.sex = prior.sex
+ AND old_proof.identity_key = prior.identity_key
 JOIN FIELD_2026_BADOatNZ.NESTS n
   ON CONVERT(n.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
      = CONVERT(m.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
  AND UPPER(TRIM(COALESCE(n.site, ''))) = 'CR'
+ AND UPPER(TRIM(COALESCE(n.nest_state, ''))) IN ('S', 'F', 'I')
  AND n.date > b.anchor_date
  AND n.date <= b.reference_date
+ AND NOT EXISTS (
+   SELECT 1
+   FROM FIELD_2026_BADOatNZ.NESTS earlier_nest
+   WHERE CONVERT(earlier_nest.nest_id USING utf8mb4)
+         COLLATE utf8mb4_general_ci
+         = CONVERT(n.nest_id USING utf8mb4)
+           COLLATE utf8mb4_general_ci
+     AND UPPER(TRIM(COALESCE(earlier_nest.site, ''))) = 'CR'
+     AND earlier_nest.date <= b.anchor_date
+ )
 GROUP BY b.brood_id, m.sex, m.identity_key, m.nest_id;
 
 CREATE TEMPORARY TABLE tmp_todo_closure_nest_locations AS
@@ -1063,13 +3114,46 @@ FROM (
 ) locations
 WHERE row_num = 1;
 
+/*
+  A dual-parent fallback is complete only when one M and one F association
+  are both available.  Pair dates therefore use the later of the two
+  association dates; taking MIN(raw.later_nest_date) would allow one weaker or
+  incomplete row to backdate a complete fallback route.
+*/
+CREATE TEMPORARY TABLE tmp_todo_closure_later_pairs AS
+SELECT
+  male.brood_id,
+  male.later_nest_id,
+  GREATEST(male.later_nest_date, female.later_nest_date) AS pair_date
+FROM tmp_todo_closure_later_raw male
+JOIN tmp_todo_closure_later_raw female
+  ON female.brood_id = male.brood_id
+ AND female.later_nest_id = male.later_nest_id
+ AND female.evidence_type = 'identity_match'
+ AND female.later_parent_sex = 'F'
+WHERE male.evidence_type = 'identity_match'
+  AND male.later_parent_sex = 'M';
+
 CREATE TEMPORARY TABLE tmp_todo_closure_later_summary AS
 SELECT
   raw.brood_id,
   raw.later_nest_id,
-  MIN(raw.later_nest_date) AS later_nest_date,
+  CASE
+    WHEN COUNT(DISTINCT CASE
+      WHEN raw.evidence_type = 'authoritative_selected'
+      THEN CONCAT(raw.later_parent_sex, ':', raw.later_parent_identity)
+    END) >= 1
+    THEN MIN(CASE
+      WHEN raw.evidence_type = 'authoritative_selected'
+      THEN raw.later_nest_date
+    END)
+    WHEN COUNT(DISTINCT raw.later_parent_sex) = 2
+    THEN MIN(pairs.pair_date)
+    ELSE MIN(raw.later_nest_date)
+  END AS later_nest_date,
   COUNT(DISTINCT CONCAT(raw.later_parent_sex, ':', raw.later_parent_identity))
     AS later_nest_parent_count,
+  COUNT(DISTINCT raw.later_parent_sex) AS later_nest_parent_sex_count,
   COUNT(DISTINCT CASE
     WHEN raw.evidence_type = 'authoritative_selected'
     THEN CONCAT(raw.later_parent_sex, ':', raw.later_parent_identity)
@@ -1098,6 +3182,9 @@ LEFT JOIN tmp_todo_closure_nest_locations origin
 LEFT JOIN tmp_todo_closure_nest_locations later_location
   ON CONVERT(later_location.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
      = CONVERT(raw.later_nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+LEFT JOIN tmp_todo_closure_later_pairs pairs
+  ON pairs.brood_id = raw.brood_id
+ AND pairs.later_nest_id = raw.later_nest_id
 GROUP BY raw.brood_id, raw.later_nest_id;
 
 CREATE TEMPORARY TABLE tmp_todo_closure_later_best AS
@@ -1106,7 +3193,10 @@ FROM (
   SELECT
     later.*,
     CASE WHEN later.later_nest_authoritative_parent_count >= 1
-       OR later.later_nest_parent_count >= 2
+       OR (
+         later.later_nest_parent_count >= 2
+         AND later.later_nest_parent_sex_count = 2
+       )
       THEN 1 ELSE 0 END AS later_nest_trigger,
     CASE WHEN later.nest_distance_m <= 100 THEN 1 ELSE 0 END
       AS spatial_support_100m,
@@ -1114,7 +3204,10 @@ FROM (
       PARTITION BY later.brood_id
       ORDER BY
         CASE WHEN later.later_nest_authoritative_parent_count >= 1
-          OR later.later_nest_parent_count >= 2 THEN 0 ELSE 1 END,
+          OR (
+            later.later_nest_parent_count >= 2
+            AND later.later_nest_parent_sex_count = 2
+          ) THEN 0 ELSE 1 END,
         later.later_nest_date,
         later.later_nest_parent_count DESC,
         later.later_nest_id
@@ -1134,10 +3227,12 @@ SELECT
   CASE
     WHEN later.later_nest_trigger = 1
      AND later.later_nest_parent_count >= 2
+     AND later.later_nest_parent_sex_count = 2
      AND later.spatial_support_100m = 1
     THEN 'dual-parent renesting + spatial proximity'
     WHEN later.later_nest_trigger = 1
      AND later.later_nest_parent_count >= 2
+     AND later.later_nest_parent_sex_count = 2
     THEN 'dual-parent renesting trigger'
     WHEN later.later_nest_trigger = 1
      AND later.spatial_support_100m = 1
@@ -1200,8 +3295,9 @@ JOIN FIELD_2026_BADOatNZ.CAPTURES x
   ON CONVERT(x.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
      = CONVERT(c.brood_id USING utf8mb4) COLLATE utf8mb4_general_ci
  AND x.age = 'C'
+ AND UPPER(TRIM(COALESCE(x.capture_status, ''))) IN ('F', 'R', 'C')
  AND UPPER(TRIM(COALESCE(x.site, ''))) = 'CR'
- AND x.date > c.closure_candidate_date
+ AND x.date >= c.closure_candidate_date
  AND x.date <= c.reference_date
 GROUP BY c.brood_id
 UNION ALL
@@ -1212,8 +3308,69 @@ JOIN FIELD_2026_BADOatNZ.RESIGHTINGS x
      = CONVERT(c.brood_id USING utf8mb4) COLLATE utf8mb4_general_ci
  AND x.age = 'C'
  AND UPPER(TRIM(COALESCE(x.site, ''))) = 'CR'
- AND x.date > c.closure_candidate_date
+ AND x.date >= c.closure_candidate_date
  AND x.date <= c.reference_date
+GROUP BY c.brood_id
+UNION ALL
+SELECT c.brood_id, COUNT(*)
+FROM tmp_todo_closure_candidates c
+ JOIN tmp_todo_ordinary_family_resighting_associations ordinary
+  ON CONVERT(ordinary.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+     = CONVERT(c.brood_id USING utf8mb4) COLLATE utf8mb4_general_ci
+ AND ordinary.event_date >= c.closure_candidate_date
+ AND ordinary.event_date <= c.reference_date
+WHERE c.closure_candidate_date IS NOT NULL
+GROUP BY c.brood_id
+UNION ALL
+SELECT c.brood_id, COUNT(*)
+FROM tmp_todo_closure_candidates c
+JOIN tmp_todo_chick_capture_events x
+  ON CONVERT(x.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+     = CONVERT(c.brood_id USING utf8mb4) COLLATE utf8mb4_general_ci
+ AND x.nest_id_source = 'prior_ring'
+ AND UPPER(TRIM(COALESCE(x.capture_status, ''))) IN ('F', 'R', 'C')
+ AND x.event_date >= c.closure_candidate_date
+ AND x.event_date <= c.reference_date
+WHERE c.closure_candidate_date IS NOT NULL
+GROUP BY c.brood_id
+UNION ALL
+SELECT c.brood_id, COUNT(*)
+FROM tmp_todo_closure_candidates c
+JOIN FIELD_2026_BADOatNZ.RESIGHTINGS_H_BROOD_ASSOCIATIONS h
+  ON CONVERT(h.resolved_nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+     = CONVERT(c.brood_id USING utf8mb4) COLLATE utf8mb4_general_ci
+JOIN FIELD_2026_BADOatNZ.RESIGHTINGS x
+  ON x.pk = h.resighting_pk
+ AND x.age = 'C'
+ AND UPPER(TRIM(COALESCE(x.site, ''))) = 'CR'
+ AND x.date >= c.closure_candidate_date
+ AND x.date <= c.reference_date
+WHERE c.closure_candidate_date IS NOT NULL
+GROUP BY c.brood_id
+UNION ALL
+SELECT c.brood_id, COUNT(*)
+FROM tmp_todo_closure_candidates c
+ JOIN tmp_todo_parent_chick_resighting_associations link
+  ON CONVERT(link.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+     = CONVERT(c.brood_id USING utf8mb4) COLLATE utf8mb4_general_ci
+JOIN FIELD_2026_BADOatNZ.RESIGHTINGS x
+  ON x.pk = link.resighting_pk
+ AND x.age = 'C'
+ AND UPPER(TRIM(COALESCE(x.site, ''))) = 'CR'
+ AND x.date >= c.closure_candidate_date
+ AND x.date <= c.reference_date
+WHERE c.closure_candidate_date IS NOT NULL
+GROUP BY c.brood_id
+UNION ALL
+SELECT c.brood_id, COUNT(*)
+FROM tmp_todo_closure_candidates c
+JOIN FIELD_2026_BADOatNZ.ADULT_CHICK_GPS_PARENT_LINKS_INPUT links
+  ON CONVERT(links.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+     = CONVERT(c.brood_id USING utf8mb4) COLLATE utf8mb4_general_ci
+ AND links.capture_date >= c.closure_candidate_date
+ AND links.capture_date <= c.reference_date
+ AND COALESCE(links.is_dead, 0) = 0
+WHERE c.closure_candidate_date IS NOT NULL
 GROUP BY c.brood_id
 UNION ALL
 SELECT c.brood_id, COUNT(*)
@@ -1224,15 +3381,58 @@ JOIN tmp_todo_closure_events x
  AND CONVERT(x.observed_nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
      = CONVERT(c.brood_id USING utf8mb4) COLLATE utf8mb4_general_ci
  AND x.has_positive_brood_behaviour = 1
- AND x.observation_date > c.closure_candidate_date
+ AND x.observation_date >= c.closure_candidate_date
  AND x.observation_date <= c.reference_date
+GROUP BY c.brood_id;
+
+/*
+  An origin-linked age-J event resolves the whole brood. Live F/R/C evidence
+  supports the existing resolution/reactivation rules, while an age-J D row is
+  developmental resolution only. This is kept at event level rather than
+  inferred from BROODS_LATEST's aggregate latest date, so D and unknown
+  captures cannot masquerade as survival evidence.
+*/
+CREATE TEMPORARY TABLE tmp_todo_closure_success AS
+SELECT
+  b.brood_id,
+  MIN(events.event_date) AS resolution_date,
+  COUNT(*) AS resolution_evidence_count
+FROM tmp_todo_closure_broods b
+JOIN tmp_todo_juvenile_origin_events events
+  ON CONVERT(events.brood_id USING utf8mb4) COLLATE utf8mb4_general_ci
+     = CONVERT(b.brood_id USING utf8mb4) COLLATE utf8mb4_general_ci
+ AND events.event_date >= b.anchor_date
+ AND events.event_date <= b.reference_date
+GROUP BY b.brood_id;
+
+ALTER TABLE tmp_todo_closure_success
+  ADD PRIMARY KEY (brood_id);
+
+/* Keep valid J evidence in the general reactivation audit when it occurs
+   after a presumed-dead candidate, while is_resolved remains a separate
+   outcome from is_presumed_dead. */
+INSERT INTO tmp_todo_closure_reactivation (brood_id, reactivation_evidence_count)
+SELECT
+  c.brood_id,
+  COUNT(*)
+FROM tmp_todo_closure_candidates c
+JOIN tmp_todo_juvenile_origin_events events
+  ON CONVERT(events.brood_id USING utf8mb4) COLLATE utf8mb4_general_ci
+     = CONVERT(c.brood_id USING utf8mb4) COLLATE utf8mb4_general_ci
+ AND events.event_date >= c.closure_candidate_date
+ AND events.event_date <= c.reference_date
+ AND events.association_method <> 'developmental_age_j'
+WHERE c.closure_candidate_date IS NOT NULL
 GROUP BY c.brood_id;
 
 CREATE TABLE FIELD_2026_BADOatNZ.TODO_BROOD_CLOSURE_STATUS_SNAPSHOT_BUILD (
   brood_id VARCHAR(6) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL,
   reference_date DATE NOT NULL,
   is_presumed_dead TINYINT NOT NULL DEFAULT 0,
+  is_resolved TINYINT NOT NULL DEFAULT 0,
   closure_reason VARCHAR(255) NULL,
+  resolution_reason VARCHAR(255) NULL,
+  resolution_date DATE NULL,
   later_nest_id VARCHAR(6) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NULL,
   later_nest_date DATE NULL,
   later_nest_parent_count BIGINT NULL,
@@ -1250,11 +3450,63 @@ CREATE TABLE FIELD_2026_BADOatNZ.TODO_BROOD_CLOSURE_STATUS_SNAPSHOT_BUILD (
 CREATE TABLE IF NOT EXISTS FIELD_2026_BADOatNZ.TODO_BROOD_CLOSURE_STATUS_SNAPSHOT
 LIKE FIELD_2026_BADOatNZ.TODO_BROOD_CLOSURE_STATUS_SNAPSHOT_BUILD;
 
+/* Upgrade the published snapshot in place without rewriting biological rows. */
+SET @todo_closure_is_resolved_exists := (
+  SELECT COUNT(*)
+  FROM information_schema.columns
+  WHERE table_schema = 'FIELD_2026_BADOatNZ'
+    AND table_name = 'TODO_BROOD_CLOSURE_STATUS_SNAPSHOT'
+    AND column_name = 'is_resolved'
+);
+SET @todo_closure_is_resolved_sql := IF(
+  @todo_closure_is_resolved_exists = 0,
+  'ALTER TABLE FIELD_2026_BADOatNZ.TODO_BROOD_CLOSURE_STATUS_SNAPSHOT ADD COLUMN is_resolved TINYINT NOT NULL DEFAULT 0 AFTER is_presumed_dead',
+  'SELECT 1'
+);
+PREPARE todo_closure_is_resolved_stmt FROM @todo_closure_is_resolved_sql;
+EXECUTE todo_closure_is_resolved_stmt;
+DEALLOCATE PREPARE todo_closure_is_resolved_stmt;
+
+SET @todo_closure_resolution_reason_exists := (
+  SELECT COUNT(*)
+  FROM information_schema.columns
+  WHERE table_schema = 'FIELD_2026_BADOatNZ'
+    AND table_name = 'TODO_BROOD_CLOSURE_STATUS_SNAPSHOT'
+    AND column_name = 'resolution_reason'
+);
+SET @todo_closure_resolution_reason_sql := IF(
+  @todo_closure_resolution_reason_exists = 0,
+  'ALTER TABLE FIELD_2026_BADOatNZ.TODO_BROOD_CLOSURE_STATUS_SNAPSHOT ADD COLUMN resolution_reason VARCHAR(255) NULL AFTER closure_reason',
+  'SELECT 1'
+);
+PREPARE todo_closure_resolution_reason_stmt FROM @todo_closure_resolution_reason_sql;
+EXECUTE todo_closure_resolution_reason_stmt;
+DEALLOCATE PREPARE todo_closure_resolution_reason_stmt;
+
+SET @todo_closure_resolution_date_exists := (
+  SELECT COUNT(*)
+  FROM information_schema.columns
+  WHERE table_schema = 'FIELD_2026_BADOatNZ'
+    AND table_name = 'TODO_BROOD_CLOSURE_STATUS_SNAPSHOT'
+    AND column_name = 'resolution_date'
+);
+SET @todo_closure_resolution_date_sql := IF(
+  @todo_closure_resolution_date_exists = 0,
+  'ALTER TABLE FIELD_2026_BADOatNZ.TODO_BROOD_CLOSURE_STATUS_SNAPSHOT ADD COLUMN resolution_date DATE NULL AFTER resolution_reason',
+  'SELECT 1'
+);
+PREPARE todo_closure_resolution_date_stmt FROM @todo_closure_resolution_date_sql;
+EXECUTE todo_closure_resolution_date_stmt;
+DEALLOCATE PREPARE todo_closure_resolution_date_stmt;
+
 INSERT INTO FIELD_2026_BADOatNZ.TODO_BROOD_CLOSURE_STATUS_SNAPSHOT_BUILD (
   brood_id,
   reference_date,
   is_presumed_dead,
+  is_resolved,
   closure_reason,
+  resolution_reason,
+  resolution_date,
   later_nest_id,
   later_nest_date,
   later_nest_parent_count,
@@ -1270,8 +3522,15 @@ SELECT
   b.reference_date,
   CASE WHEN c.brood_id IS NOT NULL
       AND COALESCE(r.reactivation_evidence_count, 0) = 0
+      AND s.brood_id IS NULL
     THEN 1 ELSE 0 END AS is_presumed_dead,
+  CASE WHEN s.brood_id IS NOT NULL THEN 1 ELSE 0 END AS is_resolved,
   c.closure_reason,
+  CASE WHEN s.brood_id IS NOT NULL
+    THEN 'origin-linked age-J event'
+    ELSE NULL
+  END AS resolution_reason,
+  s.resolution_date,
   c.later_nest_id,
   c.later_nest_date,
   c.later_nest_parent_count,
@@ -1285,6 +3544,8 @@ SELECT
 FROM tmp_todo_closure_broods b
 LEFT JOIN tmp_todo_closure_candidates c
   ON c.brood_id = b.brood_id
+LEFT JOIN tmp_todo_closure_success s
+  ON s.brood_id = b.brood_id
 LEFT JOIN (
   SELECT brood_id, SUM(reactivation_evidence_count)
     AS reactivation_evidence_count
@@ -1294,9 +3555,11 @@ LEFT JOIN (
   ON r.brood_id = b.brood_id;
 
 DROP TEMPORARY TABLE tmp_todo_closure_reactivation;
+DROP TEMPORARY TABLE tmp_todo_closure_success;
 DROP TEMPORARY TABLE tmp_todo_closure_candidates;
 DROP TEMPORARY TABLE tmp_todo_closure_later_best;
 DROP TEMPORARY TABLE tmp_todo_closure_later_summary;
+DROP TEMPORARY TABLE tmp_todo_closure_later_pairs;
 DROP TEMPORARY TABLE tmp_todo_closure_nest_locations;
 DROP TEMPORARY TABLE tmp_todo_closure_later_raw;
 DROP TEMPORARY TABLE tmp_todo_closure_parent_summary;
@@ -1304,6 +3567,16 @@ DROP TEMPORARY TABLE tmp_todo_closure_events;
 DROP TEMPORARY TABLE tmp_todo_closure_identities;
 DROP TEMPORARY TABLE tmp_todo_closure_identities_raw;
 DROP TEMPORARY TABLE tmp_todo_closure_broods;
+DROP TEMPORARY TABLE tmp_todo_closure_identity_matches;
+DROP TEMPORARY TABLE tmp_todo_closure_parent_associations;
+DROP TEMPORARY TABLE tmp_todo_parent_chick_resighting_associations;
+DROP TEMPORARY TABLE tmp_todo_ordinary_family_resighting_associations;
+DROP TEMPORARY TABLE tmp_todo_juvenile_origin_events;
+DROP TEMPORARY TABLE tmp_todo_chick_capture_events;
+DROP TEMPORARY TABLE tmp_todo_chick_capture_targets;
+DROP TEMPORARY TABLE tmp_todo_chick_capture_event_status;
+DROP TEMPORARY TABLE tmp_todo_chick_capture_context_base;
+DROP TEMPORARY TABLE tmp_todo_raw_encounter_nest_consensus;
 
 SELECT 'TODO_REFRESH_STAGE|task_rows' AS refresh_stage;
 
@@ -1407,26 +3680,31 @@ geo_observation_counts AS (
 initial_clutch_status AS (
   SELECT
     p.nest_id,
-    CASE
+    MAX(CASE
       WHEN p.calibration_match_type = 'found as incomplete' THEN 1
       ELSE 0
-    END AS found_as_incomplete,
-    CASE
+    END) AS found_as_incomplete,
+    MAX(CASE
+      WHEN p.calibration_match_type = 'stable one-egg/no increase' THEN 1
+      ELSE 0
+    END) AS stable_one_egg,
+    MAX(CASE
       WHEN p.calibration_match_type IN (
         'found as incomplete',
         'stable one-egg/no increase'
       ) THEN 1
       ELSE 0
-    END AS processing_flotation_exempt,
-    DATE_SUB(p.predicted_hatch_date, INTERVAL 26 DAY)
+    END) AS processing_flotation_exempt,
+    MAX(DATE_SUB(p.predicted_hatch_date, INTERVAL 26 DAY))
       AS inferred_clutch_completion_date,
-    p.predicted_hatch_date AS inferred_hatch_date
+    MAX(p.predicted_hatch_date) AS inferred_hatch_date
   FROM FIELD_2026_BADOatNZ.EGGS_HATCH_PREDICTION p
   WHERE p.calibration_match_type IN (
     'found as incomplete',
     'complete clutch chronology',
     'stable one-egg/no increase'
   )
+  GROUP BY p.nest_id
 ),
 /*
   All task-side context projections share this one bounded relation. During a
@@ -1622,9 +3900,52 @@ chick_captures AS (
   SELECT *
   FROM FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_INPUT
 ),
+/*
+  One shared flagging decision for positive and negative brood branches.
+  When a canonical latest encounter is available, work is driven by the
+  latest live unflagged identities. Conservative/unresolved identities keep
+  work open. If no latest encounter is available, fall back to the existing
+  capture-history rule rather than treating NULL counts as a closed brood.
+*/
+flagging_context AS (
+  SELECT
+    chick_captures.*,
+    CASE
+      WHEN chick_captures.latest_encounter_availability IN (
+        'available', 'conservative'
+      )
+       AND chick_captures.latest_encounter_count IS NOT NULL
+      THEN CASE
+        WHEN COALESCE(chick_captures.latest_encounter_unflagged_count, 0) > 0
+          OR COALESCE(chick_captures.latest_encounter_unresolved_count, 0) > 0
+        THEN 1
+        ELSE 0
+      END
+      WHEN COALESCE(chick_captures.n_operational_brood_size, 0)
+             > COALESCE(chick_captures.n_active_flagged_chick_rings, 0)
+      THEN 1
+      ELSE 0
+    END AS flagging_work_pending,
+    CASE
+      WHEN chick_captures.latest_encounter_availability IN (
+        'available', 'conservative'
+      )
+       AND chick_captures.latest_encounter_count IS NOT NULL
+      THEN GREATEST(
+        0,
+        COALESCE(chick_captures.latest_encounter_unflagged_count, 0)
+      )
+      ELSE GREATEST(
+        0,
+        COALESCE(chick_captures.n_operational_brood_size, 0)
+          - COALESCE(chick_captures.n_active_flagged_chick_rings, 0)
+      )
+    END AS flagging_pending_count
+  FROM chick_captures
+),
 hiding_spot_photos AS (
   SELECT *
-  FROM FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_INPUT
+  FROM FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_SNAPSHOT_BUILD
 ),
 todo_parent_source AS (
   SELECT
@@ -1649,6 +3970,80 @@ adult_parent_status AS (
      expansion while preserving a valid calculator before snapshots exist. */
   SELECT *
   FROM FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_INPUT
+),
+parent_resolution_status AS (
+  /*
+    Resolve a parent from the authoritative selected identity, regardless of
+    whether that identity came from a capture/TN gate or a resighting gate.
+    The old task note required a positive resighting count and a selected
+    resighting mark, which incorrectly hid a capture-resolved parent. Keep
+    the independent pending, ambiguity, MM, and death guards intact.
+  */
+  SELECT
+    status.*,
+    CASE
+      WHEN COALESCE(status.M_resight_association_pending, 0) = 0
+       AND COALESCE(status.M_resight_association_ambiguous, 0) = 0
+       AND COALESCE(status.M_mm_resight_pending, 0) = 0
+       AND COALESCE(status.M_identity_is_dead, 0) = 0
+       AND NULLIF(TRIM(COALESCE(status.M_selected_identity_key, '')), '')
+             IS NOT NULL
+       AND UPPER(TRIM(status.M_selected_identity_key))
+             NOT IN ('NA', 'N/A', 'NULL')
+       AND (
+         UPPER(TRIM(status.M_selected_identity_key)) NOT LIKE 'XX:%'
+         OR (
+           COALESCE(status.M_confirmed_unbanded, 0) = 1
+           AND UPPER(TRIM(COALESCE(
+             status.M_selected_mark,
+             status.M_parent_mark,
+             ''
+           ))) = 'X-X'
+         )
+       )
+       AND NULLIF(
+             TRIM(COALESCE(status.M_selected_mark, status.M_parent_mark, '')),
+             ''
+           ) IS NOT NULL
+       AND UPPER(TRIM(COALESCE(status.M_selected_mark, status.M_parent_mark)))
+             NOT IN ('X', 'XX', 'NA', 'N/A', 'NULL')
+       AND UPPER(TRIM(COALESCE(status.M_selected_mark, status.M_parent_mark)))
+             NOT LIKE 'XX:%'
+      THEN 1
+      ELSE 0
+    END AS M_authoritative_resolved,
+    CASE
+      WHEN COALESCE(status.F_resight_association_pending, 0) = 0
+       AND COALESCE(status.F_resight_association_ambiguous, 0) = 0
+       AND COALESCE(status.F_mm_resight_pending, 0) = 0
+       AND COALESCE(status.F_identity_is_dead, 0) = 0
+       AND NULLIF(TRIM(COALESCE(status.F_selected_identity_key, '')), '')
+             IS NOT NULL
+       AND UPPER(TRIM(status.F_selected_identity_key))
+             NOT IN ('NA', 'N/A', 'NULL')
+       AND (
+         UPPER(TRIM(status.F_selected_identity_key)) NOT LIKE 'XX:%'
+         OR (
+           COALESCE(status.F_confirmed_unbanded, 0) = 1
+           AND UPPER(TRIM(COALESCE(
+             status.F_selected_mark,
+             status.F_parent_mark,
+             ''
+           ))) = 'X-X'
+         )
+       )
+       AND NULLIF(
+             TRIM(COALESCE(status.F_selected_mark, status.F_parent_mark, '')),
+             ''
+           ) IS NOT NULL
+       AND UPPER(TRIM(COALESCE(status.F_selected_mark, status.F_parent_mark)))
+             NOT IN ('X', 'XX', 'NA', 'N/A', 'NULL')
+       AND UPPER(TRIM(COALESCE(status.F_selected_mark, status.F_parent_mark)))
+             NOT LIKE 'XX:%'
+      THEN 1
+      ELSE 0
+    END AS F_authoritative_resolved
+  FROM adult_parent_status status
 ),
 adult_capture_interval_status AS (
   SELECT
@@ -1705,6 +4100,43 @@ adult_capture_current_clutch_start AS (
   FROM task_context context
   WHERE context.capture_gate_clutch_size IS NOT NULL
 ),
+/*
+  Use the youngest defensible per-egg estimate from exact/nearest flotation
+  records as the final egg's laying date. Do not clamp that estimate to the
+  first observed clutch-size record: a nest first found with an already old
+  two- or three-egg clutch must retain its older float-derived chronology.
+  When no valid float exists, current_clutch_start_datetime is the fallback
+  for the current clutch. No egg_id ordering is assumed. A later third egg
+  therefore resets the fallback to its new observed three-egg chronology,
+  while a valid third-egg float can establish an older final-egg date. A float
+  measurement is eligible only inside the current clutch-size episode, from
+  current_clutch_start_datetime through the latest current observation; the
+  inferred laying date itself may therefore predate discovery.
+*/
+adult_capture_final_egg_lay_status AS (
+  SELECT
+    clutch_start.nest_id,
+    MAX(
+      DATE_SUB(
+        float_prediction.float_date,
+        INTERVAL ROUND(float_prediction.predicted_days_since_laying) DAY
+      )
+    ) AS estimated_final_egg_lay_date
+  FROM adult_capture_current_clutch_start clutch_start
+  JOIN FIELD_2026_BADOatNZ.EGGS_HATCH_PREDICTION float_prediction
+    ON CONVERT(clutch_start.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(float_prediction.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+  WHERE clutch_start.current_clutch_size IN (2, 3)
+    AND float_prediction.float_date IS NOT NULL
+    AND float_prediction.calibration_match_type IN ('exact', 'nearest')
+    AND DATE(float_prediction.float_date)
+        >= DATE(clutch_start.current_clutch_start_datetime)
+    AND DATE(float_prediction.float_date)
+        <= DATE(clutch_start.current_clutch_datetime)
+  GROUP BY
+    clutch_start.nest_id,
+    clutch_start.current_clutch_start_datetime
+),
 adult_capture_age_status AS (
   SELECT
     x.nest_id,
@@ -1717,7 +4149,8 @@ adult_capture_age_status AS (
       WHEN latest_nests.hatch_signs_present = 1
        AND latest_nests.latest_float_date IS NULL
       THEN 1
-      WHEN DATEDIFF(
+      WHEN x.clutch_completion_confirmed = 1
+       AND DATEDIFF(
              x.reference_date,
              x.clutch_completion_basis_date
            ) >= 7
@@ -1729,22 +4162,19 @@ adult_capture_age_status AS (
       clutch_start.nest_id,
       sr.reference_date,
       CASE
+        /* Found-incomplete chronology is the stronger final-egg estimate. */
         WHEN initial_clutch_status.found_as_incomplete = 1
+         AND initial_clutch_status.inferred_clutch_completion_date IS NOT NULL
         THEN initial_clutch_status.inferred_clutch_completion_date
-        WHEN clutch_start.current_clutch_size >= 3
-        THEN DATE(clutch_start.current_clutch_start_datetime)
-        /* A two-egg clutch needs three full days of stability after the
-           current clutch's float before it becomes a completion candidate.
-           A later third egg changes current_clutch_size and therefore starts
-           a new completion calculation. */
-        WHEN clutch_start.current_clutch_size = 2
-         AND clutch_start.last_float_datetime IS NOT NULL
-         AND clutch_start.last_float_datetime
-             >= clutch_start.current_clutch_start_datetime
-        THEN DATE_ADD(
-          DATE(clutch_start.last_float_datetime),
-          INTERVAL 3 DAY
+        WHEN clutch_start.current_clutch_size IN (2, 3)
+        THEN COALESCE(
+          float_lay.estimated_final_egg_lay_date,
+          DATE(clutch_start.current_clutch_start_datetime)
         )
+        /* A stable one-egg clutch keeps the existing no-increase window, but
+           its seven-day clock starts at egg 1's date, not completion + 2 days. */
+        WHEN initial_clutch_status.stable_one_egg = 1
+        THEN DATE(clutch_start.current_clutch_start_datetime)
         WHEN DATEDIFF(
                DATE(clutch_start.current_clutch_datetime),
                DATE(clutch_start.current_clutch_start_datetime)
@@ -1760,13 +4190,25 @@ adult_capture_age_status AS (
       CASE
         WHEN clutch_start.current_clutch_size >= 3 THEN 1
         WHEN clutch_start.current_clutch_size = 2
-         AND clutch_start.last_float_datetime IS NOT NULL
-         AND clutch_start.last_float_datetime
-             >= clutch_start.current_clutch_start_datetime
+         AND DATEDIFF(
+               DATE(clutch_start.current_clutch_datetime),
+               CASE
+                 WHEN initial_clutch_status.found_as_incomplete = 1
+                  AND initial_clutch_status.inferred_clutch_completion_date IS NOT NULL
+                 THEN initial_clutch_status.inferred_clutch_completion_date
+                 ELSE COALESCE(
+                   float_lay.estimated_final_egg_lay_date,
+                   DATE(clutch_start.current_clutch_start_datetime)
+                 )
+               END
+             ) >= 3
+        THEN 1
+        WHEN clutch_start.current_clutch_size = 1
+         AND initial_clutch_status.stable_one_egg = 1
          AND DATEDIFF(
                sr.reference_date,
-               DATE(clutch_start.last_float_datetime)
-             ) >= 3
+               DATE(clutch_start.current_clutch_start_datetime)
+             ) >= 4
         THEN 1
         WHEN DATEDIFF(
                DATE(clutch_start.current_clutch_datetime),
@@ -1779,6 +4221,9 @@ adult_capture_age_status AS (
     LEFT JOIN initial_clutch_status
       ON CONVERT(clutch_start.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
          = CONVERT(initial_clutch_status.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+    LEFT JOIN adult_capture_final_egg_lay_status float_lay
+      ON CONVERT(clutch_start.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+         = CONVERT(float_lay.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
     CROSS JOIN sr
   ) x
   JOIN latest_nests
@@ -1812,7 +4257,10 @@ parent_task_nests AS (
     WHERE CONVERT(closure.brood_id USING utf8mb4) COLLATE utf8mb4_general_ci
           = CONVERT(n.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
       AND closure.reference_date = n.reference_date
-      AND closure.is_presumed_dead = 1
+      AND (
+        closure.is_presumed_dead = 1
+        OR closure.is_resolved = 1
+      )
   )
   UNION ALL
   SELECT n.*
@@ -1827,7 +4275,10 @@ parent_task_nests AS (
       WHERE CONVERT(closure.brood_id USING utf8mb4) COLLATE utf8mb4_general_ci
             = CONVERT(n.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
         AND closure.reference_date = n.reference_date
-        AND closure.is_presumed_dead = 1
+        AND (
+          closure.is_presumed_dead = 1
+          OR closure.is_resolved = 1
+        )
     )
 ),
 /*
@@ -1855,18 +4306,22 @@ parent_task_nests AS (
 tag_deployment_history AS (
   SELECT DISTINCT
     c.nest_id,
-    LEFT(c.field_sex, 1) AS parent_sex,
-    FIELD_2026_BADOatNZ.format_mark(c.UL, c.LL, c.UR, c.LR) AS parent_mark
-  FROM FIELD_2026_BADOatNZ.CAPTURES c
+    c.capture_sex AS parent_sex,
+    c.identity_key,
+    c.display_mark AS parent_mark,
+    c.capture_date AS deployment_date,
+    c.capture_datetime AS deployment_datetime
+  FROM FIELD_2026_BADOatNZ.ADULT_CAPTURE_IDENTITIES_ALL c
   CROSS JOIN sr
   WHERE c.nest_id IS NOT NULL
     AND TRIM(c.nest_id) <> ''
     AND LEFT(TRIM(c.nest_id), 1) IN ('B', 'C')
-    AND c.date <= sr.reference_date
-    AND LEFT(c.field_sex, 1) IN ('M', 'F')
-    AND UPPER(TRIM(COALESCE(c.tag_type, ''))) = 'GEO'
-    AND UPPER(TRIM(COALESCE(c.tag_action, ''))) IN ('D', 'S', 'N')
-    AND NULLIF(TRIM(c.tag_id), '') IS NOT NULL
+    AND c.capture_date <= sr.reference_date
+    AND c.capture_sex IN ('M', 'F')
+    AND c.has_geo = 1
+    AND c.tag_type = 'GEO'
+    AND c.tag_action IN ('D', 'S', 'N')
+    AND c.tag_id IS NOT NULL
 ),
 tag_deployment_candidates AS (
   SELECT
@@ -1874,6 +4329,10 @@ tag_deployment_candidates AS (
     parent_task_nests.reference_date,
     adult_parent_status.M_parent_mark,
     adult_parent_status.F_parent_mark,
+    adult_parent_status.M_selected_mark,
+    adult_parent_status.F_selected_mark,
+    adult_parent_status.M_selected_identity_key,
+    adult_parent_status.F_selected_identity_key,
     adult_parent_status.M_has_geo,
     adult_parent_status.F_has_geo,
     adult_parent_status.M_confirmed_unbanded,
@@ -1886,6 +4345,8 @@ tag_deployment_candidates AS (
     adult_parent_status.F_resight_association_ambiguous,
     adult_parent_status.M_is_dead,
     adult_parent_status.F_is_dead,
+    adult_parent_status.M_identity_is_dead,
+    adult_parent_status.F_identity_is_dead,
     adult_parent_status.M_is_au_migrant,
     adult_parent_status.F_is_au_migrant,
     adult_capture_age_status.clutch_completion_basis_date,
@@ -1902,7 +4363,7 @@ tag_deployment_candidates AS (
       THEN '?'
       WHEN NULLIF(TRIM(COALESCE(adult_parent_status.M_parent_mark, '')), '') IS NOT NULL
        AND UPPER(TRIM(adult_parent_status.M_parent_mark)) <> 'X-X'
-       AND COALESCE(adult_parent_status.M_is_dead, 0) = 0
+       AND COALESCE(adult_parent_status.M_identity_is_dead, 0) = 0
        AND COALESCE(adult_parent_status.M_has_geo, 0) = 0
       THEN 'B'
       ELSE '?'
@@ -1920,7 +4381,7 @@ tag_deployment_candidates AS (
       THEN '?'
       WHEN NULLIF(TRIM(COALESCE(adult_parent_status.F_parent_mark, '')), '') IS NOT NULL
        AND UPPER(TRIM(adult_parent_status.F_parent_mark)) <> 'X-X'
-       AND COALESCE(adult_parent_status.F_is_dead, 0) = 0
+       AND COALESCE(adult_parent_status.F_identity_is_dead, 0) = 0
        AND COALESCE(adult_parent_status.F_has_geo, 0) = 0
       THEN 'B'
       ELSE '?'
@@ -1931,10 +4392,17 @@ tag_deployment_candidates AS (
       WHERE CONVERT(history.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
             = CONVERT(parent_task_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
         AND history.parent_sex = 'M'
-        AND CONVERT(UPPER(TRIM(history.parent_mark)) USING utf8mb4)
-              COLLATE utf8mb4_general_ci
-            = CONVERT(UPPER(TRIM(adult_parent_status.M_parent_mark)) USING utf8mb4)
-              COLLATE utf8mb4_general_ci
+        AND (
+          history.identity_key = adult_parent_status.M_selected_identity_key
+          OR CONVERT(UPPER(TRIM(history.parent_mark)) USING utf8mb4)
+               COLLATE utf8mb4_general_ci
+             = CONVERT(
+                 UPPER(TRIM(COALESCE(
+                   adult_parent_status.M_selected_mark,
+                   adult_parent_status.M_parent_mark
+                 ))) USING utf8mb4
+               ) COLLATE utf8mb4_general_ci
+        )
     ) THEN 1 ELSE 0 END AS M_new_protocol_geo,
     CASE WHEN EXISTS (
       SELECT 1
@@ -1942,10 +4410,17 @@ tag_deployment_candidates AS (
       WHERE CONVERT(history.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
             = CONVERT(parent_task_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
         AND history.parent_sex = 'F'
-        AND CONVERT(UPPER(TRIM(history.parent_mark)) USING utf8mb4)
-              COLLATE utf8mb4_general_ci
-            = CONVERT(UPPER(TRIM(adult_parent_status.F_parent_mark)) USING utf8mb4)
-              COLLATE utf8mb4_general_ci
+        AND (
+          history.identity_key = adult_parent_status.F_selected_identity_key
+          OR CONVERT(UPPER(TRIM(history.parent_mark)) USING utf8mb4)
+               COLLATE utf8mb4_general_ci
+             = CONVERT(
+                 UPPER(TRIM(COALESCE(
+                   adult_parent_status.F_selected_mark,
+                   adult_parent_status.F_parent_mark
+                 ))) USING utf8mb4
+               ) COLLATE utf8mb4_general_ci
+        )
     ) THEN 1 ELSE 0 END AS F_new_protocol_geo,
     CASE
       WHEN adult_parent_status.M_confirmed_unbanded = 1
@@ -1971,8 +4446,8 @@ tag_deployment_candidates AS (
     ON CONVERT(parent_task_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
        = CONVERT(adult_capture_age_status.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   WHERE LEFT(TRIM(parent_task_nests.nest_id), 1) IN ('B', 'C')
-    AND COALESCE(adult_parent_status.M_is_dead, 0) = 0
-    AND COALESCE(adult_parent_status.F_is_dead, 0) = 0
+    AND COALESCE(adult_parent_status.M_identity_is_dead, 0) = 0
+    AND COALESCE(adult_parent_status.F_identity_is_dead, 0) = 0
     AND COALESCE(adult_parent_status.M_resight_association_ambiguous, 0) = 0
     AND COALESCE(adult_parent_status.F_resight_association_ambiguous, 0) = 0
 ),
@@ -2129,6 +4604,16 @@ todo_untrapped_parent_candidate AS (
       THEN tag_deployment_plan.geo_instruction
       WHEN adult_parent_status.M_confirmed_unbanded = 1
        AND adult_parent_status.F_confirmed_unbanded = 1
+       AND COALESCE(adult_parent_status.M_identity_is_dead, 0) = 1
+       AND COALESCE(adult_parent_status.F_identity_is_dead, 0) = 0
+      THEN 'F (M selected identity dead)'
+      WHEN adult_parent_status.M_confirmed_unbanded = 1
+       AND adult_parent_status.F_confirmed_unbanded = 1
+       AND COALESCE(adult_parent_status.F_identity_is_dead, 0) = 1
+       AND COALESCE(adult_parent_status.M_identity_is_dead, 0) = 0
+      THEN 'M (F selected identity dead)'
+      WHEN adult_parent_status.M_confirmed_unbanded = 1
+       AND adult_parent_status.F_confirmed_unbanded = 1
       THEN 'any (both X-X)'
       WHEN adult_parent_status.M_confirmed_unbanded = 1
        AND adult_parent_status.F_has_geo = 1
@@ -2177,6 +4662,14 @@ todo_untrapped_parent_candidate AS (
       THEN tag_deployment_plan.geo_target
       WHEN tag_deployment_plan.geo_band_target IS NOT NULL
       THEN tag_deployment_plan.geo_band_target
+      WHEN adult_parent_status.M_confirmed_unbanded = 1
+       AND adult_parent_status.F_confirmed_unbanded = 1
+       AND COALESCE(adult_parent_status.M_identity_is_dead, 0) = 1
+       AND COALESCE(adult_parent_status.F_identity_is_dead, 0) = 0 THEN 'F'
+      WHEN adult_parent_status.M_confirmed_unbanded = 1
+       AND adult_parent_status.F_confirmed_unbanded = 1
+       AND COALESCE(adult_parent_status.F_identity_is_dead, 0) = 1
+       AND COALESCE(adult_parent_status.M_identity_is_dead, 0) = 0 THEN 'M'
       WHEN adult_parent_status.M_confirmed_unbanded = 1
        AND adult_parent_status.F_confirmed_unbanded = 1 THEN 'A'
       WHEN adult_parent_status.M_confirmed_unbanded = 1
@@ -2228,6 +4721,8 @@ todo_untrapped_parent_candidate AS (
     adult_parent_status.F_confirmed_unbanded,
     adult_parent_status.M_unknown_status,
     adult_parent_status.F_unknown_status,
+    adult_parent_status.M_identity_is_dead,
+    adult_parent_status.F_identity_is_dead,
     adult_parent_status.M_has_geo,
     adult_parent_status.F_has_geo,
     adult_parent_status.M_single_colour_recruit,
@@ -2562,6 +5057,48 @@ todo_untrapped_parent AS (
       )
       WHEN COALESCE(M_confirmed_unbanded, 0) = 1
        AND COALESCE(F_confirmed_unbanded, 0) = 1
+       AND COALESCE(M_identity_is_dead, 0) = 1
+       AND COALESCE(F_identity_is_dead, 0) = 0
+      THEN CONCAT(
+        CASE
+          WHEN COALESCE(capture_allowed_after_completion, 0) = 1
+           AND COALESCE(capture_interval_open, 0) = 1
+          THEN 'band X-X F'
+          ELSE 'resight F'
+        END,
+        CASE
+          WHEN COALESCE(capture_allowed_after_completion, 0) = 1
+           AND COALESCE(capture_interval_open, 0) = 1 THEN ''
+          WHEN COALESCE(capture_allowed_after_completion, 0) = 0
+           AND COALESCE(capture_interval_open, 0) = 0 THEN '; 7d+36hr'
+          WHEN COALESCE(capture_allowed_after_completion, 0) = 0 THEN '; 7d rule'
+          WHEN COALESCE(capture_interval_open, 0) = 0 THEN '; 36hr rule'
+          ELSE ''
+        END
+      )
+      WHEN COALESCE(M_confirmed_unbanded, 0) = 1
+       AND COALESCE(F_confirmed_unbanded, 0) = 1
+       AND COALESCE(F_identity_is_dead, 0) = 1
+       AND COALESCE(M_identity_is_dead, 0) = 0
+      THEN CONCAT(
+        CASE
+          WHEN COALESCE(capture_allowed_after_completion, 0) = 1
+           AND COALESCE(capture_interval_open, 0) = 1
+          THEN 'band X-X M'
+          ELSE 'resight M'
+        END,
+        CASE
+          WHEN COALESCE(capture_allowed_after_completion, 0) = 1
+           AND COALESCE(capture_interval_open, 0) = 1 THEN ''
+          WHEN COALESCE(capture_allowed_after_completion, 0) = 0
+           AND COALESCE(capture_interval_open, 0) = 0 THEN '; 7d+36hr'
+          WHEN COALESCE(capture_allowed_after_completion, 0) = 0 THEN '; 7d rule'
+          WHEN COALESCE(capture_interval_open, 0) = 0 THEN '; 36hr rule'
+          ELSE ''
+        END
+      )
+      WHEN COALESCE(M_confirmed_unbanded, 0) = 1
+       AND COALESCE(F_confirmed_unbanded, 0) = 1
       THEN CONCAT(
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
@@ -2605,7 +5142,7 @@ todo_untrapped_parent AS (
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
            AND COALESCE(capture_interval_open, 0) = 1
-          THEN 'resight/band X-X M'
+          THEN 'band X-X M'
           ELSE 'resight M'
         END,
         CASE
@@ -2736,8 +5273,8 @@ todo_untrapped_parent AS (
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
            AND COALESCE(capture_interval_open, 0) = 1
-          THEN 'resight/band M (F w/GEO)'
-          ELSE 'resight M (F w/GEO)'
+          THEN 'resight/tag M (status ?; F w/GEO)'
+          ELSE 'resight M (status ?; F w/GEO)'
         END,
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
@@ -2755,8 +5292,8 @@ todo_untrapped_parent AS (
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
            AND COALESCE(capture_interval_open, 0) = 1
-          THEN 'resight/band F (M w/GEO)'
-          ELSE 'resight F (M w/GEO)'
+          THEN 'resight/tag F (status ?; M w/GEO)'
+          ELSE 'resight F (status ?; M w/GEO)'
         END,
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
@@ -2848,6 +5385,20 @@ todo_untrapped_parent AS (
     END AS parent_task_class
   FROM todo_untrapped_parent_candidate
   WHERE target_parent IN ('A', 'M', 'F')
+    /* Never emit a capture/banding instruction for a selected-dead target.
+       A dead competing identity remains harmless because these flags are
+       selected-identity-specific; the other living parent's task is kept. */
+    AND NOT (
+      (target_parent = 'M' AND COALESCE(M_identity_is_dead, 0) = 1)
+      OR (target_parent = 'F' AND COALESCE(F_identity_is_dead, 0) = 1)
+      OR (
+        target_parent = 'A'
+        AND (
+          COALESCE(M_identity_is_dead, 0) = 1
+          OR COALESCE(F_identity_is_dead, 0) = 1
+        )
+      )
+    )
     AND (
       (
         COALESCE(capture_allowed_after_completion, 0) = 1
@@ -2932,23 +5483,55 @@ parent_units AS (
 ),
 todo_parent_resighting_existing AS (
   SELECT
-    nest_id,
-    reference_date,
+    candidate.nest_id,
+    candidate.reference_date,
     'Parent resighting' AS todo,
-    notes,
-    days_overdue,
-    priority,
-    min_days_to_hatch,
-    last_visit_days_ago,
-    nest_state,
-    clutch_size,
-    brood_size,
-    M_mark,
-    F_mark,
-    lat,
-    lon
-  FROM todo_untrapped_parent
-  WHERE parent_task_class = 'Parent resighting'
+    CASE
+      /*
+        The candidate branch owns eligibility and the 7d/36hr wording. Add
+        only the authoritative opposite-sex resolution, so the fallback
+        branch is as informative as the known-banded branch below without
+        creating a second identity inference path.
+      */
+      WHEN COALESCE(association.M_authoritative_resolved, 0) = 1
+       AND COALESCE(association.F_authoritative_resolved, 0) = 1
+      THEN CONCAT_WS(
+        '; ',
+        NULLIF(TRIM(candidate.notes), ''),
+        'M resolved',
+        'F resolved'
+      )
+      WHEN COALESCE(association.M_authoritative_resolved, 0) = 1
+      THEN CONCAT_WS(
+        '; ',
+        NULLIF(TRIM(candidate.notes), ''),
+        'M resolved'
+      )
+      WHEN COALESCE(association.F_authoritative_resolved, 0) = 1
+      THEN CONCAT_WS(
+        '; ',
+        NULLIF(TRIM(candidate.notes), ''),
+        'F resolved'
+      )
+      ELSE candidate.notes
+    END AS notes,
+    candidate.days_overdue,
+    candidate.priority,
+    candidate.min_days_to_hatch,
+    candidate.last_visit_days_ago,
+    candidate.nest_state,
+    candidate.clutch_size,
+    candidate.brood_size,
+    candidate.M_mark,
+    candidate.F_mark,
+    candidate.lat,
+    candidate.lon
+  FROM todo_untrapped_parent candidate
+  LEFT JOIN parent_resolution_status association
+    ON CONVERT(candidate.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+       = CONVERT(association.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+   AND candidate.reference_date = association.reference_date
+  WHERE candidate.parent_task_class = 'Parent resighting'
   UNION ALL
   /*
     Known-banded parents with unresolved nest association bypass the GEO
@@ -2990,9 +5573,7 @@ todo_parent_resighting_existing AS (
           ELSE ' resightings'
         END,
         CASE
-          WHEN association.F_resighting_identity_count > 0
-           AND association.F_resight_association_pending = 0
-           AND association.F_mm_resight_pending = 0
+          WHEN association.F_authoritative_resolved = 1
           THEN '; F resolved'
           ELSE ''
         END
@@ -3006,9 +5587,7 @@ todo_parent_resighting_existing AS (
           ELSE ' resightings'
         END,
         CASE
-          WHEN association.M_resighting_identity_count > 0
-           AND association.M_resight_association_pending = 0
-           AND association.M_mm_resight_pending = 0
+          WHEN association.M_authoritative_resolved = 1
           THEN '; M resolved'
           ELSE ''
         END
@@ -3055,7 +5634,7 @@ todo_parent_resighting_existing AS (
     parent_units.lat,
     parent_units.lon
   FROM parent_units
-  JOIN adult_parent_status association
+  JOIN parent_resolution_status association
     ON CONVERT(parent_units.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
        = CONVERT(association.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   WHERE association.M_resight_association_pending = 1
@@ -3562,14 +6141,16 @@ todo_broods_to_recapture_for_flagging AS (
     CASE
       WHEN COALESCE(chick_captures.n_chick_captures, 0) = 0
       THEN 'no chick captures; recapture chicks and assign unique engraved UL flags'
+      WHEN COALESCE(chick_captures.n_unresolved_dead_chick_events, 0) > 0
+      THEN 'confirm unresolved chick death identities before flagging'
       WHEN COALESCE(chick_captures.n_unringed_chick_captures, 0) > 0
       THEN 'recapture chicks; assign unique engraved UL flags (some chick captures lack metal-ring IDs)'
       ELSE CONCAT(
         'recapture chicks; assign flags (',
         GREATEST(
-          COALESCE(brood_followup_nests.brood_size, 0),
-          COALESCE(chick_captures.n_captured_chick_rings, 0)
-        ) - COALESCE(chick_captures.n_flagged_chick_rings, 0),
+          0,
+          COALESCE(chick_captures.flagging_pending_count, 0)
+        ),
         ' pending)'
       )
     END AS notes,
@@ -3594,7 +6175,7 @@ todo_broods_to_recapture_for_flagging AS (
     brood_followup_nests.lat,
     brood_followup_nests.lon
   FROM brood_followup_nests
-  LEFT JOIN chick_captures
+  LEFT JOIN flagging_context chick_captures
     ON CONVERT(brood_followup_nests.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
        = CONVERT(chick_captures.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   LEFT JOIN adult_parent_status
@@ -3607,10 +6188,8 @@ todo_broods_to_recapture_for_flagging AS (
     AND (
       COALESCE(chick_captures.n_chick_captures, 0) = 0
       OR COALESCE(chick_captures.n_unringed_chick_captures, 0) > 0
-      OR GREATEST(
-           COALESCE(brood_followup_nests.brood_size, 0),
-           COALESCE(chick_captures.n_captured_chick_rings, 0)
-         ) > COALESCE(chick_captures.n_flagged_chick_rings, 0)
+      OR COALESCE(chick_captures.n_unresolved_dead_chick_events, 0) > 0
+      OR COALESCE(chick_captures.flagging_work_pending, 0) = 1
     )
   UNION ALL
   SELECT
@@ -3620,14 +6199,16 @@ todo_broods_to_recapture_for_flagging AS (
     CASE
       WHEN COALESCE(chick_captures.n_chick_captures, 0) = 0
       THEN 'no chick captures; recapture chicks and assign unique engraved UL flags'
+      WHEN COALESCE(chick_captures.n_unresolved_dead_chick_events, 0) > 0
+      THEN 'confirm unresolved chick death identities before flagging'
       WHEN COALESCE(chick_captures.n_unringed_chick_captures, 0) > 0
       THEN 'recapture chicks; assign unique engraved UL flags (some chick captures lack metal-ring IDs)'
       ELSE CONCAT(
         'recapture chicks; assign flags (',
         GREATEST(
-          COALESCE(b.brood_size, 0),
-          COALESCE(chick_captures.n_captured_chick_rings, 0)
-        ) - COALESCE(chick_captures.n_flagged_chick_rings, 0),
+          0,
+          COALESCE(chick_captures.flagging_pending_count, 0)
+        ),
         ' pending)'
       )
     END AS notes,
@@ -3644,7 +6225,7 @@ todo_broods_to_recapture_for_flagging AS (
     b.lon
   FROM brood_context b
   CROSS JOIN sr
-  LEFT JOIN chick_captures
+  LEFT JOIN flagging_context chick_captures
     ON CONVERT(b.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
        = CONVERT(chick_captures.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
   LEFT JOIN adult_parent_status
@@ -3656,10 +6237,8 @@ todo_broods_to_recapture_for_flagging AS (
     AND (
       COALESCE(chick_captures.n_chick_captures, 0) = 0
       OR COALESCE(chick_captures.n_unringed_chick_captures, 0) > 0
-      OR GREATEST(
-           COALESCE(b.brood_size, 0),
-           COALESCE(chick_captures.n_captured_chick_rings, 0)
-         ) > COALESCE(chick_captures.n_flagged_chick_rings, 0)
+      OR COALESCE(chick_captures.n_unresolved_dead_chick_events, 0) > 0
+      OR COALESCE(chick_captures.flagging_work_pending, 0) = 1
     )
 ),
 todo_hiding_spot_photos AS (
@@ -3670,7 +6249,7 @@ todo_hiding_spot_photos AS (
     CONCAT(
       COALESCE(hiding_spot_photos.n_hiding_spot_photos, 0),
       '/',
-      COALESCE(chick_captures.n_captured_chick_rings, 0),
+      COALESCE(chick_captures.n_active_chick_rings, 0),
       ' chicks with rclass ''H'' photos'
     ) AS notes,
     GREATEST(
@@ -3714,9 +6293,9 @@ todo_hiding_spot_photos AS (
         brood_followup_nests.hatch_date
       ) BETWEEN 1 AND 6
     AND (
-      COALESCE(chick_captures.n_captured_chick_rings, 0) = 0
+      COALESCE(chick_captures.n_active_chick_rings, 0) = 0
       OR COALESCE(hiding_spot_photos.n_hiding_spot_photos, 0)
-           < chick_captures.n_captured_chick_rings
+           < chick_captures.n_active_chick_rings
     )
   UNION ALL
   SELECT
@@ -3726,7 +6305,7 @@ todo_hiding_spot_photos AS (
     CONCAT(
       COALESCE(hiding_spot_photos.n_hiding_spot_photos, 0),
       '/',
-      COALESCE(chick_captures.n_captured_chick_rings, 0),
+      COALESCE(chick_captures.n_active_chick_rings, 0),
       ' chicks with rclass ''H'' photos'
     ) AS notes,
     GREATEST(0, DATEDIFF(b.reference_date, b.discovery_date) - 1) AS days_overdue,
@@ -3755,9 +6334,9 @@ todo_hiding_spot_photos AS (
     AND b.reference_date = sr.reference_date
     AND DATEDIFF(b.reference_date, b.discovery_date) BETWEEN 1 AND 6
     AND (
-      COALESCE(chick_captures.n_captured_chick_rings, 0) = 0
+      COALESCE(chick_captures.n_active_chick_rings, 0) = 0
       OR COALESCE(hiding_spot_photos.n_hiding_spot_photos, 0)
-           < chick_captures.n_captured_chick_rings
+           < chick_captures.n_active_chick_rings
     )
 ),
 todo_nota_nest_check AS (
@@ -3873,13 +6452,20 @@ WHERE NOT EXISTS (
         = CONVERT(t.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
     AND UPPER(TRIM(COALESCE(wryb_nest.species, ''))) = 'WRYB'
 )
-AND NOT EXISTS (
-  SELECT 1
-  FROM FIELD_2026_BADOatNZ.TODO_BROOD_CLOSURE_STATUS_SNAPSHOT_BUILD closure
-  WHERE CONVERT(closure.brood_id USING utf8mb4) COLLATE utf8mb4_general_ci
-        = CONVERT(t.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
-    AND closure.reference_date = t.reference_date
-    AND closure.is_presumed_dead = 1
+AND (
+  CONVERT(t.todo USING utf8mb4) COLLATE utf8mb4_general_ci
+      = 'notA nest-check'
+  OR NOT EXISTS (
+    SELECT 1
+    FROM FIELD_2026_BADOatNZ.TODO_BROOD_CLOSURE_STATUS_SNAPSHOT_BUILD closure
+    WHERE CONVERT(closure.brood_id USING utf8mb4) COLLATE utf8mb4_general_ci
+          = CONVERT(t.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
+      AND closure.reference_date = t.reference_date
+      AND (
+        closure.is_presumed_dead = 1
+        OR closure.is_resolved = 1
+      )
+  )
 );
 
 SELECT 'TODO_REFRESH_STAGE|publishing' AS refresh_stage;

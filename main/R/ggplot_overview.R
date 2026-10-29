@@ -204,7 +204,7 @@ overview_lay_date_bins <- function(x, binwidth = 4L) {
     tag_id = trimws(as.character(tag_id)),
     plot_date = as.Date(as.character(datetime))
   )]
-  x <- x[!is.na(plot_date) & nzchar(nest_id)]
+  x <- x[!is.na(plot_date) & .display_has_nest_id(nest_id)]
 
   if (!nrow(x)) {
     return(data.table())
@@ -479,8 +479,7 @@ overview_pair_tallies_current <- function(
       "    NULLIF(TRIM(c.ring), '') AS ring",
       "  FROM CAPTURES c",
       "  CROSS JOIN sr",
-      "  WHERE NULLIF(TRIM(c.nest_id), '') IS NOT NULL",
-      "    AND UPPER(TRIM(c.nest_id)) <> 'NO_NEST'",
+      paste0("  WHERE ", .display_nest_id_sql("c.nest_id")),
       "    AND UPPER(TRIM(COALESCE(c.site, ''))) = 'CR'",
       "    AND UPPER(TRIM(COALESCE(c.age, ''))) = 'A'",
       "    AND LEFT(UPPER(TRIM(c.field_sex)), 1) IN ('M', 'F')",
@@ -525,8 +524,7 @@ overview_pair_tallies_current <- function(
       "    CASE WHEN UPPER(NULLIF(TRIM(r.UL), '')) REGEXP '^T[A-Z0-9]*$' OR UPPER(NULLIF(TRIM(r.UR), '')) REGEXP '^T[A-Z0-9]*$' THEN 1 ELSE 0 END AS has_geolocator",
       "  FROM RESIGHTINGS r",
       "  CROSS JOIN sr",
-      "  WHERE NULLIF(TRIM(r.nest_id), '') IS NOT NULL",
-      "    AND UPPER(TRIM(r.nest_id)) <> 'NO_NEST'",
+      paste0("  WHERE ", .display_nest_id_sql("r.nest_id")),
       "    AND UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'",
       "    AND UPPER(TRIM(COALESCE(r.age, ''))) = 'A'",
       "    AND LEFT(UPPER(TRIM(r.sex)), 1) IN ('M', 'F')",

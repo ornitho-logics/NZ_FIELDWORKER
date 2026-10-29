@@ -3,6 +3,32 @@
 This is a tracked field-manual orientation and template record. It does not
 modify the retained reference manual or any application source.
 
+## Current authoring boundary — 26 October 2026
+
+The retained template measurements below are historical style evidence, not
+current biological or validation instructions. A4 remains the approved output
+geometry; preserve Calibri/Arial and the original handbook character. Current
+protocol versions must be read from the reviewed source, not the dated
+authoring-plan entries below.
+
+The private Markdown review is being edited directly by Luke. Do not replace
+it from a backup or regenerate its preview during that review. Queue technical
+wording separately, then reconcile against his actual edited file once the
+implementation contract and verification are final. Private working drafts
+remain excluded from a source PR unless publication is explicitly approved.
+
+Latest approved methodology includes the verified-ring exception to uncertain
+marks, same-site/date/GPS family matching, same-occasion conflicting-ID checks,
+retirement of the former no-nest sentinel, pP/P/D fate reviews until final
+notA, and the rare truthful F-zero/H sequence with the intentional validator
+rejection/comment procedure. The H reconciliation and owning specialist
+handoffs record those contracts; do not infer a live deployment from them.
+
+For GEO work, sampling both pair members is a longitudinal objective, not
+permission to handle both on one visit. Current task/timing/welfare gates and
+Luke's pause/continue directions apply to each bird. Early/late phenology is
+a sampling prediction, not a proven resident/migrant classification.
+
 ## Retained reference
 
 - Path: `/Users/luketheduke2/ownCloud/kemp_projects/bdot/admin/protocols/BADO_FIELD_MANUAL_2026.docx`

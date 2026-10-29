@@ -3,26 +3,27 @@
 Publication reconciliation: this handoff is being published from
 `origin/main` at `f7d13fb`. The `9beb203` and `d3c7bd4` values below preserve
 the Thread 3.1 recovery audit's inspection provenance; they are not the
-documentation branch's current source baseline. The publication pass updates
-`AGENTS.md` and tracks the sanitized prompt summary separately, without
-approving or deploying the protected validator WIP.
+documentation branch's current source baseline. This reconciliation does not
+update `AGENTS.md`; Thread 8 owns any later
+correction to its protocol identity or handoff wording. It also does not
+approve or deploy the protected validator WIP.
 
 ## Audit status
 
-This document records the current local validation contract after a
-documentation-only recovery and source-to-document reconciliation on
-2026-10-23. It is a tracked documentation handoff for the local
-inspector/protocol work, not evidence that live inspectors have been deployed.
+This document records the current local validation contract after the
+2026-10-26 PR-readiness reconciliation. It is a tracked documentation handoff
+for the local inspector/protocol work, not evidence that live inspectors have
+been deployed.
 
 - Repository: `2026_NZ_FIELDWORKER`
-- Protected checkout: `codex/split-todo-calculator-2026-10-19` at `d3c7bd4`
-- Local `origin/main` reference at inspection: `9beb203ac2757219def35e47bfe54bd6ac8684a2`
+- Protected checkout: `codex/recent-thread-diffs-2026-10-26` at `72889c6`
+- Local `origin/main` reference at inspection: `cd8ef26`
 - The reviewed per-table `*_hard.R` and `*_warning.R` inspector lists are
   already tracked under `validator_sandbox/inspector_lists_by_table/`.
-- The checkout already contains protected dirty WIP in four inspector exports,
-  SQL, PDF code, tests, and several handoffs. This recovery pass changes only
-  the two authorized Thread 3 documentation files; it does not approve,
-  revalidate, stage, deploy, or otherwise modify that WIP.
+- The checkout contains protected dirty WIP in inspector exports, SQL, tests,
+  handoffs, and other workstreams. This reconciliation records the validator
+  implementation artifacts and focused mock checks described below; it does
+  not approve, paste, deploy, stage, commit, or otherwise modify live state.
 - No live database was connected to.
 - No live `inspectors` row was queried or changed.
 - The earlier recovery pass did not change `AGENTS.md`; its standing
@@ -31,13 +32,15 @@ inspector/protocol work, not evidence that live inspectors have been deployed.
   identity and the age-C CAPTURES status-R/status-C documentation.
 
 The external canonical working protocol remains version **1.3.5**, generated
-2026-10-24. The tracked
-local mirror on this branch is updated to proposed version **1.3.10**, generated
-2026-10-26. Version 1.3.10 records the measurement-based age-C `capture_status = R`
-and `capture_status = C` boundary described below, while retaining the age-C
-changed-band recapture exception and the prior photo-range identity and
-same-session H-photo rules. Because the external working file is outside this
-repository and is not changed by this branch, v1.3.10 is a reviewed local
+2026-10-24. The tracked local mirror on this branch is updated to proposed
+version **1.3.19**, generated 2026-10-28. Version 1.3.19 records the
+RESIGHTINGS uncertainty-evidence, same-occasion family-conflict, same-site,
+`NO_NEST`, and mandatory explicit H-row `nest_id` corrections, plus the EGGS
+schema/timing/floatation and NESTS follow-up-state clarifications. It retains the measurement-based age-C
+`capture_status = R` and `capture_status = C` boundaries, the age-C changed-band
+recapture exception, and the photo-range and same-session H-photo rules.
+Because the external working file is outside this repository and is not changed
+by this branch, v1.3.19 is a reviewed local
 protocol/documentation artifact, not evidence that the external copy, live
 inspectors, or deployed portal have been synchronized.
 
@@ -137,7 +140,8 @@ The source-of-truth SQL is in `DATABASE/`, not older `Admin/db_structure.SQL` pa
   nest/brood links, and tent-photo metadata. It has `field_sex`, release and `_in`
   marks, `capture_status`, `capture_method`, `ring`, and CAPTURES-only fields such as
   `eggs_handled` and `observer_upload`.
-- `EGGS`: one row per egg, with float and photo metadata. Negative IDs and `NO_NEST`
+- `EGGS`: one row per egg, with float measurements and comments. The current
+  schema has no camera, photo, or harddrive columns; negative IDs and `NO_NEST`
   are invalid.
 - `NESTS`: nest visits and nest state, hatch state, clutch/brood counts, incubation
   indication, GPS linkage, and nest/tent-photo metadata.
@@ -180,9 +184,19 @@ list syntax, and supported GPS identifier format. There are no current warning r
 ### EGGS
 
 Hard checks cover required event/egg fields, positive nest syntax, date/time, float
-angle/surface/location coherence, egg identifiers and clutch limits, photo metadata,
-and photo sequence ordering. Warning checks cover likely matching NESTS visits,
-missing/unusual float data, float-development spread, and event context.
+angle/surface/location coherence, egg identifiers, and clutch limits. The current
+EGGS schema has no camera, photo, or harddrive columns, so those are not EGGS
+validator targets. Warning checks cover likely matching NESTS visits, missing or
+unusual float data, float-development spread, and event context.
+
+`EGG_003` groups submitted rows by `nest_id`, observer, and date. A repeated
+`nest_id`/observer/time key across dates is flagged as a date inconsistency, while
+valid times within one nest/observer/date group must span no more than five
+minutes. Repeated visits on different dates remain valid when they do not create
+one cross-date event key. `EGG_006` enforces the location/surface relationship:
+bottom and suspended eggs leave `float_surface` blank, while surface eggs use
+0–3; the separate hard angle check accepts whole-number `float_angle` values from
+0 through 90 for every location.
 
 The former live expectation that floating must occur on discovery day or within two
 days is mock-generation-only (`EGG_M002`), not a save blocker.
@@ -228,6 +242,11 @@ Important current semantics:
 - Negative IDs are not NESTS records.
 - `S` has clutch size 0 and allows brood size 0/blank; `notA` normally uses clutch
   size 0, with the approved same-submission D-closure exception.
+- `pP`, `P`, and `D` are review/follow-up states while the team confirms predation
+  or desertion. Multiple pP/P/D visits may be entered before the final `notA`;
+  they are not treated as an immediate irreversible terminal state. The state
+  progression still flags unusual transitions for review and allows only one
+  final `notA` closure.
 - Valid `bird_inc` codes remain valid independently of nest state.
 - Hatching-state components are parsed by component rather than assumed to occur in a
   fixed textual order.
@@ -246,7 +265,7 @@ QA when a reliable event key exists.
 ### CAPTURES
 
 Hard checks cover required fields; season/site/observer/time; capture status and
-method; positive/negative/`NO_NEST` location branches; ring/mark and `_in`/release
+method; positive/negative/blank location branches; ring/mark and `_in`/release
 coherence; age and field-sex codes; hatch evidence; prior nest history; tags,
 morphometrics, samples, moult/fat; photo metadata and range order; global photo
 uniqueness; uploader initials; comma-mark rejection; and status-specific field rules.
@@ -256,18 +275,33 @@ Location semantics are:
 - positive nest-linked capture: established nest-location branch;
 - negative brood ID: negative ID plus both direct GPS fields, with a valid
   `GPS_POINTS` pair;
-- blank or `NO_NEST`: direct GPS branch, with both GPS fields as required by the
-  current contract.
+- blank: direct GPS branch, with both GPS fields as required by the current
+  contract. `NO_NEST` is a retired sentinel and is rejected for new entries;
+  historical values are not rewritten by this validator change.
 
 There is one narrower first-capture exception: an age-C row with
 `capture_status = F` must carry a real positive nest ID or negative brood ID;
 blank `nest_id` and `NO_NEST` are rejected. For a positive nest ID, both GPS fields
 may remain blank when the chick was captured at the nest, or may be supplied
-together when it was captured away from the nest. Partial GPS pairs remain invalid.
-Negative brood rows continue to require both GPS fields.
+together when it was captured away from the nest. Age-C `capture_status = R` and
+`C` rows require both GPS fields even when a positive `nest_id` is present; a
+positive-nest adult capture whose `caught_with` entry records chicks also requires
+the complete GPS pair. Partial GPS pairs remain invalid. Negative brood rows
+continue to require both GPS fields.
 
 Negative IDs do not undergo a NESTS lookup and do not use the positive-nest/direct-GPS
 exclusivity rule.
+
+`CAP_009B` also checks same-occasion family consistency when CAPTURES is the
+current table. A family capture is an age-C row or an age-A row whose
+`caught_with` value records chicks. For the same date, site, complete
+`gps_id/gps_point` pair, current family captures and relevant saved
+CAPTURES/RESIGHTINGS companions must resolve to one positive or negative
+`nest_id`. Conflicting IDs are save-blocking even when all current rows carry
+explicit IDs; separate dates, sites, or GPS pairs remain separate encounters.
+The current row's saved `pk` is excluded when editing. If the companion lookup
+is unavailable, the check fails closed with a retry message rather than silently
+passing.
 
 Warnings cover prior ring/combo history, unusual status/method combinations, parent
 spacing, same-sex adult multiplicity, photo-flag review, nest/hatch evidence,
@@ -294,7 +328,7 @@ not establish live deployment.
 
 Version 1.3.8 and 1.3.9 separated the age-C status-R morphometric warning
 envelope from the older-chick status-C envelope and clarified its message. Version
-1.3.10 now uses the supplied seven flagged-chick measurements and the explicit
+1.3.11 now uses the supplied seven flagged-chick measurements and the explicit
 operational cutoff. Status-R review limits are tarsus 18.43–26.99, culmen
 6.47–13.79, and weight 6.73–21.99. Status-C lower review limits are tarsus
 27.70, culmen 13.80, total_head 38.80, and weight 22.80; the existing broad
@@ -305,7 +339,7 @@ review thresholds, not dynamically recomputed percentiles; the sample's
 total_head minimum is based on only three observations and should be revisited
 if more data accumulate.
 
-Version 1.3.10 retains the status-R warning explicit to fieldworkers: values above
+The preceding version 1.3.11 retained the status-R warning explicit to fieldworkers: values above
 the status-R envelope may indicate that the chick is large enough for a changed-
 band recapture with `capture_status = C` and an engraved flag in `UL`. The
 warning asks the worker to recheck status and measurements and remains
@@ -315,6 +349,57 @@ release layout, while status-C rows still require complete input/release marks,
 a genuine change, and prior input-combination history. The existing status-C
 exceptions for optional older-chick morphometrics, samples, and photo flags
 remain unchanged.
+
+Version 1.3.18 tightens the distinction between independent adult parent-nest
+confirmation and the approved blank-ID family route. Adult RESIGHTINGS rows with
+behaviour `IN`, `NM`, `SC`, `BW`, `BC`, `FC`, or `AC` must use an explicit valid
+`nest_id` or negative brood ID and must record both observed lower-leg fields
+`LL` and `LR`; explicit `X`/`XX` values in both fields are valid evidence for an
+unbanded `X-X` observation. The narrowly approved blank-ID negative-family route
+remains available only to `BC`/`FC`/`AC` when authoritative current association
+resolves the family. It is a family-link exception, not independent parent-nest
+confirmation, and does not apply to `SC`, `IN`, `NM`, or `BW`.
+
+The same version clarifies `RES_005H`: verified prior ring or complete engraved-flag
+identity may establish the historical sex group despite the newly entered observer
+sex, while an archive-only lower-band match is not definitive and cannot by itself
+override the raw RESIGHTINGS sex. The validator remains warning-level and never
+rewrites the entered observation.
+
+Version 1.3.12 expanded accepted uncertainty notation in RESIGHTINGS UL, LL, UR,
+and LR. A literal `?` may stand alone or occur before or after one known colour,
+such as `?R` or `R?`; UR also permits `T?`, while bare `T` remains invalid. These
+entries preserve the observed order and known colour but are not wildcard evidence
+or complete mark components. A row containing only uncertainty cannot become a
+definitive identity for history, parent/S10, sex-history, or available-combination
+checks. Independent complete evidence, including ring, full flag, or a complete
+canonical mark component where the existing matching method supports it, remains
+available. CAPTURES keeps
+its existing mark-layout rules but now rejects `?` in all handled and recovered
+mark fields for every capture status.
+
+Version 1.3.13 adds the corresponding parent-link boundary. Any `?` in a
+RESIGHTINGS leg-mark field excludes that row from parent-nest evidence unless a
+metal ring is reliably traceable to capture history on or before the event date.
+For that ring-identity lookup, permitted CP spellings are canonicalized by
+trimming, uppercasing, and removing the optional hyphen, so `CP12345` and
+`CP-12345` identify the same ring; malformed or placeholder strings do not
+qualify. This normalization is limited to ring identity and does not alter mark
+order or `nest_id` values.
+The ring exception establishes individual identity, not a current nest link: a
+current explicit valid `nest_id` may therefore be accepted even when the earlier
+capture has a blank `nest_id`, and an archive capture may establish identity but
+must not import its historical `nest_id` into the current family. Blank current
+`nest_id` inference uses only current-season CAPTURES history and only when one
+current nest/brood ID is uniquely resolvable. Future-only, unverified, or
+conflicting-sex ring history does not override uncertain colours. Raw `?`
+entries remain unchanged.
+
+Version 1.3.14 adds `SC` (scraping) to the independent adult parent-nest
+identity-link candidates. An adult `SC` row therefore confirms a parent-nest
+association on its own and follows the ordinary nest-link requirement, but it
+is not a parent-with-chicks behavior and does not trigger the reciprocal age-C
+co-entry rule. Only `BC`, `FC`, and `AC` retain that parent-with-chicks role.
 
 ### RESIGHTINGS
 
@@ -335,6 +420,9 @@ The H-class contract is:
   forms are treated as equivalent for this lookup;
 - `ring` identifies the photographed chick but does not replace `UL`, `LL`, `UR`, or
   `LR`;
+- every age-C H row must carry an explicit valid positive or negative `nest_id`;
+  a same-session parent, H ring, prior capture history, or other inferred
+  association cannot substitute for the entered H-row `nest_id`;
 - the approved H band layout remains enforced;
 - GPS pair, camera, photo start, and photo end are required and valid;
 - photo end cannot precede photo start, and the image range must not overlap an image
@@ -344,13 +432,26 @@ The H-class contract is:
 - a positive-nest H row must not precede that nest’s first NESTS `F`, `I`, or `H`
   event; same-day entry is allowed.
 
-An H row is normally linked with a positive or negative `nest_id`. The current
-save-time exception in `RES_005B` permits a blank `nest_id` only for an H row with
-the mandatory GPS pair and either a nonblank ring or a same-submission age-A row at
-the same GPS pair with both lower-leg fields. RES_010A and RES_010B independently
-require that a ring used for the ring branch has the CP format and exists in current
-CAPTURES. This remains intentionally narrower than a full family-association proof,
-but the separate same-session co-entry rule below still applies to an unlinked H row.
+Every age-C H row must carry an explicit valid positive or negative `nest_id`.
+The former `RES_005B` blank-ID exception for H rows has been removed: a same-session
+parent, H ring, prior capture history, or other inferred association cannot
+substitute for the entered H-row `nest_id`. `RES_010A` and `RES_010B` independently
+require that the ring has the CP format and exists in current CAPTURES. Ordinary
+age-C `R`, `P`, `V`, and `C` rows retain their approved same-session blank-ID/family
+routes; this change does not broaden those routes to H rows.
+
+The current mark-format boundary accepts `?` alone, `?R`, `R?`, and the analogous
+one-known-colour partial forms in all four RESIGHTINGS segments UL, LL, UR, and LR.
+On UR, complete tag/spacer values such as `TY` remain valid and `T?` is valid when
+the tag/spacer is known but its colour is uncertain; bare `UR = T` remains invalid.
+Full flag syntax and existing complete mark syntax are unchanged, and no partial
+engraved-code grammar is added. An uncertain segment is never treated as a
+wildcard or complete mark component; a row containing only uncertainty cannot
+become a definitive identity for parent/S10, sex-history, or available-combination
+generation. Independent complete evidence such as a ring, full flag, or complete
+canonical mark component remains available where the existing matching method
+supports it. CAPTURES rejects the same notation in UL, LL, UR and LR, including
+UL_in, LL_in, UR_in and LR_in; `RESIGHTINGS_PUBLIC` is unaffected.
 
 Warning rules cover capture-history mark comparison, capture-history sex comparison
 (`RES_005H`), social-parent mark mismatch, mixed-brood review, device defaults,
@@ -359,10 +460,14 @@ tibia review, and GPS timing. The former one-directional
 export because the reciprocal requirement is now save-blocking in `RES_005J`.
 
 `RES_005H` compares the RESIGHTINGS `sex` field to the identified bird’s capture
-history, preferring nonblank archive `gen_sex`, then archive `field_sex`, then current
-capture `field_sex`. `M`/`MU` and `F`/`FU` are equivalent. Unknown, ambiguous, or
-unavailable history is not a definite contradiction. A definite mismatch is a
-warning on `variable = "sex"`, not a save blocker.
+history. For `CAPTURES_ARCHIVE`, only a verified ring or complete engraved-flag
+match is definitive identity evidence; an archive-only lower-band or weak partial
+mark match is not allowed to establish the sex group or silently override the raw
+observation. For a definitive archive ring/flag match, prefer nonblank `gen_sex`,
+then archive `field_sex`; otherwise retain the existing current-season matching
+rules. `M`/`MU` and `F`/`FU` are equivalent. Unknown, ambiguous, or unavailable
+history is not a definite contradiction. A definite mismatch is a warning on
+`variable = "sex"`, not a save blocker, and no raw sex value is rewritten.
 
 ### RESIGHTINGS_PUBLIC
 
@@ -387,15 +492,24 @@ The minus sign is part of the value and must be retained.
 - The first event may be CAPTURES or RESIGHTINGS.
 - Each bird and each encounter is a separate row. Repeated X-X rows can represent
   distinct unbanded parents or chicks and must not be deduplicated.
-- Subsequent negative-ID events retain the same operational ID and carry their own
-  event GPS pair.
-- `NO_NEST` means no associated nest or brood; it is not a negative brood.
+- Subsequent negative-ID events ordinarily retain the same operational ID and carry
+  their own event GPS pair. The narrow S10 blank-`nest_id` exception applies only to
+  a same-date, same-site, same-complete-GPS parent/chick family when authoritative
+  `ADULT_PARENT_STATUS` supplies one unambiguous selected M and F identity for that
+  negative nest and each observed parent matches its selected identity. Missing,
+  pending, ambiguous, conflicting, or unmatched status requires the explicit
+  negative `nest_id`.
+- `NO_NEST` is a retired current-input sentinel and is rejected by CAPTURES and
+  RESIGHTINGS. New unrelated events leave `nest_id` blank and use the required
+  complete direct GPS pair; negative IDs remain the separate brood-of-unknown-
+  origin identifier.
 
 Hiding-spot photos are separate age-C, `rclass = H` RESIGHTINGS events. A chick can
 therefore have one CAPTURES row for handling/banding/tent photos and a separate H row
-for its hiding-spot photo. Negative H rows additionally require the negative ID and
-both direct GPS fields. CAPTURES `chick_hide_photo` is retained for compatibility but
-is not the normal hiding-photo record.
+for its hiding-spot photo. Every H row requires an explicit valid positive or negative
+`nest_id`; negative H rows additionally require the negative ID and both direct GPS
+fields. CAPTURES `chick_hide_photo` is retained for compatibility but is not the
+normal hiding-photo record.
 
 Photo-range identity is rollover-aware. A terminal `roll-frame` value is compared
 using the roll prefix and four-digit frame together, so `101-4122` cannot collide
@@ -413,10 +527,16 @@ Save-time checks can use current table rows, `GPS_POINTS`, current-season tables
 checks still must not assume that companion rows are in the same portal submission.
 There is one explicit approved exception: parent/chick co-entry is mandatory when
 the current RESIGHTINGS submission contains age-C rows or age-A `BC`/`FC`/`AC` rows.
-The association is tested only within the current submission, using the same date
-and either the same nonblank `nest_id` or the same complete `gps_id/gps_point` pair.
-Saved rows from earlier sessions do not satisfy this hard rule. The qualifying
-parent-with-chicks behavior set is `BC`, `FC`, and `AC` under protocol 1.3.5.
+The association is tested within the current submission, using the same date and
+either the same nonblank `nest_id` or the same complete `gps_id/gps_point` pair.
+For the reciprocal parent-side check only, an already-saved age-C CAPTURES row
+may satisfy the association when date, site, `gps_id`, and `gps_point` all match
+the parent row exactly. The genuine capture must be saved before the parent
+RESIGHTINGS submission; an unsaved capture in another portal session is not
+visible to the validator. The qualifying parent-with-chicks behavior set is
+`BC`, `FC`, and `AC` under the current local protocol mirror v1.3.19. Matching
+requires the same date and site plus either the same valid `nest_id` or the same
+complete `gps_id/gps_point` pair.
 
 Archive-aware rules distinguish:
 
@@ -440,8 +560,9 @@ post-save/task logic.
 ## Parent/chick co-entry and behavior-stage rules
 
 `RES_005J` is save-blocking and applies to every age-C RESIGHTINGS row, not only
-H-photo rows. Under verified protocol 1.3.5, a chick row may use `rclass = H`,
-`R`, `P`, or `V`, but it must be accompanied in the same portal submission by an
+H-photo rows. Under the current local protocol mirror v1.3.19, a chick row may
+use `rclass = H`, `R`, `P`, `V`, or `C`, but it must be accompanied in the same
+portal submission by an
 age-A row whose comma-separated behavior includes `BC`, `FC`, or `AC`. Conversely,
 a parent row with `BC`, `FC`, or `AC` must have at least one linked age-C row in
 that submission. The parent and chick can be linked by the same valid `nest_id` or
@@ -456,15 +577,17 @@ rule.
 
 `RES_005D` now restricts adult `IN`/`NM` rows to positive nest_ids whose latest
 state is `F`, `I`, or `H`; `H` remains valid during asynchronous hatching. It no
-longer blocks adult `BW`, `BC`, or `FC` rows merely because the nest is at a later
+longer blocks adult `BW`, `BC`, `FC`, or `AC` rows merely because the nest is at a later
 state. `RES_005K` requires positive-nest `BC`/`FC`/`AC` rows to have latest state `H`
 or `notA`, and requires `gps_id/gps_point` for age-C rows and brood-associated
 adult `BW`/`BC`/`FC`/`AC` rows when a `notA` nest still has `brood_size > 0`.
 
-The existing unlinked-H exception remains a narrow row-level exception: mandatory
-H GPS/ring/photo evidence still applies, and the row may omit `nest_id` only under
-the existing conditions. It does not remove the same-session requirement for an
-accompanying age-A `BC`/`FC`/`AC` parent.
+Every age-C H row must carry an explicit valid positive or negative `nest_id`.
+The former unlinked-H exception has been removed: mandatory H GPS/ring/photo
+evidence still applies, but a same-session parent, H ring, prior capture history,
+or other inferred association cannot replace the entered H-row `nest_id`. This
+does not change the approved blank-ID routes for ordinary age-C `R`, `P`, `V`, or
+`C` rows.
 
 Thread 2’s schema memo and Thread 4’s TODO/map planning describe a stricter internal
 derived association: prior chick-CAPTURES ring/family evidence plus same-date, exact
@@ -518,8 +641,9 @@ and must not be compiled into save-time inspectors.
 
 ## Deployment status and manual rollout
 
-The verified protocol and local implementation artifacts cover the current v1.3.5
-semantics. Live deployment is **not established**. No live `inspectors` rows were
+The verified protocol and local implementation artifacts cover the current
+reviewed v1.3.19 mirror semantics, while the external canonical file remains
+v1.3.5. Live deployment is **not established**. No live `inspectors` rows were
 inspected or changed.
 
 Manual deployment, if separately approved, should be:
@@ -560,13 +684,16 @@ The audit covered:
 
 ## Reconciliation result
 
-The official YAML and mirror are aligned byte-for-byte for verified protocol
-v1.3.5 behavior, including the v1.3.2, v1.3.3, and v1.3.4 milestones and H-ring
-rules. The tracked RESIGHTINGS exports are consistent with protocol 1.3.5,
-including `AC`; unrelated later WIP remains outside this focused update. The unresolved
-derived H-association/view discrepancy is still explicitly retained for the
-responsible schema/TODO workstream. Local artifacts do not establish live
-deployment.
+The external YAML remains the canonical version 1.3.5 artifact and was not
+modified. The tracked local mirror is a distinct proposed version 1.3.14 artifact;
+the two files are therefore not byte-for-byte identical. The mirror records the
+age-C R/C GPS requirement, adult caught-with-chicks GPS requirement, saved-CAPTURES
+parent-side reciprocal exception, conservative two-parent negative-brood family
+inference, and RESIGHTINGS `R?` tarsus handling described above. The tracked
+RESIGHTINGS and CAPTURES exports plus focused tests implement those local changes,
+but they remain review artifacts and do not establish live deployment. The
+unresolved derived H-association/view discrepancy remains with the responsible
+schema/TODO workstream.
 
 ## Documentation-recovery appendix — 2026-10-23
 
@@ -577,12 +704,14 @@ or live database state.
 
 ### Current authority and state labels
 
-The current authoritative local protocol is the external working file
+The external canonical protocol is the working file
 `bdot_dataentry_validator_protocol.yaml`, version **1.3.5**, generated
-2026-10-24. The synchronized local mirror under
-`validator_sandbox/xlsx_short_tag_update/` reports the same identity and
-version. The older v1.3.3 and v1.3.2 statements earlier in this handoff are
-historical milestones and must not be read as the current protocol header.
+2026-10-24. The tracked local mirror under
+`validator_sandbox/xlsx_short_tag_update/` is a distinct proposed version
+**1.3.12**, generated 2026-10-26; it must not be mistaken for a byte-identical
+copy or for a live deployment. The older v1.3.3 and v1.3.2 statements earlier
+in this handoff are historical milestones and must not be read as the current
+protocol header.
 
 The intended live inspector organization remains exactly two categories per
 biological table: `TABLE_hard` and `TABLE_warning`. The tracked
@@ -646,7 +775,11 @@ current dirty inspector-list edits remain pending protected WIP. No current
 claim should say that they are approved or live. This appendix does not alter
 the existing protocol version or validator semantics.
 
-## Full documentation reconciliation — 2026-10-23
+## Historical documentation reconciliation — 2026-10-23
+
+This section is retained as a historical milestone. Its protocol identity and
+byte-identity statements describe the 2026-10-23 inspection only; the current
+2026-10-26 state is recorded in the sections above and takes precedence.
 
 This section supersedes stale current-state wording above where it conflicts
 with the verified 2026-10-23 checkout state. It was prepared from the manually
@@ -664,7 +797,7 @@ Use the following authority order when rebuilding or reviewing this workstream:
    `DataEntry/*/global.R` wrappers.
 2. The official working protocol YAML at
    `/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/bdot_db/data/working/bdot_dataentry_validator_protocol.yaml`.
-3. The byte-identical local protocol mirror at
+3. The then-byte-identical local protocol mirror at
    `notes/codex_proposals/validator_sandbox/xlsx_short_tag_update/bdot_dataentry_validator_protocol_plot_aligned.yaml`.
 4. Tracked hard/warning inspector exports under
    `notes/codex_proposals/validator_sandbox/inspector_lists_by_table/`.
@@ -737,8 +870,8 @@ inventory, not a request to alter any export.
   `NEST_005`, `NEST_007`, `NEST_009`, `NEST_013`, and `NEST_014`. NESTS
   warnings include `NEST_006`, `NEST_008`, `NEST_010`, `NEST_010B`,
   `NEST_010C`, `NEST_011`, `NEST_W001`, and `NEST_W002`.
-- CAPTURES hard: `CAP_001`, `CAP_001A`, `CAP_002`, `CAP_003`, `CAP_004`,
-  `CAP_005`, `CAP_006`, `CAP_006B`, `CAP_009`, `CAP_010`, `CAP_013`,
+- CAPTURES hard: `CAP_001`, `CAP_001A`, `CAP_001B`, `CAP_002`, `CAP_003`, `CAP_004`,
+  `CAP_005`, `CAP_006`, `CAP_006B`, `CAP_009`, `CAP_009B`, `CAP_010`, `CAP_013`,
   `CAP_014`, `CAP_015`, `CAP_015B`, `CAP_016`, `CAP_016B`, `CAP_017`,
   `CAP_017B`, `CAP_018`, `CAP_019`, `CAP_020`, `CAP_021`, `CAP_021B`,
   `CAP_022`, `CAP_023`, `CAP_024`, `CAP_026`, `CAP_027`, `CAP_028`,
@@ -760,13 +893,15 @@ entries are intentionally not part of the live hard/warning inventory above.
 
 A negative `nest_id` identifies a brood of unknown origin. It is valid in
 `CAPTURES` and `RESIGHTINGS`, invalid in `NESTS` and `EGGS`, and its leading
-minus sign is meaningful. `NO_NEST` is a separate sentinel and is not a
-negative brood. Relevant negative-brood events require a complete direct
+minus sign is meaningful. `NO_NEST` is a retired current-input sentinel, not a
+negative brood; unrelated new events use blank `nest_id`. Relevant negative-brood events require a complete direct
 `gps_id`/`gps_point` pair. Age-C first captures require a real positive nest or
-negative brood rather than blank or `NO_NEST` linkage. A positive-nest chick
-captured at the nest may leave both GPS fields blank; if a direct location is
-entered, the pair must be complete. A positive-nest chick captured away from
-the nest may therefore carry a complete pair.
+negative brood rather than blank or `NO_NEST` linkage. A positive-nest age-C `F`
+chick capture at the nest may leave both GPS fields blank; if a direct location
+is entered, the pair must be complete. Age-C `R` and `C` captures require the
+complete pair even with a positive nest, as do positive-nest adult captures whose
+`caught_with` value records chicks. A positive-nest chick captured away from the
+nest may therefore carry a complete pair.
 
 `RESIGHTINGS.ring` is nullable in general but mandatory for normalized age-C
 `rclass = "H"` hiding-spot rows. It identifies the photographed chick and does
@@ -789,17 +924,23 @@ Thread 4 descriptions.
 
 ### RESIGHTINGS parent/chick and active-nest behavior rules
 
-Under verified protocol 1.3.5, `RES_005J` is save-blocking and covers ordinary
-age-C rows as well as H rows. Every age-C `rclass = H`, `R`, `P`, or `V` row in
+Under the current local protocol mirror v1.3.19, `RES_005J` is save-blocking and
+covers ordinary age-C rows as well as H rows. Every age-C `rclass = H`, `R`, `P`,
+`V`, or `C` row in
 the current portal submission must have an age-A parent row in that same
 submission whose behavior contains `BC`, `FC`, or `AC`. Every qualifying parent row
 must have at least one linked age-C row. Matching requires the same date and
-either the same nonblank `nest_id` or the same complete `gps_id/gps_point` pair.
-Rows already saved in the database do not satisfy this same-session rule.
+site and either the same nonblank valid `nest_id` or the same complete
+`gps_id/gps_point` pair.
+An already-saved age-C CAPTURES row can satisfy the parent-side reciprocal check
+only when date, site, `gps_id`, and `gps_point` match exactly; save the genuine
+capture first. An unsaved row in another portal session does not satisfy it. The
+chick-side requirement still needs a linked age-C RESIGHTINGS row in the current
+submission.
 
 `IN` and `NM` are active-nest identity/linkage behaviors. The current positive
 nest must have latest state `F`, `I`, or `H` for the relevant active-nest check;
-`H` remains valid during asynchronous hatching. `BC` and `FC` are brood-
+`H` remains valid during asynchronous hatching. `BC`, `FC`, and `AC` are brood-
 association behaviors and require latest positive-nest state `H` or `notA`.
 When a `notA` nest still has brood, the applicable age-C and adult brood-
 association rows require the complete GPS pair. `BW` means broken-wing display,
@@ -811,17 +952,44 @@ behavior equivalent to `BC` and `FC` in `RES_005J`, `RES_005K`, and the
 mock-generation guidance. The tracked exports are consistent with this protocol
 update. Live deployment remains unestablished.
 
+For a blank current `nest_id`, the narrow negative-brood family exception is
+deliberately conservative: `ADULT_PARENT_STATUS` must provide exactly one
+selected M and one selected F identity for one negative `nest_id`, with neither
+sex pending or ambiguous, and each observed unlinked parent must match its
+selected identity. One observed parent is sufficient; the absent mate is not
+fabricated. Missing authoritative status, ambiguous or conflicting status, or an
+unmatched observed identity fails closed and requires an explicit `nest_id`.
+The corresponding S10 SQL interface is
+`TODO_PARENT_CHICK_RESIGHTING_ASSOCIATIONS`, built from the selected-parent
+fields in `TODO_PARENT_STATUS_INPUT`/`ADULT_PARENT_STATUS`; it matches the
+observed parent and chick on exact date and GPS pair while preserving the raw
+rows. The row-level RESIGHTINGS validator mirrors that contract from the saved
+`ADULT_PARENT_STATUS` lookup and cannot see an unsaved cross-portal row.
+
+Within one family occasion, defined by the same date, site, `gps_id`, and
+`gps_point`, the hard RESIGHTINGS nest-link check also collects nonblank valid
+`nest_id` values from current parent/chick rows and relevant saved CAPTURES or
+RESIGHTINGS companions. More than one distinct ID—positive, negative, or a
+positive/negative mixture—is a save-blocking conflict on the current rows. This
+is an encounter-level consistency check, not a lifetime single-nest rule: a
+chick may change nest/brood association between separate encounters.
+
+Any current parent event containing `?` in UL, LL, UR, or LR is excluded from
+parent–nest association evidence unless a known metal ring can be traced to
+capture history and resolves to exactly one `nest_id`. An arbitrary nonblank or
+unverified ring is not enough. The raw uncertain mark is preserved; it is not
+rewritten into a colour or treated as a wildcard.
+
 ### Protected WIP and cross-thread boundaries
 
-The checkout was already dirty before this documentation pass. Relevant
-protected validator WIP includes `CAPTURES_hard.R`, `NESTS_hard.R`,
-`NESTS_warning.R`, and `RESIGHTINGS_hard.R`; other tracked dirty files include
-SQL, PDF code, tests, and handoffs. AC-related RESIGHTINGS logic, NESTS
-terminal-state/clutch changes, and an adult `HA` capture rule remain protected
-WIP in that checkout. The photo-overlap handling for same-session H rows is no
-longer part of that protected WIP: it was merged in PR #150, and this branch adds
-the corresponding protocol/documentation reconciliation. Live inspector state
-remains unknown.
+The checkout was already dirty before this reconciliation. Unrelated tracked
+changes remain protected, including `AGENTS.md`, SQL, Thread 2/7 handoffs, and
+other workstream files. The validator artifacts intentionally touched in this
+pass are `CAPTURES_hard.R`, `RESIGHTINGS_hard.R`, the focused RESIGHTINGS and
+CAPTURES mock tests, this handoff, and the local protocol mirror. Other inspector
+WIP, including NESTS terminal-state/clutch changes and the adult `HA` capture
+rule, remains protected and was not reworked here. No live inspector state was
+queried or changed.
 
 ### 2026-10-26 photo-range validation reconciliation
 
@@ -906,8 +1074,9 @@ Fieldworkers should see two practical categories: save-blocking errors that
 must be corrected before submission, and warnings that ask for review without
 claiming the observation is impossible. Age-C first captures need a real nest
 or negative brood link; negative broods need a complete GPS pair. Hiding-spot
-photos are one H row per photographed chick with its ring, complete GPS pair,
-and photo metadata. Ordinary resightings may leave `ring` blank.
+photos are one H row per photographed chick with its ring, explicit valid positive
+or negative `nest_id`, complete GPS pair, and photo metadata. Ordinary resightings
+may leave `ring` blank.
 
 For RESIGHTINGS, a current-session age-C row must be accompanied by a linked
 age-A parent row with `BC`, `FC`, or `AC`, and the parent row must have a linked

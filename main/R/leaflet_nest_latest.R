@@ -43,7 +43,7 @@
     x <- add_column(x, "nest_id", NA_character_)
     x[, nest_id := trimws(as.character(nest_id))]
     x[is.na(nest_id), nest_id := ""]
-    x[nzchar(nest_id) & nest_id != "NO_NEST"]
+    x[.display_has_nest_id(nest_id)]
   }
 
   normalize_coords <- function(x) {
@@ -175,6 +175,9 @@ live_nest_leaflet <- function(
   }
 
   n <- data.table(n)
+  if ("nest_id" %in% names(n)) {
+    n <- n[.display_has_nest_id(nest_id)]
+  }
 
   if (!"map_category" %in% names(n)) {
     if ("nest_state" %in% names(n)) {

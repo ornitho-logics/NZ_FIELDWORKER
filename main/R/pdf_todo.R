@@ -141,132 +141,143 @@ todo_pdf_hiding_photo_note <- function(notes, latest_counts = NULL) {
 }
 
 
-todo_pdf_normalize_chick_encounters <- function(
-  chick_encounters,
-  reference_date = NULL
-) {
-  empty_output <- data.table(
-    nest_id = character()
-  )
-  if (
-    is.null(chick_encounters)
-      || !nrow(chick_encounters)
-      || !all(c("nest_id", "date") %in% names(chick_encounters))
-  ) {
-    return(empty_output)
-  }
-
-  encounters <- data.table(chick_encounters)
-  encounters[, nest_id := trimws(as.character(nest_id))]
-  encounters[, encounter_date := suppressWarnings(as.Date(as.character(date)))]
-  encounters <- encounters[
-    !is.na(nest_id)
-      & nzchar(nest_id)
-      & !is.na(encounter_date)
-  ]
-  if (!is.null(reference_date) && !is.na(reference_date)) {
-    encounters <- encounters[encounter_date <= as.Date(reference_date)]
-  }
-  if (!nrow(encounters)) {
-    return(data.table())
-  }
-
-  if (!"ring" %in% names(encounters)) {
-    encounters[, ring := NA_character_]
-  }
-  encounters[, ring_key := toupper(trimws(as.character(ring)))]
-  encounters[
-    is.na(ring_key)
-      | !nzchar(ring_key)
-      | ring_key %chin% c("NA", "NULL", "N/A"),
-    ring_key := NA_character_
-  ]
-  if (!"source" %in% names(encounters)) {
-    encounters[, source := "encounter"]
-  }
-  encounters[, source := tolower(trimws(as.character(source)))]
-  if (!"event_id" %in% names(encounters)) {
-    encounters[, event_id := seq_len(.N)]
-  }
-
-  # A ring is the stable chick identity across captures and resightings.  A
-  # ringless event is retained only when it cannot be matched to a ringed
-  # event from the same brood on the same date.  This prevents one chick from
-  # being counted twice when a capture and a ringless resighting describe the
-  # same occasion, while preserving genuinely ringless encounters.
-  ringed_dates <- unique(
-    encounters[!is.na(ring_key), .(nest_id, encounter_date)]
-  )
-  if (nrow(ringed_dates)) {
-    ringed_date_keys <- paste(
-      ringed_dates$nest_id,
-      ringed_dates$encounter_date,
-      sep = "\u001f"
-    )
-    encounters[, nest_date_key := paste(
-      nest_id,
-      encounter_date,
-      sep = "\u001f"
-    )]
-    encounters <- encounters[
-      !is.na(ring_key)
-        | !(nest_date_key %chin% ringed_date_keys)
-    ]
-    encounters[, nest_date_key := NULL]
-  }
-
-  encounters[, event_key := fifelse(
-    !is.na(ring_key),
-    paste0("ring:", ring_key),
-    paste0(source, ":", as.character(event_id))
-  )]
-
-  encounters[]
-}
-
-
-todo_pdf_latest_chick_encounter_counts <- function(
-  chick_encounters,
+todo_pdf_latest_chick_encounter_counts_from_context <- function(
+  chick_context,
   reference_date = NULL
 ) {
   empty_output <- data.table(
     nest_id = character(),
     latest_encounter_date = as.Date(character()),
     latest_chick_count = integer(),
-    latest_chick_ring_list = character()
+    latest_chick_flagged_count = integer(),
+    latest_chick_unflagged_count = integer(),
+    latest_chick_ring_list = character(),
+    latest_chick_availability = character(),
+    latest_chick_is_usable = integer(),
+    latest_chick_is_fallback = integer(),
+    latest_chick_provenance = character(),
+    fallback_brood_size = numeric(),
+    fallback_flagged_count = numeric(),
+    fallback_pending_count = numeric(),
+    fallback_source = character()
   )
-  encounters <- todo_pdf_normalize_chick_encounters(
-    chick_encounters,
-    reference_date
+  required <- c(
+    "nest_id",
+    "latest_encounter_date",
+    "latest_encounter_count",
+    "latest_encounter_flagged_count",
+    "latest_encounter_unflagged_count",
+    "latest_encounter_availability"
   )
-  if (!nrow(encounters)) {
+  if (
+    is.null(chick_context)
+      || !nrow(chick_context)
+      || !all(required %in% names(chick_context))
+  ) {
     return(empty_output)
   }
 
-  encounters[, latest_encounter_date := max(encounter_date), by = nest_id]
-  # A same-date capture is the authoritative in-hand encounter when it is
-  # accompanied by a resighting row.  Prefer capture rows for that date so
-  # one chick is not counted twice for a single field occasion; if there is
-  # no capture on the latest date, use the latest resighting rows.
-  latest <- encounters[
-    encounter_date == latest_encounter_date,
-  ]
-  latest[, capture_on_latest_date := any(source == "capture"), by = nest_id]
-  latest <- latest[
-    !capture_on_latest_date | source == "capture"
-  ]
-  latest <- latest[
+  context <- data.table(chick_context)
+  context[, nest_id := trimws(as.character(nest_id))]
+  context <- context[!is.na(nest_id) & nzchar(nest_id)]
+  if (!nrow(context)) {
+    return(empty_output)
+  }
+  context[, latest_encounter_date := as.Date(
+    as.character(latest_encounter_date)
+  )]
+  if (length(reference_date) && !is.na(reference_date[1])) {
+    context <- context[
+      is.na(latest_encounter_date)
+        | latest_encounter_date <= as.Date(reference_date[1])
+    ]
+  }
+  if (!nrow(context)) {
+    return(empty_output)
+  }
+
+  context[, latest_chick_count := todo_pdf_as_numeric(
+    latest_encounter_count
+  )]
+  context[, latest_chick_flagged_count := todo_pdf_as_numeric(
+    latest_encounter_flagged_count
+  )]
+  context[, latest_chick_unflagged_count := todo_pdf_as_numeric(
+    latest_encounter_unflagged_count
+  )]
+  context[, latest_chick_availability := tolower(trimws(as.character(
+    latest_encounter_availability
+  )))]
+  context[, latest_chick_is_usable := as.integer(
+    !is.na(latest_chick_count)
+      & latest_chick_availability %chin% c("available", "conservative")
+  )]
+  context[, latest_chick_is_fallback := if (
+    "latest_encounter_is_fallback" %in% names(context)
+  ) {
+    todo_pdf_as_numeric(latest_encounter_is_fallback)
+  } else {
+    as.numeric(latest_chick_availability == "conservative")
+  }]
+  context[, latest_chick_ring_list := if (
+    "latest_encounter_ring_list" %in% names(context)
+  ) {
+    as.character(latest_encounter_ring_list)
+  } else {
+    NA_character_
+  }]
+  context[, latest_chick_provenance := if (
+    "latest_encounter_provenance" %in% names(context)
+  ) {
+    as.character(latest_encounter_provenance)
+  } else {
+    NA_character_
+  }]
+  context[, fallback_brood_size := if (
+    "n_operational_brood_size" %in% names(context)
+  ) {
+    todo_pdf_as_numeric(n_operational_brood_size)
+  } else {
+    NA_real_
+  }]
+  context[, fallback_flagged_count := if (
+    "n_active_flagged_chick_rings" %in% names(context)
+  ) {
+    todo_pdf_as_numeric(n_active_flagged_chick_rings)
+  } else {
+    NA_real_
+  }]
+  context[, fallback_pending_count := ifelse(
+    !is.na(fallback_brood_size) & !is.na(fallback_flagged_count),
+    pmax(0, fallback_brood_size - fallback_flagged_count),
+    NA_real_
+  )]
+  context[, fallback_source := if (
+    "operational_brood_size_source" %in% names(context)
+  ) {
+    as.character(operational_brood_size_source)
+  } else {
+    NA_character_
+  }]
+  context <- context[
     , .(
         latest_encounter_date = latest_encounter_date[1L],
-        latest_chick_count = uniqueN(event_key),
-        latest_chick_ring_list = paste(
-          sort(unique(ring_key[!is.na(ring_key)])),
-          collapse = ", "
-        )
+        latest_chick_count = latest_chick_count[1L],
+        latest_chick_flagged_count = latest_chick_flagged_count[1L],
+        latest_chick_unflagged_count = latest_chick_unflagged_count[1L],
+        latest_chick_ring_list = latest_chick_ring_list[1L],
+        latest_chick_availability = latest_chick_availability[1L],
+        latest_chick_is_usable = latest_chick_is_usable[1L],
+        latest_chick_is_fallback = latest_chick_is_fallback[1L],
+        latest_chick_provenance = latest_chick_provenance[1L],
+        fallback_brood_size = fallback_brood_size[1L],
+        fallback_flagged_count = fallback_flagged_count[1L],
+        fallback_pending_count = fallback_pending_count[1L],
+        fallback_source = fallback_source[1L]
       ),
     by = nest_id
   ]
-  latest[]
+  context[]
 }
 
 
@@ -293,8 +304,7 @@ todo_pdf_captured_chick_ring_lists <- function(chick_captures) {
     ring_key := NA_character_
   ]
   captures <- captures[
-    !is.na(nest_id)
-      & nzchar(nest_id)
+    .display_has_nest_id(nest_id)
       & !is.na(ring_key)
   ]
   if (!nrow(captures)) {
@@ -310,216 +320,6 @@ todo_pdf_captured_chick_ring_lists <- function(chick_captures) {
     ),
     by = nest_id
   ][]
-}
-
-
-todo_pdf_chick_event_context_sql <- function(reference_date = NULL) {
-  reference_date <- as.Date(reference_date)
-  reference_date_sql <- if (!is.na(reference_date)) {
-    paste0(
-      "CAST('",
-      format(reference_date, "%Y-%m-%d"),
-      "' AS DATE)"
-    )
-  } else {
-    "(SELECT value FROM settings WHERE variable = 'reference_date' LIMIT 1)"
-  }
-
-  glue::glue(
-  "
-  WITH
-  adult_nest_events AS (
-    SELECT
-      r.date AS event_date,
-      r.gps_id,
-      r.gps_point,
-      TRIM(r.nest_id) AS nest_id
-    FROM RESIGHTINGS r
-    WHERE UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'
-      AND r.age = 'A'
-      AND r.nest_id IS NOT NULL
-      AND TRIM(r.nest_id) <> ''
-      AND UPPER(TRIM(r.nest_id)) <> 'NO_NEST'
-      AND r.date <= {reference_date_sql}
-
-    UNION ALL
-
-    SELECT
-      c.date AS event_date,
-      c.gps_id,
-      c.gps_point,
-      TRIM(c.nest_id) AS nest_id
-    FROM CAPTURES c
-    WHERE UPPER(TRIM(COALESCE(c.site, ''))) = 'CR'
-      AND c.age = 'A'
-      AND c.nest_id IS NOT NULL
-      AND TRIM(c.nest_id) <> ''
-      AND UPPER(TRIM(c.nest_id)) <> 'NO_NEST'
-      AND c.date <= {reference_date_sql}
-  ),
-  same_occasion_chick_gps_candidates AS (
-    SELECT
-      chick.pk AS resighting_pk,
-      adult.nest_id AS adult_nest_id
-    FROM RESIGHTINGS chick
-    JOIN adult_nest_events adult
-      ON adult.event_date = chick.date
-     AND adult.gps_id = chick.gps_id
-     AND adult.gps_point = chick.gps_point
-    WHERE UPPER(TRIM(COALESCE(chick.site, ''))) = 'CR'
-      AND chick.age = 'C'
-      AND UPPER(TRIM(COALESCE(chick.rclass, ''))) <> 'H'
-      AND chick.date <= {reference_date_sql}
-      AND chick.gps_id IS NOT NULL
-      AND chick.gps_point IS NOT NULL
-      AND (
-        chick.nest_id IS NULL
-        OR TRIM(chick.nest_id) = ''
-        OR UPPER(TRIM(chick.nest_id)) = 'NO_NEST'
-      )
-  ),
-  same_occasion_chick_gps_summary AS (
-    SELECT
-      resighting_pk,
-      CASE
-        WHEN COUNT(DISTINCT adult_nest_id) = 1
-        THEN MIN(adult_nest_id)
-        ELSE NULL
-      END AS resolved_nest_id
-    FROM same_occasion_chick_gps_candidates
-    GROUP BY resighting_pk
-  ),
-  raw_capture_events AS (
-    SELECT
-      c.pk AS capture_pk,
-      c.date AS event_date,
-      CASE
-        WHEN UPPER(TRIM(COALESCE(c.nest_id, ''))) IN ('', 'NO_NEST')
-        THEN NULL
-        ELSE UPPER(TRIM(c.nest_id))
-      END AS recorded_nest_id,
-      NULLIF(
-        NULLIF(UPPER(TRIM(COALESCE(c.ring, ''))), ''),
-        'NA'
-      ) AS ring_key,
-      c.site,
-      c.gps_id,
-      c.gps_point,
-      c.caught,
-      c.age,
-      c.LL,
-      c.LR
-    FROM CAPTURES c
-    WHERE UPPER(TRIM(COALESCE(c.site, ''))) = 'CR'
-      AND c.age = 'C'
-      AND c.date <= {reference_date_sql}
-  ),
-  known_ring_nest_history AS (
-    SELECT
-      capture_pk,
-      event_date,
-      ring_key,
-      recorded_nest_id AS nest_id
-    FROM raw_capture_events
-    WHERE ring_key IS NOT NULL
-      AND recorded_nest_id IS NOT NULL
-  ),
-  latest_prior_ring_date AS (
-    SELECT
-      e.capture_pk,
-      MAX(h.event_date) AS latest_prior_event_date
-    FROM raw_capture_events e
-    JOIN known_ring_nest_history h
-      ON h.ring_key = e.ring_key
-     AND h.event_date <= e.event_date
-    WHERE e.ring_key IS NOT NULL
-      AND e.recorded_nest_id IS NULL
-    GROUP BY e.capture_pk
-  ),
-  latest_prior_ring_nests AS (
-    SELECT DISTINCT
-      e.capture_pk,
-      h.nest_id
-    FROM raw_capture_events e
-    JOIN latest_prior_ring_date d
-      ON d.capture_pk = e.capture_pk
-    JOIN known_ring_nest_history h
-      ON h.ring_key = e.ring_key
-     AND h.event_date = d.latest_prior_event_date
-  ),
-  resolved_prior_ring_nests AS (
-    SELECT
-      capture_pk,
-      MAX(nest_id) AS inferred_nest_id
-    FROM latest_prior_ring_nests
-    GROUP BY capture_pk
-    HAVING COUNT(*) = 1
-  ),
-  capture_events AS (
-    SELECT
-      COALESCE(e.recorded_nest_id, inferred.inferred_nest_id) AS nest_id,
-      e.event_date AS date,
-      'capture' AS source,
-      CAST(e.capture_pk AS CHAR(64)) AS event_id,
-      e.ring_key AS ring,
-      e.site,
-      e.gps_id,
-      e.gps_point,
-      e.caught,
-      e.age,
-      e.LL,
-      e.LR
-    FROM raw_capture_events e
-    LEFT JOIN resolved_prior_ring_nests inferred
-      ON inferred.capture_pk = e.capture_pk
-    WHERE COALESCE(e.recorded_nest_id, inferred.inferred_nest_id) IS NOT NULL
-  ),
-  resighting_events AS (
-    SELECT DISTINCT
-      COALESCE(
-        h_assoc.resolved_nest_id,
-        gps_assoc.resolved_nest_id,
-        NULLIF(
-          NULLIF(TRIM(r.nest_id), ''),
-          'NO_NEST'
-        )
-      ) AS nest_id,
-      r.date,
-      'resighting' AS source,
-      CAST(r.pk AS CHAR(64)) AS event_id,
-      NULLIF(
-        NULLIF(UPPER(TRIM(COALESCE(r.ring, ''))), ''),
-        'NA'
-      ) AS ring,
-      r.site,
-      r.gps_id,
-      r.gps_point,
-      CAST(NULL AS CHAR(32)) AS caught,
-      r.age,
-      r.LL,
-      r.LR
-    FROM RESIGHTINGS r
-    LEFT JOIN RESIGHTINGS_H_BROOD_ASSOCIATIONS h_assoc
-      ON r.pk = h_assoc.resighting_pk
-    LEFT JOIN same_occasion_chick_gps_summary gps_assoc
-      ON r.pk = gps_assoc.resighting_pk
-    WHERE UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'
-      AND r.age = 'C'
-      AND r.date <= {reference_date_sql}
-      AND (
-        (
-          r.nest_id IS NOT NULL
-          AND TRIM(r.nest_id) <> ''
-          AND UPPER(TRIM(r.nest_id)) <> 'NO_NEST'
-        )
-        OR h_assoc.resolved_nest_id IS NOT NULL
-        OR gps_assoc.resolved_nest_id IS NOT NULL
-      )
-  )
-  SELECT * FROM capture_events
-  UNION ALL
-  SELECT * FROM resighting_events
-  ")
 }
 
 
@@ -754,9 +554,48 @@ todo_pdf_prepare_nest_summary <- function(
   chick_captures = NULL,
   hatch_prediction = NULL,
   parent_status = NULL,
-  chick_context = NULL
+  chick_context = NULL,
+  broods_authoritative = FALSE,
+  closure_status = NULL
 ) {
   nests <- data.table(nests_latest)
+  closed_positive_ids <- character()
+  if (
+    isTRUE(broods_authoritative)
+      && !is.null(closure_status)
+      && nrow(closure_status)
+      && all(c(
+        "brood_id",
+        "reference_date",
+        "is_presumed_dead",
+        "is_resolved"
+      ) %in% names(closure_status))
+  ) {
+    closure_dt <- data.table(closure_status)
+    closure_dt[, brood_id := trimws(as.character(brood_id))]
+    summary_reference_date <- if (
+      length(reference_date) && !is.na(reference_date[1])
+    ) {
+      as.Date(reference_date[1])
+    } else {
+      as.Date(NA)
+    }
+    if (!is.na(summary_reference_date)) {
+      closure_dt <- closure_dt[
+        as.Date(closure_dt$reference_date) == summary_reference_date
+      ]
+    }
+    closed_positive_ids <- unique(closure_dt[
+      !is.na(brood_id)
+        & nzchar(brood_id)
+        & !grepl("^-", brood_id)
+        & (
+          todo_pdf_as_numeric(is_presumed_dead) == 1
+            | todo_pdf_as_numeric(is_resolved) == 1
+        ),
+      brood_id
+    ])
+  }
   if ("species" %in% names(nests)) {
     nests <- nests[
       is.na(species) |
@@ -765,17 +604,20 @@ todo_pdf_prepare_nest_summary <- function(
   }
   todo_dt <- data.table(todo)
 
-  # BROODS_LATEST is the authoritative source for negative broods. Local
-  # snapshot renders may only provide positive NESTS_LATEST rows, however;
-  # retain negative IDs visible in the task/chick inputs so the parent summary
-  # cannot silently omit mobile broods while the derived brood view is absent.
+  # Published task rows may restore a missing brood, but historical captures
+  # must not re-add broods excluded by TODO_BROODS_FOR_PDF. Local snapshots
+  # without that authoritative source retain the capture-based fallback.
   negative_ids <- character()
   if (nrow(todo_dt) && "nest_id" %in% names(todo_dt)) {
     task_ids <- trimws(as.character(todo_dt$nest_id))
     negative_ids <- c(negative_ids, task_ids[grepl("^-", task_ids)])
   }
   chick_dt <- data.table(chick_captures)
-  if (nrow(chick_dt) && "nest_id" %in% names(chick_dt)) {
+  if (
+    !isTRUE(broods_authoritative)
+      && nrow(chick_dt)
+      && "nest_id" %in% names(chick_dt)
+  ) {
     chick_ids <- trimws(as.character(chick_dt$nest_id))
     negative_ids <- c(negative_ids, chick_ids[grepl("^-", chick_ids)])
   }
@@ -804,6 +646,11 @@ todo_pdf_prepare_nest_summary <- function(
         fill = TRUE
       )
     }
+  }
+  if (length(closed_positive_ids) && "nest_id" %in% names(nests)) {
+    nests <- nests[
+      !trimws(as.character(nest_id)) %chin% closed_positive_ids
+    ]
   }
   required_columns <- c(
     "nest_id",
@@ -852,6 +699,11 @@ todo_pdf_prepare_nest_summary <- function(
         task_fallback = TRUE
       )
     ]
+    if (length(closed_positive_ids)) {
+      not_a_fallback <- not_a_fallback[
+        !nest_id %chin% closed_positive_ids
+      ]
+    }
     not_a_fallback <- not_a_fallback[!duplicated(nest_id)]
   }
 
@@ -960,7 +812,7 @@ todo_pdf_prepare_nest_summary <- function(
   }
 
   summary <- nests[
-    !is.na(nest_id) & nzchar(trimws(as.character(nest_id))),
+    .display_has_nest_id(nest_id),
     .(
       Nest = trimws(as.character(nest_id)),
       `Est. Hatch` = fifelse(
@@ -1246,7 +1098,6 @@ todo_pdf_parent_resighting_rule_note <- function(
     female_association_pending,
     length.out = length(notes)
   )
-
   unname(vapply(
     seq_along(notes),
     function(i) {
@@ -1271,32 +1122,42 @@ todo_pdf_parent_resighting_rule_note <- function(
       seen_note <- character()
       male_count <- male_identity_counts[[i]]
       female_count <- female_identity_counts[[i]]
-      if (!is.na(male_count) && male_count > 0) {
+      # SQL is authoritative for resolution. Count > 0 with pending = 0 is
+      # not enough: a selected identity must survive the evidence hierarchy.
+      male_resolved <- grepl(
+        "(^|;[[:space:]]*)m resolved($|;)",
+        note,
+        perl = TRUE
+      )
+      female_resolved <- grepl(
+        "(^|;[[:space:]]*)f resolved($|;)",
+        note,
+        perl = TRUE
+      )
+      if (male_resolved) {
+        seen_note <- c(
+          seen_note, "M resolved"
+        )
+      } else if (!is.na(male_count) && male_count > 0) {
         seen_note <- c(
           seen_note,
-          if (!is.na(male_association_pending[[i]])
-              && male_association_pending[[i]] == 0) {
-            "M resolved"
-          } else {
-            paste(
-              as.integer(male_count),
-              if (male_count == 1) "male seen" else "males seen"
-            )
-          }
+          paste(
+            as.integer(male_count),
+            if (male_count == 1) "male seen" else "males seen"
+          )
         )
       }
-      if (!is.na(female_count) && female_count > 0) {
+      if (female_resolved) {
+        seen_note <- c(
+          seen_note, "F resolved"
+        )
+      } else if (!is.na(female_count) && female_count > 0) {
         seen_note <- c(
           seen_note,
-          if (!is.na(female_association_pending[[i]])
-              && female_association_pending[[i]] == 0) {
-            "F resolved"
-          } else {
-            paste(
-              as.integer(female_count),
-              if (female_count == 1) "female seen" else "females seen"
-            )
-          }
+          paste(
+            as.integer(female_count),
+            if (female_count == 1) "female seen" else "females seen"
+          )
         )
       }
 
@@ -1362,7 +1223,9 @@ todo_pdf_prepare <- function(
   hatch_prediction = NULL,
   parent_status = NULL,
   chick_encounters = NULL,
-  chick_context = NULL
+  chick_context = NULL,
+  broods_authoritative = FALSE,
+  closure_status = NULL
 ) {
   if (is.null(todo)) {
     todo <- todo_pdf_query_tasks()
@@ -1370,6 +1233,7 @@ todo_pdf_prepare <- function(
 
   todo_dt <- data.table(todo)
   refdate <- as.Date(todo_dt$reference_date[1])
+  todo_dt <- todo_dt[.display_has_nest_id(nest_id)]
 
   if ("priority" %in% names(todo_dt)) {
     todo_dt[, let(priority = todo_pdf_as_numeric(priority))]
@@ -1585,7 +1449,12 @@ todo_pdf_prepare <- function(
   )
   todo_dt[unknown_h_brood, pdf_brood_size := "?"]
 
-  if (!is.null(chick_captures)) {
+  # The live PDF path always supplies chick_context, including an empty table
+  # when the canonical context query fails. Do not let that path reconstruct a
+  # brood size from raw historical captures, which can include dead chicks or
+  # otherwise disagree with the SQL operational-brood contract. Keep this
+  # fallback only for older local preview callers that omit chick_context.
+  if (is.null(chick_context) && !is.null(chick_captures)) {
     chick_dt <- data.table(chick_captures)
     if (all(c("nest_id", "age") %in% names(chick_dt))) {
       chick_dt <- chick_dt[
@@ -1642,39 +1511,57 @@ todo_pdf_prepare <- function(
     }
   }
 
-  # Brood-work tables should describe the latest linked chick encounter, not
-  # the original hatch/brood estimate.  This can reduce a three-chick brood
-  # to one when the latest adult-linked encounter records only one chick.
-  # Keep this PDF-only: SQL task eligibility and biological source fields stay
-  # unchanged for other application consumers.
-  latest_chick_counts <- todo_pdf_latest_chick_encounter_counts(
-    chick_encounters,
+  # Brood-work tables must consume the canonical SQL context. The PDF is a
+  # presentation layer and must not reconstruct latest encounters from raw
+  # capture/resighting rows or from a caller-supplied legacy data frame.
+  latest_chick_counts <- todo_pdf_latest_chick_encounter_counts_from_context(
+    chick_context,
     refdate
   )
   captured_ring_lists <- todo_pdf_captured_chick_ring_lists(chick_captures)
   if (nrow(latest_chick_counts)) {
     for (i in seq_len(nrow(latest_chick_counts))) {
       brood_id <- latest_chick_counts$nest_id[[i]]
-      latest_count <- latest_chick_counts$latest_chick_count[[i]]
-      if (is.na(latest_count)) {
+      latest_is_usable <- isTRUE(
+        latest_chick_counts$latest_chick_is_usable[[i]] == 1
+      )
+      display_count <- if (latest_is_usable) {
+        latest_chick_counts$latest_chick_count[[i]]
+      } else {
+        latest_chick_counts$fallback_brood_size[[i]]
+      }
+      if (is.na(display_count)) {
         next
       }
       todo_dt[
         nest_id == brood_id,
-        pdf_brood_size := as.character(latest_count)
+        pdf_brood_size := as.character(display_count)
       ]
       todo_dt[
         todo == "Broods to recapture for flagging"
           & nest_id == brood_id,
         notes := {
-          ring_list <- captured_ring_lists[
-            nest_id == brood_id,
-            captured_chick_ring_list
-          ]
-          if (length(ring_list) && nzchar(ring_list[[1L]])) {
-            paste0(latest_count, " seen from: ", ring_list[[1L]])
+          if (!latest_is_usable) {
+            fallback_note <- paste0(
+              "latest encounter: not available; operational brood: ",
+              display_count
+            )
+            current_note <- trimws(as.character(notes))
+            if (is.na(current_note) || !nzchar(current_note)) {
+              fallback_note
+            } else {
+              paste0(current_note, "; ", fallback_note)
+            }
           } else {
-            paste0(latest_count, " seen; no metal-ring IDs available")
+            ring_list <- captured_ring_lists[
+              nest_id == brood_id,
+              captured_chick_ring_list
+            ]
+            if (length(ring_list) && nzchar(ring_list[[1L]])) {
+              paste0(display_count, " seen from: ", ring_list[[1L]])
+            } else {
+              paste0(display_count, " seen; no metal-ring IDs available")
+            }
           }
         }
       ]
@@ -1684,12 +1571,17 @@ todo_pdf_prepare <- function(
   hiding_photo_rows <- todo_dt$todo == "Hiding spot photos needed"
   if (any(hiding_photo_rows)) {
     latest_for_hiding <- if (nrow(latest_chick_counts)) {
-      latest_chick_counts$latest_chick_count[
+      matched_context <- latest_chick_counts[
         match(
           todo_dt$nest_id[hiding_photo_rows],
           latest_chick_counts$nest_id
         )
       ]
+      ifelse(
+        matched_context$latest_chick_is_usable == 1,
+        matched_context$latest_chick_count,
+        NA_real_
+      )
     } else {
       rep(NA_integer_, sum(hiding_photo_rows))
     }
@@ -1716,7 +1608,7 @@ todo_pdf_prepare <- function(
   ]
   parent_capture_notes <- as.character(todo_dt$notes)
   parent_capture_notes[todo_dt$todo == "Parent capture"] <- gsub(
-    "resight/band ([MF])(?! \\(status \\?\\))",
+    "resight/band ([MF])(?=\\s*(?:;|$))",
     "resight/band \\1 (status ?)",
     parent_capture_notes[todo_dt$todo == "Parent capture"],
     perl = TRUE
@@ -1815,7 +1707,9 @@ todo_pdf_prepare <- function(
       chick_captures,
       hatch_prediction,
       parent_status,
-      chick_context
+      chick_context,
+      broods_authoritative = broods_authoritative,
+      closure_status = closure_status
     )
   )
 }
@@ -1865,7 +1759,7 @@ todo_pdf_heading <- function(todo_name) {
     ),
     "Parent resighting" = list(
       title = "Parents to resight for nest association",
-      subtitle = "Association resolves after 3 nest-linked resightings or 1 confirming behaviour (IN, NM, BW, BC, FC, AC). MM, n = MM capture plus n non-confirming resightings."
+      subtitle = "Association resolves after 3 nest-linked resightings or 1 confirming behaviour (IN, NM, SC, BW, BC, FC, AC). MM, n = MM capture plus n non-confirming resightings."
     ),
     "Untrapped brood" = list(
       title = "Broods to band",
@@ -2635,7 +2529,7 @@ todo_pdf_body <- function(
       out <- c(
         out,
         "```{=typst}",
-        "#v(0.9em)",
+        "#v(0.15em)",
         "```",
         "```{=typst}",
         "#block(breakable: false)[",
@@ -2649,7 +2543,7 @@ todo_pdf_body <- function(
         "]",
         "```",
         "```{=typst}",
-        "#v(0.9em)",
+        "#v(0.15em)",
         "```",
         ""
       )
@@ -2657,7 +2551,7 @@ todo_pdf_body <- function(
       out <- c(
         out,
         "```{=typst}",
-        "#v(0.9em)",
+        "#v(0.15em)",
         "```",
         "## Team marks",
         "",
@@ -2668,7 +2562,7 @@ todo_pdf_body <- function(
           column_widths = c(12, rep(8, ncol(team_marks) - 1L))
         ),
         "```{=typst}",
-        "#v(0.9em)",
+        "#v(0.15em)",
         "```",
         ""
       )
@@ -2845,9 +2739,11 @@ todo_pdf_save <- function(
     todo <- todo_pdf_query_tasks()
   }
 
+  broods_authoritative <- FALSE
+  closure_status <- NULL
   if (is.null(broods_latest)) {
     if (is.null(nests_latest)) {
-      # TODO_BROODS_FOR_PDF applies the published presumed-dead brood status
+      # TODO_BROODS_FOR_PDF applies the published dead/resolved brood status
       # to the map and summary source while leaving BROODS_LATEST unchanged
       # for other application consumers.
       broods_latest <- DBq(
@@ -2862,6 +2758,55 @@ todo_pdf_save <- function(
           ),
           call. = FALSE
         )
+      }
+      broods_authoritative <- TRUE
+      closure_status <- DBq(
+        paste(
+          "SELECT brood_id, reference_date, is_presumed_dead, is_resolved",
+          "FROM TODO_BROOD_CLOSURE_STATUS"
+        ),
+        derived_merge_off = TRUE
+      )
+      if ("error" %in% names(closure_status)) {
+        stop(
+          paste(
+            "TODO_BROOD_CLOSURE_STATUS could not be loaded for the to-do PDF.",
+            "The authoritative brood closure status is unavailable."
+          ),
+          call. = FALSE
+        )
+      }
+      required_closure_columns <- c(
+        "brood_id",
+        "reference_date",
+        "is_presumed_dead",
+        "is_resolved"
+      )
+      if (!all(required_closure_columns %in% names(closure_status))) {
+        stop(
+          paste(
+            "TODO_BROOD_CLOSURE_STATUS is missing required provenance fields:",
+            paste(
+              setdiff(required_closure_columns, names(closure_status)),
+              collapse = ", "
+            )
+          ),
+          call. = FALSE
+        )
+      }
+      if (nrow(closure_status)) {
+        closure_reference_dates <- suppressWarnings(
+          as.Date(closure_status$reference_date)
+        )
+        if (any(is.na(closure_reference_dates))) {
+          stop(
+            paste(
+              "TODO_BROOD_CLOSURE_STATUS contains an invalid reference_date.",
+              "The authoritative brood closure status is unavailable."
+            ),
+            call. = FALSE
+          )
+        }
       }
     } else {
       # Keep the legacy argument working for older local preview scripts.
@@ -2891,35 +2836,36 @@ todo_pdf_save <- function(
   } else {
     get_reference_date()
   }
-  if (is.null(chick_captures) || is.null(chick_encounters)) {
-    chick_event_context <- DBq(
-      todo_pdf_chick_event_context_sql(pdf_reference_date),
+  if (is.null(chick_captures)) {
+    capture_date_filter <- if (!is.na(pdf_reference_date)) {
+      paste0(
+        "AND event_date <= CAST('",
+        format(pdf_reference_date, "%Y-%m-%d"),
+        "' AS DATE)"
+      )
+    } else {
+      ""
+    }
+    chick_captures <- DBq(
+      paste(
+        "SELECT events.nest_id, events.ring_key AS ring, events.age, events.site,",
+        "events.event_date AS date, captures.LL, captures.LR",
+        "FROM TODO_CHICK_CAPTURE_EVENTS_INPUT AS events",
+        "LEFT JOIN CAPTURES AS captures ON captures.pk = events.capture_pk",
+        "WHERE events.age = 'C'",
+        "AND events.nest_id IS NOT NULL",
+        capture_date_filter
+      ),
       derived_merge_off = TRUE
     )
-    if ("error" %in% names(chick_event_context)) {
+    if ("error" %in% names(chick_captures)) {
       stop(
         paste0(
-          "Could not load linked chick encounters for the to-do PDF: ",
-          as.character(chick_event_context$error[[1L]])
+          "Could not load canonical chick capture events for the to-do PDF: ",
+          as.character(chick_captures$error[[1L]])
         ),
         call. = FALSE
       )
-    }
-    chick_event_context <- data.table(chick_event_context)
-    if (is.null(chick_captures)) {
-      chick_captures <- chick_event_context[source == "capture"]
-    }
-    if (is.null(chick_encounters)) {
-      chick_encounters <- chick_event_context[, .(
-        nest_id,
-        date,
-        source,
-        event_id,
-        ring,
-        site,
-        gps_id,
-        gps_point
-      )]
     }
   }
   if (is.null(hatch_prediction)) {
@@ -2938,13 +2884,32 @@ todo_pdf_save <- function(
   }
   chick_context <- DBq(
     "
-    SELECT nest_id, n_flagged_chick_rings
+    SELECT
+      nest_id,
+      n_flagged_chick_rings,
+      n_operational_brood_size,
+      n_active_flagged_chick_rings,
+      operational_brood_size_source,
+      latest_encounter_date,
+      latest_encounter_count,
+      latest_encounter_flagged_count,
+      latest_encounter_unflagged_count,
+      latest_encounter_unresolved_count,
+      latest_encounter_known_dead_count,
+      latest_encounter_is_conservative,
+      latest_encounter_is_fallback,
+      latest_encounter_availability,
+      latest_encounter_ring_list,
+      latest_encounter_source,
+      latest_encounter_provenance
     FROM TODO_CHICK_CAPTURE_CONTEXT_INPUT
     ",
     derived_merge_off = TRUE
   )
   if ("error" %in% names(chick_context)) {
-    chick_context <- NULL
+    # Keep the canonical path explicit: a failed context query must not fall
+    # back to a second, independently resolved encounter graph in the PDF.
+    chick_context <- data.table()
   }
   pdf <- todo_pdf_prepare(
     todo,
@@ -2954,7 +2919,9 @@ todo_pdf_save <- function(
     hatch_prediction,
     parent_status,
     chick_encounters,
-    chick_context
+    chick_context,
+    broods_authoritative = broods_authoritative,
+    closure_status = closure_status
   )
 
   todo_pdf_map_save(

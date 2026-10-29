@@ -135,6 +135,10 @@ list({
             raw <- trimws(as.character(v))
             is.na(v) | !nzchar(raw) | toupper(raw) %in% c("NA", "X", "XX")
         }
+        is_uncertain <- function(v) {
+            raw <- trimws(as.character(v))
+            !is.na(v) & grepl("?", raw, fixed = TRUE)
+        }
         rclass_key <- toupper(trimws(as.character(z$rclass)))
         ul_key <- toupper(trimws(as.character(z$UL)))
         ll_key <- toupper(trimws(as.character(z$LL)))
@@ -144,10 +148,10 @@ list({
         h_idx <- !is.na(rclass_key) & rclass_key == "H"
         out <- data.table::rbindlist(
             list(
-                z[h_idx & ur_key == "M" & !blankish(UL), .(rowid, variable = "UL", reason = "For an H-class chick, UR = M means UL must be blank.")],
-                z[h_idx & blankish(UR) & (is.na(ul_key) | ul_key != "M"), .(rowid, variable = "UL", reason = "For an H-class chick, if UR is blank, UL must contain the single metal band M.")],
-                z[h_idx & ll_key %in% single_colour & !blankish(LR), .(rowid, variable = "LR", reason = "For an H-class chick, a single colour band in LL means LR must be blank.")],
-                z[h_idx & blankish(LL) & !(lr_key %in% single_colour), .(rowid, variable = "LR", reason = "For an H-class chick, if LL is blank, LR must contain one colour band: B, G, R, O, W, L, or Y.")]
+                z[h_idx & ur_key == "M" & !blankish(UL) & !is_uncertain(UL), .(rowid, variable = "UL", reason = "For an H-class chick, UR = M means UL must be blank.")],
+                z[h_idx & blankish(UR) & !is_uncertain(UR) & !is_uncertain(UL) & (is.na(ul_key) | ul_key != "M"), .(rowid, variable = "UL", reason = "For an H-class chick, if UR is blank, UL must contain the single metal band M.")],
+                z[h_idx & ll_key %in% single_colour & !blankish(LR) & !is_uncertain(LR), .(rowid, variable = "LR", reason = "For an H-class chick, a single colour band in LL means LR must be blank.")],
+                z[h_idx & blankish(LL) & !is_uncertain(LL) & !is_uncertain(LR) & !(lr_key %in% single_colour), .(rowid, variable = "LR", reason = "For an H-class chick, if LL is blank, LR must contain one colour band: B, G, R, O, W, L, or Y.")]
             ),
             use.names = TRUE,
             fill = TRUE
@@ -255,23 +259,37 @@ list({
             raw <- trimws(as.character(v))
             !is.na(raw) & nzchar(raw) & raw != "NA" & toupper(raw) != "NO_NEST" & !grepl("^-", raw)
         }
-        nests_dt <- data.table::as.data.table(db_get("SELECT nest_id, date, nest_state FROM NESTS"))
+        nests_dt <- data.table::as.data.table(db_get("SELECT nest_id, date, time_visit, nest_state, pk FROM NESTS"))
         if (nrow(nests_dt) > 0) {
             nests_dt <- data.table::copy(nests_dt)
-            nests_dt[, `:=`(event_date_nest, suppressWarnings(as.Date(date)))]
+            if (!"time_visit" %in% names(nests_dt)) {
+                nests_dt[, time_visit := NA_character_]
+            }
+            if (!"pk" %in% names(nests_dt)) {
+                nests_dt[, pk := NA_real_]
+            }
+            nests_dt[, `:=`(
+                event_date_nest = suppressWarnings(as.Date(date)),
+                nest_key = trimws(as.character(nest_id)),
+                state_key = toupper(trimws(as.character(nest_state))),
+                time_visit_key = trimws(as.character(time_visit)),
+                pk_key = suppressWarnings(as.numeric(as.character(pk)))
+            )]
+            nests_dt[is.na(time_visit_key) | !nzchar(time_visit_key) | toupper(time_visit_key) == "NA", time_visit_key := "99:99:99"]
+            nests_dt[is.na(pk_key), pk_key := -Inf]
             nests_dt <- nests_dt[
-                nest_state %in% c("F", "I", "H") &
                 !is.na(event_date_nest) &
-                !is.na(nest_id) &
-                nzchar(trimws(as.character(nest_id))),
-                .(nest_id = trimws(as.character(nest_id)), event_date_nest)
+                is_positive_nest(nest_key),
+                .(nest_id = nest_key, event_date_nest, state_key, time_visit_key, pk_key)
             ]
             if (nrow(nests_dt) > 0) {
-                data.table::setorder(nests_dt, nest_id, event_date_nest)
-                nests_dt <- nests_dt[, .SD[1], by = nest_id]
+                data.table::setorder(nests_dt, nest_id, event_date_nest, time_visit_key, pk_key)
             }
         } else {
-            nests_dt <- data.table::data.table(nest_id = character(), event_date_nest = as.Date(character()))
+            nests_dt <- data.table::data.table(
+                nest_id = character(), event_date_nest = as.Date(character()),
+                state_key = character(), time_visit_key = character(), pk_key = numeric()
+            )
         }
         z[, `:=`(event_date, suppressWarnings(as.Date(date)))]
         out <- data.table::rbindlist(lapply(seq_len(nrow(z)), function(i) {
@@ -281,20 +299,35 @@ list({
             if (!is_positive_nest(nest_key) || is.na(event_date_val)) {
                 return(empty)
             }
-            first_f <- nests_dt[nest_id == nest_key]
-            if (nrow(first_f) == 0) {
-                return(data.table::data.table(
-                    rowid = row$rowid,
-                    variable = "nest_id",
-                    reason = "Positive nest-linked RESIGHTINGS events require a same-day-or-earlier NESTS F, I, or H event for this nest_id."
-                ))
+            history <- nests_dt[
+                nest_id == nest_key &
+                    !is.na(event_date_nest) &
+                    event_date_nest <= event_date_val
+            ]
+            history <- history[order(event_date_nest, time_visit_key, pk_key)]
+            age_key <- toupper(trimws(as.character(row$age[[1]])))
+            behav_raw <- toupper(trimws(as.character(row$behav[[1]])))
+            behav_tokens <- if (is.na(behav_raw) || !nzchar(behav_raw) || behav_raw == "NA") {
+                character()
+            } else {
+                trimws(unlist(strsplit(behav_raw, ",", fixed = TRUE)))
             }
-            first_date <- first_f$event_date_nest[[1]]
-            if (event_date_val < first_date) {
+            scrape_exception <- nrow(history) > 0L &&
+                identical(age_key, "A") &&
+                identical(history$state_key[[nrow(history)]], "S") &&
+                !any(behav_tokens %in% c("IN", "NM", "BW", "BC", "FC", "AC"))
+            if (isTRUE(scrape_exception)) {
+                return(empty)
+            }
+            first_f <- history[state_key %in% c("F", "I", "H")]
+            if (nrow(first_f) == 0L || event_date_val < first_f$event_date_nest[[1]]) {
                 return(data.table::data.table(
                     rowid = row$rowid,
                     variable = "nest_id",
-                    reason = "Positive nest-linked RESIGHTINGS events require a same-day-or-earlier NESTS F, I, or H event for this nest_id."
+                    reason = paste(
+                        "Positive nest-linked RESIGHTINGS events require a same-day-or-earlier NESTS F, I, or H event.",
+                        "Adult scraping (SC) or nonconfirming observations may instead use a same-day-or-earlier S scrape while S is still the latest nest state; IN/NM, BW, and BC/FC/AC follow their separate nest-stage rules."
+                    )
                 ))
             }
             empty
@@ -655,8 +688,11 @@ list({
             !is.na(v) & toupper(trimws(as.character(v))) == "NO_NEST"
         }
         nest_ok <- mapply(function(site, species, nest_id) {
-            if (is.na(nest_id) || !nzchar(nest_id) || is_no_nest(nest_id)) {
+            if (is.na(nest_id) || !nzchar(nest_id)) {
                 return(TRUE)
+            }
+            if (is_no_nest(nest_id)) {
+                return(FALSE)
             }
             if (!is.na(site) && site == "CR") {
                 return(grepl("^-?[ABC][0-9]{4}$", nest_id))
@@ -670,7 +706,19 @@ list({
         if (length(bad_idx) == 0) {
             empty
         } else {
-            data.table::data.table(rowid = z$rowid[bad_idx], variable = "nest_id", reason = ifelse(z$site[bad_idx] == "CR", "Cass River nest_id must use plot + gps_id + sequence, e.g. B0112 or -B0203.", "Non-CR nest_id values must use the species prefix plus four digits, e.g. BA0804 or -BA0804."))
+            data.table::data.table(
+                rowid = z$rowid[bad_idx],
+                variable = "nest_id",
+                reason = ifelse(
+                    is_no_nest(raw_nest[bad_idx]),
+                    "NO_NEST is no longer accepted. Leave nest_id blank for an unrelated resighting and enter both gps_id and gps_point, or enter the appropriate positive or negative nest_id.",
+                    ifelse(
+                        z$site[bad_idx] == "CR",
+                        "Cass River nest_id must use plot + gps_id + sequence, e.g. B0112 or -B0203.",
+                        "Non-CR nest_id values must use the species prefix plus four digits, e.g. BA0804 or -BA0804."
+                    )
+                )
+            )
         }
     }, nam = "RES_004C nest id")
     out <- data.table::as.data.table(out)
@@ -736,6 +784,9 @@ list({
                 if (is.na(one) || !nzchar(one)) {
                     return(NA_character_)
                 }
+                if (grepl("?", one, fixed = TRUE)) {
+                    return(NA_character_)
+                }
                 sides <- strsplit(one, "-", fixed = TRUE)[[1]]
                 if (length(sides) != 2) {
                     return(one)
@@ -767,6 +818,9 @@ list({
             ll1 <- clean_segment(ll)
             ur1 <- clean_segment(normalize_tag_ur(ur))
             lr1 <- clean_segment(lr)
+            if (any(grepl("?", c(ul1, ll1, ur1, lr1), fixed = TRUE), na.rm = TRUE)) {
+                return(NA_character_)
+            }
             left <- c()
             right <- c()
             if (!is.na(ul1) && !ul1 %in% c("X", "M")) {
@@ -786,6 +840,41 @@ list({
                 "-",
                 if (length(right)) paste(right, collapse = ".") else "X"
             )
+        }
+        sex_key <- function(v) {
+            raw <- toupper(trimws(as.character(v)))
+            raw[is.na(v) | !nzchar(raw) | raw == "NA"] <- NA_character_
+            out <- substr(raw, 1, 1)
+            out[!out %in% c("M", "F")] <- NA_character_
+            out
+        }
+        normalize_chr <- function(v) {
+            raw <- trimws(as.character(v))
+            raw[is.na(v) | !nzchar(raw) | toupper(raw) == "NA"] <- NA_character_
+            raw
+        }
+        normalize_ring_key <- function(v) {
+            raw <- toupper(trimws(as.character(v)))
+            raw[is.na(v) | !nzchar(raw) | raw %in% c("NA", "N/A", "NULL")] <- NA_character_
+            raw <- sub("^CP-?", "CP", raw)
+            raw[!is.na(raw) & !grepl("^CP[0-9]{5}$", raw)] <- NA_character_
+            raw
+        }
+        safe_db_get <- function(sql, columns) {
+            result <- tryCatch(db_get(sql), error = function(e) NULL)
+            if (is.null(result) || !is.data.frame(result)) {
+                return(list(
+                    ok = FALSE,
+                    data = data.table::as.data.table(stats::setNames(
+                        rep(list(character()), length(columns)), columns
+                    ))
+                ))
+            }
+            result <- data.table::as.data.table(result)
+            for (column in setdiff(columns, names(result))) {
+                result[, (column) := NA_character_]
+            }
+            list(ok = TRUE, data = result[, ..columns])
         }
         normalize_time <- function(v) {
             raw <- trimws(as.character(v))
@@ -832,17 +921,9 @@ list({
             data.table::setorder(tmp, event_date_nest, time_visit_key)
             !(as.character(tmp$nest_state[nrow(tmp)]) %in% terminal_states)
         }
-        current_caps <- data.table::as.data.table(db_get("SELECT date, caught, nest_id, age, field_sex, UL, LL, UR, LR FROM CAPTURES"))
         current_nests <- data.table::as.data.table(db_get("SELECT nest_id, date, time_visit, nest_state FROM NESTS"))
         nests_latest <- data.table::as.data.table(db_get("SELECT nest_id, nest_state, last_visit_datetime, M_mark, F_mark FROM NESTS_LATEST"))
         link_terminal_states <- c("pP", "P", "D", "notA")
-        if (nrow(current_caps) > 0) {
-            current_caps[, `:=`(mark, mapply(make_mark, UL, LL, UR, LR, USE.NAMES = FALSE))]
-            current_caps[, `:=`(date, suppressWarnings(as.Date(date)))]
-            current_caps[, `:=`(caught_key, normalize_time(caught))]
-        } else {
-            current_caps <- data.table::data.table(date = as.Date(character()), caught_key = character(), nest_id = character(), age = character(), field_sex = character(), mark = character())
-        }
         if (nrow(current_nests) > 0) {
             current_nests[, `:=`(event_date_nest, suppressWarnings(as.Date(date)))]
             current_nests[, `:=`(time_visit_key, normalize_time(time_visit))]
@@ -874,12 +955,35 @@ list({
         }
         z[, `:=`(mark, mapply(make_mark, UL, LL, UR, LR, USE.NAMES = FALSE))]
         z[, `:=`(event_date, suppressWarnings(as.Date(date)))]
+        if (!"site" %in% names(z)) {
+            z[, site_key := NA_character_]
+        } else {
+            z[, `:=`(site_key, trimws(as.character(site)))]
+            z[is.na(site) | !nzchar(site_key) | toupper(site_key) == "NA", site_key := NA_character_]
+        }
         z[, `:=`(event_time_key, "99:99")]
         z[, `:=`(age_key, trimws(as.character(age)))]
         z[, `:=`(rclass_key, toupper(trimws(as.character(rclass))))]
         z[, `:=`(behav_tokens, lapply(behav, parse_behav))]
         z[, `:=`(is_chick, !is.na(age_key) & age_key == "C")]
-        parent_behaviour_codes <- c("IN", "NM", "BW", "BC", "FC", "AC")
+        if (!"ring" %in% names(z)) {
+            z[, ring := NA_character_]
+        }
+        z[, `:=`(ring_key, normalize_ring_key(ring))]
+        has_uncertain_mark <- function(...) {
+            values <- list(...)
+            any(vapply(values, function(value) {
+                raw <- trimws(as.character(value))
+                !is.na(value) && nzchar(raw) && grepl("?", raw, fixed = TRUE)
+            }, logical(1)))
+        }
+        z[, `:=`(uncertain_mark, vapply(seq_len(.N), function(i) {
+            has_uncertain_mark(UL[[i]], LL[[i]], UR[[i]], LR[[i]])
+        }, logical(1)))]
+        z[, `:=`(
+            lower_pair_observed = !blankish(LL) & !blankish(LR)
+        )]
+        parent_behaviour_codes <- c("IN", "NM", "BW", "BC", "FC", "AC", "SC")
         parent_with_chicks_codes <- c("BC", "FC", "AC")
         z[, `:=`(
             is_parent_behaviour = !is.na(age_key) & age_key == "A" &
@@ -889,16 +993,357 @@ list({
             is_parent_with_chicks = !is.na(age_key) & age_key == "A" &
                 vapply(behav_tokens, function(tok) any(tok %in% parent_with_chicks_codes), logical(1))
         )]
-        if (!"ring" %in% names(z)) {
-            z[, ring := NA_character_]
-        }
-        gps_id_key <- trimws(as.character(z$gps_id))
-        gps_point_key <- trimws(as.character(z$gps_point))
         is_valid_brood_link <- function(v) {
             raw <- trimws(as.character(v))
             !is.na(v) & nzchar(raw) & toupper(raw) != "NA" & toupper(raw) != "NO_NEST"
         }
-        same_session_parent_nests <- lapply(seq_len(nrow(z)), function(i) {
+        parent_history_available <- TRUE
+        parent_history <- data.table::data.table(
+            history_mark = character(),
+            history_ring_key = character(),
+            history_sex_key = character(),
+            history_date = as.Date(character()),
+            history_nest_id = character(),
+            history_pk = numeric()
+        )
+        parent_marks_to_check <- unique(z[
+            is_parent_with_chicks & blankish(nest_id),
+            mark
+        ])
+        parent_marks_to_check <- parent_marks_to_check[
+            !is.na(parent_marks_to_check) &
+                nzchar(parent_marks_to_check) &
+                parent_marks_to_check != "X-X"
+        ]
+        parent_rings_to_check <- unique(z[
+            is_parent_with_chicks & uncertain_mark & !blankish(ring),
+            ring_key
+        ])
+        parent_rings_to_check <- parent_rings_to_check[
+            !is.na(parent_rings_to_check) & nzchar(parent_rings_to_check)
+        ]
+        if (length(parent_marks_to_check) > 0L || length(parent_rings_to_check) > 0L) {
+            capture_history <- safe_db_get(
+                paste(
+                    "SELECT pk, date, nest_id, age, field_sex, capture_status,",
+                    "ring, UL_in, LL_in, UR_in, LR_in, UL, LL, UR, LR FROM CAPTURES",
+                    "WHERE age = 'A'"
+                ),
+                c("pk", "date", "nest_id", "age", "field_sex", "capture_status",
+                  "ring", "UL_in", "LL_in", "UR_in", "LR_in", "UL", "LL", "UR", "LR")
+            )
+            resighting_history <- safe_db_get(
+                paste(
+                    "SELECT pk, date, nest_id, age, sex, ring, UL, LL, UR, LR",
+                    "FROM RESIGHTINGS WHERE age = 'A'"
+                ),
+                c("pk", "date", "nest_id", "age", "sex", "ring", "UL", "LL", "UR", "LR")
+            )
+            archive_capture_history <- safe_db_get(
+                "SELECT date, nest_id, ring, field_sex FROM CAPTURES_ARCHIVE WHERE age = 'A'",
+                c("date", "nest_id", "ring", "field_sex")
+            )
+            parent_history_available <- isTRUE(capture_history$ok) && isTRUE(resighting_history$ok)
+            if (parent_history_available) {
+                history_parts <- list()
+                captures <- capture_history$data
+                if (nrow(captures) > 0L) {
+                    captures[, capture_status_key := toupper(trimws(as.character(capture_status)))]
+                    deploy_mark <- !is.na(captures$capture_status_key) & captures$capture_status_key == "D"
+                    captures[, `:=`(
+                        history_mark = mapply(
+                            make_mark,
+                            ifelse(deploy_mark & !blankish(UL_in), UL_in, UL),
+                            ifelse(deploy_mark & !blankish(LL_in), LL_in, LL),
+                            ifelse(deploy_mark & !blankish(UR_in), UR_in, UR),
+                            ifelse(deploy_mark & !blankish(LR_in), LR_in, LR),
+                            USE.NAMES = FALSE
+                        ),
+                        history_ring_key = normalize_ring_key(ring),
+                        history_sex_key = sex_key(field_sex),
+                        history_date = suppressWarnings(as.Date(as.character(date))),
+                        history_nest_id = trimws(as.character(nest_id)),
+                        history_pk = suppressWarnings(as.numeric(pk))
+                    )]
+                    history_parts[[length(history_parts) + 1L]] <- captures[, .(
+                        history_mark, history_ring_key, history_sex_key, history_date, history_nest_id, history_pk
+                    )]
+                }
+                resightings <- resighting_history$data
+                if (nrow(resightings) > 0L) {
+                    resightings[, `:=`(
+                        history_mark = mapply(make_mark, UL, LL, UR, LR, USE.NAMES = FALSE),
+                        history_ring_key = normalize_ring_key(ring),
+                        history_sex_key = sex_key(sex),
+                        history_date = suppressWarnings(as.Date(as.character(date))),
+                        history_nest_id = trimws(as.character(nest_id)),
+                        history_pk = suppressWarnings(as.numeric(pk))
+                    )]
+                    history_parts[[length(history_parts) + 1L]] <- resightings[, .(
+                        history_mark, history_ring_key, history_sex_key, history_date, history_nest_id, history_pk
+                    )]
+                }
+                if (length(history_parts) > 0L) {
+                    parent_history <- data.table::rbindlist(history_parts, use.names = TRUE, fill = TRUE)
+                    parent_history <- parent_history[
+                        (
+                            (!is.na(history_mark) & nzchar(history_mark)) |
+                                (!is.na(history_ring_key) & nzchar(history_ring_key))
+                        ) &
+                            !is.na(history_date)
+                    ]
+                }
+            }
+        }
+        current_capture_ring_history <- data.table::data.table(
+            history_ring_key = character(), history_sex_key = character(),
+            history_date = as.Date(character()), history_nest_id = character()
+        )
+        capture_ring_identity <- data.table::data.table(
+            history_ring_key = character(), history_sex_key = character(),
+            history_date = as.Date(character())
+        )
+        if (exists("capture_history") && isTRUE(capture_history$ok)) {
+            current_capture_rings <- capture_history$data[, .(
+                history_ring_key = normalize_ring_key(ring),
+                history_sex_key = sex_key(field_sex),
+                history_date = suppressWarnings(as.Date(as.character(date))),
+                history_nest_id = normalize_chr(nest_id)
+            )]
+            current_capture_ring_history <- current_capture_rings[
+                !is.na(history_ring_key) & nzchar(history_ring_key) &
+                    !is.na(history_date)
+            ]
+            identity_parts <- list(current_capture_rings[, .(
+                history_ring_key, history_sex_key, history_date
+            )])
+            archive_rings <- if (exists("archive_capture_history") && isTRUE(archive_capture_history$ok)) {
+                archive_capture_history$data[, .(
+                    history_ring_key = normalize_ring_key(ring),
+                    history_sex_key = sex_key(field_sex),
+                    history_date = suppressWarnings(as.Date(as.character(date))),
+                    history_nest_id = normalize_chr(nest_id)
+                )]
+            } else {
+                current_capture_ring_history
+            }
+            identity_parts[[length(identity_parts) + 1L]] <- archive_rings[, .(
+                history_ring_key, history_sex_key, history_date
+            )]
+            capture_ring_identity <- data.table::rbindlist(
+                identity_parts,
+                use.names = TRUE,
+                fill = TRUE
+            )[
+                !is.na(history_ring_key) & nzchar(history_ring_key) &
+                    !is.na(history_date)
+            ]
+        }
+        parent_history_nest_ids <- function(mark_value, sex_value, event_date_value) {
+            if (!parent_history_available ||
+                is.na(mark_value) || !nzchar(mark_value) ||
+                mark_value == "X-X" || is.na(event_date_value)) {
+                return(character())
+            }
+            parent_sex_key <- sex_key(sex_value)[[1L]]
+            candidates <- parent_history[
+                history_mark == mark_value &
+                    history_date <= event_date_value &
+                    (
+                        is.na(parent_sex_key) |
+                        is.na(history_sex_key) |
+                        history_sex_key == parent_sex_key
+                    )
+            ]
+            if (nrow(candidates) == 0L) {
+                return(character())
+            }
+            latest_date <- max(candidates$history_date)
+            latest <- candidates[history_date == latest_date]
+            valid_ids <- unique(latest[is_valid_brood_link(history_nest_id), history_nest_id])
+            has_unresolved_latest <- any(!is_valid_brood_link(latest$history_nest_id))
+            if (has_unresolved_latest || length(valid_ids) != 1L) {
+                character()
+            } else {
+                valid_ids
+            }
+        }
+        parent_history_resolvable <- function(mark_value, sex_value, event_date_value) {
+            length(parent_history_nest_ids(mark_value, sex_value, event_date_value)) == 1L
+        }
+        parent_ring_history_nest_ids <- function(ring_value, sex_value, event_date_value) {
+            if (nrow(current_capture_ring_history) == 0L ||
+                is.na(ring_value) || !nzchar(ring_value) ||
+                is.na(event_date_value)) {
+                return(character())
+            }
+            parent_sex_key <- sex_key(sex_value)[[1L]]
+            candidates <- current_capture_ring_history[
+                history_ring_key == ring_value &
+                    history_date <= event_date_value &
+                    (
+                        is.na(parent_sex_key) |
+                            is.na(history_sex_key) |
+                            history_sex_key == parent_sex_key
+                    )
+            ]
+            if (nrow(candidates) == 0L) {
+                return(character())
+            }
+            latest_date <- max(candidates$history_date)
+            latest <- candidates[history_date == latest_date]
+            valid_ids <- unique(latest[is_valid_brood_link(history_nest_id), history_nest_id])
+            has_unresolved_latest <- any(!is_valid_brood_link(latest$history_nest_id))
+            if (has_unresolved_latest || length(valid_ids) != 1L) character() else valid_ids
+        }
+        authoritative_parent_status <- safe_db_get(
+            paste(
+                "SELECT nest_id, M_selected_identity_key, F_selected_identity_key,",
+                "M_selected_mark, F_selected_mark, M_association_pending,",
+                "F_association_pending, M_association_ambiguous, F_association_ambiguous",
+                "FROM ADULT_PARENT_STATUS",
+                "WHERE LEFT(TRIM(nest_id), 1) = '-'"
+            ),
+            c(
+                "nest_id", "M_selected_identity_key", "F_selected_identity_key",
+                "M_selected_mark", "F_selected_mark", "M_association_pending",
+                "F_association_pending", "M_association_ambiguous", "F_association_ambiguous"
+            )
+        )
+        authoritative_status_available <- isTRUE(authoritative_parent_status$ok)
+        authoritative_status <- authoritative_parent_status$data
+        if (nrow(authoritative_status) > 0L) {
+            authoritative_status[, `:=`(
+                nest_key = normalize_chr(nest_id),
+                M_identity_key = normalize_chr(M_selected_identity_key),
+                F_identity_key = normalize_chr(F_selected_identity_key),
+                M_mark_key = normalize_mark_string(M_selected_mark),
+                F_mark_key = normalize_mark_string(F_selected_mark),
+                M_pending_key = suppressWarnings(as.integer(M_association_pending)),
+                F_pending_key = suppressWarnings(as.integer(F_association_pending)),
+                M_ambiguous_key = suppressWarnings(as.integer(M_association_ambiguous)),
+                F_ambiguous_key = suppressWarnings(as.integer(F_association_ambiguous))
+            )]
+            authoritative_status <- authoritative_status[
+                grepl("^-", nest_key) &
+                    !is.na(M_identity_key) & !is.na(F_identity_key) &
+                    M_pending_key == 0L & F_pending_key == 0L &
+                    M_ambiguous_key == 0L & F_ambiguous_key == 0L
+            ]
+        }
+        authoritative_negative_nests <- function(parent_i) {
+            if (!authoritative_status_available || nrow(authoritative_status) == 0L) {
+                return(character())
+            }
+            parent_mark <- z$mark[[parent_i]]
+            parent_sex <- sex_key(z$sex[[parent_i]])[[1L]]
+            if (is.na(parent_mark) || !nzchar(parent_mark) || parent_mark == "X-X" || is.na(parent_sex)) {
+                return(character())
+            }
+            if (parent_sex == "M") {
+                unique(authoritative_status[!is.na(M_mark_key) & M_mark_key == parent_mark, nest_key])
+            } else if (parent_sex == "F") {
+                unique(authoritative_status[!is.na(F_mark_key) & F_mark_key == parent_mark, nest_key])
+            } else {
+                character()
+            }
+        }
+        parent_ring_identity_known <- function(ring_value, sex_value, event_date_value) {
+            if (nrow(capture_ring_identity) == 0L ||
+                is.na(ring_value) || !nzchar(ring_value) ||
+                is.na(event_date_value)) {
+                return(FALSE)
+            }
+            parent_sex_key <- sex_key(sex_value)[[1L]]
+            candidates <- capture_ring_identity[
+                history_ring_key == ring_value &
+                    history_date <= event_date_value
+            ]
+            if (nrow(candidates) == 0L) {
+                return(FALSE)
+            }
+            known_sexes <- unique(candidates[!is.na(history_sex_key), history_sex_key])
+            length(known_sexes) <= 1L &&
+                (is.na(parent_sex_key) ||
+                    !length(known_sexes) ||
+                    all(known_sexes == parent_sex_key))
+        }
+        parent_evidence_ok <- function(parent_i) {
+            if (!isTRUE(z$uncertain_mark[[parent_i]])) {
+                return(TRUE)
+            }
+            parent_ring_identity_known(
+                z$ring_key[[parent_i]],
+                z$sex[[parent_i]],
+                z$event_date[[parent_i]]
+            )
+        }
+        gps_id_key <- trimws(as.character(z$gps_id))
+        gps_point_key <- trimws(as.character(z$gps_point))
+        same_family_parent_rows <- lapply(seq_len(nrow(z)), function(i) {
+            event_date_i <- z$event_date[[i]]
+            site_i <- z$site_key[[i]]
+            gps_id_i <- gps_id_key[[i]]
+            gps_point_i <- gps_point_key[[i]]
+            if (is.na(event_date_i) || is.na(site_i) ||
+                isTRUE(blankish(z$site[[i]])) ||
+                isTRUE(blankish(z$gps_id[[i]])) ||
+                isTRUE(blankish(z$gps_point[[i]]))) {
+                return(integer())
+            }
+            which(
+                z$is_parent_with_chicks &
+                    vapply(seq_len(nrow(z)), parent_evidence_ok, logical(1)) &
+                    !is.na(z$event_date) &
+                    z$event_date == event_date_i &
+                    z$site_key == site_i &
+                    !blankish(z$gps_id) &
+                    !blankish(z$gps_point) &
+                    gps_id_key == gps_id_i &
+                    gps_point_key == gps_point_i
+            )
+        })
+        parent_candidate_nests <- function(parent_i) {
+            if (!parent_evidence_ok(parent_i)) {
+                return(character())
+            }
+            explicit_nest <- normalize_chr(z$nest_id[[parent_i]])
+            if (isTRUE(z$uncertain_mark[[parent_i]])) {
+                if (is_valid_brood_link(explicit_nest)) {
+                    return(explicit_nest)
+                }
+                return(parent_ring_history_nest_ids(
+                    z$ring_key[[parent_i]],
+                    z$sex[[parent_i]],
+                    z$event_date[[parent_i]]
+                ))
+            }
+            if (is_valid_brood_link(explicit_nest)) {
+                return(explicit_nest)
+            }
+            historical <- parent_history_nest_ids(
+                z$mark[[parent_i]],
+                z$sex[[parent_i]],
+                z$event_date[[parent_i]]
+            )
+            if (length(historical) == 1L) {
+                historical
+            } else {
+                authoritative_negative_nests(parent_i)
+            }
+        }
+        negative_family_nests <- lapply(same_family_parent_rows, function(parent_rows) {
+            if (length(parent_rows) == 0L) {
+                return(character())
+            }
+            candidate_sets <- lapply(parent_rows, authoritative_negative_nests)
+            if (any(lengths(candidate_sets) == 0L)) {
+                return(character())
+            }
+            shared <- Reduce(intersect, candidate_sets)
+            shared[grepl("^-", shared)]
+        })
+        same_session_parent_rows <- lapply(seq_len(nrow(z)), function(i) {
             event_date_i <- z$event_date[[i]]
             gps_id_i <- gps_id_key[[i]]
             gps_point_i <- gps_point_key[[i]]
@@ -906,64 +1351,224 @@ list({
                 is.na(event_date_i) ||
                 isTRUE(blankish(z$gps_id[[i]])) ||
                 isTRUE(blankish(z$gps_point[[i]]))) {
+                return(integer())
+            }
+            which(
+                z$is_parent_with_chicks &
+                    vapply(seq_len(nrow(z)), parent_evidence_ok, logical(1)) &
+                    !is.na(z$event_date) &
+                    z$event_date == event_date_i &
+                    !blankish(z$gps_id) &
+                    !blankish(z$gps_point) &
+                    gps_id_key == gps_id_i &
+                    gps_point_key == gps_point_i
+            )
+        })
+        same_session_parent_nests <- lapply(seq_along(same_session_parent_rows), function(i) {
+            parent_rows <- same_session_parent_rows[[i]]
+            if (!length(parent_rows)) return(character())
+            unique(unlist(lapply(parent_rows, parent_candidate_nests), use.names = FALSE))
+        })
+        same_session_parent_positive_links <- lapply(same_session_parent_rows, function(parent_rows) {
+            if (length(parent_rows) == 0L) {
                 return(character())
             }
-            candidates <- z[
-                is_parent_with_chicks &
-                    !is.na(event_date) &
-                    event_date == event_date_i &
-                    !blankish(gps_id) &
-                    !blankish(gps_point) &
-                    gps_id_key == gps_id_i &
-                    gps_point_key == gps_point_i &
-                    is_valid_brood_link(nest_id),
-                trimws(as.character(nest_id))
-            ]
-            unique(candidates[!is.na(candidates) & nzchar(candidates)])
+            unique(unlist(lapply(parent_rows, function(parent_i) {
+                candidate_ids <- parent_candidate_nests(parent_i)
+                candidate_ids[!grepl("^-", candidate_ids)]
+            }), use.names = FALSE))
+        })
+        same_session_parent_links_resolvable <- lapply(seq_along(same_session_parent_rows), function(i) {
+            parent_rows <- same_session_parent_rows[[i]]
+            if (length(parent_rows) == 0L) {
+                return(logical())
+            }
+            vapply(parent_rows, function(parent_i) {
+                length(parent_candidate_nests(parent_i)) == 1L
+            }, logical(1))
+        })
+        same_session_parent_unique_links <- lapply(same_session_parent_rows, function(parent_rows) {
+            if (!length(parent_rows)) return(character())
+            candidate_sets <- lapply(parent_rows, parent_candidate_nests)
+            if (any(lengths(candidate_sets) != 1L)) return(character())
+            candidate_ids <- unique(unlist(candidate_sets, use.names = FALSE))
+            if (length(candidate_ids) == 1L) candidate_ids else character()
         })
         z[, `:=`(
             same_session_parent_nest_count = lengths(same_session_parent_nests),
-            parent_unique_gps = lengths(same_session_parent_nests) == 1L
+            same_session_parent_count = lengths(same_session_parent_rows),
+            same_session_parent_positive_count = lengths(same_session_parent_positive_links),
+            same_session_parent_unique_nest_count = lengths(same_session_parent_unique_links),
+            negative_family_nest_count = lengths(negative_family_nests),
+            parent_links_resolvable = vapply(
+                same_session_parent_links_resolvable,
+                function(x) length(x) > 0L && all(x),
+                logical(1)
+            ),
+            negative_family_resolvable = lengths(negative_family_nests) == 1L
         )]
-        z[, `:=`(ring_present, !blankish(ring))]
         z[, `:=`(
-            allow_unlinked_h_chick =
-                blankish(nest_id) &
-                rclass_key == "H" &
-                age_key == "C" &
-                !blankish(gps_id) &
-                !blankish(gps_point) &
-                (ring_present | parent_unique_gps),
             allow_unlinked_ordinary_chick =
                 blankish(nest_id) &
                 age_key == "C" &
                 rclass_key %in% c("R", "P", "V", "C") &
                 !blankish(gps_id) &
                 !blankish(gps_point) &
-                parent_unique_gps
+                parent_links_resolvable &
+                same_session_parent_unique_nest_count == 1L,
+            allow_unlinked_negative_family =
+                blankish(nest_id) &
+                is_parent_with_chicks &
+                negative_family_resolvable &
+                !blankish(gps_id) &
+                !blankish(gps_point)
         )]
         z[, `:=`(
             needs_nest_id,
-            (is_chick & !allow_unlinked_h_chick & !allow_unlinked_ordinary_chick) | is_parent_behaviour
+            (is_chick & !allow_unlinked_ordinary_chick) |
+                (is_parent_behaviour & !allow_unlinked_negative_family)
         )]
+        saved_resightings <- safe_db_get(
+            paste(
+                "SELECT date, site, nest_id, age, behav, rclass, gps_id, gps_point",
+                "FROM RESIGHTINGS"
+            ),
+            c("date", "site", "nest_id", "age", "behav", "rclass", "gps_id", "gps_point")
+        )
+        saved_captures <- safe_db_get(
+            paste(
+                "SELECT date, site, nest_id, age, gps_id, gps_point",
+                "FROM CAPTURES"
+            ),
+            c("date", "site", "nest_id", "age", "gps_id", "gps_point")
+        )
+        saved_family_occasion_rows <- list()
+        if (isTRUE(saved_resightings$ok) && nrow(saved_resightings$data) > 0L) {
+            saved_res <- saved_resightings$data
+            saved_res[, `:=`(
+                occasion_date = suppressWarnings(as.Date(as.character(date))),
+                occasion_site = normalize_chr(site),
+                occasion_gps_id = normalize_chr(gps_id),
+                occasion_gps_point = normalize_chr(gps_point),
+                occasion_nest_id = normalize_chr(nest_id),
+                age_key_saved = toupper(trimws(as.character(age))),
+                behav_tokens_saved = lapply(behav, parse_behav)
+            )]
+            saved_res <- saved_res[
+                !is.na(occasion_date) & !is.na(occasion_site) &
+                    !is.na(occasion_gps_id) & !is.na(occasion_gps_point) &
+                    (age_key_saved == "C" | (
+                        age_key_saved == "A" &
+                            vapply(behav_tokens_saved, function(tok) any(tok %in% parent_with_chicks_codes), logical(1))
+                    ))
+            ]
+            if (nrow(saved_res) > 0L) {
+                saved_family_occasion_rows[[length(saved_family_occasion_rows) + 1L]] <- saved_res[, .(
+                    occasion_date, occasion_site, occasion_gps_id, occasion_gps_point,
+                    occasion_nest_id
+                )]
+            }
+        }
+        if (isTRUE(saved_captures$ok) && nrow(saved_captures$data) > 0L) {
+            saved_cap <- saved_captures$data
+            saved_cap[, `:=`(
+                occasion_date = suppressWarnings(as.Date(as.character(date))),
+                occasion_site = normalize_chr(site),
+                occasion_gps_id = normalize_chr(gps_id),
+                occasion_gps_point = normalize_chr(gps_point),
+                occasion_nest_id = normalize_chr(nest_id),
+                age_key_saved = toupper(trimws(as.character(age)))
+            )]
+            saved_cap <- saved_cap[
+                age_key_saved == "C" &
+                    !is.na(occasion_date) & !is.na(occasion_site) &
+                    !is.na(occasion_gps_id) & !is.na(occasion_gps_point)
+            ]
+            if (nrow(saved_cap) > 0L) {
+                saved_family_occasion_rows[[length(saved_family_occasion_rows) + 1L]] <- saved_cap[, .(
+                    occasion_date, occasion_site, occasion_gps_id, occasion_gps_point,
+                    occasion_nest_id
+                )]
+            }
+        }
+        current_family_occasion_rows <- z[
+            (is_chick | is_parent_with_chicks) &
+                !is.na(event_date) & !is.na(site_key) &
+                !blankish(gps_id) & !blankish(gps_point),
+            .(
+                rowid,
+                occasion_date = event_date,
+                occasion_site = site_key,
+                occasion_gps_id = normalize_chr(gps_id),
+                occasion_gps_point = normalize_chr(gps_point),
+                occasion_nest_id = normalize_chr(nest_id)
+            )
+        ]
+        family_occasion_conflicts <- data.table::data.table(
+            rowid = integer(), variable = character(), reason = character()
+        )
+        if (nrow(current_family_occasion_rows) > 0L) {
+            saved_family <- if (length(saved_family_occasion_rows)) {
+                data.table::rbindlist(saved_family_occasion_rows, use.names = TRUE, fill = TRUE)
+            } else {
+                data.table::data.table(
+                    occasion_date = as.Date(character()), occasion_site = character(),
+                    occasion_gps_id = character(), occasion_gps_point = character(),
+                    occasion_nest_id = character()
+                )
+            }
+            for (occasion_i in seq_len(nrow(current_family_occasion_rows))) {
+                occasion <- current_family_occasion_rows[occasion_i]
+                current_group <- current_family_occasion_rows[
+                    occasion_date == occasion$occasion_date[[1L]] &
+                        occasion_site == occasion$occasion_site[[1L]] &
+                        occasion_gps_id == occasion$occasion_gps_id[[1L]] &
+                        occasion_gps_point == occasion$occasion_gps_point[[1L]]
+                ]
+                saved_group <- saved_family[
+                    occasion_date == occasion$occasion_date[[1L]] &
+                        occasion_site == occasion$occasion_site[[1L]] &
+                        occasion_gps_id == occasion$occasion_gps_id[[1L]] &
+                        occasion_gps_point == occasion$occasion_gps_point[[1L]]
+                ]
+                nest_ids <- unique(c(
+                    current_group$occasion_nest_id[is_valid_brood_link(current_group$occasion_nest_id)],
+                    saved_group$occasion_nest_id[is_valid_brood_link(saved_group$occasion_nest_id)]
+                ))
+                if (length(nest_ids) > 1L) {
+                    family_occasion_conflicts <- data.table::rbindlist(list(
+                        family_occasion_conflicts,
+                        data.table::data.table(
+                            rowid = current_group$rowid,
+                            variable = "nest_id",
+                            reason = "This same family occasion contains conflicting nest_id values across the parent/chick records. Keep one nest_id for the same date, site, gps_id, and gps_point; use a different nest_id only for a separate encounter or a genuinely different brood association."
+                        )
+                    ), use.names = TRUE, fill = TRUE)
+                    break
+                }
+            }
+            if (nrow(family_occasion_conflicts) > 0L) {
+                family_occasion_conflicts <- unique(family_occasion_conflicts)
+            }
+        }
         out <- data.table::rbindlist(lapply(seq_len(nrow(z)), function(i) {
             row <- z[i]
             row_is_chick <- isTRUE(row$is_chick)
             row_is_parent_behaviour <- isTRUE(row$is_parent_behaviour)
             row_is_h <- isTRUE(row$rclass_key == "H")
             missing_chick_nest_reason <- if (row_is_h) {
-                "An H-class chick may omit nest_id only when ring is entered or a same-date age-A parent using BC, FC, or AC with a valid nest/brood link is recorded at the same GPS pair."
-            } else if (isTRUE(row$same_session_parent_nest_count[[1]] > 1L)) {
-                "This ordinary age-C resighting has ambiguous same-date, same-GPS parent links. Enter nest_id explicitly so the brood association is not guessed."
+                "Age-C H hiding-spot-photo events must include an explicit valid positive or negative nest_id. A same-session parent, ring, or prior history cannot replace this field."
+            } else if (isTRUE(row$same_session_parent_count[[1]] > 0L)) {
+                "This ordinary age-C resighting may omit nest_id only when every same-date, same-GPS age-A parent using BC, FC, or AC has either a valid current nest/brood link or a resolvable historical CAPTURES/RESIGHTINGS nest link. Enter nest_id when any parent identity cannot be resolved."
             } else {
-                "An ordinary age-C resighting may omit nest_id only with a complete GPS pair and exactly one same-date, same-GPS age-A parent using BC, FC, or AC with a valid nest/brood link; otherwise enter nest_id."
+                "An ordinary age-C resighting may omit nest_id only with a complete GPS pair and a same-date, same-GPS age-A parent using BC, FC, or AC whose current or historical nest/brood link is resolvable; otherwise enter nest_id."
             }
             missing_parent_nest_reason <- if (any(row$behav_tokens[[1]] %in% c("BC", "FC", "AC"))) {
                 "Adult BC/FC/AC resightings that associate a parent with chicks must include nest_id. If the brood is mobile after notA, also enter both gps_id and gps_point."
             } else if (any(row$behav_tokens[[1]] %in% "BW")) {
                 "Adult BW (broken-wing display) resightings must include nest_id so the parent observation is linked to the nest or brood."
             } else {
-                "This adult IN/NM resighting is the first active-nest record for this breeding attempt, so please enter nest_id."
+                "This adult IN/NM/SC resighting is the first active-nest record for this breeding attempt, so please enter nest_id."
             }
             if (!isTRUE(row$needs_nest_id)) {
                 return(empty)
@@ -976,6 +1581,18 @@ list({
             }
             row_nest <- trimws(as.character(row$nest_id))
             row_has_real_nest <- !is.na(row_nest) && nzchar(row_nest) && !is_no_nest(row_nest)
+            if (row_is_parent_behaviour && row_has_real_nest &&
+                !isTRUE(row$lower_pair_observed[[1]])) {
+                missing_lower_variable <- if (isTRUE(blankish(row$LL[[1]]))) "LL" else "LR"
+                return(data.table::data.table(
+                    rowid = row$rowid,
+                    variable = missing_lower_variable,
+                    reason = paste(
+                        "Adult IN/NM/SC/BW/BC/FC/AC nest-association resightings must record both LL and LR.",
+                        "Enter X or XX when the lower leg is explicitly unbanded; blank lower fields cannot independently confirm the nest or brood link."
+                    )
+                ))
+            }
             row_is_unbanded <- is_unbanded_resighting(row$UL[[1]], row$LL[[1]], row$UR[[1]], row$LR[[1]])
             if (row_has_real_nest && row_is_unbanded) {
                 return(empty)
@@ -1018,6 +1635,11 @@ list({
                 data.table::rbindlist(problems)
             }
         }), use.names = TRUE, fill = TRUE)
+        out <- data.table::rbindlist(
+            list(family_occasion_conflicts, out),
+            use.names = TRUE,
+            fill = TRUE
+        )
         if (nrow(out) == 0) empty else unique(out)
     }, nam = "RES_005B nest link")
     out <- data.table::as.data.table(out)
@@ -1142,6 +1764,9 @@ list({
             same_date <- !is.na(row$date_key[[1]]) &&
                 !is.na(other$date_key) &&
                 as.character(row$date_key[[1]]) == as.character(other$date_key)
+            same_site <- !is.na(row$site_key[[1]]) &&
+                !is.na(other$site_key) &&
+                row$site_key[[1]] == other$site_key
             same_nest <- is_linked_nest(row$nest_key[[1]]) &&
                 is_linked_nest(other$nest_key) &&
                 row$nest_key[[1]] == other$nest_key
@@ -1149,10 +1774,53 @@ list({
                 has_gps_pair(other$gps_id_key, other$gps_point_key) &&
                 row$gps_id_key[[1]] == other$gps_id_key &&
                 row$gps_point_key[[1]] == other$gps_point_key
-            same_date && (same_nest || same_gps)
+            same_date && same_site && (same_nest || same_gps)
+        }
+        capture_lookup <- tryCatch(
+            data.table::as.data.table(db_get(
+                "SELECT pk, date, site, gps_id, gps_point, age, nest_id FROM CAPTURES WHERE age = 'C'"
+            )),
+            error = function(e) NULL
+        )
+        if (is.null(capture_lookup) || !is.data.frame(capture_lookup)) {
+            capture_lookup <- data.table::data.table(
+                pk = numeric(), date = as.Date(character()), site = character(),
+                gps_id = character(), gps_point = character(), age = character(),
+                nest_id = character()
+            )
+        } else {
+            for (column in c("pk", "date", "site", "gps_id", "gps_point", "age", "nest_id")) {
+                if (!column %in% names(capture_lookup)) {
+                    capture_lookup[, (column) := NA_character_]
+                }
+            }
+            capture_lookup[, `:=`(
+                date_key = suppressWarnings(as.Date(as.character(date))),
+                site_key = normalize_chr(site),
+                gps_id_key = normalize_chr(gps_id),
+                gps_point_key = normalize_chr(gps_point),
+                age_key = normalize_chr(age)
+            )]
+            capture_lookup <- capture_lookup[age_key == "C"]
+        }
+        same_capture_occasion <- function(parent, capture) {
+            same_date <- !is.na(parent$date_key[[1]]) &&
+                !is.na(capture$date_key) &&
+                as.character(parent$date_key[[1]]) == as.character(capture$date_key)
+            same_site <- !is.na(parent$site_key[[1]]) &&
+                !is.na(capture$site_key) &&
+                parent$site_key[[1]] == capture$site_key
+            same_gps <- !is.na(parent$gps_id_key[[1]]) &&
+                !is.na(parent$gps_point_key[[1]]) &&
+                !is.na(capture$gps_id_key) &&
+                !is.na(capture$gps_point_key) &&
+                parent$gps_id_key[[1]] == capture$gps_id_key &&
+                parent$gps_point_key[[1]] == capture$gps_point_key
+            isTRUE(same_date && same_site && same_gps)
         }
         z[, `:=`(
             date_key = suppressWarnings(as.Date(as.character(date))),
+            site_key = normalize_chr(site),
             age_key = normalize_chr(age),
             nest_key = normalize_chr(nest_id),
             gps_id_key = normalize_chr(gps_id),
@@ -1180,13 +1848,23 @@ list({
         }
         if (nrow(parents) > 0L) {
             missing_chick <- vapply(seq_len(nrow(parents)), function(i) {
-                !any(vapply(seq_len(nrow(chicks)), function(j) same_link(parents[i], chicks[j]), logical(1)))
+                has_resighting_chick <- any(vapply(
+                    seq_len(nrow(chicks)),
+                    function(j) same_link(parents[i], chicks[j]),
+                    logical(1)
+                ))
+                has_capture_chick <- nrow(capture_lookup) > 0L && any(vapply(
+                    seq_len(nrow(capture_lookup)),
+                    function(j) same_capture_occasion(parents[i], capture_lookup[j]),
+                    logical(1)
+                ))
+                !(has_resighting_chick || has_capture_chick)
             }, logical(1))
             if (any(missing_chick)) {
                 out_parts[[length(out_parts) + 1L]] <- data.table::data.table(
                     rowid = parents$rowid[missing_chick],
                     variable = "behav",
-                    reason = "Awesome that you saw a banded parent with chicks! However you forgot to enter the associated chick resighting(s). Please enter a rclass 'R' RESIGHTINGS event for each chick with the color band seen, linking them to the tending parent with the same gps_id and gps_point. 'ring' can be left blank"
+                    reason = "Awesome that you saw a banded parent with chicks! However, no associated age-C event was found for this field occasion. If the chicks were captured, save the genuine age-C CAPTURES rows first and make sure they use the same date, site, gps_id, and gps_point as the parent. If they were observed but not captured, enter a rclass 'R' RESIGHTINGS event for each chick with the colour band seen, linked to the tending parent with the same gps_id and gps_point. 'ring' can be left blank."
                 )
             }
         }
@@ -1403,6 +2081,10 @@ list({
             )
         }
         combo_identity <- function(ul, ll, ur, lr) {
+            values <- normalize_scalar_chr(c(ul, ll, ur, lr))
+            if (any(!is.na(values) & grepl("?", values, fixed = TRUE))) {
+                return(NA_character_)
+            }
             left_pair <- canonical_left_pair(ul, ll)
             right_pair <- canonical_right_pair(ur, lr)
             canonical <- ifelse(
@@ -1951,7 +2633,7 @@ list({
         }
         raw <- trimws(as.character(z$UL))
         z <- z[is.na(UL) | !nzchar(raw) | !grepl(",", raw), .(UL, rowid)]
-        is.regexp_validator(z, regexp = "^(X|[OYWBRGLM]{1,2}|F[OYWBRGLM][A-Z0-9]{2,3})$", reason = "Left tibia code does not match the current RESIGHTINGS format.")
+        is.regexp_validator(z, regexp = "^(X|\\?|[OYWBRGLM]{1,2}|\\?[OYWBRGL]|[OYWBRGL]\\?|F[OYWBRGLM][A-Z0-9]{2,3})$", reason = "Left tibia code does not match the current RESIGHTINGS format.")
     }, nam = "left tibia format")
     out <- data.table::as.data.table(out)
     if ("reason" %in% names(out)) {
@@ -1978,7 +2660,7 @@ list({
         }
         raw <- trimws(as.character(z$LL))
         z <- z[is.na(LL) | !nzchar(raw) | !grepl(",", raw), .(LL, rowid)]
-        is.regexp_validator(z, regexp = "^(X|XX|[OYWBRGLM]{1,2})$", reason = "Left tarsus code does not match the current RESIGHTINGS format.")
+        is.regexp_validator(z, regexp = "^(X|XX|\\?|[OYWBRGLM]{1,2}|\\?[OYWBRGL]|[OYWBRGL]\\?)$", reason = "Left tarsus code does not match the current RESIGHTINGS format.")
     }, nam = "left tarsus format")
     out <- data.table::as.data.table(out)
     if ("reason" %in% names(out)) {
@@ -2005,7 +2687,7 @@ list({
         }
         raw <- trimws(as.character(z$UR))
         z <- z[is.na(UR) | !nzchar(raw) | !grepl(",", raw), .(UR, rowid)]
-        is.regexp_validator(z, regexp = "^(X|[OYWBRGLM]{1,2}|T[A-Z0-9]{0,5}[RBGWOLY]|F[OYWBRGLM][A-Z0-9]{2,3})$", reason = "Right tibia code does not match the current RESIGHTINGS format.")
+        is.regexp_validator(z, regexp = "^(X|\\?|[OYWBRGLM]{1,2}|\\?[OYWBRGL]|[OYWBRGL]\\?|T\\?|T[A-Z0-9]{0,5}[RBGWOLY]|F[OYWBRGLM][A-Z0-9]{2,3})$", reason = "Right tibia code does not match the current RESIGHTINGS format.")
     }, nam = "right tibia format")
     out <- data.table::as.data.table(out)
     if ("reason" %in% names(out)) {
@@ -2032,7 +2714,7 @@ list({
         }
         raw <- trimws(as.character(z$LR))
         z <- z[is.na(LR) | !nzchar(raw) | !grepl(",", raw), .(LR, rowid)]
-        is.regexp_validator(z, regexp = "^(X|XX|[OYWBRGLM]{1,2})$", reason = "Right tarsus code does not match the current RESIGHTINGS format.")
+        is.regexp_validator(z, regexp = "^(X|XX|\\?|[OYWBRGLM]{1,2}|\\?[OYWBRGL]|[OYWBRGL]\\?)$", reason = "Right tarsus code does not match the current RESIGHTINGS format.")
     }, nam = "right tarsus format")
     out <- data.table::as.data.table(out)
     if ("reason" %in% names(out)) {

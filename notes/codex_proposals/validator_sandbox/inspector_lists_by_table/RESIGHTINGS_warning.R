@@ -97,6 +97,9 @@ list({
             ll1 <- normalize_scalar_chr(ll)
             ur1 <- normalize_tag_ur(ur)
             lr1 <- normalize_scalar_chr(lr)
+            if (any(!is.na(c(ul1, ll1, ur1, lr1)) & grepl("?", c(ul1, ll1, ur1, lr1), fixed = TRUE))) {
+                return(NA_character_)
+            }
             ifelse(
                 is.na(ul1) | is.na(ll1) | is.na(ur1) | is.na(lr1),
                 NA_character_,
@@ -104,6 +107,10 @@ list({
             )
         }
         combo_identity <- function(ul, ll, ur, lr) {
+            values <- normalize_scalar_chr(c(ul, ll, ur, lr))
+            if (any(!is.na(values) & grepl("?", values, fixed = TRUE))) {
+                return(NA_character_)
+            }
             left_pair <- canonical_left_pair(ul, ll)
             right_pair <- canonical_right_pair(ur, lr)
             canonical <- ifelse(
@@ -291,6 +298,10 @@ list({
             out[tag_like] <- paste0("T", sub("^.*([RBGWOLY])$", "\\1", out[tag_like]))
             out
         }
+        has_uncertain_mark <- function(v) {
+            raw <- normalize_chr(v)
+            !is.na(raw) & grepl("?", raw, fixed = TRUE)
+        }
         canonical_left_pair <- function(ul, ll) {
             ul1 <- normalize_chr(ul)
             ll1 <- normalize_chr(ll)
@@ -357,6 +368,9 @@ list({
             ll1 <- normalize_chr(ll)
             ur1 <- normalize_tag_ur(ur)
             lr1 <- normalize_chr(lr)
+            if (any(has_uncertain_mark(c(ul1, ll1, ur1, lr1)))) {
+                return(NA_character_)
+            }
             left <- canonical_left_pair(ul1, ll1)
             right <- canonical_right_pair(ur1, lr1)
             if (is.na(left)) left <- "X"
@@ -380,7 +394,9 @@ list({
         is_xx <- function(dt) {
             ll_key <- normalize_chr(dt$LL)
             lr_key <- normalize_chr(dt$LR)
-            !is.na(ll_key) & ll_key %in% c("X", "XX") &
+            !has_uncertain_mark(dt$UL) & !has_uncertain_mark(dt$LL) &
+                !has_uncertain_mark(dt$UR) & !has_uncertain_mark(dt$LR) &
+                !is.na(ll_key) & ll_key %in% c("X", "XX") &
                 !is.na(lr_key) & lr_key %in% c("X", "XX")
         }
         safe_db_get <- function(sql, columns) {
@@ -694,6 +710,22 @@ list({
             keep
         }
 
+        archive_match_is_strong <- function(row, history) {
+            if (!nrow(history)) {
+                return(logical())
+            }
+            ring_match <- !is.na(row$ring_key[[1]]) &
+                !is.na(history$ring_key) &
+                history$ring_key == row$ring_key[[1]]
+            flag_ul_match <- !is.na(row$flag_ul[[1]]) &
+                !is.na(history$flag_ul) &
+                history$flag_ul == row$flag_ul[[1]]
+            flag_ur_match <- !is.na(row$flag_ur[[1]]) &
+                !is.na(history$flag_ur) &
+                history$flag_ur == row$flag_ur[[1]]
+            ring_match | flag_ul_match | flag_ur_match
+        }
+
         archive_lookup <- safe_db_get(
             "SELECT ring, date, field_sex, gen_sex, UL, LL, UR, LR FROM CAPTURES_ARCHIVE",
             c("ring", "date", "field_sex", "gen_sex", "UL", "LL", "UR", "LR")
@@ -784,6 +816,11 @@ list({
                         identity_matches(row, archive)
                 ]
                 archive_matches <- archive_matches[baseline_group %in% c("M", "F")]
+                if (nrow(archive_matches)) {
+                    archive_matches <- archive_matches[
+                        archive_match_is_strong(row, archive_matches)
+                    ]
+                }
                 current_matches <- current[
                     !is.na(capture_date) & !is.na(row_date) & capture_date <= row_date &
                         identity_matches(row, current)
@@ -899,6 +936,9 @@ list({
 
         normalize_mark <- function(ul, ll, ur, lr) {
             values <- normalize_chr(c(ul, ll, ur, lr))
+            if (any(!is.na(values) & grepl("?", values, fixed = TRUE))) {
+                return(NA_character_)
+            }
             ul1 <- values[1]
             ll1 <- values[2]
             ur1 <- values[3]

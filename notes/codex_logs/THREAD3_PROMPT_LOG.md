@@ -3,6 +3,34 @@
 Status: tracked sanitized history for the combined Thread 3/3.1 lineage. Raw
 transcripts, attachments, and field identifiers remain local/ignored.
 
+## Current supersession notice — 2026-10-26
+
+Historical prompts, versions and decisions below remain unchanged. Their
+former sentinel/format/terminal-state instructions are superseded by current
+AGENTS, the owning handoff and the reviewed local protocol mirror inspected
+at v1.3.13 (2026-10-26). The external canonical YAML separately remains
+v1.3.5 (2026-10-24); neither synchronization nor live deployment is implied.
+The mirror owner is still finalizing it, so recheck its final contents.
+
+`NO_NEST` is retired and rejected as current CAPTURES/RESIGHTINGS input.
+Unrelated age-A CAPTURES use blank/SQL NULL `nest_id` plus both GPS fields;
+historical records and dumps are not rewritten. RESIGHTINGS accepts `?`,
+`?R`, `R?` and analogous colour partials in all four leg fields, plus `T?` in
+UR; bare `T` remains invalid and CAPTURES forbids `?` in all release/input leg
+fields. Any `?` excludes the whole parent event from parent-nest evidence
+unless a verified known metal ring traces current/archived capture identity;
+an independent readable band/flag alone is insufficient. Archive identity
+cannot supply a previous-season nest link; blank-ID inference needs eligible
+unambiguous current-season evidence.
+
+Conflicting nonblank nest/brood IDs save-block within one same-date/site/GPS
+family encounter even when all rows are explicit or split across tables.
+Brood mixing across separate encounters remains possible. `pP`/`P`/`D` allow
+fate review until final `notA`. The rare inside-nest F-zero/H case retains the
+intentional first-F rejection, verified comment and documented override if
+correct, with no automatic exception or invented egg history. EGGS has no
+media columns; clutch photos belong on NESTS.
+
 Thread role:
 
 - Validation specialist
@@ -797,16 +825,101 @@ biological-rule decision.
 > `notes/codex_proposals/THREAD3_VALIDATION_ARCHITECTURE.md` in full. Perform
 > a read-only validation-workstream audit from the current checkout. Preserve
 > all dirty files and do not access live databases, credentials, or DB-managed
-> inspectors. Verify the external protocol version and the staged local mirror
-> version 1.3.6, compare the protocol with all tracked hard/warning exports, and separate approved
-> behavior from protected WIP and historical material. Use invented/mock data
-> only. Report discrepancies, do not edit implementation, and stop before any
-> staging, commit, push, paste, deployment, or PR action.
+> inspectors. Verify the external protocol version and the tracked local mirror
+> identity/version, compare the protocol with all tracked hard/warning exports,
+> and separate approved behavior from protected WIP and historical material.
+> Use invented/mock data only. Report discrepancies, do not edit implementation,
+> and stop before any staging, commit, push, paste, deployment, or PR action.
 
 The replacement thread must report what was inspected, what the protocol says,
 which local artifacts diverge, what remains protected or uncertain, whether any
 live state was inspected, and which documentation or mock checks were run. It
 must not infer live deployment from a tracked export or a local mock pass.
+
+## 2026-10-26 — Current reconciliation and PR-readiness corrections
+
+This section supersedes earlier current-state summaries while preserving them as
+historical milestones. The current tracked local protocol mirror is
+`bdot_2026_2027_dataentry_validator_protocol`, version **1.3.13**, generated
+2026-10-26. The earlier 1.3.4, 1.3.6, and 1.3.10/1.3.11 entries above describe
+the decisions made at those stages; they are not claims about the current mirror.
+
+The reviewed validator artifacts now reconcile these boundaries:
+
+- `NO_NEST` is retired as a current CAPTURES/RESIGHTINGS input sentinel. New
+  unrelated events use blank `nest_id` plus a complete direct GPS pair;
+  positive and negative nest IDs remain distinct valid linkage forms where the
+  table rules permit them. Historical values are not rewritten.
+- `CAP_009B` checks current age-C captures and adult captures whose
+  `caught_with` records chicks against each other and against saved CAPTURES or
+  RESIGHTINGS family companions. For the same date, site, complete
+  `gps_id/gps_point` occasion, more than one positive/negative `nest_id` is a
+  save-blocking conflict, including positive/positive, negative/negative, and
+  mixed cases. Separate dates, sites, or GPS pairs remain separate encounters;
+  an edited saved CAPTURES `pk` is excluded. Unavailable companion lookup fails
+  closed with a retry message.
+- `RES_005B` uses the same one-ID same-occasion rule for current RESIGHTINGS
+  parent/chick rows and saved companions. Parent/chick same-session matching
+  requires the same date and site plus either a valid `nest_id` or a complete
+  GPS pair.
+- Any `?` in a RESIGHTINGS parent leg-mark field excludes that row from
+  parent-nest evidence unless a metal ring is reliably traceable to a capture on
+  or before the event date. A current explicit nest can then stand on its own,
+  even if that capture has a blank nest link. Archive capture may establish
+  identity but must not import its historical nest ID. Blank current nest
+  inference is current-season-only and requires one uniquely resolvable current
+  ID; unknown, future-only, unverified, or conflicting-sex ring histories fail
+  closed. CP ring identity lookup trims and uppercases valid CP strings and
+  removes the optional hyphen, so `CP12345` and `CP-12345` are equivalent;
+  malformed or placeholder strings do not qualify. This does not normalize mark
+  order or nest IDs. Raw uncertain marks are retained.
+- EGGS documentation matches the current schema: there are no camera/photo/
+  harddrive columns. `EGG_003` uses nest_id, observer, date, and exact timing
+  for the event grouping; `EGG_006` handles the location/surface relationship,
+  while the separate whole-number float-angle rule covers 0–90 degrees.
+- NESTS documentation distinguishes a terminal H row with clutch_size 0 and
+  brood_size > 0 from pP/P/D fate-review rows. pP/P/D are nonterminal review
+  states before final notA; repeated review visits are allowed while confirming
+  fate. After terminal H, only one final notA is permitted.
+- Mock-generation guidance follows the retired-sentinel rule: unrelated mock
+  CAPTURES use blank nest_id plus a valid complete GPS pair, and mock-only rules
+  remain separate from save-time inspectors.
+
+The current focused invented-data checks pass with zero failures for:
+
+- `test-resightings-nest-link.R`;
+- `test-captures-location-rules.R`;
+- `test-mark-uncertainty-inspectors.R`;
+- `test-resightings-ac-protocol.R`; and
+- `test-hiding-spot-ring.R`.
+
+Additional checks passed: R parsing of the changed CAPTURES and RESIGHTINGS
+hard exports, YAML parsing with protocol version 1.3.13, `git diff --check`,
+and an isolated NESTS terminal-state mock confirming that terminal H followed
+by pP is rejected, pP/D/notA review closure is accepted, and nonterminal H
+followed by pP is not rejected by the terminal-H rule.
+
+No live database, live `inspectors` row, credentials, raw field dump, bird
+identity, GPS coordinate, or production portal state was accessed. No tracked
+field-manual Markdown/HTML/DOCX/PDF was changed. Existing dirty SQL, app,
+Thread 1/2/4/7/8/9, inspector, test, and generated-artifact work outside the
+bounded files above remains protected WIP. Nothing was staged, committed,
+pushed, merged, pasted into Adminer, or deployed by this reconciliation.
+
+### Updated replacement-thread bootstrap prompt
+
+> Read `AGENTS.md`, this prompt log, and
+> `notes/codex_proposals/THREAD3_VALIDATION_ARCHITECTURE.md` in full. Treat
+> the local protocol mirror version 1.3.13 as the current reviewed local
+> specification, while verifying whether any external canonical protocol or
+> live inspector deployment has actually changed. Preserve dirty work. Do not
+> access live databases, credentials, raw dumps, or DB-managed inspectors. Use
+> invented/mock data only. Reconcile hard/warning exports, CAPTURES/RESIGHTINGS
+> family-occasion conflicts, NO_NEST retirement, uncertain-mark ring identity
+> boundaries, EGGS schema/timing rules, and NESTS terminal-H versus pP/P/D
+> semantics. Report discrepancies and deployment uncertainty. Do not stage,
+> commit, push, merge, paste, deploy, or open a PR unless a later user message
+> explicitly authorizes that separate action.
 
 ## 2026-10-26 — Exact — photo-range validation documentation update
 
@@ -865,3 +978,25 @@ the tracked local protocol mirror, inspector export, and live DB-managed
 inspectors. No live database, live inspector row, credentials, or raw field data
 were accessed or changed. No commit or push was performed; the unrelated
 `main/R/pdf_todo.R` working-tree modification remains protected.
+
+## 2026-10-26 — Superseding SC parent-association clarification
+
+The local protocol mirror was subsequently advanced from v1.3.13 to **v1.3.14**
+to record a direct decision about `SC` (scraping). `SC` is now an independent
+adult parent-nest identity-link candidate: an adult `SC` row must satisfy the
+ordinary nest-association requirement on its own. `SC` is deliberately not part
+of the parent-with-chicks set, which remains exactly `BC`, `FC`, and `AC`; it
+therefore does not trigger the reciprocal same-session age-C co-entry rule.
+
+`RESIGHTINGS_hard.R` and `test-resightings-nest-link.R` were updated with the
+bounded implementation and regression. The combined mocked validation runner
+passed 942 assertions, including the new `SC` case. Earlier v1.3.13 version and
+test statements remain historical records; this section supersedes them for the
+current mirror identity. No live database, external canonical YAML, field
+manual, Git state, credentials, or raw field records were accessed or changed.
+
+For a replacement validation thread, treat
+`bdot_dataentry_validator_protocol_plot_aligned.yaml` v1.3.14 as the reviewed
+local mirror, preserve dirty work, use invented/mock data only, and keep `SC`
+separate from `BC`/`FC`/`AC` parent-with-chicks logic. Do not stage, commit, push,
+merge, paste, deploy, or open a PR without a later explicit authorization.

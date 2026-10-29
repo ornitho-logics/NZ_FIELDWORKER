@@ -1,7 +1,7 @@
 # Thread 7 geolocator rollout handoff
 
 Status: tracked, sanitized specialist handoff
-Last reconciled: 2026-10-23
+Last reconciled: 2026-10-26
 Scope: seasonal GEO deployment planning for Cass River Banded Dotterels
 
 ## Purpose
@@ -140,6 +140,50 @@ are open:
 
 At a nest with two untagged parents, release at most one parent at a time and
 recheck the mate only after a fresh task/timing review.
+
+## A05 manual guidance: pair aim versus one-visit eligibility
+
+The pair objective is a longitudinal deployment aim, not permission to handle
+both parents during one visit. The field manual may use the following rule:
+
+> The programme aims to tag both members of selected active pairs when each
+> bird becomes independently eligible. This is a pair-level objective, not
+> permission to handle both birds on one visit. At every visit, follow the
+> current `Parent capture` task and capture only the parent whose identity, tag
+> status, timing, welfare, permit, weather, and condition gates are open. If
+> the mate is not yet eligible, leave it unhandled and keep or recheck its
+> follow-up task; do not capture it solely to complete the pair. A later
+> pair-completion action waits for a current capture task and the required
+> seven-day and 36-hour intervals.
+
+The current task output remains the operational authority. Thread 4 owns the
+exact task and reference-date calculation; this section explains how a
+fieldworker should interpret a pair-completion note. A `Parent resighting`,
+`resight M`, `resight F`, or `resight/band` row is not a GEO-capture
+authorization merely because the other parent is tagged.
+
+### Short pre-capture checklist
+
+| Check | Field action |
+| --- | --- |
+| Current task | Confirm a current `Parent capture` task for the intended parent at the current reference date. If the live task is resighting-only, resight or wait; do not convert it into a deployment task. |
+| Identity and current tag | Confirm a reliable individual identity and current no-GEO status. An unknown target may be confirmed at capture only when the tagged mate and the live task explicitly provide that pathway; otherwise verify first. |
+| Seven-day timing | Confirm that the applicable clutch-age gate is open in the task output. Hatch signs, a confirmed hatch event, or an approved hatch-state override can change this gate only when the current task says capture is eligible. |
+| Thirty-six-hour timing | Confirm that the post-adult-capture interval is open. Do not handle the mate on the same visit when doing so would violate the 36-hour disturbance rule; the mate must wait for a fresh timing/task review. |
+| Welfare and authority | Confirm permits, weather, bird condition, handling limits, and bander judgement before any capture or deployment. |
+| Pair follow-up | If one parent is completed and the mate is not eligible, record the pair as pending and recheck it after the task engine refreshes; do not force same-visit pair completion. |
+| Wave and stock | Treat roughly 50 first-wave and 50 second-wave devices as a planning envelope. The field lead may pause or continue after reviewing current phenology, sex/pair coverage, reserve, and confirmed physical stock. |
+
+The timing table is explanatory rather than a second task engine. Exact dates,
+eligibility, and any transition from resighting-only to capture work must come
+from the current `TODO_LIST`/PDF task output. The seven-day clutch-age gate and
+the separate 36-hour disturbance interval both remain mandatory unless the
+current task explicitly exposes an approved exception.
+
+Phenology strata guide population-level allocation only. They predict timing
+patterns and do not classify an individual bird as resident or migrant. An
+individual exclusion (including an orange-flag/AU-migrant rule) still requires
+the relevant identity/mark evidence or an approved conservative override.
 
 ## Allocation hierarchy
 
