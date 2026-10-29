@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en-NZ"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="manual-source-md5" content="ffec81fe9c20523c98c02c2a23b675ff"><title>BADO Field Manual 2026</title><style>/* Scoped by the reader iframe; does not change dashboard styling. */
+<html lang="en-NZ"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="manual-source-md5" content="9038e8825b977dfb05b85e530f1fc3ac"><title>BADO Field Manual 2026</title><style>/* Scoped by the reader iframe; does not change dashboard styling. */
 :root { color-scheme: light; --ink: #23343d; --accent: #315e70; --line: #d8e1e5; }
 * { box-sizing: border-box; }
 html { scroll-padding-top: 110px; }
@@ -500,7 +500,7 @@ already reliably linked to a known nest retains its positive ID, as in Section 5
 <tr>
 <td><code>species</code>, <code>site</code>, <code>observer</code>, <code>date</code>, <code>time_visit</code></td>
 <td>Required</td>
-<td>Species/site, registered initials and actual local date/time.</td>
+<td>Species/site, registered observer code and actual local date/time.</td>
 </tr>
 <tr>
 <td><code>nest_id</code>, <code>nest_state</code></td>
@@ -1061,7 +1061,7 @@ The bird is being examined directly. Do not replace an unreadable mark with
 <tr>
 <td><code>observer_upload</code></td>
 <td>Capture uploader</td>
-<td>Registered initials of the person entering the record.</td>
+<td>Registered observer code of the person entering the record.</td>
 </tr>
 <tr>
 <td>Photo fields and flags</td>
@@ -2291,7 +2291,7 @@ every event needs a value; use the procedure's requirement table.</p>
 </tr>
 <tr>
 <td><code>observer</code></td>
-<td>Registered initials of the person observing/measuring/banding, not automatically the data uploader.</td>
+<td>Registered code of the person observing/measuring/banding, not automatically the data uploader. Use two or three uppercase letters or digits, for example <code>AB</code> or <code>P3</code>, exactly as registered in OBSERVERS.</td>
 </tr>
 <tr>
 <td><code>date</code></td>
@@ -2480,7 +2480,7 @@ every event needs a value; use the procedure's requirement table.</p>
 </tr>
 <tr>
 <td><code>observer_upload</code></td>
-<td>CAPTURES-only initials of the person entering the record.</td>
+<td>CAPTURES-only registered code of the person entering the record; the same two-or-three-character uppercase-letter/digit format applies.</td>
 </tr>
 <tr>
 <td><code>falcon_upload</code></td>

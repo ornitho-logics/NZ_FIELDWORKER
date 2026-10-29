@@ -2441,7 +2441,7 @@ list({
         }
         empty <- data.table::data.table(rowid = integer(), variable = character(), reason = character())
         raw <- trimws(as.character(z$observer_upload))
-        out <- data.table::rbindlist(list(z[is.na(observer_upload) | !nzchar(raw), .(rowid, variable = "observer_upload", reason = "all capture events require the initials of the observer entering the record to the database")], z[!is.na(observer_upload) & nzchar(raw) & !grepl("^[A-Z]{2,3}$", raw), .(rowid, variable = "observer_upload", reason = "Observer-upload initials must use two or three uppercase letters.")]), use.names = TRUE, fill = TRUE)
+        out <- data.table::rbindlist(list(z[is.na(observer_upload) | !nzchar(raw), .(rowid, variable = "observer_upload", reason = "all capture events require the observer code of the person entering the record to the database")], z[!is.na(observer_upload) & nzchar(raw) & !grepl("^[A-Z0-9]{2,3}$", raw), .(rowid, variable = "observer_upload", reason = "Observer-upload codes must use two or three uppercase letters or digits.")]), use.names = TRUE, fill = TRUE)
         if (nrow(out) == 0) empty else unique(out)
     }, nam = "observer upload initials")
     out <- data.table::as.data.table(out)

@@ -10,6 +10,36 @@ approve or deploy the protected validator WIP.
 
 ## Audit status
 
+### 2026-10-29 clarification: live inspector row names and roles
+
+Luke's supplied Adminer metadata confirms that `inspectors.table_name` contains
+the actual table name, such as `CAPTURES`, `EGGS` or `OBSERVERS`. Hard and warning
+lists for the same table share that value. The role is the final word in
+`inspectors.comments`: `hard` versus `warn`, following a descriptive author/date
+prefix. Preserve that prefix. OBSERVERS currently needs only its hard list.
+
+The tracked `CAPTURES_hard.R` and `CAPTURES_warning.R` names are **export
+filenames**, not literal database `table_name` values. Do not insert/rename
+database rows to include these suffixes. Do not update every row for a table:
+identify its comment-role as well, check expected counts/source, and leave the
+other role untouched. Role identification does not itself prove how the external
+DataEntry package interprets severity; retain the approved validator code.
+
+The observer-code installer initially assumed suffixed database row names; the
+reported live execution correctly changed zero rows. Its corrected selector
+uses actual table names and a final `hard` token in comments, with fail-closed
+duplicate/missing/custom-source guards. This deployment-mapping clarification
+does not establish that every live validator matches the tracked exports.
+The current local observer-code protocol update is v1.3.20; the versioned
+reconciliation history below remains historical, not deployment evidence.
+
+See `DATABASE/README_observer_codes_2026-10-29.md` for the narrowly scoped
+installer, tests, session reload and rollback workflow. No live database was
+queried or changed by the agent to establish this clarification; the metadata
+was provided by Luke.
+
+### Earlier reconciliation status
+
 This document records the current local validation contract after the
 2026-10-26 PR-readiness reconciliation. It is a tracked documentation handoff
 for the local inspector/protocol work, not evidence that live inspectors have

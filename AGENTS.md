@@ -872,15 +872,19 @@ updated_at
 
 Current inferred behavior:
 
-* `table_name` identifies the target data-entry table;
+* `table_name` is the actual target data-entry table, for example `CAPTURES`;
 * `inspector` stores R code, likely a `list(...)` of validator expressions;
-* `comments` stores notes about the inspector;
+* `comments` stores notes and the inspector-role label: the final word is
+  `hard` or `warn` in the live arrangement confirmed by Luke on 2026-10-29;
 * `updated_at` records update time;
 * validation code is loaded through package-side behavior.
 
-Multiple inspector rows per table are now a working pattern in this project, especially for separating hard, warning, and residual/format lists.
+Multiple inspector rows may share the same `table_name`, especially the hard
+and warning lists for one table. Do not assume `table_name` uniquely identifies
+one inspector row. OBSERVERS may have only its hard list.
 
-Live biological data-entry tables should now be organized into only two inspector types:
+Live biological data-entry tables should be organized into two logical
+inspector types. Their tracked export names are:
 
 ```text
 TABLE_hard
@@ -891,6 +895,21 @@ Interpret these as follows:
 
 * `TABLE_hard` maps to protocol `hard_rules` and produces save-blocking `error` conditions;
 * `TABLE_warning` maps to protocol `warning_rules` and produces non-blocking `warning` conditions.
+
+**Database row addressing is not the export filename convention.** For example,
+`CAPTURES_hard.R` is stored in a row with `table_name = 'CAPTURES'` and a
+`comments` value ending in `hard`; `CAPTURES_warning.R` uses the same table name
+and a comments value ending in `warn`. Any author/date prefix is descriptive
+metadata and must be preserved, not hard-coded into an installer.
+
+Before updating inspectors, establish the actual table-name/comment-role
+mapping and expected row count. Select by both, not `table_name` alone, and
+verify the expected source fragments. A hard-role selector for the confirmed
+convention is `LOWER(TRIM(COALESCE(comments, ''))) REGEXP
+'(^|[[:space:]])hard$'`. Do not match `hard` anywhere in an arbitrary comment,
+rename rows to match export filenames, overwrite warning lists, or bypass a
+failed installation guard. The role label identifies the list; it is not
+evidence that changing a comment alone changes package-side error severity.
 
 There should be no permanent third live inspector type such as `TABLE_residual` or `TABLE_format_residual`.
 Any legacy regex, syntax, format, or migration-era validator should be reassigned into either

@@ -335,7 +335,7 @@ already reliably linked to a known nest retains its positive ID, as in Section 5
 
 | Field(s) | Requirement | Entry |
 |---|---|---|
-| `species`, `site`, `observer`, `date`, `time_visit` | Required | Species/site, registered initials and actual local date/time. |
+| `species`, `site`, `observer`, `date`, `time_visit` | Required | Species/site, registered observer code and actual local date/time. |
 | `nest_id`, `nest_state` | Required | Positive ID and today's state. Never a negative ID or a placeholder for an unknown association. |
 | `gps_id`, `gps_point` | Required on first visit only | Both on the opening S or F row. A later F after S does not repeat them. |
 | `clutch_size`, `brood_size` | Conditional on what can be established | Eggs still present and chicks observed are separate counts. S requires `clutch_size = 0` and blank/zero brood. Do not use zero for an unknown count. |
@@ -655,7 +655,7 @@ The bird is being examined directly. Do not replace an unreadable mark with
 | `parents` | Chick/juvenile context, when assessed | Attending sex composition from Appendix A; not the parents' identities. Blank for adults. |
 | `eggs_handled` | When recording egg handling during capture | `0` no / `1` yes. CAPTURES only. |
 | `book_id`, `form_id` | When using capture book/forms | The book and page identifiers from the paper record. |
-| `observer_upload` | Capture uploader | Registered initials of the person entering the record. |
+| `observer_upload` | Capture uploader | Registered observer code of the person entering the record. |
 | Photo fields and flags | Event-dependent | Section 7. Devices: Section 8. |
 
 ### Measurements, samples and photographs by age
@@ -1454,7 +1454,7 @@ every event needs a value; use the procedure's requirement table.
 |---|---|
 | `species` | BADO for this manual; WRYB for a Wrybill record. |
 | `site` | CR for Cass River; supported in NESTS/CAPTURES/RESIGHTINGS, not EGGS. Other site codes serve wider work. |
-| `observer` | Registered initials of the person observing/measuring/banding, not automatically the data uploader. |
+| `observer` | Registered code of the person observing/measuring/banding, not automatically the data uploader. Use two or three uppercase letters or digits, for example `AB` or `P3`, exactly as registered in OBSERVERS. |
 | `date` | Actual field date, local NZ, `YYYY-MM-DD`. |
 | `time_visit` | Actual nest-visit or egg-measurement time, `HH:MM`; no such RESIGHTINGS field. |
 | `caught`, `released` | Actual capture/release times, CAPTURES only. |
@@ -1508,7 +1508,7 @@ every event needs a value; use the procedure's requirement table.
 | `chick_hide_photo` | CAPTURES field retained by the form; use 0/blank as applicable. Actual hiding images require separate H rows. |
 | `tag_action`, `tag_type`, `tag_id_in`, `tag_id` | Adult device action/type and before/after IDs; Section 8. Blank for chick/juvenile captures. |
 | `eggs_handled` | CAPTURES-only 0/1: eggs temporarily removed during capture. |
-| `observer_upload` | CAPTURES-only initials of the person entering the record. |
+| `observer_upload` | CAPTURES-only registered code of the person entering the record; the same two-or-three-character uppercase-letter/digit format applies. |
 | `falcon_upload` | DOC/FALCON upload management, not fieldwork completion. Leave the form default/handling to the designated uploader. |
 | `nov`, `pk` | App-managed validation/record identifiers. Do not edit to clear an error. |
 
