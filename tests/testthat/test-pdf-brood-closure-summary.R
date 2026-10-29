@@ -36,6 +36,15 @@ summary_fixture <- function(ids = character()) {
   )
 }
 
+test_that("flagging guidance states the day-36 boundary and possible reopening", {
+  heading <- pdf_summary_env$todo_pdf_heading("Broods to recapture for flagging")
+  for (field in c("subtitle", "subtitle_typst", "subtitle_markdown")) {
+    expect_match(heading[[field]], "From day 36", fixed = TRUE)
+    expect_match(heading[[field]], "during ages 21-35", fixed = TRUE)
+    expect_match(heading[[field]], "later live encounters can restore", fixed = TRUE)
+  }
+})
+
 test_that("historical captures cannot restore authoritatively excluded broods", {
   result <- pdf_summary_env$todo_pdf_prepare_nest_summary(
     summary_fixture(),

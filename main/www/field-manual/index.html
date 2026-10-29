@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en-NZ"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="manual-source-md5" content="e82b54777646fb657eeec210314267ce"><title>BADO Field Manual 2026</title><style>/* Scoped by the reader iframe; does not change dashboard styling. */
+<html lang="en-NZ"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="manual-source-md5" content="ffec81fe9c20523c98c02c2a23b675ff"><title>BADO Field Manual 2026</title><style>/* Scoped by the reader iframe; does not change dashboard styling. */
 :root { color-scheme: light; --ink: #23343d; --accent: #315e70; --line: #d8e1e5; }
 * { box-sizing: border-box; }
 html { scroll-padding-top: 110px; }
@@ -73,7 +73,7 @@ pre code { overflow-wrap: anywhere; }
   mark { background: none; }
 }</style></head><body><a class="skip-link" href="#manual-content">Skip to manual</a><header class="reader-tools" aria-label="Manual controls"><div class="reader-tools-inner"><a class="contents-button" href="#manual-contents">Contents</a><label for="manual-search">Search manual</label><input id="manual-search" type="search" placeholder="e.g. hiding photographs" aria-controls="manual-search-results" aria-describedby="manual-search-help" autocomplete="off"><button id="manual-clear" type="button">Clear</button><button id="manual-expand" type="button">Expand all</button><button id="manual-collapse" type="button">Collapse all</button></div></header><main><p id="manual-search-help" class="reader-hint">Search words or field names; choose a result to open its section. <a href="manual.md" download>Download Markdown</a></p><p id="manual-search-status" role="status" aria-live="polite"></p><section id="manual-search-results" aria-label="Search results" hidden></section><noscript><p>Search and expand/collapse controls need JavaScript. The manual remains readable: open each section using its heading.</p></noscript><article id="manual-content" tabindex="-1"><h1>BADO Field Manual 2026</h1>
 <p>Cass River · Banded Dotterel / Pohowera<br />
-<strong>Markdown review draft v2.4.9 · Revised 28 October 2026</strong></p>
+<strong>Markdown review draft v2.4.10 · Revised 29 October 2026</strong></p>
 <p>This draft aims to describe the field procedures and the data-entry
 validation logic for Banded Dotterel fieldwork during the breeding season.
 If the app disagrees with an instruction, keep
@@ -1847,8 +1847,8 @@ capture status for an inferred loss.</p>
 </tr>
 <tr>
 <td>Brood presumed dead</td>
-<td>Route 1 or Route 2 below, without contrary live evidence.</td>
-<td>Further brood-related To-Do work is suppressed. This is not an observed death or a reason to invent a D capture.</td>
+<td>Route 1, 2 or 3 below, without contrary live evidence.</td>
+<td>Further brood-related work, including associated parent capture/resighting tasks and the brood's Parent–Nest summary entry, is suppressed. This is not an observed death or a reason to invent a D capture.</td>
 </tr>
 <tr>
 <td>Brood resolved at the juvenile stage</td>
@@ -1961,7 +1961,8 @@ hatching time.</p>
 </table></div>
 <p>The candidate loss date is the later of the two parents' last qualifying
 non-brood dates. The live-evidence check below is then applied. Simply reaching
-21 days, or failing to find the chicks for 21 days, is not sufficient.</p>
+21 days, or failing to find the chicks for 21 days, is not sufficient for this
+route. The separate fixed-window rule in Route 3 starts only from day 36.</p>
 <h3>Route 2 — former parent(s) associated with another nest (renesting evidence)</h3>
 <p>Renesting means starting another nesting attempt. An associated scrape is
 enough: there is no need to wait for eggs. Record the new attempt under its
@@ -2009,6 +2010,52 @@ attempt does not turn that developmental resolution into presumed death.</p>
 for either the old brood or the new attempt. A later confirmation must not be
 used to backdate the result. Proximity alone, a possible identity or a future
 observation cannot supply the link. Report a mistaken link to Luke Eberhart-Hertel.</p>
+<h3>Route 3 — no live brood encounter during ages 21–35 days</h3>
+<p>Plan to locate broods again between ages <strong>21 and 35 days, inclusive</strong>. From
+day 36, a brood with no qualifying live encounter anywhere in that window is
+presumed dead for planning. Its brood work and associated parent capture and
+resighting tasks are removed after refresh, along with its brood entry in the
+Parent–Nest summary. This rule does not require the two-parent observations
+in Route 1 or renesting evidence in Route 2.</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="Supporting table; scroll sideways if needed"><table>
+<thead>
+<tr>
+<th>Check</th>
+<th>How this rule works</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Which age is used?</td>
+<td>For a positive nest, count from its recorded hatch evidence, not its egg-stage discovery. For a negative brood, use the existing operational age/discovery-date proxy: this is not a claim that discovery was its true hatch date. Without a usable age anchor, this rule cannot establish presumed loss.</td>
+</tr>
+<tr>
+<td>When does the window end?</td>
+<td>Day 35 is still within the observation window. The first possible suppression date is day 36. All checks use the PDF's reference date and records available for that date.</td>
+</tr>
+<tr>
+<td>What counts as an encounter?</td>
+<td>The reliably linked live chick or positive brood-tending evidence described below. Direct nest/brood IDs and approved unambiguous ring-history or family gps_id/point links count. An unidentified adult alone, an ambiguous link or a dead chick recovery alone does not count.</td>
+</tr>
+<tr>
+<td>What if the brood was seen on day 25?</td>
+<td>One qualifying live encounter on any day from 21 through 35 prevents this particular trigger, even at later reference dates. This is a fixed window, not a rolling absence period. Routes 1 and 2 and juvenile-stage resolution still apply independently.</td>
+</tr>
+<tr>
+<td>What if chicks are found again after day 35?</td>
+<td>Enter the actual encounter. A qualifying live encounter on day 36 or later prevents this presumed-dead result at the next refresh and restores any work still due under the normal task rules. Do not change the observation to fit the earlier expectation.</td>
+</tr>
+</tbody>
+</table></div>
+<p>Nothing in this calculation proves that the chicks died. Do not enter a dead
+recovery, failure visit, zero brood count or invented unsuccessful search just
+to obtain the result. Upload genuine observations promptly, and ask for a
+refresh before relying on the dated work plan. A required positive-nest notA
+visit remains separate; negative broods never receive NESTS closure rows.</p>
+<p>A later confirmed death does not erase an earlier live encounter within the
+window. If a resighting conflicts with a death recorded on the same or an
+earlier date, refer the identity and chronology for review rather than using
+it automatically to establish survival.</p>
 <h3>Live evidence can keep the brood open or bring it back</h3>
 <p>Before suppressing To-Do work, the database checks for any of the following
 dated <strong>on or after the candidate loss date</strong>, up to the reference date:</p>
@@ -2023,6 +2070,10 @@ linked to the old brood, directly or through an approved unambiguous link.</li>
 can reappear where it still meets its normal age, timing and completion rules.
 It does not guarantee that every previous To-Do entry returns; for example,
 the hiding-photo display window may already have expired.</p>
+<p>For Route 3, the candidate loss date is day 36. The same qualifying live
+evidence also prevents that route when dated within days 21–35. A late upload
+of a genuine day-25 encounter therefore corrects the result after refresh;
+do not alter its field date to the upload date.</p>
 <p>An approved unambiguous inferred link counts too; a blank raw nest_id does not
 mean that the event has no family association. Enter the known ID whenever
 available. Otherwise follow Section 5, retaining the shared date, site and
@@ -2095,6 +2146,10 @@ and report contrary chick evidence. No: go to 5.</li>
 separate dates each?</strong> No: plan suitable repeat observations, without
 disturbance or invented records. Yes: check all Route 1 conditions,
 including the 21-day gate, explicit old brood links and BW limitation.</li>
+<li><strong>Has the brood reached day 36 without any qualifying live encounter at
+ages 21–35?</strong> Yes: Route 3 can suppress its work after refresh. Record any
+later live encounter truthfully so eligible work can return. A day-25
+encounter prevents this route; simply seeing an adult alone does not.</li>
 <li><strong>Is the brood absent from a newly refreshed PDF?</strong> Check the reason with
 the designated operator. Resolved parent association, normal completion,
 expiry, presumed brood loss and juvenile-stage resolution are different
@@ -2196,6 +2251,10 @@ or substitutes for the current To-Do instructions.</p>
 <p>If a parent-association row disappears, first check whether its link was
 resolved under Section 5. If brood work disappears, also check normal task
 completion/expiry, presumed loss and juvenile-stage resolution in Section 9.
+The fixed day-21-to-35 encounter window can also remove associated parent
+work from day 36; later qualifying live evidence can bring eligible work back
+after refresh. Check the recorded closure reason rather than assuming that
+every missing row means the parent association was resolved.
 The operator can inspect the recorded reason, date and supporting evidence;
 absence alone does not tell the fieldworker which rule applied.</p>
 <p>A positive nest can remain in the summary or on the map solely because its
@@ -3310,7 +3369,7 @@ family exceptions retain the conditions in Sections 3 and 5.</p>
 </tr>
 <tr>
 <td>Likely To-Do follow-up</td>
-<td>Parent association may resolve independently of brood fate. Qualifying renesting or repeated non-brood evidence may suppress brood work; same-day or later live evidence can prevent presumed loss. Section 9.</td>
+<td>Parent association may resolve independently of brood fate. Qualifying renesting, repeated non-brood evidence or the fixed 21–35-day no-encounter rule may suppress brood and associated parent work. Qualifying live evidence can prevent presumed loss or reopen work. Section 9.</td>
 </tr>
 </tbody>
 </table></div>
@@ -3880,6 +3939,40 @@ trigger presumed loss; there is no need to wait for the first egg.</p>
 <p>The dead recovery does not prove survival and does not establish loss of the
 whole brood. The living family evidence keeps the brood work open under the
 usual timing/completion rules. Do not assign age J to clear the list.</p>
+<h3>A brood disappears from the work plan, then is encountered again</h3>
+<p>A positive brood has recorded hatch evidence on 1 October. Its observation
+window is 22 October through 5 November: ages 21–35 inclusive. There are no
+qualifying live encounters during that window.</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="Supporting table; scroll sideways if needed"><table>
+<thead>
+<tr>
+<th>Reference date / actual encounter</th>
+<th>Expected work-plan result after refresh</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>5 November, day 35</td>
+<td>The window is not yet over. This absence rule does not suppress the brood. Other established completion or closure rules may still apply.</td>
+</tr>
+<tr>
+<td>6 November, day 36, still no live encounter</td>
+<td>Presumed dead under Route 3. Remove brood work, associated parent tasks and the brood's summary entry. An independently due positive-nest notA visit remains.</td>
+</tr>
+<tr>
+<td>A live chick is genuinely seen on 6 November</td>
+<td>Enter the chick and any parent(s) actually observed, using the normal family-link and gps_id/point rules. After refresh, the presumed-dead result no longer applies; outstanding flagging or parent work can return.</td>
+</tr>
+<tr>
+<td>Instead, a genuine 26 October encounter is uploaded late</td>
+<td>Keep 26 October as the field date: it was day 25. Once included in a refresh, it prevents Route 3 because it falls within the observation window.</td>
+</tr>
+</tbody>
+</table></div>
+<p>For a negative brood first found on 1 October with no reliable hatch date,
+the same dates apply using discovery as the operational age proxy. Do not
+invent a hatch visit. Neither disappearance nor reappearance justifies adding
+fabricated field events or erasing earlier observations.</p>
 <h3>One juvenile resolves the original brood, even after brood mixing</h3>
 <p>CP99001 was first banded as a chick from B0214. Later it joined B0215 and was
 recaptured there, when its ring was recorded together with flag FWAB. On a
@@ -3983,6 +4076,10 @@ developmental resolution, not a statement that all siblings survived.</p>
 <tr>
 <td>v2.4.9, 28 October 2026</td>
 <td>New H records require an explicit nest/brood ID; older blank-H linkage is compatibility only. Added final-egg timing, two-egg confirmation/no-float proxy/third-egg reset, independent 36-hour gate, latest-encounter flagging counts, later ring-linked captures and GEO pair-completion guidance. Updated protocol/source status; final combined SQL/PDF rehearsal and live deployment remain separate checks.</td>
+</tr>
+<tr>
+<td>v2.4.10, 29 October 2026</td>
+<td>Added the fixed inclusive age-21-to-35 live-encounter window, first suppression on day 36, negative-brood age proxy and later-live reactivation. Explained associated parent-task/summary suppression, late-upload correction and independent notA/juvenile resolution; added a dated worked example.</td>
 </tr>
 </tbody>
 </table></div>
@@ -4378,6 +4475,7 @@ separate <code>caught_with = M?</code> convention is not a leg-mark entry.</p>
 <li><input type="checkbox" disabled="" /> Original media copied and backup checked without renaming files.</li>
 <li><input type="checkbox" disabled="" /> Updated To-Do PDF checked, including reference date and refresh status.</li>
 <li><input type="checkbox" disabled="" /> Missing parent/brood work checked for association resolution, completion, expiry, presumed loss or juvenile-stage resolution—not assumed to mean chicks died.</li>
+<li><input type="checkbox" disabled="" /> Broods sought again during ages 21–35; any later live encounter or late-uploaded window encounter handed over for a new refresh, without changing its field date.</li>
 <li><input type="checkbox" disabled="" /> A confirmed origin-linked J record, including D, checked for brood-stage resolution; known sibling deaths retained and positive notA work still checked.</li>
 <li><input type="checkbox" disabled="" /> Former parents, separate-date non-brood observations, new nesting attempts and any contrary chick evidence handed over with their correct IDs; Section 9.</li>
 <li><input type="checkbox" disabled="" /> Hiding photographs planned before actual age seven days, not discovery age.</li>

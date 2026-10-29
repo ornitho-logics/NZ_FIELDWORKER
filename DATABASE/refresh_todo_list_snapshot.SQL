@@ -151,6 +151,7 @@ DROP TEMPORARY TABLE IF EXISTS tmp_todo_juvenile_origin_events;
 DROP TEMPORARY TABLE IF EXISTS tmp_todo_parent_chick_resighting_associations;
 DROP TEMPORARY TABLE IF EXISTS tmp_todo_ordinary_family_resighting_associations;
 DROP TEMPORARY TABLE IF EXISTS tmp_todo_chick_encounters;
+DROP TEMPORARY TABLE IF EXISTS tmp_todo_closure_live_chick_encounters;
 DROP TEMPORARY TABLE IF EXISTS tmp_todo_chick_latest_encounter_context;
 DROP TEMPORARY TABLE IF EXISTS tmp_todo_chick_capture_context;
 
@@ -2283,6 +2284,58 @@ ALTER TABLE tmp_todo_chick_encounters
   ADD INDEX idx_tmp_todo_chick_encounter_ring
     (ring_key);
 
+/*
+  Preserve the canonical live age-C evidence needed by the brood-closure
+  rule before the wider encounter table is released. Only existence by brood
+  and date matters for the 21-35 day window, so this compact table avoids
+  repeating the expensive direct/ring/GPS/family association graph later.
+  A live CAPTURES F/R/C row remains live evidence even if another identity
+  record later marks the same chick as dead. Resightings use the canonical
+  known-dead flag, except that a ring-linked event dated before the recorded
+  death remains historical live evidence; same-day and post-death events remain
+  conservative. Ringless direct nest-linked resightings remain valid.
+*/
+CREATE TEMPORARY TABLE tmp_todo_closure_live_chick_encounters AS
+SELECT DISTINCT
+  encounters.nest_id,
+  encounters.event_date
+FROM tmp_todo_chick_encounters encounters
+WHERE encounters.nest_id IS NOT NULL
+  AND encounters.event_date IS NOT NULL
+  AND encounters.source_table = 'CAPTURES'
+  AND UPPER(TRIM(COALESCE(encounters.capture_status, ''))) IN ('F', 'R', 'C')
+UNION
+SELECT DISTINCT
+  encounters.nest_id,
+  encounters.event_date
+FROM tmp_todo_chick_encounters encounters
+LEFT JOIN (
+  SELECT
+    ring_key,
+    MAX(dead_event_datetime) AS dead_event_datetime
+  FROM tmp_todo_chick_capture_targets
+  WHERE ring_key IS NOT NULL
+    AND is_confirmed_dead = 1
+    AND dead_event_datetime IS NOT NULL
+  GROUP BY ring_key
+) deaths
+  ON deaths.ring_key = encounters.ring_key
+WHERE encounters.nest_id IS NOT NULL
+  AND encounters.event_date IS NOT NULL
+  AND encounters.source_table = 'RESIGHTINGS'
+  AND (
+    encounters.ring_key IS NULL
+    OR deaths.ring_key IS NULL
+    OR (
+      COALESCE(encounters.is_known_dead, 0) = 1
+      AND encounters.event_date < DATE(deaths.dead_event_datetime)
+    )
+    OR COALESCE(encounters.is_known_dead, 0) = 0
+  );
+
+ALTER TABLE tmp_todo_closure_live_chick_encounters
+  ADD PRIMARY KEY (nest_id, event_date);
+
 
 /*
   This is the only latest age-C encounter calculation. Same-date capture
@@ -2720,6 +2773,10 @@ DROP TEMPORARY TABLE IF EXISTS tmp_todo_closure_later_best;
 DROP TEMPORARY TABLE IF EXISTS tmp_todo_closure_candidates;
 DROP TEMPORARY TABLE IF EXISTS tmp_todo_closure_success;
 DROP TEMPORARY TABLE IF EXISTS tmp_todo_closure_reactivation;
+DROP TEMPORARY TABLE IF EXISTS tmp_todo_closure_age_window;
+DROP TEMPORARY TABLE IF EXISTS tmp_todo_closure_age_candidates;
+DROP TEMPORARY TABLE IF EXISTS tmp_todo_closure_age_reactivation;
+DROP TEMPORARY TABLE IF EXISTS tmp_todo_closure_selected_candidates;
 
 CREATE TEMPORARY TABLE tmp_todo_closure_broods AS
 SELECT
@@ -2728,6 +2785,26 @@ SELECT
   b.discovery_date,
   b.hatch_evidence_date,
   COALESCE(b.hatch_evidence_date, b.discovery_date) AS anchor_date,
+  CASE
+    WHEN b.is_negative_brood = 1
+     AND b.discovery_date IS NOT NULL
+    THEN b.discovery_date
+    WHEN COALESCE(b.is_negative_brood, 0) = 0
+     AND b.has_hatch_evidence = 1
+     AND b.hatch_evidence_date IS NOT NULL
+    THEN b.hatch_evidence_date
+    ELSE NULL
+  END AS age_rule_anchor_date,
+  CASE
+    WHEN b.is_negative_brood = 1
+     AND b.discovery_date IS NOT NULL
+    THEN 1
+    WHEN COALESCE(b.is_negative_brood, 0) = 0
+     AND b.has_hatch_evidence = 1
+     AND b.hatch_evidence_date IS NOT NULL
+    THEN 1
+    ELSE 0
+  END AS age_rule_eligible,
   b.reference_date,
   DATEDIFF(
     b.reference_date,
@@ -2902,6 +2979,61 @@ JOIN tmp_todo_closure_identity_matches m
 ALTER TABLE tmp_todo_closure_events
   ADD INDEX idx_todo_closure_event_brood (brood_id),
   ADD INDEX idx_todo_closure_event_brood_date (brood_id, observation_date);
+
+/*
+  Existing high-confidence BC/FC/AC observations are valid live brood
+  evidence even when they arrive through the adult identity-match layer
+  rather than as a separate chick event. Add them to the compact date index
+  used by the age-window rule without duplicating the identity graph.
+*/
+INSERT IGNORE INTO tmp_todo_closure_live_chick_encounters (nest_id, event_date)
+SELECT DISTINCT
+  events.brood_id,
+  events.observation_date
+FROM tmp_todo_closure_events events
+WHERE events.identity_confidence = 'high'
+  AND events.observed_nest_id = events.brood_id
+  AND events.has_positive_brood_behaviour = 1
+  AND events.observation_date IS NOT NULL;
+
+/*
+  Apply the one-time age rule independently of the existing closure evidence.
+  The inclusive day-21 through day-35 window is permanent evidence: one live
+  encounter anywhere in that window prevents this particular trigger. When
+  no such encounter exists, the closure candidate is first eligible on day
+  36. A live encounter on or after that date is handled by the separate age
+  reactivation stage below.
+
+  Positive broods qualify only when hatch evidence supplies the age anchor.
+  Negative broods use discovery date as their established age proxy. The
+  existing anchor_date remains unchanged for renesting and two-by-two logic.
+*/
+CREATE TEMPORARY TABLE tmp_todo_closure_age_window AS
+SELECT
+  b.brood_id,
+  b.reference_date,
+  b.age_rule_anchor_date,
+  DATE_ADD(b.age_rule_anchor_date, INTERVAL 36 DAY)
+    AS closure_candidate_date,
+  DATEDIFF(b.reference_date, b.age_rule_anchor_date) AS age_rule_days
+FROM tmp_todo_closure_broods b
+WHERE b.age_rule_eligible = 1
+  AND DATEDIFF(b.reference_date, b.age_rule_anchor_date) >= 36
+  AND NOT EXISTS (
+    SELECT 1
+    FROM tmp_todo_closure_live_chick_encounters encounters
+    WHERE CONVERT(encounters.nest_id USING utf8mb4)
+            COLLATE utf8mb4_general_ci
+        = CONVERT(b.brood_id USING utf8mb4)
+            COLLATE utf8mb4_general_ci
+      AND encounters.event_date BETWEEN
+        DATE_ADD(b.age_rule_anchor_date, INTERVAL 21 DAY)
+        AND DATE_ADD(b.age_rule_anchor_date, INTERVAL 35 DAY)
+  );
+
+ALTER TABLE tmp_todo_closure_age_window
+  ADD PRIMARY KEY (brood_id),
+  ADD INDEX idx_todo_closure_age_window_date (closure_candidate_date);
 
 CREATE TEMPORARY TABLE tmp_todo_closure_parent_summary AS
 SELECT
@@ -3288,6 +3420,23 @@ WHERE later.later_nest_trigger = 1
      )
    );
 
+/* Keep the new age route separate until each route has its own reactivation
+   result. This prevents a day-20 event on an older route from vetoing a new
+   day-36 age route, while a day-25 event still prevents only the age route. */
+CREATE TEMPORARY TABLE tmp_todo_closure_age_candidates AS
+SELECT
+  age_window.brood_id,
+  age_window.reference_date,
+  'no live brood encounter during ages 21-35' AS closure_reason,
+  age_window.closure_candidate_date,
+  0 AS reactivation_evidence_count,
+  0 AS would_reactivate
+FROM tmp_todo_closure_age_window age_window;
+
+ALTER TABLE tmp_todo_closure_age_candidates
+  ADD PRIMARY KEY (brood_id),
+  ADD INDEX idx_todo_closure_age_candidate_date (closure_candidate_date);
+
 CREATE TEMPORARY TABLE tmp_todo_closure_reactivation AS
 SELECT c.brood_id, COUNT(*) AS reactivation_evidence_count
 FROM tmp_todo_closure_candidates c
@@ -3385,6 +3534,26 @@ JOIN tmp_todo_closure_events x
  AND x.observation_date <= c.reference_date
 GROUP BY c.brood_id;
 
+/* The age route uses the compact canonical live evidence only. This keeps
+   later encounters and high-confidence BC/FC/AC observations on or after
+   day 36 as reactivation evidence without reopening the full graph. */
+CREATE TEMPORARY TABLE tmp_todo_closure_age_reactivation AS
+SELECT
+  c.brood_id,
+  COUNT(*) AS reactivation_evidence_count
+FROM tmp_todo_closure_age_candidates c
+JOIN tmp_todo_closure_live_chick_encounters encounters
+  ON CONVERT(encounters.nest_id USING utf8mb4)
+       COLLATE utf8mb4_general_ci
+     = CONVERT(c.brood_id USING utf8mb4)
+       COLLATE utf8mb4_general_ci
+ AND encounters.event_date >= c.closure_candidate_date
+ AND encounters.event_date <= c.reference_date
+GROUP BY c.brood_id;
+
+ALTER TABLE tmp_todo_closure_age_reactivation
+  ADD PRIMARY KEY (brood_id);
+
 /*
   An origin-linked age-J event resolves the whole brood. Live F/R/C evidence
   supports the existing resolution/reactivation rules, while an age-J D row is
@@ -3424,6 +3593,122 @@ JOIN tmp_todo_juvenile_origin_events events
  AND events.association_method <> 'developmental_age_j'
 WHERE c.closure_candidate_date IS NOT NULL
 GROUP BY c.brood_id;
+
+/*
+  Select one route only after old-route and age-route reactivation have been
+  calculated independently. An old route that survives without reactivation
+  retains precedence and its original chronology. The age route may replace
+  an old route only after that old route has its own reactivation evidence; an
+  age-route encounter cannot retroactively cancel a later independent
+  renesting/two-by-two candidate. This avoids collapsing distinct causes into
+  one brood-level counter too early.
+*/
+CREATE TEMPORARY TABLE tmp_todo_closure_selected_candidates AS
+WITH old_reactivation AS (
+  SELECT
+    brood_id,
+    SUM(reactivation_evidence_count) AS reactivation_evidence_count
+  FROM tmp_todo_closure_reactivation
+  GROUP BY brood_id
+), route_inputs AS (
+SELECT
+  b.brood_id,
+  b.reference_date,
+  old_candidate.closure_reason AS old_closure_reason,
+  old_candidate.closure_candidate_date AS old_closure_candidate_date,
+  old_candidate.later_nest_id AS old_later_nest_id,
+  old_candidate.later_nest_date AS old_later_nest_date,
+  old_candidate.later_nest_parent_count AS old_later_nest_parent_count,
+  old_candidate.later_nest_authoritative_parent_count
+    AS old_later_nest_authoritative_parent_count,
+  old_candidate.nest_distance_m AS old_nest_distance_m,
+  old_candidate.spatial_support_100m AS old_spatial_support_100m,
+  age_candidate.closure_reason AS age_closure_reason,
+  age_candidate.closure_candidate_date AS age_closure_candidate_date,
+  COALESCE(old_reactivation.reactivation_evidence_count, 0)
+    AS old_reactivation_count,
+  COALESCE(age_reactivation.reactivation_evidence_count, 0)
+    AS age_reactivation_count,
+  CASE
+    WHEN age_candidate.brood_id IS NOT NULL
+     AND (
+       old_candidate.brood_id IS NULL
+       OR COALESCE(old_reactivation.reactivation_evidence_count, 0) > 0
+     )
+    THEN 'age'
+    ELSE 'old'
+  END AS selected_route
+FROM tmp_todo_closure_broods b
+LEFT JOIN tmp_todo_closure_candidates old_candidate
+  ON old_candidate.brood_id = b.brood_id
+LEFT JOIN old_reactivation
+  ON old_reactivation.brood_id = b.brood_id
+LEFT JOIN tmp_todo_closure_age_candidates age_candidate
+  ON age_candidate.brood_id = b.brood_id
+LEFT JOIN tmp_todo_closure_age_reactivation age_reactivation
+  ON age_reactivation.brood_id = b.brood_id
+WHERE old_candidate.brood_id IS NOT NULL
+   OR age_candidate.brood_id IS NOT NULL
+)
+SELECT
+  route_inputs.brood_id,
+  route_inputs.reference_date,
+  CASE
+    WHEN route_inputs.selected_route = 'age'
+    THEN route_inputs.age_closure_reason
+    ELSE route_inputs.old_closure_reason
+  END AS closure_reason,
+  CASE
+    WHEN route_inputs.selected_route = 'age'
+    THEN route_inputs.age_closure_candidate_date
+    ELSE route_inputs.old_closure_candidate_date
+  END AS closure_candidate_date,
+  CASE
+    WHEN route_inputs.selected_route = 'age'
+    THEN NULL
+    ELSE route_inputs.old_later_nest_id
+  END AS later_nest_id,
+  CASE
+    WHEN route_inputs.selected_route = 'age'
+    THEN NULL
+    ELSE route_inputs.old_later_nest_date
+  END AS later_nest_date,
+  CASE
+    WHEN route_inputs.selected_route = 'age'
+    THEN NULL
+    ELSE route_inputs.old_later_nest_parent_count
+  END AS later_nest_parent_count,
+  CASE
+    WHEN route_inputs.selected_route = 'age'
+    THEN NULL
+    ELSE route_inputs.old_later_nest_authoritative_parent_count
+  END AS later_nest_authoritative_parent_count,
+  CASE
+    WHEN route_inputs.selected_route = 'age'
+    THEN NULL
+    ELSE route_inputs.old_nest_distance_m
+  END AS nest_distance_m,
+  CASE
+    WHEN route_inputs.selected_route = 'age'
+    THEN 0
+    ELSE COALESCE(route_inputs.old_spatial_support_100m, 0)
+  END AS spatial_support_100m,
+  CASE
+    WHEN route_inputs.selected_route = 'age'
+    THEN route_inputs.age_reactivation_count
+    ELSE route_inputs.old_reactivation_count
+  END AS reactivation_evidence_count,
+  CASE
+    WHEN route_inputs.selected_route = 'age'
+    THEN CASE WHEN route_inputs.age_reactivation_count > 0
+      THEN 1 ELSE 0 END
+    ELSE CASE WHEN route_inputs.old_reactivation_count > 0
+      THEN 1 ELSE 0 END
+  END AS would_reactivate
+FROM route_inputs;
+
+ALTER TABLE tmp_todo_closure_selected_candidates
+  ADD PRIMARY KEY (brood_id);
 
 CREATE TABLE FIELD_2026_BADOatNZ.TODO_BROOD_CLOSURE_STATUS_SNAPSHOT_BUILD (
   brood_id VARCHAR(6) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL,
@@ -3521,7 +3806,7 @@ SELECT
   b.brood_id,
   b.reference_date,
   CASE WHEN c.brood_id IS NOT NULL
-      AND COALESCE(r.reactivation_evidence_count, 0) = 0
+      AND COALESCE(c.reactivation_evidence_count, 0) = 0
       AND s.brood_id IS NULL
     THEN 1 ELSE 0 END AS is_presumed_dead,
   CASE WHEN s.brood_id IS NOT NULL THEN 1 ELSE 0 END AS is_resolved,
@@ -3538,25 +3823,23 @@ SELECT
   c.nest_distance_m,
   COALESCE(c.spatial_support_100m, 0),
   c.closure_candidate_date,
-  COALESCE(r.reactivation_evidence_count, 0),
-  CASE WHEN COALESCE(r.reactivation_evidence_count, 0) > 0
+  COALESCE(c.reactivation_evidence_count, 0),
+  CASE WHEN COALESCE(c.reactivation_evidence_count, 0) > 0
     THEN 1 ELSE 0 END
 FROM tmp_todo_closure_broods b
-LEFT JOIN tmp_todo_closure_candidates c
+LEFT JOIN tmp_todo_closure_selected_candidates c
   ON c.brood_id = b.brood_id
 LEFT JOIN tmp_todo_closure_success s
   ON s.brood_id = b.brood_id
-LEFT JOIN (
-  SELECT brood_id, SUM(reactivation_evidence_count)
-    AS reactivation_evidence_count
-  FROM tmp_todo_closure_reactivation
-  GROUP BY brood_id
-) r
-  ON r.brood_id = b.brood_id;
+;
 
 DROP TEMPORARY TABLE tmp_todo_closure_reactivation;
 DROP TEMPORARY TABLE tmp_todo_closure_success;
+DROP TEMPORARY TABLE tmp_todo_closure_selected_candidates;
+DROP TEMPORARY TABLE tmp_todo_closure_age_reactivation;
+DROP TEMPORARY TABLE tmp_todo_closure_age_candidates;
 DROP TEMPORARY TABLE tmp_todo_closure_candidates;
+DROP TEMPORARY TABLE tmp_todo_closure_age_window;
 DROP TEMPORARY TABLE tmp_todo_closure_later_best;
 DROP TEMPORARY TABLE tmp_todo_closure_later_summary;
 DROP TEMPORARY TABLE tmp_todo_closure_later_pairs;
@@ -3567,6 +3850,7 @@ DROP TEMPORARY TABLE tmp_todo_closure_events;
 DROP TEMPORARY TABLE tmp_todo_closure_identities;
 DROP TEMPORARY TABLE tmp_todo_closure_identities_raw;
 DROP TEMPORARY TABLE tmp_todo_closure_broods;
+DROP TEMPORARY TABLE tmp_todo_closure_live_chick_encounters;
 DROP TEMPORARY TABLE tmp_todo_closure_identity_matches;
 DROP TEMPORARY TABLE tmp_todo_closure_parent_associations;
 DROP TEMPORARY TABLE tmp_todo_parent_chick_resighting_associations;

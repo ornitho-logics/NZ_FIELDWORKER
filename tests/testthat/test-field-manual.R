@@ -24,7 +24,7 @@ test_that("app manual preserves disclosure, sections and expected event table", 
   expect_match(md, "| Chick 1 handled | CAPTURES, 1 |", fixed = TRUE)
   expect_match(html, unname(tools::md5sum(manual_file("manual.md"))), fixed = TRUE)
   expect_equal(lengths(regmatches(html, gregexpr('<a id="(?:section-[0-9]+|appendix-[ab])"></a>', html, perl = TRUE))), 17L)
-  expect_equal(lengths(regmatches(html, gregexpr("<table>", html, fixed = TRUE))), 81L)
+  expect_equal(lengths(regmatches(html, gregexpr("<table>", html, fixed = TRUE))), 83L)
   expect_match(md, "One origin-linked juvenile resolves chick-stage work", fixed = TRUE)
   expect_match(md, "including a confirmed age-J dead recovery", fixed = TRUE)
   expect_match(md, "An age-C dead recovery does not supply this juvenile-stage evidence.", fixed = TRUE)
@@ -65,6 +65,22 @@ test_that("hiding-photo guidance distinguishes banding from observation only", {
   expect_match(section, "enter only the H resighting; do not add a new capture record.", fixed = TRUE)
   expect_match(section, "actually caught again, record that genuine recapture in CAPTURES", fixed = TRUE)
   expect_match(section, "Its earlier\ncapture must already be saved", fixed = TRUE)
+})
+
+test_that("brood absence guidance uses the fixed window and truthful reopening", {
+  md <- paste(readLines(manual_file("manual.md"), encoding = "UTF-8"), collapse = "\n")
+  section <- strsplit(md, "### Route 3 —", fixed = TRUE)[[1L]][2L]
+  section <- strsplit(section, "### One origin-linked juvenile", fixed = TRUE)[[1L]][1L]
+  expect_match(section, "21 and 35 days, inclusive", fixed = TRUE)
+  expect_match(section, "first possible suppression date is day 36", fixed = TRUE)
+  expect_match(section, "fixed window, not a rolling absence period", fixed = TRUE)
+  expect_match(section, "discovery-date proxy", fixed = TRUE)
+  expect_match(section, "not its egg-stage discovery", fixed = TRUE)
+  expect_match(section, "parent capture and\nresighting tasks", fixed = TRUE)
+  expect_match(section, "Parent–Nest summary", fixed = TRUE)
+  expect_match(section, "late upload\nof a genuine day-25 encounter", fixed = TRUE)
+  expect_match(section, "dead chick recovery alone does not count", fixed = TRUE)
+  expect_match(section, "required positive-nest notA\nvisit remains separate", fixed = TRUE)
 })
 
 test_that("static reader rebuild is deterministic and needs no database", {

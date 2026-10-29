@@ -1730,18 +1730,21 @@ todo_pdf_heading <- function(todo_name) {
       subtitle = paste(
         "Recapture chicks aged 21 days or more; assign unique engraved UL flags.",
         "The 3-week cutoff is a guide: decide in hand using morphometrics.",
-        "Notes list metal rings of banded chicks; 'N seen' is the number encountered at the latest visit."
+        "Notes list metal rings of banded chicks; 'N seen' is the number encountered at the latest visit.",
+        "From day 36, broods not encountered during ages 21-35 are presumed dead; later live encounters can restore outstanding brood and parent tasks."
       ),
       subtitle_typst = paste(
         "Recapture chicks aged 21 days or more; assign unique engraved UL flags.",
         "The 3-week cutoff is a guide: decide in hand using morphometrics.",
         "Notes list metal rings of banded chicks; 'N seen' is the number encountered at the latest visit.",
+        "From day 36, broods not encountered during ages 21-35 are presumed dead; later live encounters can restore outstanding brood and parent tasks.",
         "#strong[Do not flag chicks if weight < 22 g or tarsus < 27 mm.]"
       ),
       subtitle_markdown = paste(
         "Recapture chicks aged 21 days or more; assign unique engraved UL flags.",
         "The 3-week cutoff is a guide: decide in hand using morphometrics.",
         "Notes list metal rings of banded chicks; 'N seen' is the number encountered at the latest visit.",
+        "From day 36, broods not encountered during ages 21-35 are presumed dead; later live encounters can restore outstanding brood and parent tasks.",
         "**Do not flag chicks if weight < 22 g or tarsus < 27 mm.**"
       )
     ),
@@ -1759,11 +1762,14 @@ todo_pdf_heading <- function(todo_name) {
     ),
     "Parent resighting" = list(
       title = "Parents to resight for nest association",
-      subtitle = "Association resolves after 3 nest-linked resightings or 1 confirming behaviour (IN, NM, SC, BW, BC, FC, AC). MM, n = MM capture plus n non-confirming resightings."
+      subtitle = paste(
+        "Association resolves after 3 nest-linked resightings or 1 confirming behaviour (IN, NM, SC, BW, BC, FC, AC). MM, n = MM capture plus n non-confirming resightings.",
+        "If a NOBA (X-X) is seen associating with the nest, please enter this as a resighting event with the appropriate behav class (e.g., IN) – this helps with planning captures and confirming the associating parents."
+      )
     ),
     "Untrapped brood" = list(
       title = "Broods to band",
-      subtitle = "Band chicks at hatched nests/broods with no chick captures."
+      subtitle = "Band chicks at hatched nests/broods with no chick captures yet."
     ),
     "nest check" = list(
       title = "Nests to check for potential hatch",
@@ -1779,7 +1785,9 @@ todo_pdf_heading <- function(todo_name) {
     ),
     "notA nest-check" = list(
       title = "Nests requiring a 'notA' closure visit",
-      subtitle = "Confirm closure and enter notA; H-state nests may still be active mobile broods."
+      subtitle = "Confirm closure and enter notA; H-state nests may still be active mobile broods.",
+      title_typst = "#align(left)[#text(size: 10pt, weight: \"bold\")[Nests requiring a 'notA' closure visit]]",
+      subtitle_typst = "#align(left)[#emph[#text(size: 8pt)[Confirm closure and enter notA; H-state nests may still be active mobile broods.]]]"
     ),
     stop(
       glue("Unexpected TODO task value in PDF renderer: {todo_name}"),
@@ -1819,7 +1827,7 @@ todo_pdf_note_key <- function(notes = character()) {
     list(
       label = "Last visit",
       always = TRUE,
-      text = "Days since the latest qualifying nest or brood encounter, including a nest visit, chick capture, chick resighting, or resolved GPS-linked observation."
+      text = "Days since the latest qualifying nest or brood encounter, including a nest visit, chick capture, chick resighting, or resolved waypoint-linked observation."
     ),
     list(
       label = "Est. Hatch",
@@ -1829,7 +1837,7 @@ todo_pdf_note_key <- function(notes = character()) {
     list(
       label = "7d rule",
       pattern = "7d rule",
-      text = "Resighting only. Capture is not allowed until at least 7 days after estimated clutch completion."
+      text = "Resight parents only. Capture is not allowed until at least 7 days after estimated clutch completion."
     ),
     list(
       label = "36hr rule",
@@ -1844,12 +1852,12 @@ todo_pdf_note_key <- function(notes = character()) {
     list(
       label = "Pair completion",
       pattern = "pair completion",
-      text = "After an eligible first deployment, tag the authoritative untagged mate so that both pair members are tagged."
+      text = "After an eligible first deployment, tag the confirmed mate associated with the nest so that both pair members are tagged."
     ),
     list(
       label = "Tag deployment",
       pattern = "tag any",
-      text = "Deploy only on Plot B/C nests completed after 9 October; initial deployment requires a confirmed authoritative X-X parent. A guarded unknown-status note requires confirmation before tagging."
+      text = "Since mid-October we are aiming to tag late arrivals to the Cass. Only deploy tags on 1) NOBAs (X-X birds) confirmed to be associating with the nest or 2) un-tagged birds whose partner is tagged (both with association confirmed). Deploy tags only on plots B and C."
     ),
     list(
       label = "FO marker",
@@ -1857,7 +1865,7 @@ todo_pdf_note_key <- function(notes = character()) {
       text = "Orange-flagged AU migrant; never deploy a GEO."
     ),
     list(
-      label = "Band only",
+      label = "Band",
       # Avoid treating the generic brood-band task note ("band") as a
       # parent-specific band-only instruction.
       pattern = "band ",
@@ -1871,7 +1879,7 @@ todo_pdf_note_key <- function(notes = character()) {
     list(
       label = "Status ?",
       pattern = "status ?",
-      text = "Identity or X-X status is unknown."
+      text = "Identity or X-X status is unknown. If NOBA, record a nest-associating X-X resighting event with the appropriate behav (e.g., IN, NM, BW)."
     )
   )
 
@@ -1918,7 +1926,6 @@ todo_pdf_note_key <- function(notes = character()) {
     ")[",
     "  #set text(size: 7.4pt)",
     "  #set par(leading: 0.32em)",
-    "  *Note key* \\",
     "  #grid(",
     "    columns: (1fr, 1fr),",
     "    gutter: 9pt,",
@@ -2444,6 +2451,11 @@ todo_pdf_body <- function(
         "Broods to recapture for flagging"
       )) {
         names(todo_rows)[names(todo_rows) == "Nest"] <- "Brood"
+        if (todo == "Untrapped brood" && "Notes" %in% names(todo_rows)) {
+          todo_rows[["Notes"]][
+            trimws(as.character(todo_rows[["Notes"]])) == "no chick captures"
+          ] <- "no chick captures yet"
+        }
         if (todo == "Broods to recapture for flagging") {
           todo_rows[["Clutch–Brood"]] <- sub(
             "^.*–",
@@ -2461,6 +2473,22 @@ todo_pdf_body <- function(
       }
 
       parent_resighting_table <- todo == "Parent resighting"
+      special_heading_typst <- !is.null(heading$title_typst) ||
+        !is.null(heading$subtitle_typst)
+      title_typst <- if (!is.null(heading$title_typst)) {
+        heading$title_typst
+      } else {
+        glue("#heading(level: 2)[{heading$title}]")
+      }
+      subtitle_typst <- if (!is.null(heading$subtitle)) {
+        if (!is.null(heading$subtitle_typst)) {
+          heading$subtitle_typst
+        } else {
+          glue("#emph[{heading$subtitle}]")
+        }
+      } else {
+        NULL
+      }
 
       if (!(todo %in% c(
         "notA nest-check",
@@ -2484,7 +2512,7 @@ todo_pdf_body <- function(
             "center", "center", "left"
           )
         },
-        raw = isTRUE(keep_tables_together)
+        raw = isTRUE(keep_tables_together) || special_heading_typst
       )
 
       # Keep the heading, subtitle, and table as one visual unit when the
@@ -2494,14 +2522,22 @@ todo_pdf_body <- function(
           out,
           "```{=typst}",
           "#block(breakable: false)[",
-          glue("#heading(level: 2)[{heading$title}]"),
-          if (!is.null(heading$subtitle)) {
-            glue(
-              "#emph[{heading$subtitle_typst %||% heading$subtitle}]"
-            )
-          },
+          title_typst,
+          subtitle_typst,
           task_table,
           "]",
+          "```",
+          ""
+        )
+      } else if (special_heading_typst) {
+        out <- c(
+          out,
+          "```{=typst}",
+          "#block(breakable: false)[",
+          title_typst,
+          subtitle_typst,
+          "]",
+          task_table,
           "```",
           ""
         )

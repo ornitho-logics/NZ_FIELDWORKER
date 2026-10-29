@@ -378,7 +378,7 @@ test_that("S10 and juvenile origin routes reject future or conflicting evidence"
   }
   expect_match(
     refresh_sql,
-    "CASE WHEN COALESCE(r.reactivation_evidence_count, 0) > 0",
+    "CASE WHEN COALESCE(c.reactivation_evidence_count, 0) > 0",
     fixed = TRUE
   )
   expect_no_match(
@@ -955,4 +955,353 @@ test_that("candidate-7 applies only the approved age-J D developmental rule", {
   expect_false(juvenile_resolution("C", "D", TRUE))
   expect_false(juvenile_resolution("J", "", TRUE))
   expect_false(juvenile_resolution("J", NA_character_, TRUE))
+})
+
+test_that("brood closure implements the one-time 21-35 day live-encounter window", {
+  expect_match(
+    refresh_sql,
+    "tmp_todo_closure_live_chick_encounters",
+    fixed = TRUE
+  )
+  expect_match(refresh_sql, "dead_event_datetime", fixed = TRUE)
+  expect_match(
+    refresh_sql,
+    "encounters.event_date < DATE(deaths.dead_event_datetime)",
+    fixed = TRUE
+  )
+  expect_match(
+    refresh_sql,
+    "WHEN b.is_negative_brood = 1\n     AND b.discovery_date IS NOT NULL",
+    fixed = TRUE
+  )
+  expect_match(
+    refresh_sql,
+    "WHEN COALESCE(b.is_negative_brood, 0) = 0\n     AND b.has_hatch_evidence = 1",
+    fixed = TRUE
+  )
+  expect_match(refresh_sql, "INTERVAL 21 DAY", fixed = TRUE)
+  expect_match(refresh_sql, "INTERVAL 35 DAY", fixed = TRUE)
+  expect_match(refresh_sql, "INTERVAL 36 DAY", fixed = TRUE)
+  expect_match(
+    refresh_sql,
+    "AND NOT EXISTS (\n    SELECT 1\n    FROM tmp_todo_closure_live_chick_encounters",
+    fixed = TRUE
+  )
+  expect_match(
+    refresh_sql,
+    "FROM tmp_todo_closure_age_window age_window",
+    fixed = TRUE
+  )
+  expect_match(
+    refresh_sql,
+    "WHERE old_candidate.brood_id IS NOT NULL\n   OR age_candidate.brood_id IS NOT NULL",
+    fixed = TRUE
+  )
+  expect_match(
+    refresh_sql,
+    "no live brood encounter during ages 21-35",
+    fixed = TRUE
+  )
+  expect_match(
+    refresh_sql,
+    "events.has_positive_brood_behaviour = 1",
+    fixed = TRUE
+  )
+  expect_match(
+    refresh_sql,
+    "tmp_todo_closure_age_reactivation",
+    fixed = TRUE
+  )
+  expect_match(
+    refresh_sql,
+    "tmp_todo_closure_selected_candidates",
+    fixed = TRUE
+  )
+  expect_match(
+    refresh_sql,
+    "age_reactivation.reactivation_evidence_count",
+    fixed = TRUE
+  )
+  expect_false(
+    grepl(
+      "OR COALESCE(age_reactivation.reactivation_evidence_count, 0) > 0",
+      refresh_sql,
+      fixed = TRUE
+    )
+  )
+
+  age_window <- function(
+    reference_date,
+    is_negative_brood,
+    discovery_date = as.Date(NA),
+    hatch_evidence_date = as.Date(NA),
+    has_hatch_evidence = FALSE,
+    encounters = data.frame()
+  ) {
+    anchor <- if (isTRUE(is_negative_brood)) {
+      discovery_date
+    } else if (isTRUE(has_hatch_evidence)) {
+      hatch_evidence_date
+    } else {
+      as.Date(NA)
+    }
+    if (is.na(anchor)) {
+      return(list(candidate = FALSE, reactivated = FALSE, anchor = anchor))
+    }
+
+    age_days <- as.integer(reference_date - anchor)
+    if (age_days < 36L) {
+      return(list(candidate = FALSE, reactivated = FALSE, anchor = anchor))
+    }
+
+    if (nrow(encounters) == 0L) {
+      live <- encounters
+    } else {
+      live <- encounters[
+        encounters$age == "C" &
+          ((encounters$source == "CAPTURES" &
+              encounters$status %in% c("F", "R", "C")) |
+             (encounters$source == "RESIGHTINGS" &
+                (!encounters$known_dead |
+                   (!is.na(encounters$death_date) &
+                      encounters$date < encounters$death_date)))),
+        ,
+        drop = FALSE
+      ]
+    }
+    in_window <- nrow(live) > 0L && any(
+      live$date >= anchor + 21L & live$date <= anchor + 35L
+    )
+    reactivated <- nrow(live) > 0L && any(
+      live$date >= anchor + 36L & live$date <= reference_date
+    )
+
+    list(
+      candidate = !in_window,
+      reactivated = !in_window && reactivated,
+      anchor = anchor
+    )
+  }
+
+  encounter <- function(
+    date,
+    source = "CAPTURES",
+    status = "F",
+    known_dead = FALSE,
+    death_date = as.Date(NA),
+    age = "C"
+  ) {
+    data.frame(
+      date = as.Date(date),
+      source = source,
+      status = status,
+      known_dead = known_dead,
+      death_date = death_date,
+      age = age,
+      stringsAsFactors = FALSE
+    )
+  }
+
+  reference_date <- as.Date("2026-02-10")
+  hatch_date <- as.Date("2026-01-01")
+
+  expect_true(
+    age_window(reference_date, FALSE, hatch_evidence_date = hatch_date,
+      has_hatch_evidence = TRUE)$candidate
+  )
+  expect_equal(
+    age_window(
+      reference_date,
+      TRUE,
+      discovery_date = hatch_date
+    )$anchor,
+    hatch_date
+  )
+
+  expect_false(
+    age_window(
+      reference_date,
+      FALSE,
+      hatch_evidence_date = hatch_date,
+      has_hatch_evidence = TRUE,
+      encounters = encounter("2026-01-25")
+    )$candidate
+  )
+  expect_true(
+    age_window(
+      reference_date,
+      FALSE,
+      hatch_evidence_date = hatch_date,
+      has_hatch_evidence = TRUE,
+      encounters = encounter("2026-02-06")
+    )$candidate
+  )
+  expect_true(
+    age_window(
+      reference_date,
+      FALSE,
+      hatch_evidence_date = hatch_date,
+      has_hatch_evidence = TRUE,
+      encounters = encounter("2026-02-06")
+    )$reactivated
+  )
+  expect_true(
+    age_window(
+      reference_date,
+      FALSE,
+      hatch_evidence_date = hatch_date,
+      has_hatch_evidence = TRUE,
+      encounters = encounter(
+        "2026-02-06",
+        source = "RESIGHTINGS",
+        status = "",
+        known_dead = TRUE
+      )
+    )$candidate
+  )
+  expect_false(
+    age_window(
+      reference_date,
+      FALSE,
+      hatch_evidence_date = hatch_date,
+      has_hatch_evidence = TRUE,
+      encounters = encounter(
+        "2026-01-26",
+        source = "RESIGHTINGS",
+        status = "",
+        known_dead = TRUE,
+        death_date = as.Date("2026-01-31")
+      )
+    )$candidate
+  )
+  expect_false(
+    age_window(
+      reference_date,
+      FALSE,
+      hatch_evidence_date = hatch_date,
+      has_hatch_evidence = TRUE,
+      encounters = encounter("2026-01-28", source = "RESIGHTINGS")
+    )$candidate
+  )
+  expect_false(
+    age_window(reference_date, FALSE, has_hatch_evidence = FALSE)$candidate
+  )
+  expect_true(
+    age_window(
+      reference_date,
+      FALSE,
+      hatch_evidence_date = hatch_date,
+      has_hatch_evidence = TRUE,
+      encounters = encounter("2026-01-25", age = "J")
+    )$candidate
+  )
+  expect_false(
+    age_window(
+      reference_date,
+      FALSE,
+      hatch_evidence_date = hatch_date,
+      has_hatch_evidence = TRUE,
+      encounters = encounter("2026-02-06", age = "J")
+    )$reactivated
+  )
+})
+
+test_that("age-window closure does not erase independent closure chronology", {
+  select_route <- function(
+    age_candidate,
+    age_reactivated,
+    later_nest_candidate,
+    two_by_two_candidate,
+    old_reactivated = FALSE
+  ) {
+    old_candidate <- isTRUE(later_nest_candidate) ||
+      isTRUE(two_by_two_candidate)
+    if (isTRUE(age_candidate) && (!old_candidate ||
+      isTRUE(old_reactivated))) {
+      "age-window"
+    } else if (isTRUE(later_nest_candidate)) {
+      "later nest"
+    } else if (isTRUE(two_by_two_candidate)) {
+      "two-by-two"
+    } else {
+      NA_character_
+    }
+  }
+
+  select_route_from_dates <- function(
+    reference_date,
+    age_anchor,
+    age_encounter_dates = as.Date(character()),
+    old_candidate_date = as.Date(NA),
+    old_reactivation_dates = as.Date(NA),
+    old_route = "later nest"
+  ) {
+    age_candidate <- !is.na(age_anchor) &&
+      as.integer(reference_date - age_anchor) >= 36L
+    age_reactivated <- age_candidate && length(age_encounter_dates) > 0L &&
+      any(age_encounter_dates >= age_anchor + 36L &
+        age_encounter_dates <= reference_date)
+    old_candidate <- !is.na(old_candidate_date)
+    old_reactivated <- old_candidate && length(old_reactivation_dates) > 0L &&
+      any(old_reactivation_dates >= old_candidate_date &
+        old_reactivation_dates <= reference_date)
+
+    select_route(
+      age_candidate = age_candidate,
+      age_reactivated = age_reactivated,
+      later_nest_candidate = old_candidate && old_route == "later nest",
+      two_by_two_candidate = old_candidate && old_route == "two-by-two",
+      old_reactivated = old_reactivated
+    )
+  }
+
+  expect_identical(
+    select_route(age_candidate = FALSE, age_reactivated = FALSE,
+      later_nest_candidate = TRUE, two_by_two_candidate = FALSE),
+    "later nest"
+  )
+  expect_identical(
+    select_route(age_candidate = FALSE, age_reactivated = FALSE,
+      later_nest_candidate = FALSE, two_by_two_candidate = TRUE),
+    "two-by-two"
+  )
+  expect_identical(
+    select_route(age_candidate = TRUE, age_reactivated = FALSE,
+      later_nest_candidate = TRUE, two_by_two_candidate = TRUE),
+    "later nest"
+  )
+  expect_identical(
+    select_route(age_candidate = TRUE, age_reactivated = TRUE,
+      later_nest_candidate = TRUE, two_by_two_candidate = FALSE),
+    "later nest"
+  )
+
+  # A day-36 age candidate with a day-37 encounter must not override a
+  # later independent renesting candidate at day 40.
+  expect_identical(
+    select_route(age_candidate = TRUE, age_reactivated = TRUE,
+      later_nest_candidate = TRUE, two_by_two_candidate = FALSE,
+      old_reactivated = FALSE),
+    "later nest"
+  )
+
+  expect_identical(
+    select_route_from_dates(
+      reference_date = as.Date("2026-02-10"),
+      age_anchor = as.Date("2026-01-01"),
+      age_encounter_dates = as.Date("2026-02-07"),
+      old_candidate_date = as.Date("2026-02-10")
+    ),
+    "later nest"
+  )
+
+  old_route_reactivated_before_day_36 <- TRUE
+  new_age_route_candidate <- TRUE
+  expect_true(old_route_reactivated_before_day_36)
+  expect_true(new_age_route_candidate)
+  expect_identical(
+    select_route(new_age_route_candidate, FALSE, FALSE, FALSE,
+      old_reactivated = old_route_reactivated_before_day_36),
+    "age-window"
+  )
 })
