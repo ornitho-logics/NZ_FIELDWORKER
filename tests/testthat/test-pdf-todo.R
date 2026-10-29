@@ -2181,7 +2181,7 @@ test_that("chick colour labels are used in operational parent and brood tables",
 })
 
 
-test_that("parent summary keeps a larger adaptive vertical row inset", {
+test_that("parent summary caps adaptive padding for a compact layout", {
   app <- load_main_app()
   summary <- data.table::data.table(
     Nest = paste0("MOCK_", seq_len(39)),
@@ -2199,7 +2199,37 @@ test_that("parent summary keeps a larger adaptive vertical row inset", {
     collapse = "\n"
   )
 
-  expect_true(grepl("inset: \\(x: 2.2pt, y: 5.41pt\\)", output))
+  expect_true(grepl("inset: (x: 2.2pt, y: 2.25pt)", output, fixed = TRUE))
+})
+
+
+test_that("all PDF tables keep compact cells and shallow brood badges", {
+  app <- load_main_app()
+  summary <- data.table::data.table(
+    Nest = "-MOCK_BROOD",
+    LabelFill = "#1565c0",
+    LabelText = "#ffffff"
+  )
+  rows <- data.frame(Nest = c("-MOCK_BROOD", "MOCK_NEST"), Notes = c("flag", "check"))
+  tasks <- paste(app$env$todo_pdf_task_table(rows, summary), collapse = "\n")
+  simple <- paste(app$env$todo_pdf_simple_table(rows), collapse = "\n")
+  expect_true(grepl("inset: (x: 3pt, y: 0.75pt)", tasks, fixed = TRUE))
+  for (output in c(tasks, simple)) {
+    expect_true(grepl("inset: (x: 2.2pt, y: 2.25pt)", output, fixed = TRUE))
+  }
+})
+
+
+test_that("flagging headings and subtitles follow the shared section style", {
+  app <- load_main_app()
+  heading <- app$env$todo_pdf_heading("Broods to recapture for flagging")
+  expect_true(startsWith(heading$subtitle_typst, "#emph["))
+  expect_true(grepl("#strong[Do not flag chicks", heading$subtitle_typst, fixed = TRUE))
+  template <- paste(readLines(app_file("main", "templates", "todo_pdf.qmd")), collapse = "\n")
+  expect_true(grepl(
+    '#show heading.where(level: 2): set text(size: 12pt, weight: "bold")',
+    template, fixed = TRUE
+  ))
 })
 
 

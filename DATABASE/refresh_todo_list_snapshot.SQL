@@ -28,9 +28,11 @@
   The canonical chick-event, target, age-C encounter/latest, juvenile-origin,
   and context calculations are materialized into connection-local temporary
   inputs rather than persistent views. The source graph is therefore expanded
-  once for this refresh, and the same-occasion family resolver is never
-  validated or re-expanded during views.SQL deployment. The completed chick
-  aggregate is then the only downstream input for those task branches.
+  once for this refresh. The public compatibility views retain their live
+  contracts during views.SQL installation, while the refresh uses its
+  connection-local canonical family resolver for the expensive same-occasion
+  calculations. The completed chick aggregate is then the only downstream
+  input for those task branches.
 
   TODO_HIDING_SPOT_PHOTO_CONTEXT_INPUT is handled the same way for the shared
   H-photo evidence aggregate used by both brood task unions.
@@ -49,6 +51,33 @@
 /* Fail fast on a publication metadata lock so the previous snapshot remains
    available instead of allowing an Adminer request to wait indefinitely. */
 SET SESSION lock_wait_timeout = 30;
+
+/*
+  Serialize cooperating views installations and TODO refreshes for this
+  schema. The prepared SIGNAL guard was verified on MariaDB 11.8.9; if the
+  target does not support it, PREPARE fails before any DDL or status write.
+  A same-connection retry reuses an existing lock instead of acquiring it
+  recursively. The lock is cooperative and is released at normal completion
+  or automatically when the connection terminates.
+*/
+SET @todo_schema_lock_name :=
+  'FIELD_2026_BADOatNZ.todo_schema_refresh';
+SET @todo_schema_lock_owned_on_entry := COALESCE(
+  IS_USED_LOCK(@todo_schema_lock_name) = CONNECTION_ID(),
+  0
+);
+SET @todo_schema_lock_result := CASE
+  WHEN @todo_schema_lock_owned_on_entry = 1 THEN 1
+  ELSE GET_LOCK(@todo_schema_lock_name, 0)
+END;
+SET @todo_schema_lock_guard_sql := IF(
+  COALESCE(@todo_schema_lock_result, 0) = 1,
+  'DO 0',
+  'SIGNAL SQLSTATE ''45000'' SET MYSQL_ERRNO = 30001, MESSAGE_TEXT = ''Could not acquire FIELD_2026_BADOatNZ schema-refresh advisory lock; another views install or TODO refresh is running.'''
+);
+PREPARE todo_schema_lock_guard_stmt FROM @todo_schema_lock_guard_sql;
+EXECUTE todo_schema_lock_guard_stmt;
+DEALLOCATE PREPARE todo_schema_lock_guard_stmt;
 
 /* Keep a durable, low-volume health record for app/download warnings. A
    failed client leaves the row in 'running', while a successful refresh marks
@@ -80,8 +109,27 @@ SET refresh_id = (@todo_status_next_id := @todo_status_next_id + 1)
 WHERE refresh_id IS NULL
 ORDER BY started_at, completed_at, reference_date;
 
-ALTER TABLE FIELD_2026_BADOatNZ.TODO_REFRESH_STATUS
-  MODIFY refresh_id BIGINT UNSIGNED NOT NULL;
+SET @todo_status_refresh_id_is_canonical := (
+  SELECT COUNT(*) = 1
+  FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = 'FIELD_2026_BADOatNZ'
+    AND TABLE_NAME = 'TODO_REFRESH_STATUS'
+    AND COLUMN_NAME = 'refresh_id'
+    AND LOWER(DATA_TYPE) = 'bigint'
+    AND INSTR(LOWER(COLUMN_TYPE), 'unsigned') > 0
+    AND IS_NULLABLE = 'NO'
+    AND INSTR(LOWER(COALESCE(EXTRA, '')), 'auto_increment') > 0
+);
+
+SET @todo_status_refresh_id_type_sql := IF(
+  @todo_status_refresh_id_is_canonical = 1,
+  'SELECT 1',
+  'ALTER TABLE FIELD_2026_BADOatNZ.TODO_REFRESH_STATUS MODIFY refresh_id BIGINT UNSIGNED NOT NULL'
+);
+PREPARE todo_status_refresh_id_type_stmt
+  FROM @todo_status_refresh_id_type_sql;
+EXECUTE todo_status_refresh_id_type_stmt;
+DEALLOCATE PREPARE todo_status_refresh_id_type_stmt;
 
 SET @todo_status_primary_key_exists := (
   SELECT COUNT(*)
@@ -99,8 +147,15 @@ PREPARE todo_status_primary_key_stmt FROM @todo_status_primary_key_sql;
 EXECUTE todo_status_primary_key_stmt;
 DEALLOCATE PREPARE todo_status_primary_key_stmt;
 
-ALTER TABLE FIELD_2026_BADOatNZ.TODO_REFRESH_STATUS
-  MODIFY refresh_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT;
+SET @todo_status_refresh_id_auto_sql := IF(
+  @todo_status_refresh_id_is_canonical = 1,
+  'SELECT 1',
+  'ALTER TABLE FIELD_2026_BADOatNZ.TODO_REFRESH_STATUS MODIFY refresh_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT'
+);
+PREPARE todo_status_refresh_id_auto_stmt
+  FROM @todo_status_refresh_id_auto_sql;
+EXECUTE todo_status_refresh_id_auto_stmt;
+DEALLOCATE PREPARE todo_status_refresh_id_auto_stmt;
 
 SET @todo_status_index_exists := (
   SELECT COUNT(*)
@@ -6880,3 +6935,9 @@ SET
     FROM FIELD_2026_BADOatNZ.TODO_LIST_SNAPSHOT
   )
 WHERE refresh_id = @todo_refresh_id;
+
+SELECT IF(
+  COALESCE(@todo_schema_lock_result, 0) = 1,
+  RELEASE_LOCK(@todo_schema_lock_name),
+  1
+) AS todo_schema_lock_released;

@@ -318,7 +318,11 @@ test_that("S10 and juvenile origin routes reject future or conflicting evidence"
     )
     expect_match(
       source_sql,
-      "all_proof.all_parent_proof_date <= r.date",
+      if (identical(source_sql, views_sql)) {
+        "proof.all_parent_proof_date <= r.date"
+      } else {
+        "all_proof.all_parent_proof_date <= r.date"
+      },
       fixed = TRUE
     )
     expect_match(

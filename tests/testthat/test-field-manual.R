@@ -14,7 +14,11 @@ test_that("Field Manual is wired directly below Nest Map with a static reader", 
 test_that("app manual preserves disclosure, sections and expected event table", {
   md <- paste(readLines(manual_file("manual.md"), encoding = "UTF-8"), collapse = "\n")
   html <- paste(readLines(manual_file("index.html"), encoding = "UTF-8"), collapse = "\n")
-  expect_lt(regexpr("## Authorship and use of AI", md)[1], regexpr("## Contents", md)[1])
+  expect_gt(regexpr("## Authorship and use of AI", md)[1], regexpr("## Appendix B.", md, fixed = TRUE)[1])
+  expect_match(md, "[Authorship and use of AI](#authorship)", fixed = TRUE)
+  expect_lt(regexpr("[Appendix B.", md, fixed = TRUE)[1],
+            regexpr("[Authorship and use of AI](#authorship)", md, fixed = TRUE)[1])
+  expect_match(html, '<a id="authorship"></a>', fixed = TRUE)
   expect_match(md, "full accountability for these", fixed = TRUE)
   expect_match(md, "mailto:luke.eberhart@bi.mpg.de", fixed = TRUE)
   expect_match(md, "A GPT AI model", fixed = TRUE)
@@ -45,6 +49,20 @@ test_that("app manual preserves disclosure, sections and expected event table", 
   expect_match(html, 'aria-live="polite"', fixed = TRUE)
   expect_false(grepl("<(?:script|link)[^>]+(?:src|href)=\"https?://", html, perl = TRUE))
   expect_false(grepl("/Users/|dbConnect|db_con\\(", html))
+})
+
+test_that("manual presents nationwide scope and clear tracking-tag terminology", {
+  md <- paste(readLines(manual_file("manual.md"), encoding = "UTF-8"), collapse = "\n")
+  expect_match(md, "Protocols for studying breeding Banded Dotterel / Pohowera", fixed = TRUE)
+  expect_false(grepl("Cass River · Banded Dotterel", md, fixed = TRUE))
+  expect_match(md, "work throughout New Zealand", fixed = TRUE)
+  expect_false(grepl("throghout", md, fixed = TRUE))
+  expect_false(grepl("preceeding", md, fixed = TRUE))
+  expect_match(md, "a **geolocator/tag** is a tracking unit fitted to a bird", fixed = TRUE)
+  expect_match(md, "Was there a geolocator/tag action, hatch, failure or closure?", fixed = TRUE)
+  expect_false(grepl("\\bdevices?\\b", md, ignore.case = TRUE, perl = TRUE))
+  expect_match(md, "For example, Cass River BADO IDs", fixed = TRUE)
+  expect_match(md, "In the current Cass River To-Do implementation", fixed = TRUE)
 })
 
 test_that("malformed fragments do not disable the reader controls", {

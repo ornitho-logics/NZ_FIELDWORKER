@@ -2,6 +2,33 @@
 SET SESSION lock_wait_timeout = 30;
 
 /*
+  Serialize cooperating views installations and TODO refreshes for this
+  schema. The prepared SIGNAL guard was verified on MariaDB 11.8.9; if the
+  target does not support it, PREPARE fails before any DDL is attempted.
+  A same-connection retry reuses an existing lock instead of acquiring it
+  recursively. The lock is cooperative and is released at normal completion
+  or automatically when the connection terminates.
+*/
+SET @todo_schema_lock_name :=
+  'FIELD_2026_BADOatNZ.todo_schema_refresh';
+SET @todo_schema_lock_owned_on_entry := COALESCE(
+  IS_USED_LOCK(@todo_schema_lock_name) = CONNECTION_ID(),
+  0
+);
+SET @todo_schema_lock_result := CASE
+  WHEN @todo_schema_lock_owned_on_entry = 1 THEN 1
+  ELSE GET_LOCK(@todo_schema_lock_name, 0)
+END;
+SET @todo_schema_lock_guard_sql := IF(
+  COALESCE(@todo_schema_lock_result, 0) = 1,
+  'DO 0',
+  'SIGNAL SQLSTATE ''45000'' SET MYSQL_ERRNO = 30001, MESSAGE_TEXT = ''Could not acquire FIELD_2026_BADOatNZ schema-refresh advisory lock; another views install or TODO refresh is running.'''
+);
+PREPARE todo_schema_lock_guard_stmt FROM @todo_schema_lock_guard_sql;
+EXECUTE todo_schema_lock_guard_stmt;
+DEALLOCATE PREPARE todo_schema_lock_guard_stmt;
+
+/*
   Raw encounter-level nest-ID consensus used only as a conflict gate for
   inferred same-occasion family links. This deliberately scans all BADO/CR
   age-A and age-C rows with an exact GPS pair, independently of identity or
@@ -111,8 +138,27 @@ SET refresh_id = (@todo_status_next_id := @todo_status_next_id + 1)
 WHERE refresh_id IS NULL
 ORDER BY started_at, completed_at, reference_date;
 
-ALTER TABLE FIELD_2026_BADOatNZ.TODO_REFRESH_STATUS
-  MODIFY refresh_id BIGINT UNSIGNED NOT NULL;
+SET @todo_status_refresh_id_is_canonical := (
+  SELECT COUNT(*) = 1
+  FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = 'FIELD_2026_BADOatNZ'
+    AND TABLE_NAME = 'TODO_REFRESH_STATUS'
+    AND COLUMN_NAME = 'refresh_id'
+    AND LOWER(DATA_TYPE) = 'bigint'
+    AND INSTR(LOWER(COLUMN_TYPE), 'unsigned') > 0
+    AND IS_NULLABLE = 'NO'
+    AND INSTR(LOWER(COALESCE(EXTRA, '')), 'auto_increment') > 0
+);
+
+SET @todo_status_refresh_id_type_sql := IF(
+  @todo_status_refresh_id_is_canonical = 1,
+  'SELECT 1',
+  'ALTER TABLE FIELD_2026_BADOatNZ.TODO_REFRESH_STATUS MODIFY refresh_id BIGINT UNSIGNED NOT NULL'
+);
+PREPARE todo_status_refresh_id_type_stmt
+  FROM @todo_status_refresh_id_type_sql;
+EXECUTE todo_status_refresh_id_type_stmt;
+DEALLOCATE PREPARE todo_status_refresh_id_type_stmt;
 
 SET @todo_status_primary_key_exists := (
   SELECT COUNT(*)
@@ -130,8 +176,15 @@ PREPARE todo_status_primary_key_stmt FROM @todo_status_primary_key_sql;
 EXECUTE todo_status_primary_key_stmt;
 DEALLOCATE PREPARE todo_status_primary_key_stmt;
 
-ALTER TABLE FIELD_2026_BADOatNZ.TODO_REFRESH_STATUS
-  MODIFY refresh_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT;
+SET @todo_status_refresh_id_auto_sql := IF(
+  @todo_status_refresh_id_is_canonical = 1,
+  'SELECT 1',
+  'ALTER TABLE FIELD_2026_BADOatNZ.TODO_REFRESH_STATUS MODIFY refresh_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT'
+);
+PREPARE todo_status_refresh_id_auto_stmt
+  FROM @todo_status_refresh_id_auto_sql;
+EXECUTE todo_status_refresh_id_auto_stmt;
+DEALLOCATE PREPARE todo_status_refresh_id_auto_stmt;
 
 SET @todo_status_index_exists := (
   SELECT COUNT(*)
@@ -7268,29 +7321,30 @@ WITH sr AS (
   WHERE variable = 'reference_date'
     AND value IS NOT NULL
 ), selected_parent_status AS (
-  SELECT *
+  SELECT
+    nest_id,
+    M_selected_identity_key,
+    F_selected_identity_key
   FROM FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_INPUT
+), parent_sexes AS (
+  SELECT 'M' AS sex
+  UNION ALL
+  SELECT 'F'
 ), selected_parent_identities AS (
   SELECT
     status.nest_id,
-    'M' AS sex,
-    status.M_selected_identity_key AS identity_key
+    sexes.sex,
+    CASE sexes.sex
+      WHEN 'M' THEN status.M_selected_identity_key
+      ELSE status.F_selected_identity_key
+    END AS identity_key
   FROM selected_parent_status status
+  CROSS JOIN parent_sexes sexes
   WHERE LEFT(TRIM(status.nest_id), 1) = '-'
-    AND status.M_selected_identity_key IS NOT NULL
-  UNION ALL
-  SELECT
-    status.nest_id,
-    'F' AS sex,
-    status.F_selected_identity_key AS identity_key
-  FROM selected_parent_status status
-  WHERE LEFT(TRIM(status.nest_id), 1) = '-'
-    AND status.F_selected_identity_key IS NOT NULL
-), resolved_negative_nests AS (
-  SELECT nest_id
-  FROM selected_parent_identities
-  GROUP BY nest_id
-  HAVING COUNT(DISTINCT sex) = 2
+    AND CASE sexes.sex
+      WHEN 'M' THEN status.M_selected_identity_key
+      ELSE status.F_selected_identity_key
+    END IS NOT NULL
 ), selected_parent_proof AS (
   SELECT
     selected.nest_id,
@@ -7307,38 +7361,38 @@ WITH sr AS (
    AND association.association_ambiguous = 0
    AND association.association_evidence_datetime IS NOT NULL
   GROUP BY selected.nest_id, selected.sex, selected.identity_key
-), selected_parent_proof_summary AS (
+), selected_parent_proof_with_summary AS (
   SELECT
-    nest_id,
-    MAX(association_proof_date) AS all_parent_proof_date
-  FROM selected_parent_proof
-  GROUP BY nest_id
-  HAVING COUNT(DISTINCT sex) = 2
+    proof.nest_id,
+    proof.sex,
+    proof.identity_key,
+    proof.association_proof_date,
+    MAX(proof.association_proof_date)
+      OVER (PARTITION BY proof.nest_id) AS all_parent_proof_date,
+    MAX(CASE WHEN proof.sex = 'M' THEN 1 ELSE 0 END)
+      OVER (PARTITION BY proof.nest_id) AS has_M_proof,
+    MAX(CASE WHEN proof.sex = 'F' THEN 1 ELSE 0 END)
+      OVER (PARTITION BY proof.nest_id) AS has_F_proof
+  FROM selected_parent_proof proof
 ), unlinked_parent_resightings AS (
   SELECT
     r.pk AS parent_resighting_pk,
     r.date AS event_date,
     r.gps_id,
     r.gps_point,
-    selected.nest_id,
+    proof.nest_id,
     matched.identity_key,
     matched.sex
   FROM FIELD_2026_BADOatNZ.RESIGHTINGS r
   JOIN FIELD_2026_BADOatNZ.ADULT_IDENTITY_MATCHES matched
     ON matched.resighting_pk = r.pk
-  JOIN selected_parent_identities selected
-    ON selected.identity_key = matched.identity_key
-   AND selected.sex = matched.sex
-  JOIN selected_parent_proof proof
-    ON proof.nest_id = selected.nest_id
-   AND proof.sex = selected.sex
-   AND proof.identity_key = selected.identity_key
+  JOIN selected_parent_proof_with_summary proof
+    ON proof.identity_key = matched.identity_key
+   AND proof.sex = matched.sex
    AND proof.association_proof_date <= r.date
-  JOIN selected_parent_proof_summary all_proof
-    ON all_proof.nest_id = selected.nest_id
-   AND all_proof.all_parent_proof_date <= r.date
-  JOIN resolved_negative_nests resolved
-    ON resolved.nest_id = selected.nest_id
+   AND proof.all_parent_proof_date <= r.date
+   AND proof.has_M_proof = 1
+   AND proof.has_F_proof = 1
   CROSS JOIN sr
   WHERE UPPER(TRIM(COALESCE(r.site, ''))) = 'CR'
     AND r.age = 'A'
@@ -8138,3 +8192,9 @@ FROM FIELD_2026_BADOatNZ._overview_fault_source;
 
 DROP TABLE FIELD_2026_BADOatNZ._overview_fault_source;
 */
+
+SELECT IF(
+  COALESCE(@todo_schema_lock_result, 0) = 1,
+  RELEASE_LOCK(@todo_schema_lock_name),
+  1
+) AS todo_schema_lock_released;
