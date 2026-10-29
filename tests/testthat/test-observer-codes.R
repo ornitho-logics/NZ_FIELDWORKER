@@ -109,8 +109,12 @@ test_that("protocol and guarded installer agree with the tracked validator chang
   expect_false(grepl("(?im)^\\s*(ALTER|CREATE|DROP|DELETE|INSERT)\\s", sql, perl = TRUE))
   expect_false(grepl("UPDATE FIELD_2026_BADOatNZ\\.(OBSERVERS|CAPTURES|EGGS|NESTS|RESIGHTINGS)\\b", sql))
   for (table in c("OBSERVERS", "EGGS", "NESTS", "RESIGHTINGS", "CAPTURES")) {
-    expect_match(sql, paste0("'", table, "_hard'"), fixed = TRUE)
+    expect_match(sql, paste0("'", table, "'"), fixed = TRUE)
+    expect_false(grepl(paste0("'", table, "_hard'"), sql, fixed = TRUE))
   }
+  expect_match(sql, "'(^|[[:space:]])hard$'", fixed = TRUE)
+  role_predicate <- "LOWER(TRIM(COALESCE(comments, ''))) REGEXP @observer_hard_comment_pattern"
+  expect_length(gregexpr(role_predicate, sql, fixed = TRUE)[[1L]], 4L)
   skip_if_not_installed("yaml")
   protocol <- yaml::read_yaml(app_file("notes", "codex_proposals", "validator_sandbox",
     "xlsx_short_tag_update", "bdot_dataentry_validator_protocol_plot_aligned.yaml"))

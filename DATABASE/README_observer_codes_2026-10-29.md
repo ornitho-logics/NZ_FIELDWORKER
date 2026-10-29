@@ -23,8 +23,13 @@ Merging the branch does not update the live DB-stored inspectors or field hints.
 Back up `inspectors` privately and stop concurrent inspector editing. Select
 `FIELD_2026_BADOatNZ` in Adminer, enable **Stop on error**, and execute the whole
 `update_observer_code_validators_2026-10-29.SQL` file in one request. It updates
-only the relevant fragments in the five existing `TABLE_hard` rows rather than
-overwriting whole lists. Missing, duplicate, custom/differently formatted rows,
+only the relevant fragments in the five existing hard-role rows rather than
+overwriting whole lists. The database `table_name` must be `OBSERVERS`, `EGGS`,
+`NESTS`, `RESIGHTINGS` or `CAPTURES`; the final word in `comments` must be `hard`
+(case-insensitive, with surrounding whitespace ignored). `_hard.R` is an export
+filename convention, not the database row's table name. Rows ending in `warn`
+or `warning`, and all other rows, are left untouched. Comment labels are not
+renamed. Missing, duplicate, custom/differently formatted rows,
 the wrong selected database, or a non-InnoDB inspectors table fail closed. A
 failed preflight or post-update verification rolls back without committing.
 
@@ -73,13 +78,22 @@ It also checks the local protocol and installation safeguards. No live database
 or confidential snapshot is needed for these tests.
 
 The actual installation SQL was additionally exercised with invented-only
-tables on an isolated no-network MariaDB 11.8.9 instance. Thirteen scenarios
+tables on an isolated no-network MariaDB 11.8.9 instance. Fifteen scenarios
 passed: exact five-row source transformation, safe rerun, missing/duplicate/
 custom rows, wrong database, nontransactional engine, failed-verification
 rollback, six hint updates preserving attributes/records, exact original-comment
 restoration with apostrophes/backslashes, unsupported generation SQL mode,
-unexpected column metadata and wrong-database hint generation. The test server
+unexpected column metadata, wrong-database hint generation, missing hard role,
+and case/whitespace variations in role comments. The test server
 was shut down afterwards. No live installation or production timing is claimed.
+
+The first installer incorrectly used export labels as database table names;
+the reported live run safely changed zero rows. The corrected mapping was
+retested using the actual-table-name plus comment-role layout, including
+same-table warning rows containing the same old snippets. Missing, duplicate
+and mislabeled hard rows remain fail-closed; warning code and comments remain
+unchanged. No claim is made that unknown custom live fragments match until
+the corrected installation returns PASS.
 
 For manual portal verification, use an approved active code in a new session:
 the format check should accept `P3`, reject `p3`/`P-3`/four-character codes, and
