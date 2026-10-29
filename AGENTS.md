@@ -391,9 +391,12 @@ The term “waypoint” may be used in prose when referring generically to a GPS
 
 A negative `nest_id` identifies a brood of unknown origin: no eggs, nest, or
 stationary origin was found. Negative IDs are valid in `CAPTURES` and
-`RESIGHTINGS` only; they are invalid in `NESTS` and `EGGS`. `NO_NEST` is a
-separate sentinel for an event unrelated to any nest or brood. The leading
-minus sign must be retained.
+`RESIGHTINGS` only; they are invalid in `NESTS` and `EGGS`. For an age-A
+`CAPTURES` event unrelated to a nest or brood, leave `nest_id` blank (SQL NULL)
+and enter the complete `gps_id`/`gps_point` pair. `NO_NEST` is retired and is
+rejected as current input in both `CAPTURES` and `RESIGHTINGS`. This correction
+does not authorize rewriting historical rows or dumps. The leading minus sign
+must be retained on negative IDs that are entered.
 
 For a hiding-spot photograph, enter each photographed chick as its own age-C
 `RESIGHTINGS` event with:
@@ -425,9 +428,10 @@ brood/nest association from deterministic prior chick-ring evidence or an
 unambiguous same-occasion adult/family association. Ambiguous rows remain
 unresolved, and the raw `RESIGHTINGS.nest_id` is not rewritten.
 
-This schema, validator, and task behavior is merged in tracked repository source.
-That is not evidence that the target database, live inspectors, or deployed
-Shiny process has been updated.
+The earlier negative-brood/H-ring implementation is merged in tracked source;
+the 2026-10-26 corrections are a separate local reconciliation and still need
+final source agreement and integration verification. Neither statement proves
+that the target database, live inspectors, or deployed Shiny process is updated.
 
 ## Database backend
 
@@ -749,14 +753,14 @@ egg_id
 float_angle
 float_surface
 float_location
-cam_id
-photo_start
-photo_end
-harddrive_id
 comments
 nov
 pk
 ```
+
+The current `EGGS` table has no camera, photo-range, or hard-drive fields.
+Record clutch photographs on the corresponding `NESTS` visit using its
+photo flags, `cam_id`, `photo_start`, and `photo_end`.
 
 Older wide-format field names such as `float_angle_1`, `float_surface_1`, and `float_location_1` should be treated as stale unless encountered in current code that still needs cleanup.
 
@@ -822,7 +826,6 @@ nest_id
 cam_id
 photo_start
 photo_end
-harddrive_id
 comments
 falcon_upload
 nov
@@ -994,19 +997,78 @@ Only after local mock testing should a validator expression be pasted into the `
 
 Thread 3.1 now uses a machine-readable validator protocol as the official spec-of-record for validator behavior.
 
-Current local protocol path:
+External canonical working protocol path (separate synchronization authority):
 
 ```text
 /Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/bdot_db/data/working/bdot_dataentry_validator_protocol.yaml
 ```
 
-Current reviewed local protocol-mirror identity:
+Current reviewed local protocol mirror:
+
+```text
+notes/codex_proposals/validator_sandbox/xlsx_short_tag_update/bdot_dataentry_validator_protocol_plot_aligned.yaml
+```
+
+Mirror identity inspected during the 2026-10-26 documentation reconciliation:
 
 ```text
 protocol_id: bdot_2026_2027_dataentry_validator_protocol
-protocol_version: 1.3.10
+protocol_version: 1.3.14
 generated_on: 2026-10-26
 ```
+
+The mirror is a local review candidate, not proof of deployment. Thread 3.1
+completed its focused inspector checks; full SQL/refresh/PDF integration
+verification remains a separate release gate. Record exact source hashes in
+the release verification record rather than treating a version label alone
+as evidence that subsequent edits were inspected.
+
+Version 1.3.14 adds `SC` (scraping) to independent adult parent–nest
+association candidates, matching the approved single-observation confirmation
+policy. It does not add `SC` to the `BC`/`FC`/`AC` parent-with-chicks checks.
+
+Version 1.3.13 retires `NO_NEST` current input, requires one non-conflicting
+nest/brood ID per family encounter keyed by date, site, `gps_id`, and
+`gps_point`, and excludes any parent event containing `?` in any leg field
+from parent-nest evidence unless a known metal ring reliably traces capture
+identity. The blocker includes conflicting nonblank IDs when all rows are
+explicit and when the family is split across CAPTURES/RESIGHTINGS; blank-ID
+inference is not the only affected route. Separate encounters may record real
+brood mixing. Archive captures establish identity, never a previous-season
+nest link for the current family. A blank current nest link requires eligible,
+unambiguous current-season association evidence. An unverified ring or an
+independently readable lower-band/flag component does not waive the event-wide
+uncertainty exclusion. Preserve raw uncertain observations.
+
+Version 1.3.12 accepts `?`, `?R`, `R?`, and analogous one-known-colour partial
+readings in all four RESIGHTINGS leg fields; `T?` is also accepted in `UR`.
+Bare `T` remains invalid. CAPTURES forbids `?` in all release and `_in` leg
+fields for every capture status. Accepted sighting syntax is not definitive
+parent identity evidence.
+
+The current nest-method decision permits repeated `pP`, `P`, and `D`
+fate-review visits until final `notA`; it does not restore parent-capture or
+GEO eligibility at a failed nest. The rare discovery of newly hatched chicks
+still inside an obvious nest retains a positive ID, truthful zero clutch,
+first-only nest GPS, and F followed by H at least one minute later. The normal
+first-F zero-clutch rejection is intentional: verify the observation and add
+the explanatory comment before using the documented override if correct. Do
+not add an automatic validator exception or invent eggs or earlier visits.
+Chicks found outside a nest with unknown origin use a negative brood ID and
+no NESTS/EGGS events. EGGS has no media columns; clutch photos belong on NESTS.
+
+Version 1.3.11 aligned age-C status-R and status-C captures with the mandatory
+direct GPS pair, including positive nest IDs; positive-nest first captures
+retain their complete-pair optionality. Adults captured with chicks also need
+direct GPS under the `caught_with` condition. An already-saved chick capture
+can satisfy the parent-side resighting check at the same date, site and GPS
+pair, without invented chick resightings. The approved negative-brood blank-ID
+family route uses authoritative selected-parent status: both parents must
+already be resolved, but only the parent(s) actually observed need a current
+resighting row. Missing, pending or ambiguous status does not supply that link.
+The local changes also accept uncertain lower-leg readings such as `R?` without
+using them as definitive identity evidence. These are local review artifacts,
+not evidence of external protocol synchronisation or live inspector deployment.
 
 Version 1.3.10 gives age-C captures a measurement-based status boundary. The
 status-R warning envelope uses tarsus 18.43-26.99, culmen 6.47-13.79, and
@@ -1024,17 +1086,20 @@ require `tarsus`, `culmen`, and `weight`, preserve the normal location and
 status-change checks, and may include optional older-chick/adult-style
 measurements, samples, and photo flags when entered. They do not have to use
 the initial F/R chick-release layout, and their morphometric warning range is
-broadened to accommodate expected growth. Age-C F/R requirements remain
-unchanged. Version 1.3.3 requires a real nest or brood link for age-C first
+broadened to accommodate expected growth. The age-C F/R measurement and marking
+requirements remain unchanged; the current GPS conditions are described above.
+Version 1.3.3 requires a real nest or brood link for age-C first
 captures and permits an optional complete GPS pair for positive-nest chicks
 captured away from the nest. Version 1.3.2 added save-blocking H-ring format
 and current-CAPTURES existence checks. The H-ring rule remains restricted to
 normalized `rclass = "H"`; ordinary RESIGHTINGS classes may leave `ring` blank.
 
-The tracked protocol mirror is the v1.3.10 review artifact for this update. The
-external canonical working copy remains at v1.3.5 and the live `inspectors`
+The local protocol mirror is the v1.3.14 review artifact inspected for this
+update. The external canonical working copy was separately inspected at v1.3.5
+(generated 2026-10-24), and the live `inspectors`
 table is a separate artifact; neither is changed or implied to be synchronized
-by a repository commit.
+by this documentation reconciliation or a repository commit. Do not overwrite
+the external YAML without separate authorization.
 
 Use the latest approved local database snapshot in `DATABASE/` only as a
 read-only alignment reference for mock-data generation and protocol review.
@@ -1169,9 +1234,18 @@ counts match or expires after the current day-6 window. This evidence remains
 separate from a CAPTURES tent-photo event.
 
 Parent association is sex-aware, chronology-aware, and bounded by
-`settings.reference_date`. Ordinary banded identities use LL/LR; a
+`settings.reference_date`. Any `?` in UL/LL/UR/LR excludes that whole event
+from parent-nest evidence unless a verified known metal ring traces capture
+identity; archive identity cannot supply a previous-season current-nest link.
+Same-encounter family evidence must match date, site and the complete GPS pair
+and must not contain conflicting nonblank nest/brood IDs, including fully
+explicit rows and split-table encounters. Separate encounters may reflect
+brood mixing. Ordinary banded identities use LL/LR; a
 spacer-dependent single-lower-colour identity uses the required full mark.
-Association-confirming behaviour tokens are `IN`, `NM`, `BW`, `BC`, and `FC`.
+The approved association-confirming behaviour list includes `IN`, `NM`, `SC`,
+`BW`, `BC`, `FC`, and `AC`. A nest-linked `SC` (scraping) observation can confirm
+association on its own. This does not make `SC` a parent-with-chicks behaviour:
+same-occasion parent/chick checks still require `BC`, `FC`, or `AC`.
 A matching parent association resolves after one such behaviour observation or
 after three matching nest-linked resightings, counting the initial resighting.
 Unresolved or ambiguous association evidence remains in `Parent resighting`
@@ -1662,7 +1736,12 @@ are shared requirements for every thread rather than a separate Thread 6 scope.
 
 When a task crosses boundaries, the active thread should explicitly name the handoff and avoid silently taking over another thread’s scope.
 
-## Current recovery-pass state and read order
+## Historical 2026-10-23 recovery-pass state and current read order
+
+The dated Git state below is historical, not an instruction to resume old
+checkout, undo, or publication tasks. These historical notes grant no authority
+to change Git state, code, live state or private manual artifacts. Follow the
+user's explicit current-task scope and the controls above.
 
 At the 2026-10-23 documentation recovery pass, the local Git references were:
 
@@ -1700,14 +1779,18 @@ reviewed per-table inspector lists. Raw prompts, private GEO reports, field-
 manual drafts, mock workbooks, snapshots, raw data, and generated diagnostic
 previews remain ignored/local. This is an intentional confidentiality boundary,
 not evidence that those artifacts are absent or deployed. The Thread 3.1
-protocol lives outside this repository and must be checked by path without
-copying credentials or raw data.
+external canonical protocol lives outside this repository; its separate local
+review mirror and inspected identities are listed above. Check the appropriate
+path without copying credentials or raw data, and do not infer synchronization.
 
-The current Overview has eight panels, not seven. The current validator protocol
-identity is `bdot_2026_2027_dataentry_validator_protocol` version `1.3.4`,
-generated 2026-10-10. Any older handoff text that says seven panels, protocol
-1.3.3, Thread 7 Tutor, or a monolithic deployable TODO view is historical and
-is superseded by this section and the refreshed specialist handoffs.
+The current Overview has eight panels, not seven. Protocol version `1.3.4`,
+generated 2026-10-10, was the recovery-pass reference, not a permanently current
+protocol identity. Use the **Validator protocol** section above for the current
+reviewed mirror identity and its distinction from the external canonical copy
+and live inspectors. Any older handoff text that says seven panels, treats a
+recovery-pass protocol version as current, describes Thread 7 as Tutor, or
+assumes a monolithic deployable TODO view is historical and is superseded by
+the current sections and refreshed specialist handoffs.
 
 ## Definition of done
 

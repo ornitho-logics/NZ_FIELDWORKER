@@ -1,12 +1,28 @@
 # Thread 9 local-replica protocol
 
 Last reconstructed: 2026-10-24
+Current regression-contract reconciliation: 2026-10-26 (static only).
 
 Status: tracked recovery documentation for the local MariaDB replica and
 refresh/replay workflow. This file is intentionally not a source-of-truth
 document for task biology, PDF semantics, validators, or production
 deployment. It records how Thread 9 should reproduce and diagnose the current
 schema/refresh workflow without touching the live database.
+
+The 2026-10-26 correction pass does not rerun or extend the dated replay
+evidence below. It inspected the local protocol mirror at v1.3.13 (generated
+2026-10-26) and the separate external canonical YAML at v1.3.5 (generated
+2026-10-24). Exact fingerprints belong in the source-frozen release verification
+record; recheck after any subsequent Thread 3.1 correction. Current
+source agreement and a new isolated invented-data install/refresh/parent/
+To-Do/PDF check remain separate gates. This documentation pass runs no app or
+database and changes no Git state, code, dumps, configuration or manual files.
+
+The subsequent approved SC (scraping) clarification advances the reviewed
+mirror to v1.3.14: one eligible nest-linked SC observation can confirm parent
+association. SC does not substitute for BC/FC/AC in parent-with-chicks checks.
+Use the final frozen hashes for the current replay, not the earlier v1.3.13
+inspection label above.
 
 ## Role, ownership, and non-goals
 
@@ -62,7 +78,7 @@ The live server is outside Thread 9's authority. A local replay can establish
 that a revision is internally consistent, but it cannot establish that the
 server imported that revision or that the deployed Shiny process restarted.
 
-## Verified source and replay state
+## Historical verified source and replay state — 2026-10-23/24
 
 The final local replay used:
 
@@ -166,17 +182,22 @@ the latest qualifying age-C capture/resighting encounter. A later positive
 age-C capture or resighting therefore advances Last Visit after hatch evidence
 when it is directly linked or deterministically associated with the brood.
 
-For an unlinked, non-H age-C `RESIGHTINGS` row, a same-date, same-`gps_id`,
-same-`gps_point` adult observation may resolve the encounter only when exactly
+For an unlinked, non-H age-C `RESIGHTINGS` row, a same-date, same-site,
+same-`gps_id`, same-`gps_point` adult observation may resolve the encounter only when exactly
 one distinct adult-linked nest ID is available. Adult evidence may come from
 the authoritative adult `RESIGHTINGS`/`CAPTURES` context. The following
 boundaries are mandatory:
 
-- a direct positive or negative brood link remains authoritative;
-- a missing, blank, or `NO_NEST` link is unresolved unless the deterministic
-  same-occasion GPS rule succeeds;
+- a direct positive or negative brood link is retained, subject to the
+  same-family conflict blocker below;
+- a missing or blank link is unresolved unless the approved deterministic
+  same-date/site/GPS association succeeds; negative-family blank-ID inference
+  additionally requires unambiguous authoritative selected-parent status;
+- `NO_NEST` is retired and rejected as current input. An unrelated age-A
+  CAPTURES event uses SQL NULL `nest_id` and a complete GPS pair. Historical
+  sentinel rows are not rewritten or promoted into current biological links;
 - multiple candidate nest IDs remain unresolved;
-- a different date, incomplete GPS pair, or nonmatching GPS pair remains
+- a different date/site, incomplete GPS pair, or nonmatching GPS pair remains
   unresolved; and
 - age-C H-class rows remain on the dedicated
   `RESIGHTINGS_H_BROOD_ASSOCIATIONS` ring/photo path and must not be folded
@@ -184,10 +205,35 @@ boundaries are mandatory:
 
 The regression suite should include later age-C captures, direct age-C
 resightings, GPS-only age-C resightings with exactly one adult-linked nest,
-ambiguous adult-linked nests, missing/`NO_NEST` rows, wrong-date and wrong-GPS
-rows, and H rows with ring/photo evidence. A Last Visit change must not by
+ambiguous adult-linked nests, missing links, retired-sentinel rejection,
+wrong-date/site/GPS rows, and H rows with ring/photo evidence. A Last Visit change must not by
 itself change task eligibility, parent-association evidence, brood closure,
 map coordinates, or PDF table membership.
+
+Current correction fixtures must also cover:
+
+- Any `?` in UL/LL/UR/LR excludes that whole parent event from parent-nest
+  evidence unless a verified known metal ring traces current/archived capture
+  identity. A readable lower band/flag or an unverified ring is insufficient.
+  Archive identity must never import a previous-season nest link; blank-ID
+  ring inference needs eligible unambiguous current-season association.
+- Conflicting nonblank positive/negative IDs in one family encounter
+  (same date, site and complete GPS pair) save-block even when every row has an
+  explicit ID and when parents/chicks span CAPTURES and RESIGHTINGS. Include
+  genuine split-table saved companions. Separate-encounter brood mixing is
+  allowed; do not impose a lifetime single-nest constraint.
+- Accepted RESIGHTINGS `?`, `?R`, `R?` and analogous partials in each leg
+  field, plus `T?` in UR, preserve raw observations; bare `T` and CAPTURES
+  question-mark release/input marks remain invalid.
+- `pP`/`P`/`D` allow fate-review visits until final `notA` without restoring
+  failed-nest capture/GEO eligibility. Rare inside-nest first F with zero
+  clutch then H at least one minute later retains positive origin, truthful
+  counts and first-only nest GPS. Expect the intentional F-zero rejection
+  and verify/comment/documented override if correct; no automatic exception.
+- EGGS has no camera/photo/hard-drive columns; clutch photos belong on NESTS.
+
+These are requirements for the owning specialists' corrected-source regression
+suite, not test results obtained by this documentation pass.
 
 ## Clean local bootstrap
 
@@ -519,10 +565,13 @@ Run this checklist for every proposed SQL or refresh change:
 
 For the Last Visit/GPS-association change, additionally verify these focused
 cases without printing their raw rows: a later positive age-C capture or
-resighting advances Last Visit; a same-date/same-GPS non-H age-C row resolves
-only when exactly one adult-linked nest exists; direct links win; ambiguous,
-missing, `NO_NEST`, wrong-date, and wrong-GPS cases remain unresolved; and H
-rows remain on the ring/photo association path.
+resighting advances Last Visit; a same-date/site/GPS non-H age-C row resolves
+only through eligible unambiguous current association; direct links remain
+subject to the same-family conflict blocker; ambiguous or unmatched blank
+links and wrong-date/site/GPS cases remain unresolved; the retired sentinel is
+rejected as current input; and H rows remain on the ring/photo association
+path. Include the uncertainty/ring, fully explicit and split-table conflict,
+separate-encounter brood-mixing and nest-method cases listed above.
 
 The hard stop is important: a failed view install, failed refresh stage,
 unreached publication marker, `running`/`failed` status, null completion time,

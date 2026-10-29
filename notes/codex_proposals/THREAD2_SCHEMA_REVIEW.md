@@ -1,13 +1,21 @@
 # Thread 2 Schema Review: Current Database Architecture
 
-Last refreshed: 2026-10-23
+Last refreshed: 2026-10-26
 
-Publication reconciliation: this handoff is being published from
+Historical publication reconciliation: this handoff was published from
 `origin/main` at `f7d13fb`. The `9beb203` and `d3c7bd4` states below are the
 recorded inspection provenance for the protected experimental checkout, not
 the documentation branch's current source baseline. `f7d13fb` includes the
 refresh empty-statement correction merged through PR #147. No live deployment
 is inferred from that source merge.
+
+The 2026-10-26 correction is a later uncommitted candidate, not a publication
+from that older baseline. Use the final source-frozen verification record and
+a fresh origin/main comparison for release preparation. SC (scraping) is
+independently association-confirming in both ADULT_PARENT_STATUS and the
+supporting ADULT_SCRAPE_RESIGHTING_STATUS helper. It is not a BC/FC/AC
+parent-with-chicks substitute. The earlier inspection provenance below remains
+historical; it does not establish current Git, replay or deployment state.
 
 ## Status and scope
 
@@ -107,28 +115,40 @@ Current DDL facts:
 - The targeted composite index `(nest_id, age, date, pk)` supports repeated
   brood/chick chronology and deterministic latest-row selection.
 
-`CAPTURES` accepts positive nest IDs, negative unknown-origin brood IDs, and
-`NO_NEST` with the meanings below. A negative-ID event requires the paired
-direct GPS fields. Capture photo ranges describe handling/tent sequences;
-hiding-spot photographs belong in separate H-class RESIGHTINGS rows.
+`CAPTURES` accepts positive nest IDs and negative unknown-origin brood IDs. An
+adult capture unrelated to any nest or brood uses a blank `nest_id` with a
+complete direct GPS pair. No sentinel is used for an unknown or unresolved
+association. A negative-ID event requires the paired direct GPS fields. Capture
+photo ranges describe handling/tent sequences; hiding-spot photographs belong
+in separate H-class RESIGHTINGS rows.
+
+Direct GPS is also mandatory for an adult capture with chicks recorded in
+`caught_with`, and for an age-C CAPTURES row with `capture_status = 'R'` or
+`'C'`, even when the positive `nest_id` is known. A positive-nest age-C first
+capture may omit direct GPS only where the approved protocol permits it; when
+GPS is supplied, `gps_id` and `gps_point` must be a complete pair.
 
 ### `EGGS`
 
 `EGGS` is intentionally long format: one row per egg observation. Its key
 fields are `nest_id`, `egg_id`, `date`, `time_visit`, `float_angle`,
 `float_surface`, and `float_location`. Current `float_location` values are
-`bottom`, `suspended`, and `surface`.
+`bottom`, `suspended`, and `surface`. The current DDL does not contain
+`cam_id`, `photo_start`, `photo_end`, or `harddrive_id`; clutch media belong
+to NESTS, not EGGS. Do not restore those older fields from historical field
+lists without an explicit schema decision.
 
 EGGS accepts only a positive known-nest ID. A negative brood has no known nest
-or egg history, and `NO_NEST` is not valid. EGGS does not contain
-`observer_upload`.
+or egg history, and no sentinel should be entered for a missing association.
+EGGS does not contain `observer_upload`.
 
 ### `NESTS`
 
 `NESTS` stores nest-check history, nest state, clutch/brood observations,
 incubation observations, nest photographs, and the stationary GPS anchor for a
 real nest/scrape. Its `nest_id` is a positive nest identifier only. Negative
-brood IDs and `NO_NEST` are invalid here.
+brood IDs are invalid here; missing associations are not represented by a
+sentinel.
 
 The current `bird_inc` enum accepts `M`, `F`, `FM`, `MF`, `U`, and `E`; `FM`
 and `MF` both express both sexes and should not be treated as biologically
@@ -146,10 +166,18 @@ identifies the resighted individual, especially an age-C, `rclass = 'H'`
 hiding-spot-photo chick. It supplements rather than replaces `UL`, `LL`, `UR`,
 and `LR`. `RESIGHTINGS_PUBLIC` is separate and does not receive this field.
 
-Positive and negative `nest_id` values are valid here. `NO_NEST` means the event
-is unrelated to a nest or brood and is not interchangeable with a negative
-brood. A negative-ID resighting requires a paired direct `gps_id` and
-`gps_point`.
+Positive and negative `nest_id` values are valid here. A negative-ID resighting
+requires a paired direct `gps_id` and `gps_point`. Eligible age-C `R`, `P`,
+`V`, and `C` family events also require a complete direct GPS pair when the
+approved family route uses direct GPS. Do not omit `nest_id`
+routinely: a blank raw ID is allowed only under an approved entry or
+derived-association condition. An eligible ordinary age-C `R`, `P`, `V`, or
+`C` family event may resolve through authoritative parent association. Luke's
+S10 negative-brood parent/chick route may resolve the shared negative brood
+through authoritative parent association. An eligible age-C `H` event may
+resolve one positive nest or negative brood from approved prior ring/family
+evidence and exact date/GPS matching. Exact validation predicates remain
+Thread 3.1's responsibility.
 
 ### `RESIGHTINGS_PUBLIC`
 
@@ -175,7 +203,7 @@ The existing column name `nest_id` is retained for compatibility.
 |---|---|---|---|
 | Positive ID | A real stationary nest/scrape. | `NESTS`, `EGGS`, `CAPTURES`, `RESIGHTINGS` | `NESTS` can provide the stationary fallback anchor. |
 | Negative ID | A mobile brood of unknown origin, such as `-A0203`, `-B0204`, `-C0201`, or `-BA0202`. | `CAPTURES`, `RESIGHTINGS` only | Each event carries its own direct paired GPS; there is no NESTS fallback. |
-| `NO_NEST` | An event unrelated to any nest or brood. | `CAPTURES`, `RESIGHTINGS` where the current protocol allows it | Follow the unlinked direct-GPS workflow; exclude it from nest/brood identity. |
+| Blank `nest_id` | An adult capture unrelated to any nest or brood, with complete direct GPS. | `CAPTURES` adult context only | Exclude it from nest/brood identity; do not replace it with a sentinel. |
 
 Negative IDs are not malformed positive IDs. They identify a mobile brood of
 unknown origin and are repeated on later parent/chick events that are
@@ -185,28 +213,32 @@ stationary nest or egg history exists.
 
 The source-table comments and validator protocol should enforce the distinction:
 
-- NESTS and EGGS reject negative IDs and direct users to CAPTURES/RESIGHTINGS.
+- NESTS and EGGS reject negative IDs and direct users to CAPTURES/RESIGHTINGS;
+  they do not use a missing-association sentinel.
 - CAPTURES and RESIGHTINGS permit negative IDs but require paired direct GPS.
-- `NO_NEST` is reserved for no nest/brood association and must not be used as a
-  convenient substitute for an unknown-origin brood.
+- historical literal `NO_NEST` values are treated defensively as non-associations
+  by derived SQL, but are no longer an active entry convention; new unrelated
+  adult captures use blank `nest_id` plus a complete direct GPS pair.
 
 ## Hiding-spot-photo and derived association contract
 
 The normal hiding-spot workflow is one separate RESIGHTINGS row per chick:
 `age = 'C'`, `rclass = 'H'`, nonblank metal `ring`, direct paired GPS, and
 `photo_start`/`photo_end`. The raw `RESIGHTINGS.nest_id` should be filled when
-the positive nest or negative brood is known.
+the positive nest or negative brood is known; a blank raw ID is not a general
+omission route.
 
 The approved advanced exception permits a raw H row to have a blank `nest_id`
-when prior chick-capture evidence or current same-occasion family evidence
-resolves exactly one candidate. The raw biological row remains unchanged. A
-derived task-level association is allowed only when it is deterministic;
-ambiguous candidates remain unresolved.
+only when prior chick-capture evidence or current same-occasion family
+evidence resolves exactly one candidate. The raw biological row remains
+unchanged. A derived task-level association is allowed only when it is
+deterministic; ambiguous candidates remain unresolved.
 
 The current checked-out `RESIGHTINGS_H_BROOD_ASSOCIATIONS` view is the shared
 helper. Its current behavior is:
 
-- an explicit raw ID wins, except that `NO_NEST` is not a brood association;
+- an explicit raw positive or negative ID wins; no no-association sentinel is a
+  brood association;
 - an unlinked H row may use one same-date, exact-GPS adult RESIGHTINGS nest
   candidate;
 - an unlinked H row may use an unambiguous latest prior age-C CAPTURES ring
@@ -223,6 +255,48 @@ consume the helper so that identity/location logic is not duplicated in R.
 `RESIGHTINGS_PUBLIC` is unaffected. The helper is internal and does not require
 a new base-table index solely for `ring`.
 
+### Ring identity normalization handoff
+
+Ring identity must be canonicalized before matching or counting. The shared
+schema/view contract is:
+
+- trim surrounding whitespace and uppercase the identity;
+- treat the optional `CP` hyphen as formatting, so invented values `CP12345`
+  and `CP-12345` share one identity key;
+- treat SQL NULL, blank, whitespace-only, and textual `NA` as missing and never
+  as a ring identity;
+- preserve the entered/display spelling in raw data and outputs where useful;
+- never collapse two different real ring codes merely because they look similar;
+- do not rewrite raw CAPTURES or RESIGHTINGS rows.
+
+The canonical key must be used consistently by H-association ring history,
+captured-chick distinct-ring counts, and H-photo distinct-ring counts. The
+current SQL owns these expressions; Thread 4 consumes their outputs and should
+not duplicate their source unions or location ranking. Thread 2 owns this
+contract and compatibility review; static invented checks should
+confirm that `CP12345`/`CP-12345` match once, missing-like values do not count,
+and genuinely different codes remain separate.
+
+### Event-wide uncertain-mark gate
+
+For parent-nest association evidence, any `?` in any of `UL`, `LL`, `UR`, or
+`LR` makes the event ineligible. A complete lower combination, a full mark, or
+an explicit `X-X` interpretation does not override that exclusion. The only
+exception is a nonblank metal ring that can be normalized and traced to current
+or archived capture history by date; the raw mark text remains unchanged. An
+archive match establishes ring identity only. It must not import an archived
+nest ID or archived season into current-family inference.
+
+The current SQL exposes `has_uncertain_mark`, `ring_traced_to_capture`, and
+`association_evidence_eligible` through the adult identity views, then applies
+the eligibility gate to identity promotion, GPS-linked parent evidence, XX
+supersession, MM evidence, negative-brood parent selection, same-occasion H and
+chick association, the S10 linker, and the legacy scrape helper. This is a
+read-side fail-closed rule. It does not rewrite biological rows, and it does
+not suppress a qualifying H-photo ring/media count solely because an adult
+event has an uncertain mark. Broader current-occasion conflicting-ID
+validation remains Thread 3.1's save-time responsibility.
+
 ## Location and temporal contract
 
 Operational brood location means the latest **valid direct chick-event
@@ -235,7 +309,8 @@ location**, not the latest event regardless of GPS completeness:
 4. If a positive brood has no valid direct chick-event location, use the
    positive nest's NESTS anchor.
 5. Never use a NESTS fallback for a negative brood.
-6. Exclude `NO_NEST` from brood-derived outputs.
+6. Exclude historical adult-capture sentinel rows from brood-derived outputs;
+   the active entry contract uses blank `nest_id` plus complete direct GPS.
 
 The current event ordering is deterministic: event date descending, event
 datetime descending where available, source priority, then primary key
@@ -636,6 +711,13 @@ not this dirty checkout, and report sanitized object/timing evidence only.
 - `eggs_handled` is a current CAPTURES field between GPS linkage and field sex.
 - `RESIGHTINGS.ring` is not future-only; it is present in the current tracked
   DDL and is part of the H-photo contract.
+- `NO_NEST` is not an active adult-capture entry convention; new unrelated
+  adult captures use blank `nest_id` plus complete direct GPS. Defensive SQL
+  exclusions remain only to prevent historical literals from becoming real
+  positive associations.
+- A full or lower mark containing `?` is not reusable parent evidence merely
+  because the other fields form a complete key; only a verified metal-ring
+  exception makes the event eligible.
 - `BROODS_LATEST` is not merely a proposed future object; it is implemented in
   the current SQL architecture and consumed by brood-aware downstream logic.
 - The older claim that NESTS_LATEST does not watch RESIGHTINGS is stale; the

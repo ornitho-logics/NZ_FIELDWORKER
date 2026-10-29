@@ -352,6 +352,59 @@ test_that("TODO snapshot refresh is explicit and uses live SQL sources", {
 })
 
 
+test_that("refresh chick targets use the canonical individual-death contract", {
+  refresh_sql <- paste(
+    readLines(
+      app_file("DATABASE", "refresh_todo_list_snapshot.SQL"),
+      warn = FALSE
+    ),
+    collapse = "\n"
+  )
+
+  expect_match(
+    refresh_sql,
+    "CREATE TEMPORARY TABLE tmp_todo_chick_capture_event_status AS",
+    fixed = TRUE
+  )
+  expect_match(
+    refresh_sql,
+    "CREATE TEMPORARY TABLE tmp_todo_chick_capture_targets AS",
+    fixed = TRUE
+  )
+  expect_match(refresh_sql, "e.event_time_is_observed", fixed = TRUE)
+  expect_match(
+    refresh_sql,
+    "chick_events.event_time_is_observed",
+    fixed = TRUE
+  )
+  expect_match(
+    refresh_sql,
+    "COUNT(DISTINCT bridge.ring_key) AS n_bridge_ring_keys",
+    fixed = TRUE
+  )
+  expect_match(
+    refresh_sql,
+    "GROUP BY candidate.ring_key",
+    fixed = TRUE
+  )
+  expect_match(refresh_sql, "dead_event_datetime", fixed = TRUE)
+  expect_match(
+    refresh_sql,
+    "n_deaths_after_latest_brood_count",
+    fixed = TRUE
+  )
+  expect_match(refresh_sql, "n_operational_brood_size", fixed = TRUE)
+  expect_match(refresh_sql, "n_active_flagged_chick_rings", fixed = TRUE)
+  expect_match(
+    refresh_sql,
+    "n_unresolved_dead_chick_events",
+    fixed = TRUE
+  )
+  expect_match(refresh_sql, "dead.is_resolved_dead_bridge = 1", fixed = TRUE)
+  expect_match(refresh_sql, "is_active_target", fixed = TRUE)
+})
+
+
 available_combos_view_sql <- function() {
   sql <- views_source_sql()
   start_marker <- paste(
@@ -534,30 +587,43 @@ test_that("hatched terminal notA nests remain eligible for parent work", {
 
 
 test_that("H hiding-photo association is shared by BROODS_LATEST and TODO_LIST", {
-  sql <- views_source_sql()
+  schema_sql <- views_source_sql()
+  refresh_sql <- refresh_source_sql()
 
   expect_match(
-    sql,
+    schema_sql,
+    "CREATE TABLE IF NOT EXISTS\n  FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_SNAPSHOT",
+    fixed = TRUE
+  )
+  expect_match(
+    schema_sql,
+    "CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_INPUT AS\nSELECT *\nFROM FIELD_2026_BADOatNZ.TODO_HIDING_SPOT_PHOTO_CONTEXT_SNAPSHOT",
+    fixed = TRUE
+  )
+  expect_match(
+    refresh_sql,
+    "FROM FIELD_2026_BADOatNZ.RESIGHTINGS_H_BROOD_ASSOCIATIONS h",
+    fixed = TRUE
+  )
+  expect_match(
+    schema_sql,
     "CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.RESIGHTINGS_H_BROOD_ASSOCIATIONS AS",
     fixed = TRUE
   )
-  expect_match(sql, "same_occasion_adult_summary", fixed = TRUE)
+  expect_match(schema_sql, "'ambiguous_same_occasion_adult'", fixed = TRUE)
+  expect_match(schema_sql, "'ambiguous_capture_history'", fixed = TRUE)
+  expect_match(schema_sql, "'ring_capture'", fixed = TRUE)
   expect_match(
-    sql,
-    "FROM FIELD_2026_BADOatNZ.CAPTURES c\n    CROSS JOIN sr",
+    refresh_sql,
+    "FROM FIELD_2026_BADOatNZ.RESIGHTINGS_H_BROOD_ASSOCIATIONS h",
     fixed = TRUE
   )
-  expect_match(sql, "latest_ring_capture_summary", fixed = TRUE)
-  expect_match(
-    sql,
-    "h_assoc.resolved_nest_id",
-    fixed = TRUE
-  )
-  expect_match(sql, "'ambiguous_same_occasion_adult'", fixed = TRUE)
-  expect_match(sql, "'ambiguous_capture_history'", fixed = TRUE)
-  expect_match(
-    sql,
-    "h.association_method IN (\n    'direct',\n    'same_occasion_adult',\n    'ring_capture'",
+  expect_match(refresh_sql, "'same_occasion_adult'", fixed = TRUE)
+  expect_match(refresh_sql, "'ring_capture'", fixed = TRUE)
+  expect_no_match(refresh_sql, "tmp_todo_hiding_photo_s10", fixed = TRUE)
+  expect_no_match(
+    refresh_sql,
+    "authoritative_parent_same_occasion",
     fixed = TRUE
   )
 })
@@ -750,11 +816,10 @@ test_that("hiding-photo TODO counts distinct captured and photographed rings", {
 
   expect_match(
     sql,
-    "COUNT(DISTINCT chick_events.ring_key) AS n_captured_chick_rings",
+    "COUNT(*) AS n_captured_chick_rings",
     fixed = TRUE
   )
   expect_match(sql, "COUNT(*) AS n_chick_captures", fixed = TRUE)
-  expect_match(sql, "n_flagged_chick_rings", fixed = TRUE)
   expect_match(sql, "n_unringed_chick_captures", fixed = TRUE)
   for (source_sql in list(sql, schema_sql)) {
     expect_match(source_sql, "raw_chick_events AS (", fixed = TRUE)
@@ -769,14 +834,16 @@ test_that("hiding-photo TODO counts distinct captured and photographed rings", {
   }
   expect_match(
     sql,
-    "COUNT(DISTINCT h.ring) AS n_hiding_spot_photos",
+    "COUNT(DISTINCT target.ring_key) AS n_hiding_spot_photos",
     fixed = TRUE
   )
+  expect_match(sql, "target.ring_key = REPLACE(", fixed = TRUE)
+  expect_match(sql, "target.is_active_target = 1", fixed = TRUE)
   expect_match(sql, "r.photo_start", fixed = TRUE)
   expect_match(sql, "r.photo_end", fixed = TRUE)
   expect_match(
     sql,
-    "COALESCE(hiding_spot_photos.n_hiding_spot_photos, 0)\n           < chick_captures.n_captured_chick_rings",
+    "COALESCE(hiding_spot_photos.n_hiding_spot_photos, 0)\n           < chick_captures.n_active_chick_rings",
     fixed = TRUE
   )
   expect_match(
@@ -785,6 +852,158 @@ test_that("hiding-photo TODO counts distinct captured and photographed rings", {
     fixed = TRUE
   )
   expect_false(grepl("need H resightings", sql, fixed = TRUE))
+})
+
+
+test_that("chick ring normalization is consistent across install and refresh paths", {
+  views_sql <- views_source_sql()
+  refresh_sql <- refresh_source_sql()
+
+  for (source_sql in list(views_sql, refresh_sql)) {
+    expect_match(
+      source_sql,
+      "REPLACE(UPPER(TRIM(c.ring)), '-', '')",
+      fixed = TRUE
+    )
+    expect_match(
+      source_sql,
+      "'', 'X', 'XX', 'X-X', 'NA', 'N/A'",
+      fixed = TRUE
+    )
+  }
+  expect_match(
+    views_sql,
+    "REPLACE(UPPER(TRIM(r.ring)), '-', '')",
+    fixed = TRUE
+  )
+  expect_match(views_sql, "END AS ring_key", fixed = TRUE)
+  expect_match(
+    refresh_sql,
+    "REPLACE(UPPER(TRIM(c.ring)), '-', '')",
+    fixed = TRUE
+  )
+  expect_match(refresh_sql, "END AS ring_key", fixed = TRUE)
+  expect_match(views_sql, "ADULT_RESIGHTING_IDENTITIES_ALL r", fixed = TRUE)
+  expect_match(views_sql, "ADULT_CAPTURE_IDENTITIES_ALL c", fixed = TRUE)
+})
+
+
+test_that("S10 parent/chick resolution is authoritative and conservative", {
+  views_sql <- views_source_sql()
+  refresh_sql <- refresh_source_sql()
+
+  source_cases <- list(
+    list(
+      sql = views_sql,
+      s10_name = "TODO_PARENT_CHICK_RESIGHTING_ASSOCIATIONS",
+      s10_start = paste(
+        "FIELD_2026_BADOatNZ.TODO_PARENT_CHICK_RESIGHTING_ASSOCIATIONS AS",
+        sep = ""
+      ),
+      ordinary_name = "TODO_ORDINARY_FAMILY_RESIGHTING_ASSOCIATIONS"
+    ),
+    list(
+      sql = refresh_sql,
+      s10_name = "tmp_todo_parent_chick_resighting_associations",
+      s10_start = "CREATE TEMPORARY TABLE tmp_todo_parent_chick_resighting_associations AS",
+      ordinary_name = "tmp_todo_ordinary_family_resighting_associations"
+    )
+  )
+
+  for (source_case in source_cases) {
+    source_sql <- source_case$sql
+    expect_match(
+      source_sql,
+      source_case$s10_name,
+      fixed = TRUE
+    )
+    expect_match(source_sql, "M_selected_identity_key", fixed = TRUE)
+    expect_match(source_sql, "F_selected_identity_key", fixed = TRUE)
+    expect_match(source_sql, "parent.event_date = chick.event_date", fixed = TRUE)
+    expect_match(source_sql, "parent.gps_id = chick.gps_id", fixed = TRUE)
+    expect_match(source_sql, "parent.gps_point = chick.gps_point", fixed = TRUE)
+    expect_match(
+      source_sql,
+      "(BC|FC|AC)([,[:space:]]|$)",
+      fixed = TRUE
+    )
+    expect_match(source_sql, "HAVING COUNT(DISTINCT nest_id) = 1", fixed = TRUE)
+    expect_match(source_sql, "matched.match_class <> 'unmatched'", fixed = TRUE)
+    expect_match(
+      source_sql,
+      "COALESCE(matched.n_candidate_identities, 0) = 1",
+      fixed = TRUE
+    )
+
+    start <- regexpr(
+      source_case$s10_start,
+      source_sql,
+      fixed = TRUE
+    )[[1L]]
+    remainder <- substring(source_sql, start)
+    finish <- regexpr(
+      source_case$ordinary_name,
+      remainder,
+      fixed = TRUE
+    )[[1L]]
+    expect_gt(start, 0L)
+    expect_gt(finish, 0L)
+    s10_sql <- substring(remainder, 1L, finish - 1L)
+    expect_no_match(
+      s10_sql,
+      "UPPER(TRIM(COALESCE(r.rclass, ''))) <> 'H'",
+      fixed = TRUE
+    )
+    expect_match(s10_sql, "OR chick.ring_key IS NOT NULL", fixed = TRUE)
+  }
+  expect_match(
+    refresh_sql,
+    "FROM FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_INPUT status",
+    fixed = TRUE
+  )
+
+  has_parent_with_chicks_behaviour <- function(value) {
+    tokens <- unlist(strsplit(toupper(trimws(value %||% "")), "[,[:space:]]+"))
+    any(tokens %in% c("BC", "FC", "AC"))
+  }
+  `%||%` <- function(x, y) if (is.null(x) || is.na(x)) y else x
+  expect_true(has_parent_with_chicks_behaviour("AC"))
+  expect_true(has_parent_with_chicks_behaviour("BC, FC"))
+  expect_false(has_parent_with_chicks_behaviour("AT"))
+  expect_false(has_parent_with_chicks_behaviour("ABC"))
+  expect_match(
+    refresh_sql,
+    "CREATE TEMPORARY TABLE tmp_todo_parent_chick_resighting_associations AS",
+    fixed = TRUE
+  )
+  expect_no_match(
+    refresh_sql,
+    "'authoritative_parent_same_occasion' AS association_method",
+    fixed = TRUE
+  )
+})
+
+
+test_that("negative brood hiding-photo clock remains discovery day 1 through day 6", {
+  sql <- refresh_source_sql()
+
+  expect_match(
+    sql,
+    "DATEDIFF(b.reference_date, b.discovery_date) BETWEEN 1 AND 6",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    paste(
+      "DATEDIFF(",
+      "        brood_followup_nests.reference_date,",
+      "        brood_followup_nests.hatch_date",
+      "      ) BETWEEN 1 AND 6",
+      sep = "\n"
+    ),
+    fixed = TRUE
+  )
+  expect_false(grepl("DATEDIFF(b.reference_date, b.discovery_date) >= 1", sql, fixed = TRUE))
 })
 
 
@@ -1047,7 +1266,6 @@ test_that("brood flagging tasks use the 21-day age gate and avoid duplicate band
     "DATEDIFF(b.reference_date, b.discovery_date) >= 21",
     fixed = TRUE
   )
-  expect_match(sql, "n_flagged_chick_rings", fixed = TRUE)
   expect_match(sql, "n_unringed_chick_captures", fixed = TRUE)
   expect_match(sql, "'recapture chicks; assign flags ('", fixed = TRUE)
   expect_no_match(
@@ -1055,9 +1273,10 @@ test_that("brood flagging tasks use the 21-day age gate and avoid duplicate band
     "'recapture chicks; assign unique engraved UL flags ('",
     fixed = TRUE
   )
+  normalized_sql <- gsub("[[:space:]]+", " ", sql)
   expect_match(
-    sql,
-    ") - COALESCE(chick_captures.n_flagged_chick_rings, 0),",
+    normalized_sql,
+    "COALESCE(chick_captures.n_operational_brood_size, 0) - COALESCE(chick_captures.n_active_flagged_chick_rings, 0)",
     fixed = TRUE
   )
   expect_match(
@@ -1128,9 +1347,13 @@ test_that("hatch-stage parent work bypasses the clutch-age gate", {
 })
 
 
-test_that("two-egg parent capture waits seven days after inferred completion", {
+test_that("parent capture uses the final egg laying date, not confirmation date", {
   sql <- todo_list_view_sql()
-  timing_start <- regexpr("adult_capture_age_status AS", sql, fixed = TRUE)[[1L]]
+  timing_start <- regexpr(
+    "adult_capture_final_egg_lay_status AS",
+    sql,
+    fixed = TRUE
+  )[[1L]]
   expect_gt(timing_start, 0L)
 
   timing_sql <- substring(sql, timing_start)
@@ -1138,9 +1361,64 @@ test_that("two-egg parent capture waits seven days after inferred completion", {
   expect_gt(timing_end, 0L)
   timing_sql <- substring(timing_sql, 1L, timing_end - 1L)
 
-  expect_match(timing_sql, "clutch_start.last_float_datetime", fixed = TRUE)
+  expect_match(timing_sql, "adult_capture_final_egg_lay_status AS", fixed = TRUE)
+  expect_match(
+    timing_sql,
+    paste(
+      "DATE_SUB(",
+      "        float_prediction.float_date,",
+      "        INTERVAL ROUND(float_prediction.predicted_days_since_laying) DAY",
+      "      )",
+      sep = "\n"
+    ),
+    fixed = TRUE
+  )
   expect_match(timing_sql, "current_clutch_size = 2", fixed = TRUE)
-  expect_match(timing_sql, "INTERVAL 3 DAY", fixed = TRUE)
+  expect_match(timing_sql, "current_clutch_size IN (2, 3)", fixed = TRUE)
+  expect_match(
+    timing_sql,
+    "DATE(float_prediction.float_date)\n        <= DATE(clutch_start.current_clutch_datetime)",
+    fixed = TRUE
+  )
+  expect_match(
+    timing_sql,
+    "DATE(float_prediction.float_date)\n        >= DATE(clutch_start.current_clutch_start_datetime)",
+    fixed = TRUE
+  )
+  expect_match(timing_sql, "DATEDIFF(", fixed = TRUE)
+  expect_match(
+    timing_sql,
+    paste(
+      "COALESCE(",
+      "          float_lay.estimated_final_egg_lay_date,",
+      "          DATE(clutch_start.current_clutch_start_datetime)",
+      "        )",
+      sep = "\n"
+    ),
+    fixed = TRUE
+  )
+  expect_no_match(
+    timing_sql,
+    "DATE_ADD(\n          DATE(clutch_start.last_float_datetime)",
+    fixed = TRUE
+  )
+  expect_match(
+    timing_sql,
+    paste(
+      "DATE(clutch_start.current_clutch_datetime),",
+      "               CASE",
+      "                 WHEN initial_clutch_status.found_as_incomplete = 1",
+      "                  AND initial_clutch_status.inferred_clutch_completion_date IS NOT NULL",
+      "                 THEN initial_clutch_status.inferred_clutch_completion_date",
+      sep = "\n"
+    ),
+    fixed = TRUE
+  )
+  expect_match(
+    timing_sql,
+    "WHEN x.clutch_completion_confirmed = 1\n       AND DATEDIFF(",
+    fixed = TRUE
+  )
   expect_match(
     timing_sql,
     paste(
@@ -1155,55 +1433,283 @@ test_that("two-egg parent capture waits seven days after inferred completion", {
   expect_no_match(timing_sql, "average_ref_date_days_since_laid", fixed = TRUE)
   expect_no_match(timing_sql, "uses_inferred_lay_interval", fixed = TRUE)
 
-  completion_basis <- function(
+  final_egg_lay_date <- function(
       clutch_size,
       current_start,
-      current_datetime,
-      last_float_datetime = NA_character_
+      estimated_lay_dates = as.Date(character()),
+      float_observation_dates = estimated_lay_dates
   ) {
     current_start <- as.Date(current_start)
-    current_datetime <- as.Date(current_datetime)
-    last_float_datetime <- as.Date(last_float_datetime)
+    float_observation_dates <- as.Date(float_observation_dates)
+    eligible <- estimated_lay_dates[
+      float_observation_dates >= current_start
+    ]
 
+    if (clutch_size %in% c(2L, 3L) && length(eligible) > 0L) {
+      return(max(as.Date(eligible)))
+    }
     if (clutch_size >= 3L) {
       return(current_start)
     }
-    if (
-      clutch_size == 2L &&
-        !is.na(last_float_datetime) &&
-        last_float_datetime >= current_start
-    ) {
-      return(last_float_datetime + 3L)
-    }
-    if (current_datetime - current_start >= 3L) {
-      return(current_start)
-    }
-    current_datetime + 2L * max(0L, 3L - clutch_size)
+    current_start
   }
+
+  confirmation_open <- function(final_egg_date, confirming_observation_date) {
+    as.integer(
+      as.Date(confirming_observation_date) - final_egg_date >= 3L
+    )
+  }
+
+  capture_allowed <- function(reference_date, final_egg_date, confirmed) {
+    as.integer(
+      isTRUE(confirmed) && as.Date(reference_date) - final_egg_date >= 7L
+    )
+  }
+
+  c0909_final_egg <- final_egg_lay_date(
+    clutch_size = 2L,
+    current_start = "2026-10-17",
+    estimated_lay_dates = as.Date(character())
+  )
+  expect_identical(c0909_final_egg, as.Date("2026-10-17"))
+  expect_identical(
+    confirmation_open(c0909_final_egg, "2026-10-17"),
+    0L
+  )
+  expect_identical(
+    confirmation_open(c0909_final_egg, "2026-10-20"),
+    1L
+  )
+  expect_identical(capture_allowed("2026-10-23", c0909_final_egg, FALSE), 0L)
+  expect_identical(capture_allowed("2026-10-24", c0909_final_egg, TRUE), 1L)
+  expect_identical(capture_allowed("2026-10-24", c0909_final_egg, FALSE), 0L)
+
+  delayed_float_final_egg <- final_egg_lay_date(
+    clutch_size = 2L,
+    current_start = "2026-10-05",
+    estimated_lay_dates = as.Date("2026-10-07")
+  )
+  expect_identical(delayed_float_final_egg, as.Date("2026-10-07"))
+  expect_identical(
+    confirmation_open(delayed_float_final_egg, "2026-10-08"),
+    0L
+  )
+  expect_identical(
+    confirmation_open(delayed_float_final_egg, "2026-10-10"),
+    1L
+  )
+  expect_identical(capture_allowed("2026-10-13", delayed_float_final_egg, TRUE), 0L)
+  expect_identical(capture_allowed("2026-10-14", delayed_float_final_egg, TRUE), 1L)
+
+  old_first_found_two_egg_final_egg <- final_egg_lay_date(
+    clutch_size = 2L,
+    current_start = "2026-10-20",
+    estimated_lay_dates = as.Date("2026-10-12"),
+    float_observation_dates = as.Date("2026-10-20")
+  )
+  expect_identical(old_first_found_two_egg_final_egg, as.Date("2026-10-12"))
+  expect_identical(
+    confirmation_open(old_first_found_two_egg_final_egg, "2026-10-20"),
+    1L
+  )
+  expect_identical(
+    capture_allowed("2026-10-19", old_first_found_two_egg_final_egg, TRUE),
+    1L
+  )
+
+  one_to_two_final_egg <- final_egg_lay_date(
+    clutch_size = 2L,
+    current_start = "2026-10-05",
+    estimated_lay_dates = as.Date(character())
+  )
+  expect_identical(one_to_two_final_egg, as.Date("2026-10-05"))
+  expect_identical(capture_allowed("2026-10-11", one_to_two_final_egg, TRUE), 0L)
+  expect_identical(capture_allowed("2026-10-12", one_to_two_final_egg, TRUE), 1L)
+
+  third_egg_final_egg <- final_egg_lay_date(
+    clutch_size = 3L,
+    current_start = "2026-10-19",
+    estimated_lay_dates = as.Date("2026-10-07"),
+    float_observation_dates = as.Date("2026-10-19")
+  )
+  expect_identical(third_egg_final_egg, as.Date("2026-10-07"))
+  expect_identical(capture_allowed("2026-10-13", third_egg_final_egg, TRUE), 0L)
+  expect_identical(capture_allowed("2026-10-14", third_egg_final_egg, TRUE), 1L)
+
+  old_first_found_three_egg_final_egg <- final_egg_lay_date(
+    clutch_size = 3L,
+    current_start = "2026-10-20",
+    estimated_lay_dates = as.Date("2026-10-12"),
+    float_observation_dates = as.Date("2026-10-20")
+  )
+  expect_identical(
+    old_first_found_three_egg_final_egg,
+    as.Date("2026-10-12")
+  )
+  expect_identical(
+    capture_allowed("2026-10-19", old_first_found_three_egg_final_egg, TRUE),
+    1L
+  )
+
+  two_egg_float_before_third_egg <- final_egg_lay_date(
+    clutch_size = 3L,
+    current_start = "2026-10-19",
+    estimated_lay_dates = as.Date("2026-10-07"),
+    float_observation_dates = as.Date("2026-10-07")
+  )
+  expect_identical(two_egg_float_before_third_egg, as.Date("2026-10-19"))
+  expect_identical(
+    capture_allowed("2026-10-25", two_egg_float_before_third_egg, TRUE),
+    0L
+  )
+  expect_identical(
+    capture_allowed("2026-10-26", two_egg_float_before_third_egg, TRUE),
+    1L
+  )
+
+  one_egg_final_egg <- final_egg_lay_date(
+    clutch_size = 1L,
+    current_start = "2026-10-01"
+  )
+  expect_identical(one_egg_final_egg, as.Date("2026-10-01"))
+  expect_identical(
+    confirmation_open(one_egg_final_egg, "2026-10-04"),
+    1L
+  )
+  expect_identical(capture_allowed("2026-10-07", one_egg_final_egg, TRUE), 0L)
+  expect_identical(capture_allowed("2026-10-08", one_egg_final_egg, TRUE), 1L)
+})
+
+
+test_that("authoritative chronology completion dates feed the parent age gate", {
+  sql <- todo_list_view_sql()
+  timing_start <- regexpr("adult_capture_age_status AS", sql, fixed = TRUE)[[1L]]
+  expect_gt(timing_start, 0L)
+
+  timing_sql <- substring(sql, timing_start)
+  timing_end <- regexpr("tag_deployment_history AS", timing_sql, fixed = TRUE)[[1L]]
+  expect_gt(timing_end, 0L)
+  timing_sql <- substring(timing_sql, 1L, timing_end - 1L)
+
+  expect_match(timing_sql, "initial_clutch_status.found_as_incomplete = 1", fixed = TRUE)
+  expect_match(timing_sql, "initial_clutch_status.stable_one_egg = 1", fixed = TRUE)
+  expect_match(timing_sql, "float_lay.estimated_final_egg_lay_date", fixed = TRUE)
 
   capture_allowed <- function(reference_date, completion_date) {
     as.integer(as.Date(reference_date) - completion_date >= 7L)
   }
 
-  c0909_completion <- completion_basis(
-    clutch_size = 2L,
-    current_start = "2026-10-17",
-    current_datetime = "2026-10-17",
-    last_float_datetime = "2026-10-17"
+  stable_one_egg_final_egg <- as.Date("2026-10-01")
+  expect_identical(
+    capture_allowed("2026-10-08", stable_one_egg_final_egg),
+    1L
   )
-  expect_identical(c0909_completion, as.Date("2026-10-20"))
-  expect_identical(capture_allowed("2026-10-26", c0909_completion), 0L)
-  expect_identical(capture_allowed("2026-10-27", c0909_completion), 1L)
+  expect_identical(
+    capture_allowed("2026-10-07", stable_one_egg_final_egg),
+    0L
+  )
+})
 
-  third_egg_completion <- completion_basis(
-    clutch_size = 3L,
-    current_start = "2026-10-19",
-    current_datetime = "2026-10-19",
-    last_float_datetime = "2026-10-17"
+
+test_that("found-incomplete two-egg timing uses the selected final-egg basis", {
+  sql <- refresh_source_sql()
+
+  expect_match(
+    sql,
+    "WHEN initial_clutch_status.found_as_incomplete = 1",
+    fixed = TRUE
   )
-  expect_identical(third_egg_completion, as.Date("2026-10-19"))
-  expect_identical(capture_allowed("2026-10-25", third_egg_completion), 0L)
-  expect_identical(capture_allowed("2026-10-26", third_egg_completion), 1L)
+  expect_match(
+    sql,
+    "initial_clutch_status.inferred_clutch_completion_date IS NOT NULL",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "THEN initial_clutch_status.inferred_clutch_completion_date",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "ELSE COALESCE(",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "END\n             ) >= 3",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    paste(
+      "DATE(clutch_start.current_clutch_datetime),",
+      "               CASE",
+      "                 WHEN initial_clutch_status.found_as_incomplete = 1",
+      "                  AND initial_clutch_status.inferred_clutch_completion_date IS NOT NULL",
+      "                 THEN initial_clutch_status.inferred_clutch_completion_date",
+      sep = "\n"
+    ),
+    fixed = TRUE
+  )
+
+  completion_confirmed <- function(current_observation, selected_final_egg_basis) {
+    as.numeric(
+      as.Date(current_observation) - as.Date(selected_final_egg_basis)
+    ) >= 3
+  }
+  capture_allowed <- function(reference_date, selected_final_egg_basis) {
+    completion_confirmed(reference_date, selected_final_egg_basis) &&
+      as.numeric(
+        as.Date(reference_date) - as.Date(selected_final_egg_basis)
+      ) >= 7
+  }
+
+  expect_true(completion_confirmed("2026-10-24", "2026-10-18"))
+  expect_true(capture_allowed("2026-10-28", "2026-10-18"))
+  expect_false(completion_confirmed("2026-10-20", "2026-10-18"))
+})
+
+
+test_that("confirmed X-X parent notes never use resight/band X-X wording", {
+  sql <- todo_list_view_sql()
+
+  expect_no_match(sql, "'resight/band X-X M'", fixed = TRUE)
+  expect_no_match(sql, "'resight/band X-X F'", fixed = TRUE)
+  expect_match(sql, "'band X-X M'", fixed = TRUE)
+  expect_match(sql, "'band X-X F'", fixed = TRUE)
+})
+
+
+test_that("the parent 36-hour gate uses the fixed 08:00 inclusive boundary", {
+  sql <- todo_list_view_sql()
+  expect_match(
+    sql,
+    "CAST(CONCAT(sr.reference_date, ' 08:00:00') AS DATETIME)",
+    fixed = TRUE
+  )
+  expect_match(sql, "INTERVAL 36 HOUR", fixed = TRUE)
+  expect_match(sql, "adult_capture_timing.F_last_capture_datetime", fixed = TRUE)
+  expect_match(sql, "adult_capture_timing.M_last_capture_datetime", fixed = TRUE)
+  expect_match(sql, "<= DATE_SUB(", fixed = TRUE)
+
+  reference_clock <- as.POSIXct(
+    "2026-10-27 08:00:00",
+    tz = "UTC"
+  )
+  window_open <- function(last_capture) {
+    is.na(last_capture) || last_capture <= reference_clock - 36 * 3600
+  }
+  capture_eligible <- function(age_open, interval_open) {
+    isTRUE(age_open) && isTRUE(interval_open)
+  }
+
+  expect_false(window_open(as.POSIXct("2026-10-25 20:01:00", tz = "UTC")))
+  expect_true(window_open(as.POSIXct("2026-10-25 20:00:00", tz = "UTC")))
+  expect_true(window_open(as.POSIXct("2026-10-25 19:59:00", tz = "UTC")))
+  expect_true(window_open(as.POSIXct(NA)))
+  expect_false(capture_eligible(TRUE, FALSE))
+  expect_false(capture_eligible(FALSE, TRUE))
+  expect_true(capture_eligible(TRUE, TRUE))
 })
 
 
@@ -1452,7 +1958,11 @@ test_that("the parent pipeline includes a conservative chick-GPS definitive gate
   expect_match(sql, "r.age = 'C'", fixed = TRUE)
   expect_match(sql, "r.gps_id IS NOT NULL", fixed = TRUE)
   expect_match(sql, "r.gps_point IS NOT NULL", fixed = TRUE)
-  expect_match(sql, "r.ring)) NOT IN ('X', 'XX', 'X-X', 'NA', 'N/A')", fixed = TRUE)
+  expect_match(
+    sql,
+    "UPPER(TRIM(COALESCE(r.ring, ''))) IN (",
+    fixed = TRUE
+  )
   expect_match(sql, "c.gps_id = chick.gps_id", fixed = TRUE)
   expect_match(sql, "c.gps_point = chick.gps_point", fixed = TRUE)
   expect_match(sql, "opposite_parent_established_nest", fixed = TRUE)
@@ -1602,6 +2112,10 @@ test_that("pair completion requires current-nest deployment provenance", {
   )
   expect_match(sql, "history.parent_sex = 'M'", fixed = TRUE)
   expect_match(sql, "history.parent_sex = 'F'", fixed = TRUE)
+  expect_match(sql, "M_new_protocol_geo", fixed = TRUE)
+  expect_match(sql, "F_new_protocol_geo", fixed = TRUE)
+  expect_match(sql, "M_tag_status = 'T'", fixed = TRUE)
+  expect_match(sql, "F_tag_status = 'T'", fixed = TRUE)
   expect_match(sql, "tag F (pair completion)", fixed = TRUE)
   expect_match(sql, "tag M (pair completion)", fixed = TRUE)
   expect_match(sql, "tag X-X F (pair completion)", fixed = TRUE)
@@ -1648,6 +2162,17 @@ test_that("pair completion requires current-nest deployment provenance", {
     pair_completion_note("F", "?"),
     "resight/tag M (status ?; pair completion)"
   )
+  expect_identical(
+    pair_completion_note("M", "X"),
+    "tag X-X F (pair completion)"
+  )
+
+  # Pair completion is only a provenance-backed action: a missing or
+  # mismatched deployment, a dead target, or an ambiguous target must not
+  # create a tag task merely because the other parent is tagged.
+  expect_false(pair_completion_allowed(TRUE, "X", target_is_dead = TRUE))
+  expect_false(pair_completion_allowed(TRUE, "B", target_is_ambiguous = TRUE))
+  expect_false(pair_completion_allowed(FALSE, "X"))
 })
 
 
@@ -1675,11 +2200,28 @@ test_that("initial deployment notes preserve unknown status", {
   )
 })
 test_that("captured sex overrides a uniquely matching resighting sex", {
-  sql <- views_source_sql()
+  sql <- paste(
+    readLines(app_file("DATABASE", "views.SQL"), warn = FALSE),
+    collapse = "\n"
+  )
   todo_sql <- todo_list_view_sql()
 
   expect_match(sql, "resighting_adult_resolved_sex", fixed = TRUE)
-  expect_match(sql, "COUNT(DISTINCT captured.sex) = 1", fixed = TRUE)
+  expect_match(
+    sql,
+    "COUNT(DISTINCT CASE",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "raw.ring_key IS NOT NULL AND captured.ring_key = raw.ring_key",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "raw.flag_key IS NOT NULL AND captured.flag_key = raw.flag_key",
+    fixed = TRUE
+  )
   expect_match(sql, "captured.capture_date <= raw.observation_date", fixed = TRUE)
   expect_match(sql, "captured.LL_norm = raw.LL_norm", fixed = TRUE)
   expect_match(sql, "captured.LR_norm = raw.LR_norm", fixed = TRUE)
@@ -1696,31 +2238,70 @@ test_that("captured sex overrides a uniquely matching resighting sex", {
     fixed = TRUE
   )
 
-  resolved_sex <- function(observed_sex, matching_capture_sexes) {
-    if (length(unique(matching_capture_sexes)) == 1L) {
+  resolved_sex <- function(
+    observed_sex,
+    matching_capture_sexes,
+    strong_identity = FALSE
+  ) {
+    if (isTRUE(strong_identity) && length(unique(matching_capture_sexes)) == 1L) {
       unique(matching_capture_sexes)
     } else {
       observed_sex
     }
   }
 
-  # A female capture wins over a mistaken male resighting of the same LL/LR.
-  expect_identical(resolved_sex("M", "F"), "F")
+  # A verified ring/flag identity can override a conflicting observed sex.
+  expect_identical(resolved_sex("M", "F", strong_identity = TRUE), "F")
+  # A lower-mark-only match does not override the observed sex.
+  expect_identical(resolved_sex("M", "F", strong_identity = FALSE), "M")
   # A lower-mark collision across sexes remains unresolved.
-  expect_identical(resolved_sex("M", c("M", "F")), "M")
+  expect_identical(
+    resolved_sex("M", c("M", "F"), strong_identity = TRUE),
+    "M"
+  )
   # No matching capture leaves the observer-entered sex unchanged.
-  expect_identical(resolved_sex("F", character()), "F")
+  expect_identical(
+    resolved_sex("F", character(), strong_identity = TRUE),
+    "F"
+  )
 })
 
 
 test_that("flags and ambiguous matches cannot collapse into pure X-X", {
-  sql <- views_source_sql()
+  sql <- paste(
+    readLines(app_file("DATABASE", "views.SQL"), warn = FALSE),
+    collapse = "\n"
+  )
 
   expect_match(sql, "CONCAT(keyed.flag_code, '-X')", fixed = TRUE)
   expect_match(sql, "AND (keyed.UL_raw IS NULL OR keyed.UL_raw REGEXP '^(X+|M)$')", fixed = TRUE)
   expect_match(sql, "AND (keyed.UR_raw IS NULL OR keyed.UR_raw REGEXP '^(X+|M)$')", fixed = TRUE)
   expect_match(sql, "WHEN identity_summary.has_ambiguous_match = 1 THEN 0", fixed = TRUE)
-  expect_match(sql, "CASE WHEN counts.n_candidate_identities = 1 THEN 1 ELSE 0 END", fixed = TRUE)
+  expect_match(
+    sql,
+    "WHEN counts.n_candidate_identities = 1",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "best_identity.match_strength IN (1, 2)",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "best_identity.match_strength NOT IN (1, 2)",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "best_identity.candidate_sex = r.observed_sex",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "THEN 1 ELSE 0 END",
+    fixed = TRUE
+  )
 
   pure_xx <- function(LL, LR, UL = NULL, UR = NULL) {
     identical(LL, "X") && identical(LR, "X") &&
@@ -1773,11 +2354,11 @@ test_that("generic banded-parent association follows the resighting threshold", 
   )
   expect_match(
     full_sql,
-    "BW|NM|IN|BC|FC|AC",
+    "BW|NM|IN|SC|BC|FC|AC",
     fixed = TRUE
   )
   expect_equal(
-    length(gregexpr("BW|NM|IN|BC|FC|AC", full_sql, fixed = TRUE)[[1L]]),
+    length(gregexpr("BW|NM|IN|SC|BC|FC|AC", full_sql, fixed = TRUE)[[1L]]),
     1L
   )
   expect_no_match(full_sql, "has_association_behaviour", fixed = TRUE)
@@ -1790,7 +2371,7 @@ test_that("generic banded-parent association follows the resighting threshold", 
 
   association_pending <- function(identity_behaviours) {
     resolved <- vapply(identity_behaviours, function(behav) {
-      any(grepl("(^|[^A-Z])(IN|NM|BW|BC|FC|AC)([^A-Z]|$)", behav)) ||
+      any(grepl("(^|[^A-Z])(IN|NM|SC|BW|BC|FC|AC)([^A-Z]|$)", behav)) ||
         length(behav) >= 3
     }, logical(1))
     sum(resolved) != 1
@@ -1802,7 +2383,7 @@ test_that("generic banded-parent association follows the resighting threshold", 
   expect_true(association_pending(list(c("AT", "AT"))))
   expect_false(association_pending(list(c("AT", "AT", "AT"))))
   # Any one of the approved association behaviours resolves the identity.
-  for (behav in c("IN", "NM", "BW", "BC", "FC", "AC")) {
+  for (behav in c("IN", "NM", "SC", "BW", "BC", "FC", "AC")) {
     expect_false(association_pending(list(behav)))
   }
   # A future confirming event is excluded before it reaches this calculation;
@@ -1829,7 +2410,7 @@ test_that("pending known-banded associations bypass GEO candidate selection", {
   )
   expect_match(
     sql,
-    "JOIN adult_parent_status association",
+    "JOIN parent_resolution_status association",
     fixed = TRUE
   )
   expect_match(
@@ -1847,6 +2428,164 @@ test_that("pending known-banded associations bypass GEO candidate selection", {
     "FROM todo_parent_resighting_existing",
     fixed = TRUE
   )
+  expect_match(sql, "association.F_authoritative_resolved", fixed = TRUE)
+  expect_match(sql, "association.M_authoritative_resolved", fixed = TRUE)
+  expect_match(
+    sql,
+    "resight/tag M (status ?; F w/GEO)",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "resight/tag F (status ?; M w/GEO)",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "resight M (status ?; F w/GEO)",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "resight F (status ?; M w/GEO)",
+    fixed = TRUE
+  )
+  expect_no_match(sql, "'resight/band M (F w/GEO)'", fixed = TRUE)
+  expect_no_match(sql, "'resight/band F (M w/GEO)'", fixed = TRUE)
+})
+
+
+test_that("resolved parent notes require a projected visible mark", {
+  sql <- todo_list_view_sql()
+
+  # The note CASE consumes one shared resolution projection. That projection
+  # validates the task-facing mark and selected identity key for both sexes,
+  # while the task branch only needs the resulting flags.
+  expect_match(
+    sql,
+    "NULLIF(TRIM(COALESCE(status.M_selected_identity_key, '')), '')",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "NULLIF(TRIM(COALESCE(status.F_selected_identity_key, '')), '')",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "COALESCE(status.M_selected_mark, status.M_parent_mark, '')",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "COALESCE(status.F_selected_mark, status.F_parent_mark, '')",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "association.M_authoritative_resolved",
+    fixed = TRUE
+  )
+  expect_match(
+    sql,
+    "association.F_authoritative_resolved",
+    fixed = TRUE
+  )
+
+  # This mirrors the SQL CASE inputs, including its normalization rules, so
+  # the A0511-shaped failure is tested as a behavior rather than only by
+  # checking that source text contains a guard.
+  resolved_from_sql_inputs <- function(
+    selected_identity_key,
+    parent_mark,
+    selected_mark = parent_mark,
+    identity_count = 1L,
+    association_pending = 0L,
+    mm_pending = 0L,
+    association_ambiguous = 0L,
+    confirmed_unbanded = 0L
+  ) {
+    selected_key <- toupper(trimws(ifelse(is.na(selected_identity_key), "", selected_identity_key)))
+    projected_mark <- toupper(trimws(ifelse(is.na(parent_mark), "", parent_mark)))
+    selected_mark <- toupper(trimws(ifelse(is.na(selected_mark), "", selected_mark)))
+    scoped_xx <- confirmed_unbanded == 1L &&
+      projected_mark == "X-X" &&
+      selected_mark == "X-X"
+    identity_count > 0L &&
+      association_pending == 0L &&
+      association_ambiguous == 0L &&
+      mm_pending == 0L &&
+      nzchar(selected_key) &&
+      !(selected_key %in% c("NA", "N/A", "NULL")) &&
+      (!startsWith(selected_key, "XX:") || scoped_xx) &&
+      nzchar(projected_mark) &&
+      !(projected_mark %in% c("NA", "N/A", "NULL")) &&
+      !startsWith(projected_mark, "XX:") &&
+      nzchar(selected_mark) &&
+      !(selected_mark %in% c("X", "XX", "NA", "N/A", "NULL"))
+  }
+
+  # A nonblank selected key with no projected mark was the reproduced bug.
+  expect_false(
+    resolved_from_sql_inputs("ring:MOCK-M", "")
+  )
+  expect_false(
+    resolved_from_sql_inputs("ring:MOCK-F", "   ")
+  )
+  expect_false(
+    resolved_from_sql_inputs("ring:MOCK-M", NA_character_)
+  )
+
+  for (sentinel in c("NA", "N/A", "NULL", "XX:MOCK")) {
+    expect_false(
+      resolved_from_sql_inputs("ring:MOCK-M", sentinel),
+      info = paste("male projected mark sentinel:", sentinel)
+    )
+    expect_false(
+      resolved_from_sql_inputs("ring:MOCK-F", sentinel),
+      info = paste("female projected mark sentinel:", sentinel)
+    )
+  }
+
+  # A visible mark still resolves for both sexes, while pending/unknown
+  # identity states remain ineligible for the resolved label.
+  expect_true(resolved_from_sql_inputs("ring:MOCK-M", "MOCK-YY.BL"))
+  expect_true(resolved_from_sql_inputs("ring:MOCK-F", "MOCK-BY.LW"))
+  # A selected, scoped X-X identity is a legitimate confirmed unbanded parent;
+  # it must not be confused with a blank or synthetic XX identity.
+  expect_true(resolved_from_sql_inputs(
+    "XX:MOCK-M:M", "X-X", confirmed_unbanded = 1L
+  ))
+  expect_true(resolved_from_sql_inputs(
+    "XX:MOCK-F:F", "X-X", confirmed_unbanded = 1L
+  ))
+  expect_false(resolved_from_sql_inputs("XX:MOCK-M:M", "X-X"))
+  expect_false(resolved_from_sql_inputs("XX:MOCK-F:F", "X-X"))
+  expect_false(
+    resolved_from_sql_inputs(
+      "ring:MOCK-M",
+      "MOCK-YY.BL",
+      association_pending = 1L
+    )
+  )
+  expect_false(
+    resolved_from_sql_inputs(
+      "ring:MOCK-F",
+      "MOCK-BY.LW",
+      mm_pending = 1L
+    )
+  )
+  expect_false(resolved_from_sql_inputs("ring:MOCK-M", ""))
+  expect_false(resolved_from_sql_inputs("ring:MOCK-F", "   "))
+  expect_false(resolved_from_sql_inputs("ring:MOCK-M", NA_character_))
+  expect_false(
+    resolved_from_sql_inputs(
+      "ring:MOCK-M",
+      "MOCK-YY.BL",
+      association_ambiguous = 1L
+    )
+  )
+  expect_false(resolved_from_sql_inputs("", "MOCK-YY.BL"))
 })
 
 

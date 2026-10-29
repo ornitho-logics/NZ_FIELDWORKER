@@ -1,13 +1,15 @@
 # Thread 1 Repository Map: Current State
 
-Last refreshed: 2026-10-23
+Last contract reconciliation: 2026-10-26 (static documentation only).
+Repository inventory/recovery checkpoint: 2026-10-23 (historical).
 
 Status: tracked restart-grade handoff for the repository-cartographer role. This
 recovery pass supersedes older branch, panel-count, validator-version, and
 deployment claims below wherever they conflict with the current-state addendum.
-The documentation publication baseline is `origin/main` at `f7d13fb`; the
-separate protected checkout remains `codex/split-todo-calculator-2026-10-19`
-at `d3c7bd4`.
+At that historical checkpoint, the documentation publication baseline was
+`origin/main` at `f7d13fb`; the separate protected checkout was
+`codex/split-todo-calculator-2026-10-19` at `d3c7bd4`. These are not a fresh
+inventory of Git state.
 
 The checkout is intentionally dirty and contains protected WIP in
 `DATABASE/views.SQL`, `main/R/pdf_todo.R`, focused TODO/PDF tests, four
@@ -19,7 +21,54 @@ This pass used static inspection only. No Shiny app or test suite was run, no
 database connection was made, and no credentials, database rows, or GPS
 coordinates were inspected or reproduced.
 
-## What I inspected
+## Current contract correction — 2026-10-26
+
+This notice supersedes older protocol identities and event conventions below.
+It authorizes no restart of earlier main/undo/publication tasks: this bounded
+pass changes documentation only, with no Git index/refs/checkout/history/stash,
+code, live database, dump, configuration, or private manual edits.
+
+The inspected review mirror is `bdot_dataentry_validator_protocol_plot_aligned.yaml`
+at v1.3.14, generated 2026-10-26, under `validator_sandbox/xlsx_short_tag_update/`.
+The external canonical YAML separately reports v1.3.5, generated 2026-10-24.
+See the release verification record for exact source-frozen fingerprints;
+recheck them after any subsequent protocol-owner correction.
+No external synchronization or live inspector deployment is established.
+
+SC (scraping) can confirm parent–nest association after one eligible
+nest-linked observation. It is not a parent-with-chicks substitute for BC, FC,
+or AC; the local v1.3.14 candidate and PDF subtitle now preserve that distinction.
+
+- For an unrelated age-A CAPTURES event, use blank/SQL NULL `nest_id` and both
+  GPS fields. `NO_NEST` is retired and rejected as current CAPTURES/RESIGHTINGS
+  input; historical rows and dumps are not rewritten.
+- Any `?` in any leg field excludes the whole parent event from parent-nest
+  evidence unless a known metal ring reliably traces current/archived capture
+  identity. A readable lower band or flag alone does not waive this rule.
+  Archive identity never imports a previous-season nest association; a blank
+  current link needs eligible, unambiguous current-season evidence.
+- One family encounter is keyed by date, site, `gps_id`, and `gps_point`.
+  Conflicting nonblank nest/brood IDs save-block even when every row is explicit
+  or the family spans CAPTURES and RESIGHTINGS. Brood mixing across separate
+  encounters remains allowed.
+- RESIGHTINGS accepts `?`, `?R`, `R?` and analogous colour partials in all four
+  leg fields, plus `T?` in UR; bare `T` is invalid. CAPTURES forbids `?` in
+  release and `_in` leg fields. Preserve raw uncertain sightings.
+- `pP`/`P`/`D` permit fate-review visits until final `notA`; this does not reopen
+  failed-nest capture/GEO work. A rare inside-nest F-zero then H discovery
+  retains truthful counts, a positive ID, first-only nest GPS and at least one
+  minute between F and H. The normal first-F zero-clutch rejection remains
+  intentional: verify/comment and use the documented override if correct,
+  with no automatic exception or invented egg history.
+- EGGS has no media columns; clutch photos belong on NESTS. The current SQL
+  RESIGHTINGS field list has no `harddrive_id`.
+
+The earlier inventory, dated decisions, and replay claims below remain
+historical evidence, not proof that the latest correction is implemented or
+deployed. Thread 2/3.1/4 source owners and the subsequent isolated Thread 9
+integration gate must establish agreement after their source changes freeze.
+
+## What I inspected — historical repository inventory
 
 - Full current `AGENTS.md` and `README.md`.
 - Git branch, status, recent history, and the file-level diff since the July map.
@@ -208,7 +257,8 @@ The agreed project methodology is that a negative `nest_id` identifies a brood
 of unknown origin: no eggs, nest, or stationary origin was found. Examples are
 `-A0203`, `-B0204`, `-C0201`, and `-BA0202`. The leading minus sign is retained.
 Negative IDs are valid in `CAPTURES` and `RESIGHTINGS` and forbidden in `NESTS`
-and `EGGS`. `NO_NEST` is separate and means no nest/brood association.
+and `EGGS`. For an unrelated age-A CAPTURES event, use blank/SQL NULL
+`nest_id` with complete direct GPS; `NO_NEST` is retired current input.
 
 The event contract is one row per observed or captured bird. Uncaptured parents
 and chicks are `RESIGHTINGS`; captured parents and chicks are `CAPTURES`; later
@@ -259,8 +309,9 @@ Status distinctions:
 
 - **Agreed methodology:** the protocol above is the current cross-thread
   biological and operational contract.
-- **Local protocol/mock implementation:** the official validator protocol and
-  synchronized local mirror report version 1.3.4, and the ignored
+- **Local protocol/mock implementation:** the reviewed local mirror inspected
+  on 2026-10-26 reports v1.3.14; the external canonical YAML reports v1.3.5 and
+  is not synchronized by this pass. The ignored
   `validator_sandbox/negative_brood_methodology/` fixtures exercise negative-ID,
   GPS-pair, and table-ownership rules without real records or coordinates.
 - **Current repository implementation:** the RESIGHTINGS `ring`, negative-
@@ -425,7 +476,9 @@ Current protocol and local paste-ready locations:
 - Paste-ready two-list exports:
   `notes/codex_proposals/validator_sandbox/inspector_lists_by_table/`
 
-Both protocol copies report version `1.3.3`, generated 2026-09-30. The negative-
+The local review mirror reports v1.3.14, generated 2026-10-26; the external
+canonical copy reports v1.3.5, generated 2026-10-24. Their contents are separate
+artifacts; inspect the finalized mirror before claiming alignment. The negative-
 brood additions require negative IDs to be valid only in `CAPTURES` and
 `RESIGHTINGS`, invalid in `NESTS` and `EGGS`, and paired with both `gps_id` and
 `gps_point` checked against `GPS_POINTS`. The first event may be a capture or a
@@ -694,7 +747,8 @@ runtime package behavior or current database contents.
 - The to-do PDF is no longer tables-only.
 - The July view inventory is obsolete because it omitted the combo views.
 - `main/R/data_overview.R` and older `main/R/data_*.R` helper paths are not current.
-- The protocol is not version 1.0.5; current local/external copies report 1.3.3.
+- Earlier v1.0.5/v1.3.3/v1.3.4 references are historical; the inspected local
+  mirror is v1.3.14 and the external canonical YAML is v1.3.5.
 - The old example dump ending `7230743.sql` is not present; the newest visible
   snapshot ends `7311213.sql`.
 - There is no current app-level `ver <- "v 4.2.3"` variable in `main/global.R`.
@@ -753,12 +807,14 @@ Start with:
 - the official external protocol path listed above;
 - `notes/codex_proposals/validator_sandbox/inspector_lists_by_table/`.
 
-Thread 3.1 should treat protocol version 1.3.4 and the negative-brood mock
-fixtures as current local validation context. It owns inspector lists, connected
+Thread 3.1 owns the in-flight v1.3.14 review mirror and its negative-brood mock
+fixtures; the external canonical copy remains a separate v1.3.5 artifact.
+It owns inspector lists, connected
 mock validation, the `RES_010` H-class `RESIGHTINGS.ring` rule, and the
 distinction between save-time validation, post-save QA, and mock-generation-only
-rules. The protocol and local inspector drafts are aligned; live inspector rows
-still require separate deployment verification.
+rules. Alignment of the finalized protocol, inspector drafts and SQL must be
+verified after the correction pass; live inspector rows still require separate
+deployment verification.
 
 ### Thread 4: task engine, PDF, and maps
 
@@ -832,12 +888,13 @@ Treat the Thread 6 memo and aligned `AGENTS.md` role as authoritative. Start wit
    DataEntry dropdowns, help text, and the static test badge in their owning
    threads before treating them as current guarantees.
 
-## 2026-10-23 recovery addendum: current authority and restart map
+## Historical 2026-10-23 recovery addendum: authority and restart map
 
-This addendum is the current Thread 1 map. It is intentionally explicit because
+This addendum records the 2026-10-23 Thread 1 map. It is intentionally explicit because
 the checkout contains experimental dirty work and several specialist handoffs
 were refreshed at different revisions. Do not use an older section above to
-override the state labels here.
+override the state labels here. The 2026-10-26 contract correction above
+supersedes its protocol/event guidance; its Git state is historical.
 
 ### Git, checkout, remote, and live-state distinctions
 
@@ -973,17 +1030,19 @@ not authorize publication of the private artifacts above.
 ### Cross-thread behavior contracts
 
 - Negative IDs represent mobile broods and are valid in `CAPTURES` and
-  `RESIGHTINGS`, not `NESTS` or `EGGS`; `NO_NEST` is a separate sentinel.
+  `RESIGHTINGS`, not `NESTS` or `EGGS`. Unrelated age-A CAPTURES use SQL NULL
+  `nest_id` plus complete GPS; the old sentinel is rejected as current input.
 - Hiding-spot photos are age-C `RESIGHTINGS` H rows, one photographed chick per
   row, with a nonblank ring and direct GPS/photo metadata. Tent-photo capture
   rows do not resolve H-photo work.
 - Parent identity and association are sex-aware, chronology-aware, bounded by
-  `settings.reference_date`, and conservative under ambiguity.
+  `settings.reference_date`, and subject to the event-wide uncertainty,
+  verified-ring and same-date/site/GPS conflict rules stated above.
 - Combo availability subtracts historic archive plus current final and `_in`
   evidence globally; the recyclable workbook is informational.
 - Validators are organized as `TABLE_hard` and `TABLE_warning`; protocol
-  version 1.3.4 is the current local spec, while live inspector state is not
-  established.
+  v1.3.14 is the inspected local review mirror, distinct from the v1.3.5
+  external canonical YAML; final alignment and live state are not established.
 - SQL install, task refresh, PDF rendering, and live deployment are separate
   checks; a successful local replay cannot prove production state.
 
@@ -1007,6 +1066,11 @@ not authorize publication of the private artifacts above.
 
 ### Pending state and risks
 
+- The Thread 3-owned historical
+  `validator_sandbox/THREAD3_CAPTURES_MOCK_VALIDATOR_PLAN.md` still describes
+  the retired sentinel as accepted input. That plan was not edited by this
+  worker; its owner must supersede those instructions. Use the current
+  2026-10-26 contract above, not that old plan, for new entries.
 - The protected dirty split-calculator work must be preserved and reviewed
   separately from the clean remote baseline.
 - Four dirty inspector-list files and focused tests may reflect Thread 3.1 WIP;

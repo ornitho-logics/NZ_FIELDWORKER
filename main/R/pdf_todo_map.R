@@ -49,9 +49,7 @@
 
   captures <- captures[
     toupper(trimws(as.character(age))) == "C" &
-      !is.na(nest_id) &
-      nzchar(trimws(as.character(nest_id))) &
-      toupper(trimws(as.character(nest_id))) != "NO_NEST"
+      .display_has_nest_id(nest_id)
   ]
   if ("site" %in% names(captures)) {
     captures <- captures[toupper(trimws(as.character(site))) == "CR"]
@@ -126,6 +124,7 @@
   nests_latest = NULL
 ) {
   todo <- data.table(todo)
+  todo <- todo[.display_has_nest_id(nest_id)]
   if (!"notes" %in% names(todo)) {
     todo[, notes := NA_character_]
   }
@@ -215,7 +214,7 @@
     ]
 
     latest_positions <- latest[
-      !is.na(nest_id) & nzchar(nest_id),
+      .display_has_nest_id(nest_id),
       .(
         lat = {
           value <- lat[!is.na(lat)]
@@ -506,7 +505,12 @@
     crs = 2193
   )
   outside_mask <- suppressWarnings(st_difference(panel_rect, st_union(boundary)))
-  point_xy <- cbind(st_drop_geometry(points), st_coordinates(points))
+  # sf drops coordinate names for an empty point set. Keep the layer schema
+  # so a plot with no current nests/broods can still render its background.
+  point_xy <- cbind(
+    st_drop_geometry(points),
+    if (nrow(points)) st_coordinates(points) else data.frame(X = numeric(), Y = numeric())
+  )
   gate_xy <- if (nrow(panel_gate)) {
     cbind(st_drop_geometry(panel_gate), st_coordinates(panel_gate))
   } else {
@@ -551,6 +555,16 @@
       as.character(parent_work) == "Capture",
   ]
 
+  # Keep label boxes clear of neighboring labels with generous repulsion, but
+  # leave point padding at zero so each leader segment reaches its point.
+  # Both synchronized label layers must use identical settings so the
+  # coloured fill and outline remain registered.
+  label_box_padding <- 0.38
+  label_point_padding <- 0
+  label_force <- 1.5
+  label_force_pull <- 0.5
+  label_max_time <- 8
+
   panel <- ggplot()
   imagery <- .todo_pdf_map_read_imagery(spec)
   if (!is.null(imagery)) {
@@ -584,8 +598,10 @@
       fill = scales::alpha("#fff7cf", 0.92),
       label.size = 0.1,
       label.padding = grid::unit(0.07, "lines"),
-      box.padding = 0.28,
-      point.padding = 0.2,
+      box.padding = label_box_padding,
+      point.padding = label_point_padding,
+      force = label_force,
+      force_pull = label_force_pull,
       min.segment.length = 0,
       segment.colour = "#3d4a51",
       segment.size = 0.22,
@@ -626,13 +642,15 @@
       fill = NA,
       label.size = 0.1,
       label.padding = grid::unit(0.12, "lines"),
-      box.padding = 0.28,
-      point.padding = 0.2,
+      box.padding = label_box_padding,
+      point.padding = label_point_padding,
+      force = label_force,
+      force_pull = label_force_pull,
       min.segment.length = 0,
       segment.colour = "#3d4a51",
       segment.size = 0.22,
       max.overlaps = Inf,
-      max.time = 4,
+      max.time = label_max_time,
       xlim = xlim + c(0.025, -0.025) * x_span,
       ylim = ylim + c(0.025, -0.025) * y_span,
       show.legend = FALSE
@@ -652,13 +670,15 @@
       label.size = 0.1,
       linewidth = 0.2,
       label.padding = grid::unit(0.12, "lines"),
-      box.padding = 0.28,
-      point.padding = 0.2,
+      box.padding = label_box_padding,
+      point.padding = label_point_padding,
+      force = label_force,
+      force_pull = label_force_pull,
       min.segment.length = 0,
       segment.colour = "#3d4a51",
       segment.size = 0.22,
       max.overlaps = Inf,
-      max.time = 4,
+      max.time = label_max_time,
       xlim = xlim + c(0.025, -0.025) * x_span,
       ylim = ylim + c(0.025, -0.025) * y_span
     ) +

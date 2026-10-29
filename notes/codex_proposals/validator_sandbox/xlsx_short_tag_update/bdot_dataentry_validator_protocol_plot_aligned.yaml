@@ -1,6 +1,6 @@
 protocol_id: bdot_2026_2027_dataentry_validator_protocol
-protocol_version: 1.3.10
-generated_on: 2026-10-26
+protocol_version: 1.3.19
+generated_on: 2026-10-27
 generated_from:
   repo: /Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/bdot_db
   script_of_record: /Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/bdot_db/R/mock_badoatnz_portal_data.R
@@ -15,6 +15,56 @@ purpose: >
   and post-save / season-wide QA checks.
 
 revision_history:
+  - version: 1.3.19
+    generated_on: 2026-10-28
+    changes:
+      - Required every age-C RESIGHTINGS row with rclass H to carry an explicit valid positive or negative nest_id. A same-session parent, H ring, prior capture history, or other inferred association cannot substitute for the entered H-row nest_id. Ordinary age-C R/P/V/C blank-ID family routes remain unchanged.
+  - version: 1.3.18
+    generated_on: 2026-10-27
+    changes:
+      - Required independent adult RESIGHTINGS parent-nest association candidates with behav IN, NM, SC, BW, BC, FC, or AC to carry an explicit valid nest_id or negative brood ID and observed values in both LL and LR. Explicit X/XX lower-leg values remain valid for an unbanded X-X observation. Preserved the approved blank-ID BC/FC/AC family route when authoritative current association resolves the negative brood; this exception does not create independent parent-nest confirmation and does not apply to SC, IN, NM, or BW.
+      - Restricted RES_005H definitive archive sex-history evidence to verified ring or complete engraved-flag identity matches. Archive-only lower-band matches remain non-definitive and cannot independently override the entered RESIGHTINGS sex. Raw observations remain unchanged.
+  - version: 1.3.17
+    generated_on: 2026-10-27
+    changes:
+      - Allowed age-C CAPTURES with capture_status D to use the generic dead-on-capture rule: a complete readable recovered combination, flagged or unflagged, in UL_in/LL_in/UR_in/LR_in and blank release-side UL/LL/UR/LR. Skipped the live chick F/R release scheme for C/D while preserving all age-C F/R/C release, change, location, and mandatory-field rules. Age-C D remains a developmental-stage/dead-bird record only and does not encode whole-brood survival or closure.
+  - version: 1.3.16
+    generated_on: 2026-10-27
+    changes:
+      - Allowed reliably origin-linked age-J CAPTURES with capture_status D to record any complete readable recovered combination in UL_in/LL_in/UR_in/LR_in, including unflagged juvenile combinations, while leaving release-side UL/LL/UR/LR blank. Preserved the F/C juvenile release scheme, retained all other D and juvenile hard rules, and excluded valid age-J D rows from the unusual-status warning.
+  - version: 1.3.15
+    generated_on: 2026-10-27
+    changes:
+      - Allowed adult scraping (SC) and nonconfirming RESIGHTINGS nest associations, including the existing three-resight association route, to link to a same-day-or-earlier current-season S scrape when S is still the latest state on the RESIGHTINGS date. Age-C rows and adult IN/NM, BW, and BC/FC/AC rows do not receive this exception; their separate nest-stage and parent/chick rules remain unchanged. A future or closed scrape does not establish a new nesting attempt.
+  - version: 1.3.14
+    generated_on: 2026-10-26
+    changes:
+      - Added SC (scraping) to the adult parent-nest identity-link candidate behaviours. SC independently requires the parent nest association, but remains outside the BC/FC/AC parent-with-chicks and reciprocal age-C co-entry rules.
+  - version: 1.3.13
+    generated_on: 2026-10-26
+    changes:
+      - Retired NO_NEST as an accepted current input sentinel in CAPTURES and RESIGHTINGS. Unrelated events use blank nest_id with the required complete direct GPS pair; positive and negative nest_ids remain valid where their table and site rules permit them. Historical NO_NEST values are not rewritten by this validator change.
+      - Required one family occasion to resolve to one nest_id across current parent/chick rows and relevant saved CAPTURES/RESIGHTINGS companions. An occasion is keyed by the same date, site, gps_id, and gps_point; separate dates, sites, GPS pairs, and later brood-mixing encounters remain distinct.
+      - Applied the same family-occasion conflict check when CAPTURES is the current table: current chick/adult-with-chicks captures are checked against each other and saved CAPTURES/RESIGHTINGS companions, with self-pk exclusion for edits and fail-closed behavior when companion lookup is unavailable.
+      - Required same-site matching for the RESIGHTINGS parent/chick co-entry rule and retained the existing saved-CAPTURES date/site/GPS qualification.
+      - Excluded any RESIGHTINGS parent event containing '?' in UL, LL, UR, or LR from parent-nest evidence unless a metal ring is reliably traced to capture identity on or before the event date. For that ring-identity lookup, trim and uppercase the permitted CP format and remove its optional hyphen, so CP12345 and CP-12345 are equivalent; malformed or placeholder strings do not qualify. This normalization is limited to ring identity and does not alter mark order or nest_id values. A current explicit nest_id may then stand on its own; archive identity must not import an archive nest_id, and blank current nest_id inference remains current-season-only. A nonblank or unverified ring is not sufficient; raw uncertain marks are preserved.
+      - Corrected EGGS target columns and timing/floatation descriptions to match the current schema and inspectors. The EGGS schema has no camera, photo, or harddrive columns; event timing is grouped by nest_id, observer, and date; float_angle uses the all-location 0-90 hard range while location-specific surface rules remain separate.
+      - Clarified that pP, P, and D are review/follow-up closure states until the final notA visit; repeated desertion/predation follow-up visits may be entered while confirming the outcome.
+  - version: 1.3.12
+    generated_on: 2026-10-26
+    changes:
+      - Expanded RESIGHTINGS uncertainty-mark syntax so UL, LL, UR, and LR accept '?' alone, '?R', 'R?', and the analogous one-known-colour partial forms; UR also accepts T? while bare T remains invalid. These entries preserve the observed order and known colour but remain non-definitive.
+      - Prevented RESIGHTINGS uncertainty-mark entries from becoming definitive combo/signature identities for history, parent, sex, S10, or available-combination checks; independent ring evidence remains available to ring-based checks.
+      - Added CAP_001B to reject '?' anywhere in CAPTURES UL, LL, UR, LR, UL_in, LL_in, UR_in, or LR_in for every capture status. CAPTURES keeps its existing blank/X/status/tag layout rules.
+  - version: 1.3.11
+    generated_on: 2026-10-26
+    changes:
+      - Required both gps_id and gps_point for age-C CAPTURES rows with capture_status R or C, including positive-nest captures; positive-nest F chick captures retain the nest-location exception when no direct GPS pair is supplied.
+      - Kept the complete GPS requirement for positive-nest adult captures whose caught_with entry records chicks.
+      - Allowed the RES_005J parent-side reciprocal check to be satisfied by an already-saved age-C CAPTURES row only when date, site, gps_id, and gps_point all match the parent RESIGHTINGS row; unsaved rows in another portal session remain unavailable to the RESIGHTINGS validator.
+      - Allowed blank nest_id for a same-date, same-site, same-GPS parent/chick family only when ADULT_PARENT_STATUS provides exactly one selected M and one selected F identity for one unambiguous negative brood ID, and every observed unlinked parent matches its selected identity; one observed parent is sufficient because the absent mate is not fabricated. Pending, ambiguous, conflicting, or unavailable authoritative status fails closed.
+      - Accepted colour-plus-question-mark partial tarsus entries such as R? in RESIGHTINGS LL/LR as uncertain observations; they remain non-definitive for identity matching and do not broaden CAPTURES formats.
+      - Documented the tested RESIGHTINGS mark-format boundary: LL/LR colour-plus-question-mark entries such as R? are accepted, while ?R, bare ?, upper-leg partials, and bare UR = T or UR = T? remain invalid; permitted complete codes such as TY remain valid.
   - version: 1.3.10
     generated_on: 2026-10-26
     changes:
@@ -260,7 +310,7 @@ target_tables:
   OBSERVERS:
     columns: [name, observer, start, stop, gps_id, cam_id, nznbbs_number]
   EGGS:
-    columns: [species, observer, date, time_visit, nest_id, egg_id, float_angle, float_surface, float_location, cam_id, photo_start, photo_end, harddrive_id, comments, nov]
+    columns: [species, observer, date, time_visit, nest_id, egg_id, float_angle, float_surface, float_location, comments, nov]
   NESTS:
     columns: [species, site, date, time_visit, observer, nest_id, nest_state, hatch_state, bird_inc, gps_id, gps_point, clutch_size, brood_size, cam_id, photo_start, photo_end, nest_photo, tent_photo, comments, nov]
   CAPTURES:
@@ -476,8 +526,9 @@ negative_brood_methodology:
     valid_tables: [CAPTURES, RESIGHTINGS]
     invalid_tables: [NESTS, EGGS]
     no_nest_distinction: >
-      NO_NEST means that an event was not associated with any nest or brood. A negative nest_id means that the event
-      was associated with a known brood whose original nest is unknown.
+      NO_NEST is a retired input sentinel and is not accepted by the current CAPTURES or RESIGHTINGS validators.
+      An unrelated event uses a blank nest_id with the required complete direct GPS pair. A negative nest_id means
+      that the event was associated with a known brood whose original nest is unknown.
     examples:
       cass_river: [-A0203, -B0204, -C0201]
       non_cass: [-BA0202]
@@ -488,9 +539,13 @@ negative_brood_methodology:
       negative brood ID because the brood has no NESTS location to inherit.
     positive_id: >
       A positive nest-linked CAPTURES or RESIGHTINGS row uses the established nest-location branch and ordinarily
-      leaves gps_id and gps_point blank.
+      leaves gps_id and gps_point blank. The exception is CAPTURES age-C status-R or status-C rows, which require
+      both direct GPS fields even when nest_id is positive, and positive-nest adult captures whose caught_with entry
+      records chicks, which also require both direct GPS fields. Positive-nest age-C status-F captures may leave both
+      GPS fields blank when captured at the nest, or may supply a complete pair when captured away from the nest.
     no_nest: >
-      Blank or NO_NEST events remain on the direct-GPS branch and require both gps_id and gps_point.
+      Blank nest_id events remain on the direct-GPS branch and require both gps_id and gps_point. Entering NO_NEST
+      is a save-blocking format error; leave nest_id blank instead. This does not rewrite historical rows.
     gps_pair: >
       gps_id and gps_point are a pair: neither may be supplied without the other, and GLOBAL_005A checks the pair
       against GPS_POINTS.
@@ -504,17 +559,21 @@ negative_brood_methodology:
       Banded parents use observed marks. Unbanded parents may use LL = X and LR = X; unbanded chicks may use the
       permitted unbanded mark fields. Chicks normally use age C and sex U.
     persistence: >
-      Every subsequent negative-ID CAPTURES or RESIGHTINGS encounter retains the same negative nest_id and carries
-      that event's gps_id and gps_point.
+      Every subsequent negative-ID CAPTURES or RESIGHTINGS encounter ordinarily retains the same negative nest_id and
+      carries that event's gps_id and gps_point. The narrow S10 exception permits a blank current nest_id only for an
+      unlinked same-date, same-site, same-complete-GPS parent/chick family when authoritative ADULT_PARENT_STATUS
+      supplies exactly one unambiguous selected M and F identity for the same negative nest_id and every observed
+      parent matches its selected identity; one absent mate is not fabricated. If that status is missing, pending,
+      ambiguous, conflicting, or cannot match the observed parent, require the explicit negative nest_id.
   photo_methodology:
     hiding_spot: >
-      A chick hiding-spot photo is a separate RESIGHTINGS row with age C and rclass H, normally the relevant positive
-      or negative nest_id, both direct GPS fields, and required photo metadata. Every H row must carry both gps_id and
-      gps_point, including when a positive nest_id is present; the GPS pair must pass GPS_POINTS validation. It must
-      also carry a nonblank ring value containing the individual's metal-ring code. This ring requirement is specific
-      to H and does not replace UL, LL, UR, or LR. An advanced unlinked-H exception may omit nest_id under RES_005B's
-      mandatory GPS condition when ring is nonblank or a same-session age-A parent with LL and LR is recorded at the
-      same GPS pair. behav may remain blank for rclass H under RES_001.
+      A chick hiding-spot photo is a separate RESIGHTINGS row with age C and rclass H. Every H row must carry an
+      explicit valid positive or negative nest_id, both direct GPS fields, and required photo metadata. A same-session
+      parent, H ring, prior capture history, or other inferred association cannot substitute for the H row's nest_id.
+      Every H row must carry both gps_id and gps_point, including when a positive nest_id is present; the GPS pair must
+      pass GPS_POINTS validation. It must also carry a nonblank ring value containing the individual's metal-ring code.
+      This ring requirement is specific to H and does not replace UL, LL, UR, or LR. behav may remain blank for rclass H
+      under RES_001.
     tent_photo: >
       A captured chick's CAPTURES row records handling/banding and any tent photo through chick_tent_photo and the
       CAPTURES photo sequence. chick_hide_photo is retained for schema compatibility but should be blank or 0;
@@ -529,9 +588,12 @@ negative_brood_methodology:
       share either the same nonblank nest_id or the same complete gps_id/gps_point pair. Adult P/V rows, cross-table
       CAPTURES/NESTS/RESIGHTINGS rows, and H rows with different linkage remain conflicts. When an existing saved row
       is edited, its own stored pk is excluded from the comparison.
-  save_time_scope: >
-    Cross-table chick-photo, parent-linkage, and same-event checks remain warnings or post-save QA when the required
-    companion row may be entered in a separate portal session.
+    save_time_scope: >
+      Cross-table chick-photo, parent-linkage, and same-event checks remain warnings or post-save QA when the required
+      companion row may be entered in a separate portal session. RES_005J is the approved exception: a saved age-C
+      CAPTURES row may satisfy the parent-side reciprocal check when date, site, gps_id, and gps_point exactly match.
+      The CAPTURES row must be saved before the RESIGHTINGS submission is validated; unsaved rows in another portal
+      session are not visible to the RESIGHTINGS inspector.
 
 global_rules:
   hard_rules:
@@ -724,15 +786,14 @@ table_rules:
       - rule_id: EGG_003
         severity: error
         scope: grouped
-        columns: [nest_id, date, time_visit]
-        description: All EGGS rows for the same nest_id should belong to the same egg-check event.
+        columns: [nest_id, observer, date, time_visit]
+        description: EGGS rows for one nest, observer, and date must form one egg-check event.
         logic: >
-          Within the current submitted EGGS rows, for each non-missing nest_id:
-          all non-missing dates must collapse to a single date, and all valid hh:mm time_visit
-          values must span no more than five minutes.
-          If a nest_id appears with more than one date, flag the current submitted rows for that nest_id.
-          If the time_visit span for that nest_id exceeds five minutes, flag the current submitted rows
-          for that nest_id.
+          Within the current submitted EGGS rows, group by non-missing nest_id, observer, and date. If the same
+          nest_id/observer/time_visit key appears on more than one date, flag the affected date fields. For each
+          nest_id/observer/date group, valid hh:mm or hh:mm:ss time_visit values must span no more than five minutes;
+          if the span exceeds five minutes, flag the affected time_visit fields. Repeated visits to the same nest
+          on different dates are valid when their observer/time keys do not create one cross-date event.
         dataentry_translation_hint: custom:cross_table_archive_logic
       - rule_id: EGG_004
         severity: error
@@ -749,11 +810,11 @@ table_rules:
         columns: [float_location, float_angle, float_surface]
         description: Float fields must follow the bottom / suspended / surface logic, with float_angle allowed from 0 to 90 where applicable.
         logic: >
-          If float_location == 'bottom' and float_angle is entered: float_angle must be between 0 and 90 inclusive and float_surface must be NA.
-          If float_location == 'suspended' and float_angle is entered: float_angle must be between 85 and 90 inclusive and float_surface must be NA.
-          If float_location == 'surface' and float_angle is entered: float_angle must be between 75 and 90 inclusive and float_surface must be 0, 1, 2, or 3.
-          Use the fieldworker-facing reason: when float_location is "surface" a "float_surface" value (0, 1, 2, or 3) is needed indicating the mm above the surface.
-          Missing float_angle or missing float_location is handled as a warning rather than a save-blocking error.
+          If float_location is 'bottom' or 'suspended', float_surface must be blank. If float_location is 'surface',
+          float_surface must be 0, 1, 2, or 3; use the fieldworker-facing reason that a surface value indicates the
+          millimetres above the water surface. The separate float-angle validator requires any entered float_angle
+          to be a whole number from 0 to 90 inclusive for every float_location; do not impose location-specific
+          lower angle bounds in this rule. Missing float_angle or float_location is handled by the warning inspector.
         dataentry_translation_hint: custom:row_logic
       - rule_id: EGG_009
         severity: error
@@ -930,9 +991,13 @@ table_rules:
           or by a later terminal state.
           An H event with clutch_size greater than 0 is an active, non-terminal hatch visit and may be followed by another H visit.
           The first H event with clutch_size == 0 and brood_size > 0 is the terminal hatch visit for that nest history.
-          A terminal H, pP, P, or D event may follow F, I, H, or pD where biologically appropriate.
-          The terminal H, pP, P, or D row itself is valid.
-          After a terminal H, pP, P, or D row, at most one final notA row may occur; a later H row is not allowed.
+          A terminal H event may follow F, I, H, or pD where biologically appropriate. pP, P, and D are
+          nonterminal review/follow-up states while the field team confirms predation or desertion; repeated pP, P,
+          or D visits may be entered before the final notA closure. The terminal H row and each pP, P, or D review row
+          are valid in their appropriate sequence. After a terminal H row with clutch_size == 0 and brood_size > 0,
+          only one final notA row may occur; a later H, pP, P, D, or pD row is not allowed. A pP/P/D visit may be
+          followed by another review visit or by notA while the nest is being checked, rather than being treated as
+          an immediate irreversible terminal state.
           In particular, one final notA row with clutch_size == 0 and brood_size > 0 may directly follow
           a terminal H row with clutch_size == 0 and brood_size > 0. This is the permitted post-hatch
           closure after the brood has been handled as RESIGHTINGS or CAPTURES, including hiding-spot
@@ -1101,17 +1166,21 @@ table_rules:
         severity: error
         scope: row
         columns: [date, caught, species, site, observer, capture_status, capture_method, nest_id, gps_id, gps_point, field_sex, age, ring, UL, LL, UR, LR]
-        description: Primary CAPTURES fields are mandatory; first-capture chicks require a real nest or brood link, while GPS remains optional for positive nest-linked first captures and mandatory for negative broods or other unlinked rows.
+        description: Primary CAPTURES fields are mandatory; first-capture chicks require a real nest or brood link, while GPS is optional only for positive-nest status-F chick captures and mandatory for negative broods, unlinked rows, age-C status-R/C captures, and positive-nest adults captured with chicks.
         logic: >
           Require date, caught, species, site, observer, capture_status, capture_method, field_sex, age, and ring on every row.
           If age == 'C' and capture_status == 'F', require a positive biological nest_id or a negative brood ID;
-          blank nest_id and NO_NEST are not valid substitutes for this first chick-capture link. For this specific
+          blank nest_id is not a valid substitute for this first chick-capture link; NO_NEST is rejected as an
+          obsolete sentinel by CAP_009. For this specific
           first-capture chick context, gps_id and gps_point may both be blank when the capture occurred at the nest,
           or may both be entered when the chick was captured away from the nest. A partial GPS pair is invalid.
-          If nest_id is a positive biological nest ID on any other row, require gps_id and gps_point to be blank and
-          use the nest location. If nest_id starts with '-', require that negative brood ID together with both gps_id
-          and gps_point because the brood has no NESTS location. If nest_id is blank or NO_NEST on any other row,
-          require both gps_id and gps_point on the unlinked direct-GPS branch. In every branch, reject a partial GPS
+          If age == 'C' and capture_status in ['R', 'C'], require both gps_id and gps_point even when nest_id is
+          positive. If nest_id is a positive biological nest ID on an adult row whose caught_with records chicks,
+          require both GPS fields because the capture may be away from the nest. Otherwise, a positive nest-linked
+          row uses the nest location and leaves both GPS fields blank. If nest_id starts with '-', require that
+          negative brood ID together with both gps_id and gps_point because the brood has no NESTS location. If
+          nest_id is blank on any other row, require both gps_id and gps_point on the unlinked direct-GPS branch.
+          NO_NEST is rejected for every current capture context. In every branch, reject a partial GPS
           pair and reject a row with neither a valid location representation nor the required direct GPS pair.
           GLOBAL_005A confirms any complete GPS pair in GPS_POINTS.
           Require UL, LL, UR, and LR unless capture_status == 'D'.
@@ -1126,6 +1195,17 @@ table_rules:
         description: Each CAPTURES ring must use the current metal-ring identifier format.
         logic: "When ring is entered, it must match ^CP-?[0-9]{5}$, for example CP12345 or CP-12345."
         dataentry_translation_hint: builtin:is.regexp_validator
+      - rule_id: CAP_001B
+        severity: error
+        scope: row
+        columns: [UL, LL, UR, LR, UL_in, LL_in, UR_in, LR_in]
+        description: CAPTURES mark fields cannot use question-mark uncertainty notation.
+        logic: >
+          If any of UL, LL, UR, LR, UL_in, LL_in, UR_in, or LR_in contains a literal '?', reject the field for every
+          capture_status F, R, C, or D. CAPTURES requires known handled/recovered marks, X for an observed empty
+          position, or blank where the existing capture-status layout permits it. This rule does not alter the
+          existing blank/X/status/tag layout checks.
+        dataentry_translation_hint: custom:row_logic
       - rule_id: CAP_002
         severity: error
         scope: row
@@ -1182,13 +1262,28 @@ table_rules:
         logic: >
           nest_id may be blank when both gps_id and gps_point provide the capture location, except that age == 'C'
           with capture_status == 'F' requires a positive nest_id or negative brood ID and does not accept NO_NEST.
-          If nest_id == 'NO_NEST': accept it for contexts other than age == 'C' with capture_status == 'F'.
+          If nest_id == 'NO_NEST': reject it for every current capture context; leave nest_id blank for an unrelated
+          direct-GPS capture. Historical NO_NEST values are not rewritten by this rule.
           Else if nest_id starts with '-' and site == 'CR': nest_id must match negative_brood_nest_regex_cr and CAP_001 must find both gps_id and gps_point.
           Else if nest_id starts with '-': nest_id must match negative_brood_nest_regex.
           Negative nest IDs on non-Cass sites must also satisfy CAP_001's mandatory GPS pair.
           Else if site == 'CR': nest_id must match positive_nest_regex_cr.
           Else: nest_id must match positive_nest_regex_non_cr.
         dataentry_translation_hint: custom:row_logic
+      - rule_id: CAP_009B
+        severity: error
+        scope: grouped
+        columns: [date, site, nest_id, gps_id, gps_point, age, caught_with]
+        description: One same-occasion parent/chick capture family must use one nest_id across current CAPTURES rows and saved CAPTURES/RESIGHTINGS companions.
+        logic: >
+          Define a family capture row as age == 'C', or as an age-A row whose caught_with includes one or more chicks.
+          For family rows with the same date, site, gps_id, and gps_point, collect nonblank valid positive or negative
+          nest_id values across the current CAPTURES submission and relevant saved CAPTURES/RESIGHTINGS companions.
+          If more than one distinct nest_id occurs, reject the current CAPTURES rows in that occasion on nest_id.
+          Exclude the same saved CAPTURES pk when an existing row is being edited. Separate dates, sites, or complete
+          GPS pairs are separate encounters and may use different nest_ids. If the companion-table lookup is unavailable,
+          fail closed with a retry/database-connection message rather than silently passing the cross-table check.
+        dataentry_translation_hint: custom:cross_table_grouped_logic
       - rule_id: CAP_010
         severity: error
         scope: row
@@ -1207,7 +1302,7 @@ table_rules:
           If capture_status == 'F': UL_in, LL_in, UR_in, LR_in must all equal 'X', and release combo must not be all X.
           If capture_status == 'R': input combo must equal release combo. If any nonblank input mark differs from its corresponding release mark and the normalized ring is present in CAPTURES_ARCHIVE or current-season CAPTURES history, block the save on capture_status with: 'Looks like you changed the bands on this bird after recapture, capture_status should be 'C''. If prior ring history is unavailable, use the generic status-R mismatch message.
           If capture_status == 'C': at least one input position must be non-X and input combo must differ from release combo in at least one position.
-          If capture_status == 'D': UL, LL, UR, and LR must all be blank, while UL_in, LL_in, UR_in, and LR_in record the recovered combo.
+          If capture_status == 'D': UL, LL, UR, and LR must all be blank, while UL_in, LL_in, UR_in, and LR_in record a complete readable recovered combo with no missing or '?' positions.
         dataentry_translation_hint: custom:row_logic
       - rule_id: CAP_014
         severity: error
@@ -1221,9 +1316,14 @@ table_rules:
           UL must be 'M', LL must be blank or X, UR must be blank or X, and LR must match chick_colour_regex.
           If age == 'C' and capture_status == 'C', do not apply the initial-chick release scheme; CAP_013 and CAP_016
           enforce the complete changed-combination and prior input-combination requirements.
-          If age == 'J':
-          UL must match juvenile_flag_regex, LL must be blank or X, UR must be 'M', LR must be blank or X,
-          and capture_status must be 'F' or 'C'.
+          If age == 'C' and capture_status == 'D', do not apply the initial-chick release scheme; CAP_013 requires
+          a complete readable recovered combination in UL_in, LL_in, UR_in, and LR_in, and release-side UL, LL, UR,
+          and LR remain blank. The recovered combination may be flagged or unflagged.
+          If age == 'J' and capture_status in ['F', 'C']:
+          UL must match juvenile_flag_regex, LL must be blank or X, UR must be 'M', and LR must be blank or X.
+          If age == 'J' and capture_status == 'D', UL_in, LL_in, UR_in, and LR_in must contain a complete readable
+          recovered combination (with no missing or '?' positions); the combination may be flagged or unflagged and
+          does not have to follow the juvenile release pattern. UL, LL, UR, and LR remain blank under the status-D rule.
           If age == 'A' and capture_status != 'D' and site == 'CR':
           LL must be one of YR, YO, YY, GY, BY, WY, OY, or LY.
           If age == 'A' and capture_status != 'D' and site != 'CR':
@@ -1476,9 +1576,13 @@ table_rules:
         description: capture_status patterns vary by age, but some combinations are more likely than others.
         logic: >
           All capture_status levels can occur at any age and should not be blocked on that basis alone.
-          However, age == 'C' is most likely to have capture_status == 'F'.
-          Age == 'J' is most likely to have capture_status in ['F', 'C'].
-          Differences should be flagged for review rather than blocked.
+          However, age == 'C' is most likely to have capture_status == 'F'; a recovered-dead chick may validly use
+          capture_status == 'D' when any complete readable recovered combination, flagged or unflagged, is recorded
+          in the *_in fields, so do not warn on C/D.
+          Age == 'J' is most likely to have capture_status in ['F', 'C']; a recovered-dead juvenile may validly use
+          capture_status == 'D' when any complete readable recovered combination, flagged or unflagged, is recorded
+          in the *_in fields, so do not warn on J/D.
+          Other differences should be flagged for review rather than blocked.
         dataentry_translation_hint: custom:row_logic
       - rule_id: CAP_008
         severity: warning
@@ -1640,16 +1744,17 @@ table_rules:
         logic: >
           observer_upload should be in OBSERVERS.observer.
       - rule_id: CAP_M000A
-        description: In mock CAPTURES data, non-nest-linked events should use NO_NEST rather than a blank nest_id.
+        description: In mock CAPTURES data, non-nest-linked events should use a blank nest_id and complete direct GPS.
         logic: >
           If a CAPTURES event is not associated with a nest or brood,
-          set nest_id to NO_NEST.
+          leave nest_id blank and set both gps_id and gps_point to a valid mock GPS pair. Do not generate NO_NEST;
+          it is a retired current-input sentinel.
       - rule_id: CAP_M000B
         description: In mock CAPTURES data, TN and TB should only occur on nest-linked rows.
         logic: >
           If capture_method == 'TN', generate only positive nest_id values.
           If capture_method == 'TB', generate only positive or negative nest_id values.
-          For NO_NEST rows, use a non-nest method such as MM or HA instead.
+          For unrelated blank-nest rows, use a non-nest method such as MM or HA instead.
       - rule_id: CAP_M000C
         description: Mock negative-brood captures must model mobile broods and may be the first discovery event.
         logic: >
@@ -1715,7 +1820,9 @@ table_rules:
           unless capture_status == 'D', in which case UL, LL, UR, and LR are all blank.
           For site == 'CR' and age == 'A', LL must be one of YR, YO, YY, GY, BY, WY, OY, or LY.
           For site != 'CR' and age == 'A', LL must avoid those CR-adult LL combinations.
-          For age == 'J', UL should be a white FW flag code, LL blank/X, UR M, and LR blank/X regardless of site.
+          For age == 'J' with capture_status in ['F', 'C'], UL should be a white FW flag code, LL blank/X, UR M,
+          and LR blank/X regardless of site. For age == 'J' with capture_status == 'D', release-side marks remain
+          blank and the recovered *_in fields may contain any complete readable flagged or unflagged combination.
           For site == 'CR' and age == 'C', siblings sharing a nest_id should share one LL colour,
           with UL blank/X, UR M, and LR blank/X.
           For site != 'CR' and age == 'C', chicks from the same site should share one LR colour,
@@ -1733,18 +1840,27 @@ table_rules:
           species, observer, date, rclass, sex, and age must be non-missing.
           For normalized rclass == 'H', blank, whitespace-only, and textual 'NA' values in any of those six fields
           are also missing and must be reported on the corresponding variable.
-          If normalized rclass == 'H', require both direct gps_id and gps_point regardless of whether nest_id is
-          positive, negative, blank, or NO_NEST. For non-H rows, if nest_id is a positive nest ID, use the linked nest
+          If normalized rclass == 'H', require an explicit valid positive or negative nest_id and both direct gps_id
+          and gps_point. A blank, whitespace-only, textual 'NA', or 'NO_NEST' H nest_id must be reported on nest_id;
+          same-session parent, ring, or prior history cannot substitute for it. For non-H rows, if nest_id is a positive nest ID, use the linked nest
           location and ordinarily leave gps_id and gps_point blank. If nest_id starts with '-', require that negative
           brood ID together with both gps_id and gps_point because the brood has no NESTS location. If nest_id is
-          missing, blank, or NO_NEST on a non-H row, require both GPS fields on the direct GPS branch. Reject partial
+          missing or blank on a non-H row, require both GPS fields on the direct GPS branch. Reject partial
           GPS pairs. GLOBAL_005A confirms any complete GPS pair in GPS_POINTS. For an H row missing either GPS field,
           report variable gps_id or gps_point with: 'Hiding-spot photo events require both gps_id and gps_point, even
           when nest_id is recorded.'
           behav must be non-missing unless rclass == 'H', where a blank behaviour is allowed.
           For the leg-mark fields, at least one of UL, LL, UR, or LR must be entered.
-          Partial informative entries are allowed, so a known bird may be entered as only LL/LR
-          or only a flag segment such as UR = FWA1.
+          The RESIGHTINGS format helper accepts '?' alone, '?R', 'R?', and the analogous one-known-colour partial
+          forms in UL, LL, UR, and LR. These entries preserve the observed order and known colour; '?' means the
+          segment was seen but its colour or remaining colour information was uncertain, and it is not equivalent
+          to blank, X, or an unbanded position. On UR, complete tag/spacer values such as TY remain valid and T?
+          is valid when the tag/spacer is known but its colour is uncertain; bare UR = T remains invalid. Full flag
+          syntax and existing complete mark syntax remain unchanged, and no partial engraved-code grammar is added.
+          An uncertain segment is never treated as a wildcard or as a complete mark component. A row containing only
+          uncertainty must not become a definitive identity for parent/S10, sex-history, or available-combination
+          matching. Existing independent evidence, such as a complete ring, full flag, or complete canonical mark
+          component supported by the matching method, remains available; ring evidence remains separate from marks.
         dataentry_translation_hint: custom:row_logic
       - rule_id: RES_002
         severity: error
@@ -1788,6 +1904,8 @@ table_rules:
         description: nest_id format depends on site, brood status, and species prefix outside Cass River.
         logic: >
           If nest_id is NA, no format check is needed.
+          If nest_id is NO_NEST, reject it as an obsolete sentinel. Leave nest_id blank for an unrelated event and
+          enter both gps_id and gps_point under RES_001.
           If site == 'CR', nest_id must match ^-?[ABC][0-9]{4}$.
           If site != 'CR' and species == 'BADO', nest_id must match ^-?BA[0-9]{4}$.
           If site != 'CR' and species == 'WRYB', nest_id must match ^-?WR[0-9]{4}$.
@@ -1808,20 +1926,38 @@ table_rules:
         severity: error
         scope: row
         columns: [nest_id, rclass, age, gps_id, gps_point, ring, UL, LL, UR, LR, behav]
-        description: nest_id is required for linked chick RESIGHTINGS rows, and a negative nest_id satisfies that requirement without a NESTS lookup; otherwise-unlinked H chicks retain the existing narrow exception.
+        description: nest_id is required for every age-C H RESIGHTINGS row and for other linked chick rows unless their approved ordinary-family exception applies; a negative nest_id satisfies that requirement without a NESTS lookup, while a narrowly defined same-family negative-brood inference remains available only through authoritative ADULT_PARENT_STATUS for the ordinary family route.
         logic: >
-          If age == 'C', nest_id must be entered unless all of the following are true:
-          nest_id is blank, rclass == 'H', gps_id and gps_point are both entered, and either ring is nonblank or the
-          current RESIGHTINGS submission contains another age-A event with the same gps_id and gps_point and both LL
-          and LR recorded. This exception is for an unlinked chick hiding-spot photo session; it does not make nest_id
-          optional for other chick classes or when the chick lacks the mandatory GPS pair. RESIGHTINGS.ring is a
+          If age == 'C' and rclass == 'H', nest_id must be an explicitly entered valid positive or negative ID.
+          A blank, whitespace-only, textual 'NA', or 'NO_NEST' value must be reported on nest_id. A same-session
+          parent, H ring, prior capture history, or other inferred association cannot substitute for the entered H-row
+          nest_id. For other age-C rclass values, preserve the approved ordinary same-session parent/chick and
+          negative-family exceptions described below. RESIGHTINGS.ring is a
           separate nullable metal-ring field: RES_010 requires it for every H row, and it supplements rather than
           replaces UL, LL, UR, or LR. The reciprocal same-session parent/chick requirement is specified in RES_005J
-          and applies to all age-C rows, whether rclass is H, R, P, or V.
+          and applies to all age-C rows, whether rclass is H, R, P, V, or C.
+          For ordinary age-C rows with a blank nest_id, a same-date, same-site, same-GPS age-A BC/FC/AC family may
+          provide the association when its current or date-qualified historical positive-nest link is resolvable. For
+          a negative brood, reuse authoritative ADULT_PARENT_STATUS: it must provide exactly one selected M and one
+          selected F identity for one negative nest_id, with neither sex pending or ambiguous, and every observed
+          unlinked parent must match its selected mark/identity. One observed parent is sufficient; do not fabricate
+          an unobserved mate. If the authoritative lookup is missing, pending, ambiguous, conflicting, or the
+          observed identity cannot be matched, fail closed and require the explicit negative nest_id.
           A negative nest_id is a valid linked brood identifier and satisfies the chick, BC/FC/AC, and adult linkage
           requirements without being looked up in NESTS; RES_001 separately requires both GPS fields for every such row.
-          If behav includes 'BC', 'FC', or 'AC', nest_id must be entered.
-          For adult rows, treat behav including 'IN', 'NM', 'BW', 'BC', 'FC', or 'AC' as nest-parent identity-link candidates.
+          If behav includes 'BC', 'FC', or 'AC', nest_id must be entered unless the narrowly defined two-parent
+          negative-brood family inference above applies.
+          Any '?' in UL, LL, UR, or LR makes the observed colour mark uncertain and prevents it from serving as
+          parent-nest evidence by itself. For ring identity lookup, trim and uppercase a permitted CP ring and
+          remove its optional hyphen, so CP12345 and CP-12345 are equivalent; malformed or placeholder strings do
+          not qualify. This normalization is limited to ring identity and does not alter mark order or nest_id
+          values. A current explicit valid nest_id may still be accepted when a metal ring
+          can be reliably traced to an earlier CAPTURES identity on or before the event date, including an archive
+          capture; that ring evidence establishes individual identity only and must not import an archive nest_id
+          into the current family association. If the current nest_id is blank, ring-based inference may use only
+          current-season CAPTURES history and only when exactly one current nest/brood ID remains resolvable. A
+          future-only, unverified, or conflicting-sex ring history does not override uncertain colours.
+          For age-C H rows, require an explicit valid positive or negative nest_id; a same-session parent, H ring, prior capture history, or other inferred association cannot substitute for the entered H-row nest_id. For adult rows, treat behav including 'IN', 'NM', 'BW', 'BC', 'FC', 'AC', or 'SC' as nest-parent identity-link candidates. Independent confirmation requires an explicit valid nest_id or negative brood ID and observed values in both LL and LR; explicit X or XX in both lower fields is a valid unbanded X-X observation. SC means scraping and independently confirms a parent-nest association; it is not a parent-with-chicks behaviour. The approved blank-ID negative-family route remains available only to BC, FC, and AC when authoritative current association resolves the family; it is not independent confirmation and does not apply to SC, IN, NM, or BW.
           BW means broken-wing display, not brood watch; it may occur at either the nest or brood stage. Only BC and
           FC and AC are the parent-with-chicks behaviours that trigger the reciprocal same-session age-C requirement.
           Convert [UL,LL,UR,LR] into a mark using the same logic as the database format_mark function,
@@ -1834,6 +1970,14 @@ table_rules:
           by that date to an active current-season nest and nest_id may be omitted.
           If no such active candidate nest exists by that date, then the adult IN/NM row must carry nest_id
           because it is the first active-nest record for that breeding attempt.
+          For one family occasion, defined by the same date, site, gps_id, and gps_point, collect nonblank valid
+          nest_id values across current parent/chick rows and relevant saved CAPTURES/RESIGHTINGS companions. If more
+          than one distinct positive or negative nest_id occurs, reject the current rows in that occasion on nest_id.
+          This prevents one encounter from silently combining two parent/chick families, while allowing a chick to
+          change nest_id between separate encounters when the date, site, or GPS occasion differs.
+          Any current parent event containing '?' in UL, LL, UR, or LR is excluded from parent-nest evidence unless
+          a known metal ring can be traced to capture history and resolves to exactly one nest_id. A nonblank but
+          unverified ring does not create this exception. The raw uncertain mark remains unchanged.
           State-specific IN/NM and BC/FC/AC restrictions are enforced separately by RES_005D and RES_005K.
         dataentry_translation_hint: custom:cross_table_archive_logic
       - rule_id: RES_005C
@@ -1868,17 +2012,22 @@ table_rules:
       - rule_id: RES_005J
         severity: error
         scope: grouped
-        columns: [date, age, behav, rclass, nest_id, gps_id, gps_point]
-        description: Every age-C RESIGHTINGS event must be accompanied by a linked age-A parent event in the same portal submission, and every BC/FC/AC parent event must be accompanied by linked age-C event(s).
+        columns: [date, site, age, behav, rclass, nest_id, gps_id, gps_point]
+        description: Every age-C RESIGHTINGS event must be accompanied by a linked age-A parent event in the same portal submission, and every BC/FC/AC parent event must be accompanied by linked age-C event(s) or an already-saved age-C CAPTURES row from the same field occasion.
         logic: >
-          Inspect only the current RESIGHTINGS submission; saved RESIGHTINGS rows must not satisfy this save-time
-          requirement. A link is valid when the date is the same and either both rows carry the same nonblank nest_id
-          other than NO_NEST, or both rows carry the same complete gps_id/gps_point pair. For every age == 'C' row,
+          Inspect the current RESIGHTINGS submission and, for the parent-side reciprocal check only, already-saved
+          age-C CAPTURES rows. Saved RESIGHTINGS rows must not satisfy this save-time requirement. A RESIGHTINGS link
+          is valid when the date and site are the same and either both rows carry the same nonblank valid nest_id,
+          or both rows carry the same complete gps_id/gps_point pair. A saved CAPTURES companion is valid only when
+          date, site, gps_id, and gps_point all match the parent RESIGHTINGS row; a capture with a wrong date, site,
+          or GPS pair is not evidence. For every age == 'C' RESIGHTINGS row,
           require at least one age == 'A' row whose comma-separated behav tokens include BC, FC, or AC. The chick rclass
-          may be H, R, P, or V; H-specific ring, GPS, and photo rules remain separate. Conversely, for every age-A
-          row with behav BC, FC, or AC, require at least one linked age-C row in the same submission. Report the chick-side
-          failure on variable age and the parent-side failure on variable behav. This is save-blocking because the
-          field protocol requires parent/chick co-entry whenever chicks are recorded in the current portal session.
+          may be H, R, P, V, or C; H-specific ring, GPS, and photo rules remain separate. Conversely, for every age-A
+          row with behav BC, FC, or AC, require at least one linked age-C row in the same submission or a matching saved
+          age-C CAPTURES row. Report the chick-side failure on variable age and the parent-side failure on variable
+          behav. This is save-blocking because the field protocol requires parent/chick co-entry whenever chicks are
+          recorded in the current portal session; when capture and resighting are entered in separate portal sessions,
+          save the capture first so it is visible to the RESIGHTINGS validator.
         dataentry_translation_hint: custom:grouped_logic_current_table
       - rule_id: RES_005K
         severity: error
@@ -1916,15 +2065,21 @@ table_rules:
         severity: error
         scope: cross_table
         columns: [nest_id, date]
-        description: Positive nest-linked RESIGHTINGS cannot predate the first NESTS F, I, or H event for that nest_id.
+        description: Positive nest-linked RESIGHTINGS cannot predate the first NESTS F, I, or H event, except that adult scraping (SC) or nonconfirming observations may link to an existing S-only scrape while S is still the latest state on the RESIGHTINGS date.
         logic: >
           Restrict this rule to positive nest_id values only.
           Ignore NO_NEST and negative brood-only nest_id values.
-          Look up the earliest current-season NESTS row for that nest_id where nest_state is one of ['F', 'I', 'H'].
-          If no such F, I, or H row exists, flag the RESIGHTINGS row.
-          Because RESIGHTINGS has no event-time field, require only that the RESIGHTINGS date is the same day as
-          or later than the first qualifying NESTS date.
-          If the RESIGHTINGS date is earlier than that first qualifying date, flag the row.
+          Look up the current-season NESTS history for that nest_id on or before the RESIGHTINGS date,
+          ordered by date, time_visit, and pk when available. Because RESIGHTINGS has no event-time field,
+          compare dates for the first qualifying event and use the NESTS ordering only to determine the latest
+          state on that date. If a same-day-or-earlier F, I, or H event exists, the row passes this chronology check.
+          If no F, I, or H event exists on or before the RESIGHTINGS date, allow the row only when age == 'A',
+          the latest state on or before that date is S, and behav does not contain IN, NM, BW, BC, FC, or AC.
+          This S exception supports adult scraping (SC) and the existing nonconfirming three-resight route;
+          it does not apply to age-C rows, does not create a chick origin, and does not make a future or closed
+          scrape available as a new nesting attempt. IN/NM remain subject to RES_005D, while BC/FC/AC remain
+          subject to RES_005J and RES_005K. Flag all other rows that predate the first qualifying F, I, or H event
+          or have no eligible history.
         dataentry_translation_hint: custom:cross_table_archive_logic
       - rule_id: RES_009
         severity: error
@@ -2061,8 +2216,11 @@ table_rules:
           Use the actual RESIGHTINGS column sex (fieldworker terminology may refer to this as field_sex).
           Identify the bird by a nonblank normalized ring when available, or by the existing canonical partial
           leg-mark signature using the same omitted-upper, colour-pair, and tag-style normalization as RES_005.
-          Prefer a definitive CAPTURES_ARCHIVE match; when gen_sex is nonblank use gen_sex, otherwise use archive
-          field_sex. If no definitive archive match exists, use the matching current-season CAPTURES field_sex.
+          For CAPTURES_ARCHIVE, only a verified ring match or a complete engraved-flag match is definitive sex
+          evidence. An archive-only lower-band or other weak canonical-mark match must not independently override
+          the entered RESIGHTINGS sex. Prefer a definitive archive ring/flag match; when gen_sex is nonblank use
+          gen_sex, otherwise use archive field_sex. If no definitive archive ring/flag match exists, use the
+          matching current-season CAPTURES field_sex under the existing current-season matching rules.
           Normalize M and MU to the male group and F and FU to the female group. Allow M/MU and F/FU interchangeably.
           Do not issue a contradiction for U, missing, or otherwise non-definitive sex values, and do not issue one
           when the matched history contains both male and female groups. When a definite RESIGHTINGS M/F entry
@@ -2138,8 +2296,8 @@ table_rules:
       - rule_id: RES_M006
         description: Brood-association mock RESIGHTINGS should include linked parent and chick rows, while BW may also occur without a chick row.
         logic: >
-          Include adult RESIGHTINGS rows with behav in ['FC', 'BC'] together with one or more same-date age-C rows
-          linked by nest_id or gps_id/gps_point. The chick rclass may be H, R, P, or V. Include a few BW rows at
+          Include adult RESIGHTINGS rows with behav in ['FC', 'BC', 'AC'] together with one or more same-date age-C rows
+          linked by nest_id or gps_id/gps_point. The chick rclass may be H, R, P, V, or C. Include a few BW rows at
           nest or brood stage without using BW alone as evidence that chicks were individually observed.
 
   RESIGHTINGS_PUBLIC:
@@ -2383,5 +2541,5 @@ downstream_agent_notes:
   - The protocol deliberately uses only the standardized target columns and excludes legacy columns such as site_name and site_code.
   - RESIGHTINGS.ring is nullable for ordinary classes but mandatory for normalized rclass H; H rows must use the CP metal-ring format and the normalized ring must already exist in current-season CAPTURES. The ring supplements the leg-mark fields.
   - For RESIGHTINGS, do not require nest_id on every adult row. Require it only when that row establishes the first parent-identity linkage of an adult to a breeding attempt in the current season.
-  - In the mock RESIGHTINGS data, aim for about 40 percent of rows with nest_id. Keep it on most chick rows, brood-linked rows, negative brood-only rows, explicit nest-context P/H/C rows, and only a subset of adult IN/NM rows that establish breeding-attempt context; an unlinked rclass H chick may omit it only when the mandatory GPS pair is present and either ring is nonblank or a same-session age-A parent with LL and LR is recorded at that GPS pair; leave it blank on most general adult resightings.
+  - In the mock RESIGHTINGS data, aim for about 40 percent of rows with nest_id. Keep it on most chick rows, brood-linked rows, negative brood-only rows, every age-C rclass H row, explicit nest-context P/H/C rows, and only a subset of adult IN/NM rows that establish breeding-attempt context; ordinary age-C R/P/V/C family routes may still use the approved same-session blank-ID exception; leave it blank on most general adult resightings.
   - The intended downstream product is a social-parentage view that merges adult identity links from CAPTURES and RESIGHTINGS.

@@ -1,0 +1,73 @@
+/* Scoped by the reader iframe; does not change dashboard styling. */
+:root { color-scheme: light; --ink: #23343d; --accent: #315e70; --line: #d8e1e5; }
+* { box-sizing: border-box; }
+html { scroll-padding-top: 110px; }
+body { margin: 0; background: #f4f7f8; color: var(--ink); font: 17px/1.6 Calibri, Arial, sans-serif; }
+main { max-width: 1080px; margin: 0 auto; padding: 18px 38px 70px; background: #fff; }
+h1, h2, h3, summary { font-family: Arial, sans-serif; color: #203c49; line-height: 1.35; }
+h1 { font-size: 2rem; margin: 22px 0 12px; }
+h2 { font-size: 1.4rem; margin-top: 28px; }
+h3 { font-size: 1.1rem; margin-top: 26px; }
+p, ul, ol { margin: 12px 0; }
+li { margin: 5px 0; }
+a { color: var(--accent); text-underline-offset: 3px; }
+a:hover { color: #193f50; }
+button, input { font: inherit; }
+button, .contents-button { border: 1px solid #aebfc7; border-radius: 5px; background: #fff; color: #254958; padding: 7px 11px; cursor: pointer; }
+button:hover, .contents-button:hover { background: #eaf1f4; }
+button:focus-visible, input:focus-visible, a:focus-visible, summary:focus-visible, .table-scroll:focus-visible { outline: 3px solid #367a98; outline-offset: 3px; }
+.reader-tools { position: sticky; top: 0; z-index: 5; border-bottom: 1px solid var(--line); background: #eef4f6; }
+.reader-tools-inner { max-width: 1080px; margin: auto; padding: 12px 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 9px; }
+.contents-button { text-decoration: none; }
+.reader-tools label { font-size: .9rem; }
+#manual-search { flex: 1; min-width: 180px; width: 240px; border: 1px solid #9db1bb; padding: 7px 10px; border-radius: 5px; background: #fff; }
+.reader-hint { font-size: .9rem; color: #526773; }
+#manual-search-status:empty { display: none; }
+#manual-search-results { border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 5px; padding: 12px 18px; margin: 16px 0; max-height: 350px; overflow-y: auto; }
+#manual-search-results ol { padding-left: 24px; }
+#manual-search-results li { padding: 5px 0; }
+.result-context { display: block; font-size: .85rem; color: #526773; }
+mark { background: #fff0ab; color: inherit; padding: 0 1px; }
+#manual-contents { background: #f5f8f9; border: 1px solid var(--line); border-radius: 6px; padding: 12px 22px; margin: 24px 0; }
+#manual-contents h2 { margin-top: 0; }
+#manual-contents ul { columns: 2; column-gap: 30px; padding-left: 22px; }
+#manual-contents li { break-inside: avoid; }
+details { border-top: 1px solid var(--line); padding: 14px 0; }
+details details { margin: 10px 0 0 14px; }
+summary { cursor: pointer; font-size: 1.1rem; padding: 4px 0; }
+summary:hover { color: #176281; }
+article > details[open] > h2 { font-size: 1.2rem; margin-top: 16px; }
+.table-scroll { overflow-x: auto; margin: 18px 0 24px; }
+table { border-collapse: collapse; table-layout: fixed; width: 100%; font-size: .93rem; }
+td, th { border: 1px solid #cbd6dc; padding: 10px 12px; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+th { background: #eaf0f3; color: #213e4b; }
+tr:nth-child(even) td { background: #fafcfd; }
+code { font: .9em ui-monospace, SFMono-Regular, Consolas, monospace; overflow-wrap: anywhere; }
+pre { white-space: pre-wrap; padding: 16px; background: #f4f7f8; border: 1px solid var(--line); font-size: .9rem; }
+pre code { overflow-wrap: anywhere; }
+.skip-link { position: absolute; left: 12px; top: -100px; z-index: 10; padding: 10px; background: #fff; }
+.skip-link:focus { top: 8px; }
+[hidden] { display: none !important; }
+@media (max-width: 620px) {
+  main { padding: 14px 16px 50px; }
+  body { font-size: 16px; }
+  .reader-tools-inner { padding: 10px 12px; gap: 7px; }
+  .reader-tools label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  #manual-search { min-width: 120px; width: 140px; }
+  button, .contents-button { font-size: .9rem; }
+  #manual-contents ul { columns: 1; }
+  table { min-width: 550px; font-size: .9rem; }
+  table[data-columns="2"] { min-width: 0; }
+  td, th { padding: 8px; }
+}
+@page { size: A4; margin: 18mm; }
+@media print {
+  body, main { background: #fff; padding: 0; margin: 0; max-width: none; font-size: 11pt; }
+  .reader-tools, .reader-hint, #manual-search-status, #manual-search-results, .skip-link { display: none !important; }
+  h2, h3, summary { break-after: avoid; }
+  tr { break-inside: avoid; }
+  .table-scroll { overflow: visible; }
+  table { min-width: 0; font-size: 9pt; }
+  a { color: inherit; }
+  mark { background: none; }
+}

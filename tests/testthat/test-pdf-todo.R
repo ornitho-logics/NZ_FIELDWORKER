@@ -123,7 +123,7 @@ test_that("to-do headings use the current operational subtitles", {
   )
   expect_identical(
     heading("Parent resighting")$subtitle,
-    "Association resolves after 3 nest-linked resightings or 1 confirming behaviour (IN, NM, BW, BC, FC, AC). MM, n = MM capture plus n non-confirming resightings."
+    "Association resolves after 3 nest-linked resightings or 1 confirming behaviour (IN, NM, SC, BW, BC, FC, AC). MM, n = MM capture plus n non-confirming resightings."
   )
   expect_identical(
     heading("Re-process nest")$title,
@@ -388,6 +388,44 @@ test_that("PDF generation rejects a failed TODO_BROODS_FOR_PDF query", {
 })
 
 
+test_that("PDF generation rejects unavailable brood closure provenance", {
+  app <- load_main_app()
+  save_pdf <- app$env$todo_pdf_save
+  query_env <- environment(save_pdf)
+  original_dbq <- get("DBq", envir = query_env)
+  on.exit(assign("DBq", original_dbq, envir = query_env), add = TRUE)
+
+  calls <- list()
+  assign(
+    "DBq",
+    function(x, params = NULL, derived_merge_off = FALSE) {
+      calls[[length(calls) + 1L]] <<- list(
+        sql = x,
+        derived_merge_off = derived_merge_off
+      )
+      if (length(calls) == 1L) {
+        return(data.frame())
+      }
+      data.frame(error = "mock TODO_BROOD_CLOSURE_STATUS failure")
+    },
+    envir = query_env
+  )
+
+  expect_error(
+    save_pdf(tempfile(), todo = data.frame()),
+    "TODO_BROOD_CLOSURE_STATUS could not be loaded",
+    fixed = TRUE
+  )
+  expect_length(calls, 2L)
+  expect_true(calls[[2L]]$derived_merge_off)
+  expect_match(
+    calls[[2L]]$sql,
+    "FROM TODO_BROOD_CLOSURE_STATUS",
+    fixed = TRUE
+  )
+})
+
+
 test_that("parent-resighting PDF notes retain rules and identity counts", {
   app <- load_main_app()
   extract_rule_note <- app$env$todo_pdf_parent_resighting_rule_note
@@ -414,13 +452,54 @@ test_that("parent-resighting PDF notes retain rules and identity counts", {
 
   expect_identical(
     extract_rule_note(
-      c("MM cap M with 1 resighting", "MM cap M with 1 resighting"),
+      c(
+        "MM cap M with 1 resighting; F resolved",
+        "MM cap M with 1 resighting"
+      ),
       male_identity_counts = c(1, 1),
       female_identity_counts = c(2, 2),
       male_association_pending = c(1, 1),
       female_association_pending = c(0, 1)
     ),
     c("1 male seen; F resolved", "1 male seen; 2 females seen")
+  )
+
+  expect_identical(
+    extract_rule_note(
+      c(
+        "MM cap M with 1 resighting",
+        "MM cap F with 1 resighting; F resolved",
+        "MM cap M with 1 resighting; M resolved",
+        "MM cap F with 1 resighting; F resolved"
+      ),
+      male_identity_counts = c(1, 1, 1, NA),
+      female_identity_counts = c(1, 1, NA, 1),
+      male_association_pending = c(0, 1, 0, 0),
+      female_association_pending = c(1, 0, 0, 0)
+    ),
+    c(
+      "1 male seen; 1 female seen",
+      "1 male seen; F resolved",
+      "M resolved",
+      "F resolved"
+    )
+  )
+
+  # The task SQL must explicitly mark the authoritative selected male; the
+  # PDF preserves that token and the independent timing rule verbatim.
+  expect_identical(
+    extract_rule_note("M resolved; 36hr rule", male_identity_counts = 1),
+    "M resolved; 36hr rule"
+  )
+  # Without the authoritative token, a count is deliberately only a seen
+  # count, even when the generic pending value is zero.
+  expect_identical(
+    extract_rule_note(
+      "MM cap M with 1 resighting; 36hr rule",
+      male_identity_counts = 1,
+      male_association_pending = 0
+    ),
+    "1 male seen; 36hr rule"
   )
 
   expect_identical(
@@ -719,6 +798,47 @@ test_that("PDF display marks broods, unknown negative clutch, and capture status
   expect_identical(
     observed$Notes[observed$Nest == "B0220"],
     "remove flag + enter 'notA'"
+  )
+})
+
+
+test_that("PDF preserves GEO context in unknown-status parent instructions", {
+  app <- load_main_app()
+  prepare <- app$env$todo_pdf_prepare
+  todo <- data.frame(
+    nest_id = c("C0900", "C0901"),
+    reference_date = as.Date(c("2026-10-01", "2026-10-01")),
+    todo = c("Parent capture", "Parent capture"),
+    notes = c(
+      "resight/band M (F w/GEO)",
+      "resight/tag M (status ?; F w/GEO)"
+    ),
+    nest_state = c("I", "I"),
+    clutch_size = c(3, 3),
+    brood_size = c(0, 0),
+    min_days_to_hatch = c(NA, NA),
+    last_visit_days_ago = c(1, 1),
+    M_mark = c(NA, NA),
+    F_mark = c(NA, NA),
+    lat = c(-43.1, -43.2),
+    lon = c(170.1, 170.2),
+    stringsAsFactors = FALSE
+  )
+
+  observed <- prepare(
+    todo = todo,
+    available_combos = data.frame(mark = "MOCK-MARK"),
+    nests_latest = data.frame(),
+    chick_captures = data.frame()
+  )$rows
+
+  expect_identical(
+    observed$Notes[observed$Nest == "C0900"],
+    "resight/band M (F w/GEO)"
+  )
+  expect_identical(
+    observed$Notes[observed$Nest == "C0901"],
+    "resight/tag M (status ?; F w/GEO)"
   )
 })
 
@@ -1631,44 +1751,216 @@ test_that("H nests use unique age-C rings when brood size is unresolved", {
 })
 
 
-test_that("latest chick encounters deduplicate same-day ringless duplicates", {
+test_that("latest chick encounters are read from the canonical SQL context", {
   app <- load_main_app()
-  count_latest <- app$env$todo_pdf_latest_chick_encounter_counts
+  count_latest <- app$env$todo_pdf_latest_chick_encounter_counts_from_context
 
-  encounters <- data.frame(
-    nest_id = c("B0520", "B0520", "B0521", "C0615", "C0615"),
-    date = as.Date(rep("2026-10-22", 5)),
-    source = c("capture", "resighting", "resighting", "capture", "resighting"),
-    event_id = c("capture-1", "resight-1", "resight-2", "capture-2", "resight-3"),
-    ring = c("CP20218", NA, NA, "CP20310", "CP20302"),
+  context <- data.frame(
+    nest_id = c("TEST_BROOD_A", "TEST_BROOD_B"),
+    latest_encounter_date = as.Date(c("2026-10-22", "2026-10-22")),
+    latest_encounter_count = c(1L, 2L),
+    latest_encounter_flagged_count = c(0L, 1L),
+    latest_encounter_unflagged_count = c(1L, 1L),
+    latest_encounter_availability = c("available", "available"),
+    latest_encounter_ring_list = c("TEST_RING_A", "TEST_RING_B, TEST_RING_C"),
     stringsAsFactors = FALSE
   )
 
   observed <- count_latest(
-    encounters,
+    context,
     as.Date("2026-10-27")
   )
 
-  expect_identical(
-    observed[observed$nest_id == "B0520", latest_chick_count],
+  expect_equal(
+    observed[observed$nest_id == "TEST_BROOD_A", latest_chick_count],
     1L
   )
   expect_identical(
-    observed[observed$nest_id == "B0520", latest_chick_ring_list],
-    "CP20218"
+    observed[observed$nest_id == "TEST_BROOD_A", latest_chick_ring_list],
+    "TEST_RING_A"
+  )
+  expect_equal(
+    observed[observed$nest_id == "TEST_BROOD_B", latest_chick_count],
+    2L
   )
   expect_identical(
-    observed[observed$nest_id == "B0521", latest_chick_count],
-    1L
+    observed[observed$nest_id == "TEST_BROOD_B", latest_chick_ring_list],
+    "TEST_RING_B, TEST_RING_C"
   )
-  expect_identical(
-    observed[observed$nest_id == "C0615", latest_chick_count],
-    1L
+})
+
+
+test_that("PDF prefers the canonical SQL chick encounter context", {
+  app <- load_main_app()
+  count_from_context <- app$env$todo_pdf_latest_chick_encounter_counts_from_context
+  prepare <- app$env$todo_pdf_prepare
+
+  context <- data.frame(
+    nest_id = "B0221",
+    n_flagged_chick_rings = 1,
+    latest_encounter_date = as.Date("2026-10-27"),
+    latest_encounter_count = 1,
+    latest_encounter_flagged_count = 1,
+    latest_encounter_unflagged_count = 0,
+    latest_encounter_unresolved_count = 0,
+    latest_encounter_known_dead_count = 0,
+    latest_encounter_is_conservative = 0,
+    latest_encounter_is_fallback = 0,
+    latest_encounter_availability = "available",
+    latest_encounter_ring_list = "R2",
+    latest_encounter_source = "RESIGHTINGS",
+    latest_encounter_provenance = "gps_family_resolved_identity",
+    stringsAsFactors = FALSE
   )
-  expect_identical(
-    observed[observed$nest_id == "C0615", latest_chick_ring_list],
-    "CP20310"
+  observed_context <- count_from_context(
+    context,
+    as.Date("2026-10-29")
   )
+
+  expect_identical(observed_context$latest_chick_count, 1)
+  expect_identical(observed_context$latest_chick_flagged_count, 1)
+  expect_identical(observed_context$latest_chick_unflagged_count, 0)
+  expect_identical(observed_context$latest_chick_ring_list, "R2")
+  expect_identical(observed_context$latest_chick_availability, "available")
+
+  todo <- data.frame(
+    nest_id = "B0221",
+    reference_date = as.Date("2026-10-29"),
+    todo = "Broods to recapture for flagging",
+    notes = "recapture chicks",
+    nest_state = "H",
+    clutch_size = 0,
+    brood_size = 3,
+    min_days_to_hatch = -31,
+    last_visit_days_ago = 2,
+    M_mark = NA,
+    F_mark = NA,
+    stringsAsFactors = FALSE
+  )
+  chick_captures <- data.frame(
+    nest_id = rep("B0221", 3),
+    age = rep("C", 3),
+    ring = c("R1", "R2", "R3"),
+    site = rep("CR", 3),
+    date = as.Date(c("2026-10-20", "2026-10-20", "2026-10-20")),
+    stringsAsFactors = FALSE
+  )
+  conflicting_encounters <- data.frame(
+    nest_id = rep("B0221", 3),
+    date = as.Date(rep("2026-10-27", 3)),
+    source = rep("resighting", 3),
+    event_id = paste0("old-", seq_len(3)),
+    ring = c("R1", "R2", "R3"),
+    stringsAsFactors = FALSE
+  )
+
+  observed <- prepare(
+    todo = todo,
+    available_combos = data.frame(mark = paste0("MOCK-", seq_len(10))),
+    chick_captures = chick_captures,
+    chick_encounters = conflicting_encounters,
+    chick_context = context
+  )$rows
+
+  expect_identical(observed$`Clutch–Brood`, "0–1")
+})
+
+
+test_that("unavailable latest context uses the SQL operational fallback", {
+  app <- load_main_app()
+  prepare <- app$env$todo_pdf_prepare
+
+  todo <- data.frame(
+    nest_id = "TEST_BROOD_F",
+    reference_date = as.Date("2026-10-29"),
+    todo = "Broods to recapture for flagging",
+    notes = "recapture chicks",
+    nest_state = "H",
+    clutch_size = 0,
+    brood_size = 3,
+    min_days_to_hatch = -31,
+    last_visit_days_ago = 2,
+    M_mark = NA,
+    F_mark = NA,
+    stringsAsFactors = FALSE
+  )
+  context <- data.frame(
+    nest_id = "TEST_BROOD_F",
+    n_operational_brood_size = 2L,
+    n_active_flagged_chick_rings = 1L,
+    operational_brood_size_source = "latest_brood_size_minus_deaths_after_count",
+    latest_encounter_date = as.Date("2026-10-29"),
+    latest_encounter_count = 0L,
+    latest_encounter_flagged_count = 0L,
+    latest_encounter_unflagged_count = 0L,
+    latest_encounter_availability = "unavailable",
+    stringsAsFactors = FALSE
+  )
+
+  observed <- prepare(
+    todo = todo,
+    available_combos = data.frame(mark = paste0("MOCK-", seq_len(10))),
+    chick_captures = data.frame(
+      nest_id = rep("TEST_BROOD_F", 3),
+      age = rep("C", 3),
+      ring = paste0("TEST_RING_", seq_len(3)),
+      site = rep("CR", 3),
+      date = as.Date(rep("2026-10-20", 3)),
+      stringsAsFactors = FALSE
+    ),
+    chick_context = context
+  )$rows
+
+  row <- observed[observed$Todo == "Broods to recapture for flagging", ]
+  expect_identical(row$`Clutch–Brood`, "0–2")
+  expect_match(
+    row$Notes,
+    "latest encounter: not available; operational brood: 2",
+    fixed = TRUE
+  )
+  expect_false(grepl("0 seen", row$Notes, fixed = TRUE))
+})
+
+
+test_that("incomplete chick context does not trigger a competing PDF resolver", {
+  app <- load_main_app()
+  prepare <- app$env$todo_pdf_prepare
+
+  todo <- data.frame(
+    nest_id = "B0222",
+    reference_date = as.Date("2026-10-29"),
+    todo = "Broods to recapture for flagging",
+    notes = "recapture chicks",
+    nest_state = "H",
+    clutch_size = 0,
+    brood_size = 3,
+    min_days_to_hatch = -31,
+    last_visit_days_ago = 2,
+    M_mark = NA,
+    F_mark = NA,
+    stringsAsFactors = FALSE
+  )
+  observed <- prepare(
+    todo = todo,
+    available_combos = data.frame(mark = paste0("MOCK-", seq_len(10))),
+    chick_captures = data.frame(
+      nest_id = rep("B0222", 3),
+      age = rep("C", 3),
+      ring = c("R1", "R2", "R3"),
+      stringsAsFactors = FALSE
+    ),
+    chick_encounters = data.frame(
+      nest_id = rep("B0222", 3),
+      date = as.Date(rep("2026-10-28", 3)),
+      source = rep("capture", 3),
+      event_id = paste0("event-", seq_len(3)),
+      ring = c("R1", "R2", "R3"),
+      stringsAsFactors = FALSE
+    ),
+    chick_context = data.frame(nest_id = "B0222")
+  )$rows
+
+  expect_identical(observed$`Clutch–Brood`, "0–3")
 })
 
 
@@ -1706,12 +1998,22 @@ test_that("flagging notes separate latest count from captured ring identities", 
     ring = "CP20310",
     stringsAsFactors = FALSE
   )
+  chick_context <- data.frame(
+    nest_id = "C0615",
+    latest_encounter_date = as.Date("2026-09-28"),
+    latest_encounter_count = 1L,
+    latest_encounter_flagged_count = 0L,
+    latest_encounter_unflagged_count = 1L,
+    latest_encounter_availability = "available",
+    stringsAsFactors = FALSE
+  )
 
   observed <- prepare(
     todo = todo,
     available_combos = data.frame(mark = paste0("MOCK-", seq_len(30))),
     chick_captures = chick_captures,
-    chick_encounters = chick_encounters
+    chick_encounters = chick_encounters,
+    chick_context = chick_context
   )$rows
 
   row <- observed[observed$Todo == "Broods to recapture for flagging", ]
@@ -1760,12 +2062,22 @@ test_that("H-photo notes explain latest encounter versus photo progress", {
     ring = "CP20218",
     stringsAsFactors = FALSE
   )
+  chick_context <- data.frame(
+    nest_id = "B0520",
+    latest_encounter_date = as.Date("2026-10-22"),
+    latest_encounter_count = 1L,
+    latest_encounter_flagged_count = 0L,
+    latest_encounter_unflagged_count = 1L,
+    latest_encounter_availability = "available",
+    stringsAsFactors = FALSE
+  )
 
   observed <- prepare(
     todo = todo,
     available_combos = data.frame(mark = paste0("MOCK-", seq_len(30))),
     chick_captures = chick_captures,
-    chick_encounters = chick_encounters
+    chick_encounters = chick_encounters,
+    chick_context = chick_context
   )$rows
 
   expect_identical(

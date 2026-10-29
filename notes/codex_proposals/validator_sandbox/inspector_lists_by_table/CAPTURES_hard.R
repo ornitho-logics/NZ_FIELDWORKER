@@ -22,15 +22,20 @@ list({
         has_negative_brood <- !missing_like(z$nest_id) & grepl("^-", nest_key)
         first_chick_capture <- !is.na(age_chr) & toupper(age_chr) == "C" & status_chr == "F"
         chick_recapture <- !is.na(age_chr) & toupper(age_chr) == "C" & status_chr == "R"
+        chick_change_capture <- !is.na(age_chr) & toupper(age_chr) == "C" & status_chr == "C"
         adult_captured_with_chicks <- !is.na(age_chr) & toupper(age_chr) == "A" &
             !is.na(caught_with_chr) & grepl("(^|,)\\s*[0-9]*C\\s*(,|$)", caught_with_chr, perl = TRUE)
         has_real_nest_or_brood <- has_positive_nest | has_negative_brood
-        optional_positive_nest_gps <- has_positive_nest & (first_chick_capture | chick_recapture | adult_captured_with_chicks)
+        optional_positive_nest_gps <- has_positive_nest & (first_chick_capture | chick_recapture | chick_change_capture | adult_captured_with_chicks)
         adult_with_chicks_positive_nest <- has_positive_nest & adult_captured_with_chicks
         gps_id_entered <- !missing_like(z$gps_id)
         gps_point_entered <- !missing_like(z$gps_point)
         has_any_gps <- gps_id_entered | gps_point_entered
-        gps_required <- (!has_positive_nest & !first_chick_capture) | chick_recapture | has_negative_brood | adult_with_chicks_positive_nest
+        gps_required <- (!has_positive_nest & !first_chick_capture) |
+            chick_recapture |
+            chick_change_capture |
+            has_negative_brood |
+            adult_with_chicks_positive_nest
         optional_positive_nest_partial_gps <- has_positive_nest & first_chick_capture & xor(gps_id_entered, gps_point_entered)
         nest_gps_conflicts <- {
             bad_idx <- which(has_positive_nest & has_any_gps & !optional_positive_nest_gps)
@@ -104,8 +109,8 @@ list({
                 }
                 negative_idx <- bad_idx[has_negative_brood[bad_idx]]
                 adult_brood_idx <- bad_idx[adult_with_chicks_positive_nest[bad_idx]]
-                chick_recapture_idx <- bad_idx[chick_recapture[bad_idx]]
-                ordinary_idx <- setdiff(bad_idx, c(negative_idx, adult_brood_idx, chick_recapture_idx))
+                chick_status_idx <- bad_idx[(chick_recapture | chick_change_capture)[bad_idx]]
+                ordinary_idx <- setdiff(bad_idx, c(negative_idx, adult_brood_idx, chick_status_idx))
                 pieces <- list()
                 if (length(negative_idx) > 0) {
                     pieces[[length(pieces) + 1L]] <- data.table::data.table(
@@ -121,11 +126,11 @@ list({
                         reason = "An adult captured with chicks from a positive nest must record both gps_id and gps_point because the capture may be away from the nest."
                     )
                 }
-                if (length(chick_recapture_idx) > 0) {
+                if (length(chick_status_idx) > 0) {
                     pieces[[length(pieces) + 1L]] <- data.table::data.table(
-                        rowid = z$rowid[chick_recapture_idx],
+                        rowid = z$rowid[chick_status_idx],
                         variable = col,
-                        reason = "Age-C recapture events must record both gps_id and gps_point, even when nest_id is entered."
+                        reason = "Age-C R and C capture events must record both gps_id and gps_point, even when nest_id is entered."
                     )
                 }
                 if (length(ordinary_idx) > 0) {
@@ -164,6 +169,206 @@ list({
             unique(data.table::rbindlist(out_parts, use.names = TRUE, fill = TRUE))
         }
     }, nam = "CAP_001 mandatory")
+    out <- data.table::as.data.table(out)
+    if ("reason" %in% names(out)) {
+        out[, `:=`(reason, {
+            cleaned <- sub("^(ERROR|WARNING):\\s*", "", as.character(reason))
+            cleaned[is.na(reason)] <- NA_character_
+            ok_idx <- !is.na(cleaned) & nzchar(cleaned)
+            cleaned[ok_idx] <- paste0(
+                cleaned[ok_idx],
+                " Please double-check this entry. If it is correct, add a validator bypass comment to the event."
+            )
+            cleaned
+        })]
+    }
+    if ("type" %in% names(out)) {
+        out[, `:=`(type, NULL)]
+    }
+    out
+}, {
+    out <- try_validator({
+        z <- data.table::copy(x)
+        if (!"rowid" %in% names(z)) {
+            z[, `:=`(rowid, .I)]
+        }
+        empty <- data.table::data.table(rowid = integer(), variable = character(), reason = character())
+        normalize_key <- function(v) {
+            raw <- trimws(as.character(v))
+            raw[is.na(v) | !nzchar(raw) | toupper(raw) == "NA"] <- NA_character_
+            raw
+        }
+        is_valid_link <- function(v) {
+            raw <- normalize_key(v)
+            !is.na(raw) & toupper(raw) != "NO_NEST"
+        }
+        has_chick_caught_with <- function(v) {
+            raw <- normalize_key(v)
+            !is.na(raw) & grepl("(^|,)\\s*[0-9]*C\\s*(,|$)", raw, perl = TRUE)
+        }
+        has_parent_chick_behaviour <- function(v) {
+            raw <- normalize_key(v)
+            if (is.na(raw)) {
+                return(FALSE)
+            }
+            tokens <- toupper(trimws(unlist(strsplit(raw, ",", fixed = TRUE))))
+            any(tokens %in% c("BC", "FC", "AC"))
+        }
+        add_occasion_fields <- function(dt, source, rowid_col = "rowid") {
+            dt <- data.table::copy(dt)
+            if (!rowid_col %in% names(dt)) {
+                dt[, rowid := NA_integer_]
+            } else if (rowid_col != "rowid") {
+                dt[, rowid := get(rowid_col)]
+            }
+            for (column in c("pk", "date", "site", "nest_id", "gps_id", "gps_point", "age", "caught_with", "behav")) {
+                if (!column %in% names(dt)) {
+                    dt[, (column) := NA_character_]
+                }
+            }
+            age_key <- toupper(normalize_key(dt$age))
+            family_row <- age_key == "C"
+            if (identical(source, "CAPTURES")) {
+                family_row <- family_row | (age_key == "A" & has_chick_caught_with(dt$caught_with))
+            } else {
+                family_row <- family_row | (age_key == "A" & vapply(dt$behav, has_parent_chick_behaviour, logical(1)))
+            }
+            data.table::data.table(
+                source = source,
+                rowid = suppressWarnings(as.integer(dt$rowid)),
+                pk_key = normalize_key(dt$pk),
+                event_date = suppressWarnings(as.Date(as.character(dt$date))),
+                site_key = normalize_key(dt$site),
+                nest_key = normalize_key(dt$nest_id),
+                gps_id_key = normalize_key(dt$gps_id),
+                gps_point_key = normalize_key(dt$gps_point),
+                family_row = family_row
+            )
+        }
+        current <- add_occasion_fields(z, "CAPTURES")
+        current <- current[
+            family_row &
+                !is.na(event_date) & !is.na(site_key) &
+                !is.na(gps_id_key) & !is.na(gps_point_key)
+        ]
+        if (nrow(current) == 0L) {
+            empty
+        } else {
+            safe_lookup <- function(sql, columns) {
+                result <- tryCatch(db_get(sql), error = function(e) NULL)
+                if (is.null(result) || !is.data.frame(result)) {
+                    return(list(ok = FALSE, data = data.table::as.data.table(
+                        stats::setNames(rep(list(character()), length(columns)), columns)
+                    )))
+                }
+                result <- data.table::as.data.table(result)
+                for (column in setdiff(columns, names(result))) {
+                    result[, (column) := NA_character_]
+                }
+                list(ok = TRUE, data = result[, ..columns])
+            }
+            cap_ref <- safe_lookup(
+                paste(
+                    "SELECT pk, date, site, nest_id, gps_id, gps_point, age, caught_with",
+                    "FROM CAPTURES"
+                ),
+                c("pk", "date", "site", "nest_id", "gps_id", "gps_point", "age", "caught_with")
+            )
+            res_ref <- safe_lookup(
+                paste(
+                    "SELECT pk, date, site, nest_id, gps_id, gps_point, age, behav",
+                    "FROM RESIGHTINGS"
+                ),
+                c("pk", "date", "site", "nest_id", "gps_id", "gps_point", "age", "behav")
+            )
+            if (!isTRUE(cap_ref$ok) || !isTRUE(res_ref$ok)) {
+                data.table::data.table(
+                    rowid = current$rowid,
+                    variable = "nest_id",
+                    reason = "Could not verify whether this capture shares one nest_id with the other parent/chick records from the same date, site, gps_id, and gps_point. Confirm the linkage and retry after the database connection is restored."
+                )
+            } else {
+                saved_caps <- add_occasion_fields(cap_ref$data, "CAPTURES")
+                saved_res <- add_occasion_fields(res_ref$data, "RESIGHTINGS")
+                saved <- data.table::rbindlist(list(saved_caps, saved_res), use.names = TRUE, fill = TRUE)
+                current_pks <- unique(current[!is.na(pk_key) & nzchar(pk_key), pk_key])
+                if (length(current_pks) > 0L) {
+                    saved <- saved[!(source == "CAPTURES" & !is.na(pk_key) & pk_key %in% current_pks)]
+                }
+                saved <- saved[
+                    family_row &
+                        !is.na(event_date) & !is.na(site_key) &
+                        !is.na(gps_id_key) & !is.na(gps_point_key)
+                ]
+                current[, occasion_key := paste(event_date, site_key, gps_id_key, gps_point_key, sep = "\r")]
+                saved[, occasion_key := paste(event_date, site_key, gps_id_key, gps_point_key, sep = "\r")]
+                flagged <- integer()
+                for (occasion in unique(current$occasion_key)) {
+                    current_rows <- current[occasion_key == occasion]
+                    saved_rows <- saved[occasion_key == occasion]
+                    ids <- unique(c(
+                        current_rows[is_valid_link(nest_key), nest_key],
+                        saved_rows[is_valid_link(nest_key), nest_key]
+                    ))
+                    if (length(ids) > 1L) {
+                        flagged <- c(flagged, current_rows$rowid)
+                    }
+                }
+                if (length(flagged) == 0L) {
+                    empty
+                } else {
+                    data.table::data.table(
+                        rowid = sort(unique(flagged)),
+                        variable = "nest_id",
+                        reason = "This same family occasion contains conflicting nest_id values across the parent/chick records. Keep one nest_id for the same date, site, gps_id, and gps_point; use a different nest_id only for a separate encounter or a genuinely different brood association."
+                    )
+                }
+            }
+        }
+    }, nam = "CAP_009B family nest ids")
+    out <- data.table::as.data.table(out)
+    if ("reason" %in% names(out)) {
+        out[, `:=`(reason, {
+            cleaned <- sub("^(ERROR|WARNING):\\s*", "", as.character(reason))
+            cleaned[is.na(reason)] <- NA_character_
+            ok_idx <- !is.na(cleaned) & nzchar(cleaned)
+            cleaned[ok_idx] <- paste0(
+                cleaned[ok_idx],
+                " Please double-check this entry. If it is correct, add a validator bypass comment to the event."
+            )
+            cleaned
+        })]
+    }
+    if ("type" %in% names(out)) {
+        out[, `:=`(type, NULL)]
+    }
+    out
+}, {
+    out <- try_validator({
+        z <- data.table::copy(x)
+        if (!"rowid" %in% names(z)) {
+            z[, `:=`(rowid, .I)]
+        }
+        empty <- data.table::data.table(rowid = integer(), variable = character(), reason = character())
+        mark_columns <- intersect(c("UL", "LL", "UR", "LR", "UL_in", "LL_in", "UR_in", "LR_in"), names(z))
+        out <- data.table::rbindlist(lapply(mark_columns, function(column) {
+            raw <- trimws(as.character(z[[column]]))
+            bad_idx <- which(
+                !is.na(z[[column]]) &
+                    nzchar(raw) &
+                    grepl("?", raw, fixed = TRUE)
+            )
+            if (!length(bad_idx)) {
+                return(NULL)
+            }
+            data.table::data.table(
+                rowid = z$rowid[bad_idx],
+                variable = column,
+                reason = "CAPTURES leg-mark fields cannot contain '?'. Record known marks, X for an observed empty position, or leave the position blank where the current layout permits it."
+            )
+        }), use.names = TRUE, fill = TRUE)
+        if (is.null(out) || nrow(out) == 0) empty else unique(out)
+    }, nam = "CAP_001B uncertain marks")
     out <- data.table::as.data.table(out)
     if ("reason" %in% names(out)) {
         out[, `:=`(reason, {
@@ -647,10 +852,15 @@ list({
         cr_neg <- "^-[ABC][0-9]{4}$"
         noncr_neg <- "^-BA[0-9]{4}$"
         nest_chr <- trimws(as.character(z$nest_id))
+        no_nest_idx <- which(
+            !is.na(z$nest_id) &
+                nzchar(nest_chr) &
+                toupper(nest_chr) == "NO_NEST"
+        )
         bad_idx <- which(
             !is.na(z$nest_id) &
                 nzchar(nest_chr) &
-                nest_chr != "NO_NEST" &
+                toupper(nest_chr) != "NO_NEST" &
                 !(
                     (z$site == "CR" & grepl(cr_pos, nest_chr) & !grepl("^-", nest_chr)) |
                     (z$site == "CR" & grepl(cr_neg, nest_chr)) |
@@ -658,10 +868,19 @@ list({
                     (z$site != "CR" & grepl(noncr_neg, nest_chr))
                 )
         )
-        if (length(bad_idx) == 0) {
+        flagged_idx <- sort(unique(c(no_nest_idx, bad_idx)))
+        if (length(flagged_idx) == 0) {
             data.table::data.table(rowid = integer(), variable = character(), reason = character())
         } else {
-            data.table::data.table(rowid = z$rowid[bad_idx], variable = "nest_id", reason = "nest_id must be NO_NEST or match the current site-specific nest_id format.")
+            data.table::data.table(
+                rowid = z$rowid[flagged_idx],
+                variable = "nest_id",
+                reason = ifelse(
+                    flagged_idx %in% no_nest_idx,
+                    "NO_NEST is no longer accepted. Leave nest_id blank for an unrelated capture and enter both gps_id and gps_point, or enter the appropriate positive or negative nest_id.",
+                    "nest_id must be blank or match the current site-specific positive/negative nest_id format."
+                )
+            )
         }
     }, nam = "CAP_009 nest id")
     out <- data.table::as.data.table(out)
@@ -863,12 +1082,12 @@ list({
                 }
             }
             # Status C means the bird was recaptured and its band combination
-            # changed.  An older chick in that workflow is no longer using
-            # the initial chick release layout, so CAP_014 should not apply
-            # its F/R-only chick scheme to this row.  CAP_013 still enforces
-            # the complete input/release combinations and the required
-            # status-C change.
-            if (identical(age_val, "C") && !identical(status_val, "C")) {
+            # changed; status D records a recovered-dead bird.  Neither row
+            # uses the initial chick release layout, so CAP_014 should apply
+            # only to live chick F/R rows.  CAP_013 still enforces the
+            # complete input/release combinations and status-C change where
+            # applicable, or the blank-release recovered combination for D.
+            if (identical(age_val, "C") && status_val %in% c("F", "R")) {
                 chick_ok <- if (identical(site_val, "CR")) {
                     is_cr_chick_scheme(
                       one_chr(release_marks_scheme["UL"]),
@@ -897,13 +1116,24 @@ list({
                 }
             }
             if (identical(age_val, "J")) {
-                if (!is_juvenile_scheme(
+                juvenile_release_ok <- is_juvenile_scheme(
                   one_chr(release_marks_scheme["UL"]),
                   one_chr(release_marks_scheme["LL"]),
                   one_chr(release_marks_scheme["UR"]),
                   one_chr(release_marks_scheme["LR"])
-                ) || !(status_val %in% c("F", "C"))) {
-                  problems[[length(problems) + 1L]] <- data.table::data.table(rowid = row$rowid, variable = "UL", reason = "Juvenile captures must use a flag code on UL, blank LL/LR positions, UR as M, and status F or C.")
+                )
+                if (status_val %in% c("F", "C") && !juvenile_release_ok) {
+                  problems[[length(problems) + 1L]] <- data.table::data.table(
+                    rowid = row$rowid,
+                    variable = "UL",
+                    reason = "Juvenile captures must use a flag code on UL, blank LL/LR positions, UR as M, and status F or C."
+                  )
+                } else if (!(status_val %in% c("F", "C", "D"))) {
+                  problems[[length(problems) + 1L]] <- data.table::data.table(
+                    rowid = row$rowid,
+                    variable = "UL",
+                    reason = "Juvenile captures must use a flag code on UL, blank LL/LR positions, and UR as M for status F or C; status D is allowed for a recovered-dead juvenile with a complete recovered combination in the _in fields."
+                  )
                 }
             }
             if (identical(age_val, "A")) {

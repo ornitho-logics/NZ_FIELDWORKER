@@ -1,7 +1,7 @@
 # Thread 7 prompt and decision summary
 
 Status: tracked sanitized history
-Last reconciled: 2026-10-23
+Last reconciled: 2026-10-26
 
 This is not a raw transcript. It records the decisions needed to understand
 Codex's role in the seasonal geolocator rollout without publishing bird, nest,
@@ -50,6 +50,16 @@ ring, tag, GPS, ranked-candidate, or private inventory details.
     combo availability/quantity enforcement to Threads 6 and 4.
 15. `Reconstructed` - Refresh the restart-grade protocol, privacy boundary,
     and prompt history after the broader 2026-10-23 documentation pass.
+16. `Exact` - Clarify for the field manual that pair completion is a
+    longitudinal objective: handle one parent only when its current capture
+    task and all identity, seven-day, 36-hour, welfare, permit, weather,
+    condition, current-tag, and inventory gates are open. An ineligible mate
+    stays unhandled and is rechecked through a later task refresh; pair
+    completion never authorizes same-visit handling of both parents.
+17. `Exact` - Preserve the approximate first-wave/second-wave split of the
+    ~100-device programme as a monitoring envelope under field-lead
+    pause/continue direction, and state that phenology timing predicts
+    population strata but does not classify individual residency or migration.
 
 ## Codex actions and limits
 

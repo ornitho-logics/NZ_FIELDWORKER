@@ -60,6 +60,7 @@ dashboardPage(
         tabName = "nest_map",
         icon = icon("broadcast-tower")
       ),
+      menuItem("Field Manual", tabName = "field_manual", icon = icon("book-open")),
 
       hr(),
 
@@ -202,6 +203,12 @@ dashboardPage(
               "Build To-do snapshot"
             ),
             class = "btn btn-secondary btn-lg btn-block field-download-button"
+          ),
+          tags$p(
+            id = "todo_snapshot_build_time",
+            class = "small text-muted mt-2 mb-2",
+            "Can take up to 20 minutes to build; a busy server may take longer. ",
+            "Please do not start another build while one is running."
           ),
           uiOutput("todo_snapshot_status"),
           br(),
@@ -436,6 +443,30 @@ dashboardPage(
                 height = "calc(99vh - 1px)"
               )
             )
+          )
+        )
+      ),
+
+      # Static, database-independent manual; styles and search stay in its frame.
+      tabItem(
+        tabName = "field_manual",
+        tags$p(
+          class = "small text-muted mb-2",
+          tags$a(
+            href = "field-manual/index.html",
+            target = "_blank",
+            rel = "noopener",
+            "Open Field Manual in a separate window"
+          )
+        ),
+        tags$iframe(
+          id = "field_manual_reader",
+          title = "BADO Field Manual — contents and search",
+          src = "field-manual/index.html",
+          loading = "lazy",
+          style = paste0(
+            "width:100%;height:calc(100vh - 145px);min-height:600px;",
+            "border:0;border-radius:0.85rem;background:white;"
           )
         )
       )

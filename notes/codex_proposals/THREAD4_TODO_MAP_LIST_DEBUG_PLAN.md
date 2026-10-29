@@ -2,7 +2,7 @@
 
 ## Document status
 
-This is the tracked Thread 4 handoff document refreshed on 2026-10-23. It is a
+This is the tracked Thread 4 handoff document refreshed on 2026-10-26. It is a
 restart-grade operational reference for the local-replica/debugging thread. It
 describes source and observed failure modes; it does not claim that any SQL,
 R code, database views, or Shiny process is live.
@@ -39,6 +39,31 @@ Status vocabulary used below:
 
 No live database was connected to, changed, or rebuilt during this refresh.
 No raw rows, coordinates, credentials, or field records are included here.
+
+## Current display clarification (2026-10-26, Thread 8 reconciliation)
+
+The accepted unrelated-adult CAPTURES convention is NULL `nest_id` plus a
+complete `gps_id`/`gps_point` pair. `NO_NEST` is retired, with no replacement
+sentinel. Older references below are historical. Display helpers reject the
+retired literal case-insensitively, blanks and missing-value text as nest
+links; they do not rewrite records. Site-specific ID syntax remains an
+inspector responsibility. Positive links and negative broods remain supported.
+
+`main/R/display_nest_ids.R` supplies the shared display guard. The PDF encounter
+query infers links only for genuinely blank IDs; its non-H family fallback
+requires one adult-linked date/site/GPS occasion with no conflicting valid
+nonblank ID in either CAPTURES or RESIGHTINGS. Any `?` leg reading excludes
+adult evidence unless a reliable metal ring traces capture history. Separate
+encounters can retain changed brood associations. H-photo associations and
+selected parent identities still depend on the SQL association/status outputs;
+R does not enforce save-time family consistency or recalculate GEO eligibility.
+
+The new `test-thread8-display-nest-links-2026-10-26.R` suite passes 11 mock
+tests / 47 assertions; 45 existing PDF/map tests pass 209 assertions with a
+helper-only mock harness. Generated encounter-query predicates were checked
+statically, not executed in MariaDB. Thread 9 still needs invented-data SQL
+installation/refresh and parent/task/PDF agreement checks after SQL work is
+frozen. These results do not establish live deployment or visual PDF rendering.
 
 ## Thread 4 scope and boundaries
 
@@ -507,6 +532,45 @@ Examples:
   photographed-ring count. A CAPTURES photo or a legacy chick-photo flag does
   not substitute for an H-class RESIGHTINGS row.
 
+### Canonical ring keys and S10 resolution
+
+All derived chick-ring comparisons use one canonical key before they count or
+associate an individual: trim whitespace, uppercase, remove an optional
+hyphen, and treat blank values, `X`, `XX`, `X-X`, `NA`, and `N/A` as missing.
+The raw `CAPTURES` and `RESIGHTINGS` rows are not changed. This normalization is
+shared by the H-photo association, prior-ring capture inference, distinct
+captured-chick count, and GPS/parent-link eligibility paths. Thus, two valid
+spellings of one ring do not inflate a count, while a missing-like value cannot
+prematurely close a task.
+
+The S10 handoff is exposed through
+`TODO_PARENT_CHICK_RESIGHTING_ASSOCIATIONS`. It is a task-resolution layer,
+not a sixth biological parent-selection gate and not a rewrite of raw events.
+It accepts only this narrow case:
+
+1. `TODO_PARENT_STATUS_INPUT` contains exactly one selected male and one
+   selected female identity for a negative brood;
+2. an adult `RESIGHTINGS` row with no `nest_id` is uniquely matched to one of
+   those selected identities and carries an approved parent-with-chicks
+   behaviour token, `BC`, `FC`, or `AC`; and
+3. an unlinked age-C chick `RESIGHTINGS` row shares the exact event date,
+   `gps_id`, and `gps_point` with that adult row.
+
+The match must be non-ambiguous, have exactly one candidate identity, and yield
+exactly one candidate brood. Direct nest IDs and ordinary unambiguous H-photo
+associations remain authoritative. Ambiguous or unmatched rows are excluded,
+and the raw `nest_id` values remain untouched. During a staged refresh the view
+reads the populated parent-status BUILD boundary; during clean installation it
+falls back to the live authoritative parent status. This ordering lets the H-
+photo summary reuse parent work already paid for by the refresh rather than
+expanding the parent pipeline again.
+
+For negative broods, the H-photo task is open only on discovery days 1 through
+6. Day 7 is an expiry boundary, not evidence that the photo task is complete.
+Positive broods use the hatch-evidence date for the corresponding day-1-through
+day-6 window. The S10 association can supply a brood ID for an otherwise
+unlinked H event, but it does not extend or bypass that timing window.
+
 The separate `Broods to band` task continues to use the presence or absence of
 age-C CAPTURES rows and its own age/leg-flag rules. A single occasion may
 therefore generate separate chick-capture and hiding-photo work; those rows
@@ -564,6 +628,25 @@ Timing gates remain important:
 - Hatch signs, a confirmed `H` event, or the approved hatch-state overrides
   can bypass the clutch-age gate when parents still need banding; the 36-hour
   disturbance interval remains separate.
+
+For field planning, the current pre-capture checklist is therefore:
+
+- confirm that the nest/brood is active and operational for parent work;
+- use `capture_gate_clutch_size` and
+  `capture_gate_clutch_start_datetime` for the seven-day calculation;
+- when a clutch decreases after egg removal, retain the historical maximum
+  clutch and its original start for the capture gate rather than resetting the
+  clock from the lower value;
+- for a current two-egg clutch, use the last float plus the approved three-day
+  completion inference, while a current clutch of at least three uses its
+  observed completion basis;
+- allow hatch signs or confirmed hatch evidence to satisfy the clutch-age
+  requirement only where the task rules permit it, and still apply the
+  separate 36-hour gate;
+- treat identity, tag, and pair-completion status as task priorities and notes,
+  never as permission to waive either timing gate; and
+- if capture is timing-blocked, retain the corresponding parent-resighting
+  effort where the current task predicates require it.
 
 ### Current parent-task protocol
 

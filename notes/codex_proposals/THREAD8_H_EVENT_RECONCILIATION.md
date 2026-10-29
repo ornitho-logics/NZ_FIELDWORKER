@@ -1,7 +1,43 @@
 # Thread 8 — unlinked H-event reconciliation
 
-This tracked note records the specialist responses reviewed by Thread 8. No
-RDS, live database, inspector, or SQL object was modified by the reconciliation.
+This tracked note records specialist responses reviewed by Thread 8. The
+original reconciliation below is historical; its implementation-gap statements
+must not be read as a current inventory of repository SQL. No local source
+review establishes deployment or live inspector state.
+
+## Current approved contract — 26 October 2026
+
+- Keep save-time validation, derived association and To-Do resolution separate.
+  `RESIGHTINGS_H_BROOD_ASSOCIATIONS` and the S10 task helper now exist in
+  repository source. A valid saved row is not by itself proof of task closure.
+- An H photograph remains its own age-C RESIGHTINGS event, with nonblank
+  metal ring, complete direct GPS and its own photo metadata. A capture/tent
+  photograph remains a separate CAPTURES event. Preserve raw nest IDs and
+  observed marks; matching/normalisation must not rewrite field observations.
+- Family encounters share date, site, gps_id and gps_point. Enter every
+  individual actually encountered, including observed X-X parents; never
+  fabricate chick sightings alongside genuine captures or an absent mate.
+- Conflicting nonblank nest/brood IDs within that same family occasion must
+  be flagged during entry, including explicit IDs and split-table companions.
+  This is not a lifetime single-nest restriction: actual associations may
+  change between separate encounters, including brood mixing.
+- A question mark in any leg segment excludes that event from parent–nest
+  association evidence unless a known metal ring is reliably traced to capture
+  identity history. That ring exception overrides uncertainty about colour
+  marks; preserve the question marks. Knowing an old ring/mark does not itself
+  prove the current nest, and a prior season's nest ID is not a current link.
+- The former no-nest sentinel is retired. An unrelated adult capture uses
+  blank nest_id and both GPS fields. This is distinct from a negative brood
+  link or an eligible blank-ID family inference; no replacement sentinel is
+  introduced and historical records are not automatically rewritten.
+
+The current correction pass is uncommitted and subject to source-frozen
+validator/SQL/output verification. Read the reviewed protocol and specialist
+handoffs for exact predicates; do not imply that a local correction is merged,
+installed or live. The private manual is under concurrent human review and
+must not be regenerated or overwritten by the implementation work.
+
+## Historical reconciliation record
 
 ## Converged architecture
 
@@ -15,7 +51,7 @@ Suggested helper view: `RESIGHTINGS_H_BROOD_ASSOCIATIONS`.
 
 Suggested statuses: `explicit`, `derived`, `ambiguous`, and `unresolved`.
 
-## Current gap confirmed
+## Historical gaps identified before implementation
 
 - `BROODS_LATEST` and `TODO_LIST` currently exclude H rows with blank raw `nest_id`.
 - The current H validation exception does not require prior family-link evidence.

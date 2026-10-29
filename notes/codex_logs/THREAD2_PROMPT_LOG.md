@@ -3,6 +3,29 @@
 Status: tracked sanitized history. Raw transcripts and attachments remain
 local/ignored.
 
+## Current supersession notice — 2026-10-26
+
+This log preserves dated decisions and wording, including the former
+`NO_NEST` convention. That sentinel is now retired and rejected as current
+CAPTURES/RESIGHTINGS input. An unrelated age-A CAPTURES event uses blank/SQL
+NULL `nest_id` with complete `gps_id`/`gps_point`; historical rows/dumps are
+not rewritten. EGGS has no media columns and current RESIGHTINGS SQL has no
+`harddrive_id`.
+
+Current AGENTS and the owning handoffs supersede earlier rules: any `?` in
+any leg field excludes the whole parent event from parent-nest evidence unless
+a verified known metal ring traces capture identity. Archive history proves
+identity only, never a previous-season nest link for the current family.
+Conflicting nonblank IDs save-block within one same-date/site/GPS family,
+including fully explicit and split-table encounters; separate-encounter brood
+mixing remains possible. `pP`/`P`/`D` allow fate review until final `notA`;
+the rare first-F zero-clutch rejection remains intentional, with verified
+comment/documented override if correct and no automatic exception. The
+reviewed local mirror is v1.3.14; external canonical YAML is v1.3.5. SC can
+confirm association after one eligible nest-linked observation, but does not
+join BC/FC/AC parent-with-chicks matching. Final integration must use the exact
+frozen source hashes; version labels alone do not establish source agreement.
+
 Last refreshed: 2026-10-23
 
 Thread role:

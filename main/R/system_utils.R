@@ -218,7 +218,8 @@ todo_snapshot_refresh_start <- function(
       "printf '%s\\n' 'running' > {status}"
     ),
     glue(
-      "{client} --defaults-extra-file={cnf} {database_arg} ",
+      "{client} --defaults-extra-file={cnf} ",
+      "--batch --raw --skip-column-names --unbuffered {database_arg} ",
       "< {sql} > {log} 2>&1 &"
     ),
     "client_pid=$!",
@@ -227,15 +228,16 @@ todo_snapshot_refresh_start <- function(
       "  stage_line=$(grep 'TODO_REFRESH_STAGE|' {log} 2>/dev/null | tail -n 1)"
     ),
     "  case \"$stage_line\" in",
-    "    *'TODO_REFRESH_STAGE|nest_context'*) detail='Building nest context' ;;",
-    "    *'TODO_REFRESH_STAGE|chick_capture_context'*) detail='Aggregating chick captures' ;;",
-    "    *'TODO_REFRESH_STAGE|hiding_spot_photos'*) detail='Counting hiding-spot photos' ;;",
-    "    *'TODO_REFRESH_STAGE|chick_gps_links'*) detail='Linking chicks to parents' ;;",
-    "    *'TODO_REFRESH_STAGE|parent_status'*) detail='Building parent status' ;;",
-    "    *'TODO_REFRESH_STAGE|brood_closure'*) detail='Checking presumed-dead broods' ;;",
-    "    *'TODO_REFRESH_STAGE|task_rows'*) detail='Building task rows' ;;",
-    "    *'TODO_REFRESH_STAGE|publishing'*) detail='Publishing snapshot' ;;",
-    "    *) detail='Preparing snapshot' ;;",
+    "    *'TODO_REFRESH_STAGE|nest_context'*) detail='Updating nest dates, clutch sizes and capture timing' ;;",
+    "    *'TODO_REFRESH_STAGE|brood_context'*) detail='Updating brood counts and locations' ;;",
+    "    *'TODO_REFRESH_STAGE|chick_capture_context'*) detail='Checking latest chick encounters and flagging progress' ;;",
+    "    *'TODO_REFRESH_STAGE|hiding_spot_photos'*) detail='Counting individual hiding-spot photographs' ;;",
+    "    *'TODO_REFRESH_STAGE|chick_gps_links'*) detail='Linking chick encounters to parents using shared GPS waypoints' ;;",
+    "    *'TODO_REFRESH_STAGE|parent_status'*) detail='Building parent-nest associations from resightings and captures' ;;",
+    "    *'TODO_REFRESH_STAGE|brood_closure'*) detail='Checking brood resolution, loss and renesting evidence' ;;",
+    "    *'TODO_REFRESH_STAGE|task_rows'*) detail='Preparing the fieldwork To-Do lists' ;;",
+    "    *'TODO_REFRESH_STAGE|publishing'*) detail='Checking and publishing the completed snapshot' ;;",
+    "    *) detail='Preparing snapshot inputs' ;;",
     "  esac",
     glue("  printf 'running|%s\\n' \"$detail\" > {status}"),
     "  sleep 1",
@@ -306,6 +308,24 @@ todo_snapshot_refresh_status <- function(job) {
   job$state <- state
   job$detail <- detail
   job
+}
+
+
+todo_snapshot_refresh_elapsed <- function(job, now = Sys.time()) {
+  if (is.null(job$started_at) || length(job$started_at) != 1L) {
+    return(NULL)
+  }
+
+  seconds <- tryCatch(
+    as.numeric(difftime(now, job$started_at, units = "secs")),
+    error = function(error) NA_real_
+  )
+  if (length(seconds) != 1L || !is.finite(seconds)) {
+    return(NULL)
+  }
+
+  seconds <- floor(max(0, seconds))
+  sprintf("Elapsed: %.0f min %02.0f sec.", seconds %/% 60, seconds %% 60)
 }
 
 
