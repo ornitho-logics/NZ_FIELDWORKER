@@ -77,7 +77,7 @@ list({
     }
     out
 }, {
-    out <- try_validator(is.regexp_validator(x[, .(observer)], regexp = "^[A-Z]{2,3}$", reason = "Observer initials must use two or three uppercase letters."), nam = "observer initials")
+    out <- try_validator(is.regexp_validator(x[, .(observer)], regexp = "^[A-Z0-9]{2,3}$", reason = "Observer codes must use two or three uppercase letters or digits."), nam = "observer initials")
     out <- data.table::as.data.table(out)
     if ("reason" %in% names(out)) {
         out[, `:=`(reason, {

@@ -8,7 +8,7 @@ USE FIELD_2026_BADOatNZ;
 
 CREATE TABLE IF NOT EXISTS OBSERVERS (
   name text DEFAULT NULL COMMENT 'Your full name.',
-  observer varchar(3) DEFAULT NULL COMMENT 'Your initials. Use two or three letters. This is what you will use when entering data.',
+  observer varchar(3) DEFAULT NULL COMMENT 'Your registered observer code: two or three uppercase letters or digits (for example AB or P3). Use this same code when entering data.',
   start date                   DEFAULT NULL COMMENT 'Start of work (YYYY-MM-DD)',
   stop date                    DEFAULT NULL COMMENT 'End of work (YYYY-MM-DD)',
   gps_id varchar(255) DEFAULT NULL COMMENT 'Personal GPS ID or comma-separated list of GPS IDs (for example: 3 or 3,22)',
@@ -25,7 +25,7 @@ CREATE TABLE `CAPTURES` (
   `site` varchar(2) DEFAULT NULL COMMENT 'Sites: <br> <b>AR</b> (Aparima River)<br> <b>AU</b> (Upper Ashburton)<br> <b>CH</b> (Chathams)<br> <b>CL</b> (Clarence River)<br> <b>CR</b> (Cass River)<br> <b>HC</b> (Hawkes Bay Coast)<br> <b>HR</b> (Hawkes Bay Rivers)<br> <b>KK</b> (Kaikoura)<br> <b>KP</b> (Kina Peninsula)<br> <b>KT</b> (Kaitorete Spit)<br> <b>MB</b> (Maryburn)<br> <b>MR</b> (Macaulay River)<br> <b>MS</b> (Motueka Spit)<br> <b>OD</b> (Ohau Downs)<br> <b>OK</b> (Okarito)<br> <b>OM</b> (Old Man Range)<br> <b>PB</b> (Porters Beach)<br> <b>PR</b> (Pisa Range)<br> <b>TA</b> (Te Anau (Upukerora))<br> <b>TO</b> (Tongariro (Rangipo Desert))<br> <b>TP</b> (Tiwai Point)<br> <b>TR</b> (Tekapo River)<br> <b>TS</b> (Tasman River)<br> <b>WA</b> (Wairarapa)<br> <b>WN</b> (West Coast North)<br> <b>WS</b> (West Coast South)',
   `book_id` smallint(5) unsigned DEFAULT NULL COMMENT '2-character integer that is a unique book_id (i.e., your CAPTURES field book)',
   `form_id` smallint(5) unsigned DEFAULT NULL COMMENT '2-character integer that is a unique page of your book_id',
-  `observer` varchar(3) DEFAULT NULL COMMENT '2- or 3-character initials of the bander (see OBSERVERS table)',
+  `observer` varchar(3) DEFAULT NULL COMMENT 'Registered code of the bander: two or three uppercase letters or digits (see OBSERVERS table)',
   `capture_status` enum('F','R','C','D') DEFAULT NULL COMMENT '<b>F</b> (First marking)<br> <b>R</b> (Recaptured but band combination not changed)<br> <b>C</b> (recaptured and band combination Changed),<br> <b>D</b> (was Dead when captured: write description in comments)',
   `capture_method` enum('HA','TB','TN','SM','MM','O') DEFAULT NULL COMMENT '<b>HA</b> (HAnd) <br> <b>TB</b> (clap-Trap on Brood) <br> <b>TN</b> (clap-Trap on Nest) <br> <b>SM</b> (Stationary Mistnet) <br> <b>MM</b> (Mobile Mistnet) <br> <b>O</b> (Other; please specify in comments)',
   `nest_id` varchar(7) DEFAULT NULL COMMENT 'Nest or brood association: <br> a positive ID identifies a real nest/scrape (SXXYY; e.g., A0203 or BA0202). <br> A <b>negative</b> ID (e.g., -A0203, -BA0202) identifies a mobile brood of unknown origin: it has no NESTS or EGGS row. For a negative ID, record both gps_id and gps_point and enter each observed/captured individual as a separate event. <br> For an adult capture unrelated to any nest or brood, leave nest_id blank and record a complete gps_id/gps_point pair. Do not use a sentinel for an unknown or unresolved association; negative brood IDs are for known mobile broods, not missing information.',
@@ -76,7 +76,7 @@ CREATE TABLE `CAPTURES` (
   `chick_hide_photo` enum('0','1') DEFAULT NULL COMMENT 'Was a chick hiding-spot photo taken during this capture? When 1, also enter cam_id, photo_start, and photo_end. <br> <b>0</b> (no) or <br> <b>1</b> (yes)',
   `comments` text DEFAULT NULL COMMENT 'Comments',
   `falcon_upload` tinyint(1) unsigned DEFAULT NULL COMMENT 'Was the capture uploaded to FALCON? Leave blank unless managing the DOC upload to FALCON <br> <b>0</b> (no) or <br> <b>1</b> (yes)',
-  `observer_upload` varchar(3) DEFAULT NULL COMMENT 'Initials of the person uploading to the database (see OBSERVERS table)',
+  `observer_upload` varchar(3) DEFAULT NULL COMMENT 'Registered code of the person uploading to the database: two or three uppercase letters or digits (see OBSERVERS table)',
   `nov` int(10) unsigned zerofill DEFAULT NULL COMMENT 'Validation flag. Do not edit this column!',
   `pk` int(11) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`pk`),
@@ -88,7 +88,7 @@ CREATE TABLE `CAPTURES` (
 
 CREATE TABLE `EGGS` (
   `species` char(4) DEFAULT NULL COMMENT '4-letter species code: <br> <b>BADO</b> (Banded Dotterel) <br> <b>WRYB</b> (Wrybill) <br> <b>SNZD</b> (Southern New Zealand Dotterel) <br> <b>BFDO</b> (Black-fronted Dotterel)',
-  `observer` varchar(3) DEFAULT NULL COMMENT '2- or 3-character initials of the observer (see OBSERVERS table)',
+  `observer` varchar(3) DEFAULT NULL COMMENT 'Registered code of the observer: two or three uppercase letters or digits (see OBSERVERS table)',
   `date` date DEFAULT NULL COMMENT 'Date eggs measured YYYY-MM-DD (local, NZDT or NZST)',
   `time_visit` time DEFAULT NULL COMMENT 'hh:mm time eggs were measured (local, NZDT or NZST)',
   `nest_id` varchar(8) DEFAULT NULL COMMENT 'Positive ID of the real nest/scrape where this egg belongs (SXXYY; e.g., A0203 or BA0202). <br> Negative brood IDs are not valid in EGGS because broods of unknown origin have no egg history; record their events in CAPTURES or RESIGHTINGS. Do not enter a sentinel for a missing nest association.',
@@ -140,7 +140,7 @@ CREATE TABLE `NESTS` (
   `site` varchar(2) DEFAULT NULL COMMENT 'Sites: <br> <b>AR</b> (Aparima River)<br> <b>AU</b> (Upper Ashburton)<br> <b>CH</b> (Chathams)<br> <b>CL</b> (Clarence River)<br> <b>CR</b> (Cass River)<br> <b>HC</b> (Hawkes Bay Coast)<br> <b>HR</b> (Hawkes Bay Rivers)<br> <b>KK</b> (Kaikoura)<br> <b>KP</b> (Kina Peninsula)<br> <b>KT</b> (Kaitorete Spit)<br> <b>MB</b> (Maryburn)<br> <b>MR</b> (Macaulay River)<br> <b>MS</b> (Motueka Spit)<br> <b>OD</b> (Ohau Downs)<br> <b>OK</b> (Okarito)<br> <b>OM</b> (Old Man Range)<br> <b>PB</b> (Porters Beach)<br> <b>PR</b> (Pisa Range)<br> <b>TA</b> (Te Anau (Upukerora))<br> <b>TO</b> (Tongariro (Rangipo Desert))<br> <b>TP</b> (Tiwai Point)<br> <b>TR</b> (Tekapo River)<br> <b>TS</b> (Tasman River)<br> <b>WA</b> (Wairarapa)<br> <b>WN</b> (West Coast North)<br> <b>WS</b> (West Coast South)',
   `date` date DEFAULT NULL COMMENT 'Date nest checked YYYY-MM-DD (local, NZDT or NZST)',
   `time_visit` time DEFAULT NULL COMMENT 'hh:mm time nest checked (local, NZDT or NZST)',
-  `observer` varchar(3) DEFAULT NULL COMMENT '2- or 3-character initials of the observer (see OBSERVERS table)',
+  `observer` varchar(3) DEFAULT NULL COMMENT 'Registered code of the observer: two or three uppercase letters or digits (see OBSERVERS table)',
   `nest_id` varchar(8) DEFAULT NULL COMMENT 'Positive ID of a real stationary nest/scrape (SXXYY; e.g., A0203 or BA0202). <br> Negative brood IDs are not valid in NESTS because a brood of unknown origin has no nest record; record its events in CAPTURES or RESIGHTINGS with direct GPS. Do not enter a sentinel for a missing nest association.',
   `nest_state` enum('S','F','I','H','pP','pD','P','D','notA','O') DEFAULT NULL COMMENT 'nest-state code for this visit. Examples include: <br> <b>S</b> (scrape, no eggs) <br> <b>F</b> (Found, visit of nest discovery) <br> <b>I</b> (incubated, active nest, warm eggs) <br> <b>H</b> (hatched, chicks seen) <br> <b>pP</b> (possibly predated) <br> <b>pD</b> (possibly deserted) <br> <b>P</b> (confident predated) <br> <b>D</b> (confident deserted) <br> <b>notA</b> (not Active, nest marks removed) <br> <b>O</b> (other; describe in comments)',
   `hatch_state` varchar(50) DEFAULT NULL COMMENT 'No. of eggs (1 to 4) followed by egg state: <br> <b>N</b> (no sign) <br> <b>S</b> (star) <br> <b>C</b> (crack) <br> <b>CC</b> (multiple or a big crack) <br> Examples: <br> <b>4N</b> <br> <b>2N2S</b> <br> <b>1N1S1C1CC</b>',
@@ -167,7 +167,7 @@ CREATE TABLE `NESTS` (
 
 CREATE TABLE `RESIGHTINGS` (
   `species` char(4) DEFAULT NULL COMMENT '4-letter species code: <br> <b>BADO</b> (Banded Dotterel) <br> <b>WRYB</b> (Wrybill) <br> <b>SNZD</b> (Southern New Zealand Dotterel) <br> <b>BFDO</b> (Black-fronted Dotterel)',
-  `observer` varchar(3) DEFAULT NULL COMMENT '2- or 3-character initials of the observer (see OBSERVERS table)',
+  `observer` varchar(3) DEFAULT NULL COMMENT 'Registered code of the observer: two or three uppercase letters or digits (see OBSERVERS table)',
   `gps_id` tinyint(3) unsigned DEFAULT NULL COMMENT 'Handheld Garmin GPS ID. Required together with gps_point for every new age-C H hiding-spot-photo event, including positive nest IDs, and for negative brood IDs and eligible age-C R/P/V/C family events.',
   `gps_point` int(10) unsigned DEFAULT NULL COMMENT 'Waypoint number of the resighting location stored in your handheld Garmin GPS unit. Required together with gps_id for every new age-C H hiding-spot-photo event, including positive nest IDs, and for negative brood IDs and eligible age-C R/P/V/C family events.',
   `date` date DEFAULT NULL COMMENT 'Date resighting made YYYY-MM-DD (local, NZDT or NZST)',
