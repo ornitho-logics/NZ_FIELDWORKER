@@ -18,6 +18,15 @@ task_gate_extract_cte <- function(sql, name, next_name) {
   substr(remaining, 1L, end)
 }
 
+task_gate_extract_expression <- function(sql, start_marker, end_marker) {
+  start <- regexpr(start_marker, sql, fixed = TRUE)[1L]
+  stopifnot(start > 0L)
+  remaining <- substring(sql, start)
+  end <- regexpr(end_marker, remaining, fixed = TRUE)[1L]
+  stopifnot(end > 0L)
+  substr(remaining, 1L, end - 1L)
+}
+
 task_gate_extract_target_parent_case <- function(sql) {
   start_marker <- paste0(
     "    CASE\n",
@@ -246,6 +255,9 @@ test_that("selected-death consumer guard preserves living-parent work", {
     F_unknown_status = rep(0, 6),
     M_has_geo = rep(0, 6),
     F_has_geo = rep(0, 6),
+    M_target_has_geo = rep(0, 6),
+    F_target_has_geo = rep(0, 6),
+    initial_tag_advisory = rep(0, 6),
     M_single_colour_recruit = rep(0, 6),
     F_single_colour_recruit = rep(0, 6),
     F_mark = rep("AB-CD", 6),
@@ -393,7 +405,20 @@ test_that("actual pair-completion SQL requires current same-nest deployment proo
     history_sql, fixed = TRUE
   )
   candidate_sql <- task_gate_extract_cte(
-    sql, "tag_deployment_candidates", "tag_deployment_plan"
+    sql, "tag_deployment_candidates", "tag_deployment_actions"
+  )
+  action_sql <- task_gate_extract_cte(
+    sql, "tag_deployment_actions", "tag_deployment_plan"
+  )
+  parent_tag_safety <- data.frame(
+    nest_id = rep(ids, 2L),
+    sex = rep(c("M", "F"), each = length(ids)),
+    pending_identity_has_geo = 0,
+    stringsAsFactors = FALSE
+  )
+  candidate_sql <- gsub(
+    "tmp_todo_parent_tag_safety", "parent_tag_safety",
+    candidate_sql, fixed = TRUE
   )
   plan <- substring(sql, regexpr("tag_deployment_plan AS (", sql, fixed = TRUE)[1])
   end <- regexpr("END AS geo_instruction", plan, fixed = TRUE)[1] +
@@ -407,9 +432,11 @@ test_that("actual pair-completion SQL requires current same-nest deployment proo
     task_gate_values_cte("adult_parent_status", status), ",",
     task_gate_values_cte("parent_task_nests", nests), ",",
     task_gate_values_cte("adult_capture_age_status", timing), ",",
-    history_sql, ",", candidate_sql, ", instructions AS (",
+    task_gate_values_cte("parent_tag_safety", parent_tag_safety), ",",
+    history_sql, ",", candidate_sql, ",", action_sql, ",",
+    "instructions AS (",
     "SELECT candidates.nest_id,", instruction,
-    "FROM tag_deployment_candidates candidates)",
+    "FROM tag_deployment_actions candidates)",
     "SELECT CONCAT_WS('|', parent_task_nests.nest_id,",
     "COALESCE(instructions.geo_instruction,'NULL'))",
     "FROM parent_task_nests LEFT JOIN instructions",
@@ -422,4 +449,636 @@ test_that("actual pair-completion SQL requires current same-nest deployment proo
     "C_T003|NULL", "C_T004|NULL", "C_T005|NULL", "C_T006|NULL",
     "C_T007|NULL", "C_T008|resight/tag M (status ?; pair completion)"
   ))
+})
+
+test_that("known-tag safety blocks duplicate tagging without resolving association", {
+  ids <- c("C_PENDING_GEO", "C_PENDING_NO_GEO", "C_SELECTED_GEO_PENDING")
+  status <- data.frame(
+    nest_id = ids,
+    M_parent_mark = c("M-TAG", "M-TAG", "M-TAG"),
+    F_parent_mark = c("F-PENDING", "F-PENDING", "F-TAG"),
+    M_selected_mark = c("M-TAG", "M-TAG", "M-TAG"),
+    F_selected_mark = c(NA_character_, NA_character_, "F-TAG"),
+    M_selected_identity_key = c("ring:M1", "ring:M2", "ring:M3"),
+    F_selected_identity_key = c(NA_character_, NA_character_, "ring:F3"),
+    M_has_geo = c(1, 1, 1), F_has_geo = c(0, 0, 1),
+    M_confirmed_unbanded = rep(0, 3), F_confirmed_unbanded = rep(0, 3),
+    M_unknown_status = rep(0, 3), F_unknown_status = rep(0, 3),
+    M_resight_association_pending = c(0, 0, 1),
+    F_resight_association_pending = c(1, 1, 0),
+    M_resight_association_ambiguous = rep(0, 3),
+    F_resight_association_ambiguous = rep(0, 3),
+    M_is_dead = rep(0, 3), F_is_dead = rep(0, 3),
+    M_identity_is_dead = rep(0, 3), F_identity_is_dead = rep(0, 3),
+    M_is_au_migrant = rep(0, 3), F_is_au_migrant = rep(0, 3),
+    stringsAsFactors = FALSE
+  )
+  history <- data.frame(
+    nest_id = ids,
+    capture_sex = c("M", "M", "F"),
+    identity_key = c("ring:M1", "ring:M2", "ring:F3"),
+    display_mark = c("M-TAG", "M-TAG", "F-TAG"),
+    capture_date = rep("2026-10-20", 3),
+    capture_datetime = rep("2026-10-20 10:00:00", 3),
+    has_geo = rep(1, 3),
+    tag_type = rep("GEO", 3),
+    tag_action = rep("D", 3),
+    tag_id = paste0("TEST_DEVICE_", seq_len(3)),
+    stringsAsFactors = FALSE
+  )
+  nests <- data.frame(nest_id = ids, reference_date = "2026-10-29")
+  timing <- data.frame(
+    nest_id = ids, clutch_completion_basis_date = "2026-10-01"
+  )
+  parent_tag_safety <- data.frame(
+    nest_id = "C_PENDING_GEO",
+    sex = "F",
+    pending_identity_has_geo = 1,
+    stringsAsFactors = FALSE
+  )
+  sql <- task_gate_refresh_source()
+  history_sql <- task_gate_extract_cte(
+    sql, "tag_deployment_history", "tag_deployment_candidates"
+  )
+  history_sql <- gsub(
+    "FIELD_2026_BADOatNZ.ADULT_CAPTURE_IDENTITIES_ALL", "capture_history",
+    history_sql, fixed = TRUE
+  )
+  candidate_sql <- task_gate_extract_cte(
+    sql, "tag_deployment_candidates", "tag_deployment_actions"
+  )
+  candidate_sql <- gsub(
+    "tmp_todo_parent_tag_safety", "parent_tag_safety",
+    candidate_sql, fixed = TRUE
+  )
+  action_sql <- task_gate_extract_cte(
+    sql, "tag_deployment_actions", "tag_deployment_plan"
+  )
+  plan <- substring(sql, regexpr("tag_deployment_plan AS (", sql, fixed = TRUE)[1])
+  end <- regexpr("END AS geo_instruction", plan, fixed = TRUE)[1] +
+    nchar("END AS geo_instruction") - 1L
+  prefix <- substr(plan, 1L, end)
+  starts <- gregexpr("\n    CASE", prefix, fixed = TRUE)[[1L]]
+  instruction <- substring(prefix, tail(starts, 1L))
+  observed <- task_gate_disposable_query(paste(
+    "WITH sr AS (SELECT CAST('2026-10-29' AS DATE) AS reference_date),",
+    task_gate_values_cte("capture_history", history), ",",
+    task_gate_values_cte("adult_parent_status", status), ",",
+    task_gate_values_cte("parent_task_nests", nests), ",",
+    task_gate_values_cte("adult_capture_age_status", timing), ",",
+    task_gate_values_cte("parent_tag_safety", parent_tag_safety), ",",
+    history_sql, ",", candidate_sql, ",", action_sql, ",",
+    "instructions AS (SELECT candidates.nest_id,", instruction,
+    "FROM tag_deployment_actions candidates)",
+    "SELECT CONCAT_WS('|', parent_task_nests.nest_id,",
+    "COALESCE(instructions.geo_instruction,'NULL'))",
+    "FROM parent_task_nests LEFT JOIN instructions",
+    "ON instructions.nest_id = parent_task_nests.nest_id",
+    "ORDER BY parent_task_nests.nest_id;"
+  ))
+  expect_identical(observed, c(
+    "C_PENDING_GEO|NULL",
+    "C_PENDING_NO_GEO|resight/tag F (status ?; pair completion)",
+    "C_SELECTED_GEO_PENDING|NULL"
+  ))
+})
+
+test_that("tag safety aggregation is unique, sex-scoped, and conservative", {
+  rows <- data.frame(
+    nest_id = c(
+      "C_UNIQUE_PENDING_M", "C_UNIQUE_PENDING_F",
+      "C_DUPLICATE_IDENTITIES", "C_SELECTED_AND_PENDING",
+      "C_AMBIGUOUS", "C_PENDING_NO_GEO", "C_DUPLICATE_ROWS",
+      "C_OTHER_NEST"
+    ),
+    sex = c("M", "F", "M", "F", "M", "F", "M", "F"),
+    identity_key = c(
+      "ring:UNIQUE_M", "ring:UNIQUE_F",
+      "ring:DUPLICATE_A", "ring:SELECTED_F", "ring:AMBIGUOUS_A",
+      "ring:NO_GEO_F", "ring:DUPLICATE_ROWS", "ring:OTHER_NEST_F"
+    ),
+    identity_has_geo = c(1, 1, 1, 1, 1, 0, 1, 1),
+    association_pending = rep(1, 8),
+    association_selected = c(0, 0, 0, 1, 0, 0, 0, 0),
+    association_ambiguous = c(0, 0, 0, 0, 1, 0, 0, 0),
+    stringsAsFactors = FALSE
+  )
+  rows <- rbind(
+    rows,
+    data.frame(
+      nest_id = c(
+        "C_DUPLICATE_IDENTITIES", "C_SELECTED_AND_PENDING",
+        "C_AMBIGUOUS", "C_DUPLICATE_ROWS"
+      ),
+      sex = c("M", "F", "M", "M"),
+      identity_key = c(
+        "ring:DUPLICATE_B", "ring:PENDING_F",
+        "ring:AMBIGUOUS_B", "ring:DUPLICATE_ROWS"
+      ),
+      identity_has_geo = c(1, 1, 1, 1),
+      association_pending = c(1, 1, 1, 1),
+      association_selected = c(0, 0, 0, 0),
+      association_ambiguous = c(0, 0, 1, 0),
+      stringsAsFactors = FALSE
+    )
+  )
+  sql <- task_gate_refresh_source()
+  safety_start <- regexpr(
+    "CREATE TEMPORARY TABLE tmp_todo_parent_tag_safety AS\n",
+    sql, fixed = TRUE
+  )[1L] + nchar(
+    "CREATE TEMPORARY TABLE tmp_todo_parent_tag_safety AS\n"
+  )
+  safety_end <- regexpr(
+    "\n\nALTER TABLE tmp_todo_parent_tag_safety",
+    substring(sql, safety_start), fixed = TRUE
+  )[1L]
+  safety_sql <- substr(
+    sql, safety_start, safety_start + safety_end - 2L
+  )
+  safety_sql <- gsub(
+    "tmp_todo_closure_parent_associations", "parent_associations",
+    safety_sql, fixed = TRUE
+  )
+  safety_sql <- sub(";\\s*$", "", safety_sql)
+  observed <- task_gate_disposable_query(paste(
+    "WITH", task_gate_values_cte("parent_associations", rows),
+    ", tag_safety AS (", safety_sql, ")",
+    "SELECT CONCAT_WS('|', nest_id, sex, pending_identity_has_geo)",
+    "FROM tag_safety ORDER BY nest_id, sex;"
+  ))
+  expect_identical(observed, c(
+    "C_DUPLICATE_ROWS|M|1",
+    "C_OTHER_NEST|F|1",
+    "C_UNIQUE_PENDING_F|F|1",
+    "C_UNIQUE_PENDING_M|M|1"
+  ))
+})
+
+test_that("known-tag safety blocks both sexes and initial tag-any actions", {
+  ids <- c(
+    "C_PENDING_F_GEO", "C_PENDING_M_GEO",
+    "C_INITIAL_M_GEO", "C_INITIAL_F_GEO"
+  )
+  status <- data.frame(
+    nest_id = ids,
+    M_parent_mark = c("M-TAG", "M-PENDING", NA, NA),
+    F_parent_mark = c("F-PENDING", "F-TAG", NA, NA),
+    M_selected_mark = c("M-TAG", NA, NA, NA),
+    F_selected_mark = c(NA, "F-TAG", NA, NA),
+    M_selected_identity_key = c("ring:M1", NA, NA, NA),
+    F_selected_identity_key = c(NA, "ring:F2", NA, NA),
+    M_has_geo = c(1, 0, 0, 0), F_has_geo = c(0, 1, 0, 0),
+    M_confirmed_unbanded = rep(0, 4), F_confirmed_unbanded = rep(0, 4),
+    M_unknown_status = c(0, 1, 1, 1),
+    F_unknown_status = c(1, 0, 1, 1),
+    M_resight_association_pending = c(0, 1, 0, 0),
+    F_resight_association_pending = c(1, 0, 0, 0),
+    M_resight_association_ambiguous = rep(0, 4),
+    F_resight_association_ambiguous = rep(0, 4),
+    M_is_dead = rep(0, 4), F_is_dead = rep(0, 4),
+    M_identity_is_dead = rep(0, 4), F_identity_is_dead = rep(0, 4),
+    M_is_au_migrant = rep(0, 4), F_is_au_migrant = rep(0, 4),
+    stringsAsFactors = FALSE
+  )
+  history <- data.frame(
+    nest_id = c("C_PENDING_F_GEO", "C_PENDING_M_GEO"),
+    capture_sex = c("M", "F"),
+    identity_key = c("ring:M1", "ring:F2"),
+    display_mark = c("M-TAG", "F-TAG"),
+    capture_date = rep("2026-10-20", 2),
+    capture_datetime = rep("2026-10-20 10:00:00", 2),
+    has_geo = rep(1, 2), tag_type = rep("GEO", 2),
+    tag_action = rep("D", 2), tag_id = c("TEST_DEVICE_M", "TEST_DEVICE_F"),
+    stringsAsFactors = FALSE
+  )
+  nests <- data.frame(nest_id = ids, reference_date = "2026-10-29")
+  timing <- data.frame(
+    nest_id = ids, clutch_completion_basis_date = "2026-10-01"
+  )
+  parent_tag_safety <- data.frame(
+    nest_id = c("C_PENDING_F_GEO", "C_PENDING_M_GEO",
+                "C_INITIAL_M_GEO", "C_INITIAL_F_GEO"),
+    sex = c("F", "M", "M", "F"),
+    pending_identity_has_geo = 1,
+    stringsAsFactors = FALSE
+  )
+  sql <- task_gate_refresh_source()
+  history_sql <- task_gate_extract_cte(
+    sql, "tag_deployment_history", "tag_deployment_candidates"
+  )
+  history_sql <- gsub(
+    "FIELD_2026_BADOatNZ.ADULT_CAPTURE_IDENTITIES_ALL", "capture_history",
+    history_sql, fixed = TRUE
+  )
+  candidate_sql <- task_gate_extract_cte(
+    sql, "tag_deployment_candidates", "tag_deployment_actions"
+  )
+  candidate_sql <- gsub(
+    "tmp_todo_parent_tag_safety", "parent_tag_safety",
+    candidate_sql, fixed = TRUE
+  )
+  action_sql <- task_gate_extract_cte(
+    sql, "tag_deployment_actions", "tag_deployment_plan"
+  )
+  plan <- substring(sql, regexpr("tag_deployment_plan AS (", sql, fixed = TRUE)[1])
+  end <- regexpr("END AS geo_instruction", plan, fixed = TRUE)[1] +
+    nchar("END AS geo_instruction") - 1L
+  prefix <- substr(plan, 1L, end)
+  starts <- gregexpr("\n    CASE", prefix, fixed = TRUE)[[1L]]
+  instruction <- substring(prefix, tail(starts, 1L))
+  observed <- task_gate_disposable_query(paste(
+    "WITH sr AS (SELECT CAST('2026-10-29' AS DATE) AS reference_date),",
+    task_gate_values_cte("capture_history", history), ",",
+    task_gate_values_cte("adult_parent_status", status), ",",
+    task_gate_values_cte("parent_task_nests", nests), ",",
+    task_gate_values_cte("adult_capture_age_status", timing), ",",
+    task_gate_values_cte("parent_tag_safety", parent_tag_safety), ",",
+    history_sql, ",", candidate_sql, ",", action_sql, ",",
+    "instructions AS (SELECT candidates.nest_id,", instruction,
+    "FROM tag_deployment_actions candidates)",
+    "SELECT CONCAT_WS('|', parent_task_nests.nest_id,",
+    "COALESCE(instructions.geo_instruction, 'NULL'))",
+    "FROM parent_task_nests LEFT JOIN instructions",
+    "ON instructions.nest_id = parent_task_nests.nest_id",
+    "ORDER BY parent_task_nests.nest_id;"
+  ))
+  expect_identical(observed, c(
+    "C_INITIAL_F_GEO|NULL", "C_INITIAL_M_GEO|NULL",
+    "C_PENDING_F_GEO|NULL", "C_PENDING_M_GEO|NULL"
+  ))
+})
+
+test_that("final untrapped-parent filter rejects known-tag capture targets", {
+  sql <- task_gate_refresh_source()
+  parent_tasks <- task_gate_extract_cte(
+    sql, "todo_untrapped_parent", "todo_parent_capture"
+  )
+  candidates <- data.frame(
+    nest_id = c("C_PLAN_NULL_KNOWN_TAG", "C_PLAN_NULL_UNKNOWN"),
+    reference_date = rep("2026-10-29", 2),
+    todo = rep("Untrapped parent", 2),
+    duplicate_correction = rep(0, 2),
+    geo_instruction = rep(NA_character_, 2),
+    geo_tag_target = rep(NA_character_, 2),
+    is_pair_completion = rep(0, 2),
+    capture_allowed_after_completion = rep(1, 2),
+    capture_interval_open = rep(1, 2),
+    M_confirmed_unbanded = rep(0, 2),
+    F_confirmed_unbanded = rep(0, 2),
+    M_identity_is_dead = rep(0, 2),
+    F_identity_is_dead = rep(0, 2),
+    M_target_has_geo = c(1, 0),
+    F_target_has_geo = rep(0, 2),
+    initial_tag_advisory = rep(0, 2),
+    M_unknown_status = rep(0, 2),
+    F_unknown_status = rep(0, 2),
+    M_has_geo = rep(0, 2),
+    F_has_geo = rep(0, 2),
+    M_single_colour_recruit = rep(0, 2),
+    F_single_colour_recruit = rep(0, 2),
+    M_mm_resight_pending = rep(0, 2),
+    F_mm_resight_pending = rep(0, 2),
+    target_parent = rep("M", 2),
+    resight_only_when_capture_blocked = rep(0, 2),
+    notes = rep("synthetic candidate", 2),
+    days_overdue = rep(0, 2),
+    priority = rep(1, 2),
+    min_days_to_hatch = rep(5, 2),
+    last_visit_days_ago = rep(0, 2),
+    nest_state = rep("I", 2),
+    clutch_size = rep(3, 2),
+    brood_size = rep(0, 2),
+    M_mark = rep("M-TAG", 2),
+    F_mark = rep(NA_character_, 2),
+    lat = rep(NA_real_, 2),
+    lon = rep(NA_real_, 2),
+    stringsAsFactors = FALSE
+  )
+  observed <- task_gate_disposable_query(paste(
+    "WITH", task_gate_values_cte(
+      "todo_untrapped_parent_candidate", candidates
+    ), ",", parent_tasks,
+    "SELECT CONCAT_WS('|', nest_id, parent_task_class) FROM todo_untrapped_parent",
+    "ORDER BY nest_id;"
+  ))
+  expect_identical(observed, "C_PLAN_NULL_UNKNOWN|Parent capture")
+})
+
+test_that("duplicate repair remains visible for a known-tag target", {
+  sql <- task_gate_refresh_source()
+  parent_tasks <- task_gate_extract_cte(
+    sql, "todo_untrapped_parent", "todo_parent_capture"
+  )
+  candidates <- data.frame(
+    nest_id = "C_DUPLICATE_KNOWN_GEO",
+    reference_date = "2026-10-29",
+    todo = "Untrapped parent",
+    duplicate_correction = 1,
+    geo_instruction = NA_character_,
+    geo_tag_target = NA_character_,
+    is_pair_completion = 0,
+    capture_allowed_after_completion = 1,
+    capture_interval_open = 1,
+    M_confirmed_unbanded = 0,
+    F_confirmed_unbanded = 0,
+    M_identity_is_dead = 0,
+    F_identity_is_dead = 0,
+    M_target_has_geo = 0,
+    F_target_has_geo = 1,
+    initial_tag_advisory = 0,
+    M_unknown_status = 0,
+    F_unknown_status = 0,
+    M_has_geo = 0,
+    F_has_geo = 1,
+    M_single_colour_recruit = 0,
+    F_single_colour_recruit = 0,
+    M_mm_resight_pending = 0,
+    F_mm_resight_pending = 0,
+    target_parent = "F",
+    resight_only_when_capture_blocked = 0,
+    notes = "synthetic duplicate repair",
+    days_overdue = 0,
+    priority = 1,
+    min_days_to_hatch = 5,
+    last_visit_days_ago = 0,
+    nest_state = "I",
+    clutch_size = 3,
+    brood_size = 0,
+    M_mark = NA_character_,
+    F_mark = "F-TAG",
+    lat = NA_real_,
+    lon = NA_real_,
+    stringsAsFactors = FALSE
+  )
+  observed <- task_gate_disposable_query(paste(
+    "WITH", task_gate_values_cte(
+      "todo_untrapped_parent_candidate", candidates
+    ), ",", parent_tasks,
+    "SELECT CONCAT_WS('|', nest_id, parent_task_class, notes)",
+    "FROM todo_untrapped_parent ORDER BY nest_id;"
+  ))
+  expect_identical(
+    observed,
+    "C_DUPLICATE_KNOWN_GEO|Parent capture|F: CORRECT DUPLICATE"
+  )
+})
+
+test_that("B/unknown tag advisory note is symmetric and gate-limited", {
+  sql <- task_gate_refresh_source()
+  parent_tasks <- task_gate_extract_cte(
+    sql, "todo_untrapped_parent", "todo_parent_capture"
+  )
+  candidates <- data.frame(
+    nest_id = c(
+      "C_ADVISORY_M_B", "C_ADVISORY_F_B", "C_ADVISORY_7D_BLOCKED",
+      "C_ADVISORY_36H_BLOCKED"
+    ),
+    reference_date = rep("2026-10-29", 4),
+    todo = rep("Untrapped parent", 4),
+    duplicate_correction = rep(0, 4),
+    geo_instruction = rep(NA_character_, 4),
+    geo_tag_target = rep(NA_character_, 4),
+    is_pair_completion = rep(0, 4),
+    capture_allowed_after_completion = c(1, 1, 0, 1),
+    capture_interval_open = c(1, 1, 1, 0),
+    M_confirmed_unbanded = rep(0, 4),
+    F_confirmed_unbanded = rep(0, 4),
+    M_identity_is_dead = rep(0, 4),
+    F_identity_is_dead = rep(0, 4),
+    M_target_has_geo = rep(0, 4),
+    F_target_has_geo = rep(0, 4),
+    initial_tag_advisory = rep(1, 4),
+    M_unknown_status = c(0, 1, 0, 0),
+    F_unknown_status = c(1, 0, 1, 1),
+    M_has_geo = rep(0, 4),
+    F_has_geo = rep(0, 4),
+    M_single_colour_recruit = rep(0, 4),
+    F_single_colour_recruit = rep(0, 4),
+    M_mm_resight_pending = rep(0, 4),
+    F_mm_resight_pending = rep(0, 4),
+    target_parent = c("F", "M", "F", "F"),
+    resight_only_when_capture_blocked = rep(1, 4),
+    notes = rep("synthetic advisory candidate", 4),
+    days_overdue = rep(0, 4),
+    priority = rep(1, 4),
+    min_days_to_hatch = rep(5, 4),
+    last_visit_days_ago = rep(0, 4),
+    nest_state = rep("I", 4),
+    clutch_size = rep(3, 4),
+    brood_size = rep(0, 4),
+    M_mark = c("M-BAND", NA_character_, "M-BAND", "M-BAND"),
+    F_mark = c(NA_character_, "F-BAND", NA_character_, NA_character_),
+    lat = rep(NA_real_, 4),
+    lon = rep(NA_real_, 4),
+    stringsAsFactors = FALSE
+  )
+  observed <- task_gate_disposable_query(paste(
+    "WITH", task_gate_values_cte(
+      "todo_untrapped_parent_candidate", candidates
+    ), ",", parent_tasks,
+    "SELECT CONCAT_WS('|', nest_id, parent_task_class, notes)",
+    "FROM todo_untrapped_parent ORDER BY nest_id;"
+  ))
+  expect_identical(observed, c(
+    "C_ADVISORY_36H_BLOCKED|Parent resighting|resight F (status ?); 36hr rule",
+    "C_ADVISORY_7D_BLOCKED|Parent resighting|resight F (status ?); 7d rule",
+    "C_ADVISORY_F_B|Parent capture|tag any, but only if one is confirmed X-X",
+    "C_ADVISORY_M_B|Parent capture|tag any, but only if one is confirmed X-X"
+  ))
+})
+
+test_that("extracted B/unknown advisory CASE preserves all eligibility boundaries", {
+  ids <- c(
+    "A_ADVISORY_M_B", "C_ADVISORY_BOTH_B", "C_ADVISORY_BOTH_UNKNOWN",
+    "C_ADVISORY_COMPLETION_MISSING", "C_ADVISORY_COMPLETION_OCT10",
+    "C_ADVISORY_COMPLETION_OCT9", "C_ADVISORY_CONTRADICTORY_XX",
+    "C_ADVISORY_DEAD_B", "C_ADVISORY_NEGATIVE", "C_ADVISORY_PENDING_B",
+    "C_ADVISORY_AMBIG_B", "C_ADVISORY_SAFETY_GEO",
+    "C_ADVISORY_SELECTED_GEO", "C_ADVISORY_F_B", "C_ADVISORY_M_B",
+    "C_ADVISORY_M_B_MM_PENDING", "C_ADVISORY_F_B_MM_PENDING",
+    "C_ADVISORY_F_SENTINEL_N_A",
+    "C_ADVISORY_UNKNOWN_ASSOC_PENDING", "C_ADVISORY_UNKNOWN_MM_PENDING",
+    "C_ADVISORY_SENTINEL_X", "C_ADVISORY_SENTINEL_XX",
+    "C_ADVISORY_SENTINEL_X_X", "C_ADVISORY_SENTINEL_NA",
+    "C_ADVISORY_SENTINEL_N_A", "C_ADVISORY_SENTINEL_NULL",
+    "C_ADVISORY_SENTINEL_XX_PREFIX"
+  )
+  active_nests <- data.frame(
+    nest_id = ids,
+    is_negative_brood = as.integer(ids == "C_ADVISORY_NEGATIVE"),
+    stringsAsFactors = FALSE
+  )
+  timing <- data.frame(
+    nest_id = ids,
+    clutch_completion_basis_date = rep("2026-10-10", length(ids)),
+    stringsAsFactors = FALSE
+  )
+  timing$clutch_completion_basis_date[
+    timing$nest_id == "C_ADVISORY_COMPLETION_MISSING"
+  ] <- NA_character_
+  timing$clutch_completion_basis_date[
+    timing$nest_id == "C_ADVISORY_COMPLETION_OCT9"
+  ] <- "2026-10-09"
+
+  status <- data.frame(
+    nest_id = ids,
+    M_identity_is_dead = rep(0, length(ids)),
+    F_identity_is_dead = rep(0, length(ids)),
+    M_resight_association_ambiguous = rep(0, length(ids)),
+    F_resight_association_ambiguous = rep(0, length(ids)),
+    M_has_geo = rep(0, length(ids)),
+    F_has_geo = rep(0, length(ids)),
+    M_parent_mark = rep(NA_character_, length(ids)),
+    F_parent_mark = rep(NA_character_, length(ids)),
+    M_confirmed_unbanded = rep(0, length(ids)),
+    F_confirmed_unbanded = rep(0, length(ids)),
+    M_unknown_status = rep(0, length(ids)),
+    F_unknown_status = rep(0, length(ids)),
+    M_resight_association_pending = rep(0, length(ids)),
+    F_resight_association_pending = rep(0, length(ids)),
+    M_mm_resight_pending = rep(0, length(ids)),
+    F_mm_resight_pending = rep(0, length(ids)),
+    stringsAsFactors = FALSE
+  )
+  male_b <- c(
+    "A_ADVISORY_M_B", "C_ADVISORY_BOTH_B",
+    "C_ADVISORY_COMPLETION_MISSING", "C_ADVISORY_COMPLETION_OCT10",
+    "C_ADVISORY_COMPLETION_OCT9", "C_ADVISORY_DEAD_B",
+    "C_ADVISORY_NEGATIVE", "C_ADVISORY_PENDING_B",
+    "C_ADVISORY_AMBIG_B", "C_ADVISORY_SAFETY_GEO",
+    "C_ADVISORY_SELECTED_GEO", "C_ADVISORY_M_B",
+    "C_ADVISORY_M_B_MM_PENDING", "C_ADVISORY_UNKNOWN_ASSOC_PENDING",
+    "C_ADVISORY_UNKNOWN_MM_PENDING", "C_ADVISORY_SENTINEL_X",
+    "C_ADVISORY_SENTINEL_XX", "C_ADVISORY_SENTINEL_X_X",
+    "C_ADVISORY_SENTINEL_NA", "C_ADVISORY_SENTINEL_N_A",
+    "C_ADVISORY_SENTINEL_NULL", "C_ADVISORY_SENTINEL_XX_PREFIX"
+  )
+  status$M_parent_mark[match(male_b, status$nest_id)] <- "M-BAND"
+  female_b <- c(
+    "C_ADVISORY_BOTH_B", "C_ADVISORY_F_B", "C_ADVISORY_F_B_MM_PENDING",
+    "C_ADVISORY_F_SENTINEL_N_A"
+  )
+  status$F_parent_mark[match(female_b, status$nest_id)] <- "F-BAND"
+  status$M_unknown_status[status$nest_id %in% c(
+    "C_ADVISORY_BOTH_UNKNOWN", "C_ADVISORY_F_B",
+    "C_ADVISORY_F_B_MM_PENDING", "C_ADVISORY_F_SENTINEL_N_A"
+  )] <- 1
+  status$F_unknown_status[status$nest_id %in% c(
+    "C_ADVISORY_BOTH_UNKNOWN", "C_ADVISORY_CONTRADICTORY_XX",
+    male_b
+  )] <- 1
+  status$M_identity_is_dead[status$nest_id == "C_ADVISORY_DEAD_B"] <- 1
+  status$M_resight_association_pending[
+    status$nest_id == "C_ADVISORY_PENDING_B"
+  ] <- 1
+  status$M_resight_association_ambiguous[
+    status$nest_id == "C_ADVISORY_AMBIG_B"
+  ] <- 1
+  status$F_resight_association_pending[
+    status$nest_id == "C_ADVISORY_UNKNOWN_ASSOC_PENDING"
+  ] <- 1
+  status$M_mm_resight_pending[
+    status$nest_id == "C_ADVISORY_M_B_MM_PENDING"
+  ] <- 1
+  status$F_mm_resight_pending[
+    status$nest_id %in% c(
+      "C_ADVISORY_F_B_MM_PENDING", "C_ADVISORY_UNKNOWN_MM_PENDING"
+    )
+  ] <- 1
+  status$M_has_geo[status$nest_id == "C_ADVISORY_SELECTED_GEO"] <- 1
+  status$M_parent_mark[
+    status$nest_id == "C_ADVISORY_CONTRADICTORY_XX"
+  ] <- "X-X"
+  sentinel_ids <- c(
+    "C_ADVISORY_SENTINEL_X", "C_ADVISORY_SENTINEL_XX",
+    "C_ADVISORY_SENTINEL_X_X", "C_ADVISORY_SENTINEL_NA",
+    "C_ADVISORY_SENTINEL_N_A", "C_ADVISORY_SENTINEL_NULL",
+    "C_ADVISORY_SENTINEL_XX_PREFIX"
+  )
+  status$M_parent_mark[match(sentinel_ids, status$nest_id)] <- c(
+    "X", "XX", "X-X", "NA", "N/A", "NULL", "XX:placeholder"
+  )
+  status$F_parent_mark[
+    status$nest_id == "C_ADVISORY_F_SENTINEL_N_A"
+  ] <- "N/A"
+
+  m_tag_safety <- data.frame(
+    nest_id = "C_NO_MATCH",
+    sex = "M",
+    pending_identity_has_geo = 1,
+    stringsAsFactors = FALSE
+  )
+  f_tag_safety <- data.frame(
+    nest_id = "C_ADVISORY_SAFETY_GEO",
+    sex = "F",
+    pending_identity_has_geo = 1,
+    stringsAsFactors = FALSE
+  )
+  sql <- task_gate_refresh_source()
+  advisory_case <- task_gate_extract_expression(
+    sql,
+    paste0(
+      "CASE\n",
+      "      WHEN COALESCE(active_nests.is_negative_brood, 0) = 0\n"
+    ),
+    "\n    END AS initial_tag_advisory"
+  )
+  # Keep the extracted fixture as a complete CASE expression, but omit the
+  # production column alias so it can be used as a CONCAT_WS argument.
+  advisory_case <- paste0(advisory_case, "\n    END")
+  observed <- task_gate_disposable_query(paste(
+    "WITH",
+    task_gate_values_cte("active_nests", active_nests), ",",
+    task_gate_values_cte("adult_capture_age_status", timing), ",",
+    task_gate_values_cte("adult_parent_status", status), ",",
+    task_gate_values_cte("m_tag_safety", m_tag_safety), ",",
+    task_gate_values_cte("f_tag_safety", f_tag_safety),
+    "SELECT CONCAT_WS('|', active_nests.nest_id,", advisory_case,
+    ") FROM active_nests",
+    "LEFT JOIN adult_capture_age_status",
+    "ON adult_capture_age_status.nest_id = active_nests.nest_id",
+    "LEFT JOIN adult_parent_status",
+    "ON adult_parent_status.nest_id = active_nests.nest_id",
+    "LEFT JOIN m_tag_safety",
+    "ON m_tag_safety.nest_id = active_nests.nest_id",
+    "AND m_tag_safety.sex = 'M'",
+    "LEFT JOIN f_tag_safety",
+    "ON f_tag_safety.nest_id = active_nests.nest_id",
+    "AND f_tag_safety.sex = 'F'",
+    "ORDER BY BINARY active_nests.nest_id;"
+  ))
+  expected <- c(
+    "A_ADVISORY_M_B|0",
+    "C_ADVISORY_AMBIG_B|0",
+    "C_ADVISORY_BOTH_B|0",
+    "C_ADVISORY_BOTH_UNKNOWN|0",
+    "C_ADVISORY_COMPLETION_MISSING|0",
+    "C_ADVISORY_COMPLETION_OCT10|1",
+    "C_ADVISORY_COMPLETION_OCT9|0",
+    "C_ADVISORY_CONTRADICTORY_XX|0",
+    "C_ADVISORY_DEAD_B|0",
+    "C_ADVISORY_F_B|1",
+    "C_ADVISORY_F_B_MM_PENDING|0",
+    "C_ADVISORY_F_SENTINEL_N_A|0",
+    "C_ADVISORY_M_B|1",
+    "C_ADVISORY_M_B_MM_PENDING|0",
+    "C_ADVISORY_NEGATIVE|0",
+    "C_ADVISORY_PENDING_B|0",
+    "C_ADVISORY_SAFETY_GEO|0",
+    "C_ADVISORY_SELECTED_GEO|0",
+    "C_ADVISORY_SENTINEL_NA|0",
+    "C_ADVISORY_SENTINEL_N_A|0",
+    "C_ADVISORY_SENTINEL_NULL|0",
+    "C_ADVISORY_SENTINEL_X|0",
+    "C_ADVISORY_SENTINEL_X_X|0",
+    "C_ADVISORY_SENTINEL_XX|0",
+    "C_ADVISORY_SENTINEL_XX_PREFIX|0",
+    "C_ADVISORY_UNKNOWN_ASSOC_PENDING|1",
+    "C_ADVISORY_UNKNOWN_MM_PENDING|0"
+  )
+  # Match ORDER BY BINARY nest_id explicitly. Sort by the expected ID, not
+  # the full pipe-delimited row, because a separator changes prefix ordering.
+  expected <- expected[order(sub("[|].*$", "", expected), method = "radix")]
+  expect_identical(observed, expected)
 })

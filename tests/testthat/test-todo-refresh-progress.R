@@ -70,6 +70,27 @@ test_that("the actual status UI renders a live stage and elapsed time without qu
   expect_match(html, 'aria-busy="true"', fixed = TRUE)
   expect_match(html, 'role="timer"', fixed = TRUE)
   expect_match(html, 'aria-live="off"', fixed = TRUE)
+  expect_match(html, "Something fun while you wait? Practice finding chicks with", fixed = TRUE)
+  expect_match(html, "Dotterel Finder", fixed = TRUE)
+  expect_match(html, 'href="https://behavioural-ecology.orn.mpg.de/game1/?lang=en"', fixed = TRUE)
+  expect_match(html, 'target="_blank"', fixed = TRUE)
+  expect_match(html, 'rel="noopener noreferrer"', fixed = TRUE)
+  expect_match(html, "opens in a new tab", fixed = TRUE)
+
+  env$todo_refresh_job <- function() list(
+    state = "queued", refdate = as.Date("2026-01-01"), started_at = start
+  )
+  eval(assignment, env)
+  expect_match(as.character(env$output$todo_snapshot_status), "Dotterel Finder", fixed = TRUE)
+
+  for (state in c("succeeded", "failed", "busy")) {
+    env$todo_refresh_job <- local({
+      current_state <- state
+      function() list(state = current_state, refdate = as.Date("2026-01-01"))
+    })
+    eval(assignment, env)
+    expect_false(grepl("Dotterel Finder", as.character(env$output$todo_snapshot_status), fixed = TRUE))
+  }
 })
 
 test_that("the actual asynchronous worker reports stages before completion", {

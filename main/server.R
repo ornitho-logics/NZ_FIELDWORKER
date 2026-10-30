@@ -267,6 +267,17 @@ function(input, output, session) {
             `aria-live` = "off",
             todo_snapshot_refresh_elapsed(job)
           ),
+          tags$p(
+            class = "small mt-2 mb-1",
+            "Something fun while you wait? Practice finding chicks with ",
+            tags$a(
+              "Dotterel Finder",
+              href = "https://behavioural-ecology.orn.mpg.de/game1/?lang=en",
+              target = "_blank",
+              rel = "noopener noreferrer"
+            ),
+            " (opens in a new tab)."
+          ),
           tags$div(
             class = "progress mt-2",
             style = "height: 6px;",

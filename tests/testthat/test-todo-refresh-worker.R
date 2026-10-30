@@ -630,6 +630,71 @@ test_that("closure evidence is cached once without changing source-row semantics
     "INDEX idx_todo_closure_identity_match_identity_sex_date",
     fixed = TRUE
   )
+  expect_match(refresh_sql, "association.identity_has_geo,", fixed = TRUE)
+  expect_match(refresh_sql, "association.association_pending,", fixed = TRUE)
+  expect_match(
+    refresh_sql,
+    "CREATE TEMPORARY TABLE tmp_todo_parent_tag_safety AS",
+    fixed = TRUE
+  )
+  expect_match(
+    refresh_sql,
+    "COUNT(DISTINCT association.identity_key) = 1",
+    fixed = TRUE
+  )
+  expect_match(
+    refresh_sql,
+    "MAX(COALESCE(association.association_selected, 0)) = 0",
+    fixed = TRUE
+  )
+  expect_match(
+    refresh_sql,
+    "DROP TEMPORARY TABLE IF EXISTS tmp_todo_parent_tag_safety;",
+    fixed = TRUE
+  )
+  expect_match(
+    refresh_sql,
+    "DROP TEMPORARY TABLE tmp_todo_parent_tag_safety;",
+    fixed = TRUE
+  )
+  expect_match(refresh_sql, "M_target_has_geo", fixed = TRUE)
+  expect_match(refresh_sql, "F_target_has_geo", fixed = TRUE)
+  expect_match(refresh_sql, "END AS initial_tag_advisory", fixed = TRUE)
+  expect_match(
+    refresh_sql,
+    "NOT IN ('X', 'XX', 'X-X', 'NA', 'N/A', 'NULL')",
+    fixed = TRUE
+  )
+  expect_match(
+    refresh_sql,
+    "UPPER(TRIM(adult_parent_status.M_parent_mark)) NOT LIKE 'XX:%'",
+    fixed = TRUE
+  )
+  expect_match(
+    refresh_sql,
+    "COALESCE(adult_parent_status.M_mm_resight_pending, 0) = 0",
+    fixed = TRUE
+  )
+  expect_match(
+    refresh_sql,
+    "COALESCE(adult_parent_status.F_mm_resight_pending, 0) = 0",
+    fixed = TRUE
+  )
+  expect_match(
+    refresh_sql,
+    "COALESCE(m_tag_safety.pending_identity_has_geo, 0) = 0",
+    fixed = TRUE
+  )
+  expect_match(
+    refresh_sql,
+    "COALESCE(f_tag_safety.pending_identity_has_geo, 0) = 0",
+    fixed = TRUE
+  )
+  expect_match(
+    refresh_sql,
+    "THEN 'tag any, but only if one is confirmed X-X'",
+    fixed = TRUE
+  )
   expect_equal(
     length(gregexpr(
       "FROM FIELD_2026_BADOatNZ.ADULT_PARENT_NEST_ASSOCIATIONS",

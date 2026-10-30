@@ -419,6 +419,13 @@ dashboardPage(
             tabPanel(
               title = glue("[{i}]"),
               active = FALSE,
+              if (identical(i, "notA_summary")) tags$p(
+                class = "small text-muted",
+                "Historical notA nests and both parents, from the latest successful To-do snapshot. ",
+                "Rebuild after records or the reference date change. A notA nest may still have a live brood. ",
+                "Later nests require a confirmed individual match; pending observations are shown separately. ",
+                "If no rows appear, check that a current snapshot is ready and DATABASE/notA_summary.SQL is installed."
+              ),
               spinner(
                 DTOutput(outputId = glue("{i}_show"))
               )

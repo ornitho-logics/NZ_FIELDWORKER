@@ -2026,7 +2026,7 @@ test_that("tag deployment uses the bounded post-cutoff plan", {
   expect_match(sql, "initial_deployment_eligible", fixed = TRUE)
   expect_match(
     sql,
-    "candidates.initial_tag_candidate = 1\n      AND candidates.initial_deployment_eligible = 1",
+    "candidates.initial_tag_candidate = 1\n       AND candidates.initial_deployment_eligible = 1\n       AND candidates.M_target_has_geo = 0\n       AND candidates.F_target_has_geo = 0",
     fixed = TRUE
   )
   expect_no_match(sql, "geo_parent_targets AS", fixed = TRUE)
