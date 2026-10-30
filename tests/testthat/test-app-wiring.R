@@ -163,6 +163,14 @@ test_that("main app UI and entrypoint load", {
   }
 
   expect_contains(app$env$dbtabs_show_views, "OVERVIEW")
+  expect_contains(app$env$dbtabs_show_views, "notA_summary")
+  expect_false("VIEW_2" %in% app$env$dbtabs_show_views)
+  expect_setequal(
+    app$env$dbtabs_show_view_sources[["notA_summary"]],
+    c("settings", "TODO_REFRESH_STATUS", "TODO_NEST_CONTEXT_SNAPSHOT",
+      "TODO_PARENT_STATUS_SNAPSHOT")
+  )
+  expect_match(html, "A notA nest may still have a live brood.", fixed = TRUE)
   expect_false("VIEW_1" %in% app$env$dbtabs_show_views)
   expect_false("VIEW_1" %in% names(app$env$dbtabs_show_view_sources))
   expect_setequal(
