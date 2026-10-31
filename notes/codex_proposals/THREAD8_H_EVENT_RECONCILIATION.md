@@ -5,6 +5,22 @@ original reconciliation below is historical; its implementation-gap statements
 must not be read as a current inventory of repository SQL. No local source
 review establishes deployment or live inspector state.
 
+## Current entry and publication contract — 31 October 2026
+
+The reviewed local validator protocol is v1.3.20. Since v1.3.19, every new
+age-C H row requires an explicit valid positive or negative `nest_id`, its own
+normalised nonblank metal ring, complete direct GPS and photo metadata. Ring
+history or same-occasion parents cannot waive the entered H-row ID. Older
+blank-ID H associations remain a compatibility route and do not define what
+new records may omit. The unused H-specific S10 fallback was removed; shared
+ordinary-family and closure consumers retain their separate rules.
+
+Current app guidance is manual v2.4.12 under `main/www/field-manual/`. Preserve
+the split between captures/tent photographs and H hiding photographs, distinct
+ring counts and reference-date/uncertainty safeguards. The dated reconciliation
+below retains its history; its candidate-status and private-authoring claims
+do not describe the current published app copy or establish live installation.
+
 ## Current approved contract — 26 October 2026
 
 - Keep save-time validation, derived association and To-Do resolution separate.

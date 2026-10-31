@@ -1,5 +1,33 @@
 # THREAD 4 - To-do, map, list, and PDF operational reference
 
+## Current task/report addendum — 31 October 2026
+
+Use current `DATABASE/` source and app manual v2.4.12 over the older recovery
+states below. The recent refresh changes preserve unique pending identities'
+GEO evidence in a small session-local cache: an already-tagged pending bird
+keeps association-resighting work but does not become a new tagging target.
+This does not promote its nest association to authoritative status.
+
+The advisory `tag any, but only if one is confirmed X-X` also covers one
+authoritative banded/untagged parent and one genuinely unknown mate, symmetrically.
+It applies to eligible positive B/C nests with clutch completion strictly
+after 2026-10-09 and both capture gates open. It changes an existing row's note,
+not task selection or association. Confirm the unknown as X-X and nest-linked
+before the first deployment; a banded unknown does not qualify for that initial
+deployment. Later pair completion retains current-nest deployment provenance
+and the independent 36-hour gate. Already-tagged selected/pending identities,
+death, ambiguous identities, invalid marks and unresolved MM evidence remain
+guarded. Tag-bearing fallback notes now say `pair completion` for both sexes;
+non-tag notes can still describe an opposite parent's GEO without allowing a tag.
+The existing map matcher gives every note containing `tag` its white outline.
+
+`notA_summary` is a historical snapshot-backed report, replacing View2. See
+`DATABASE/notA_summary.SQL` and the repository README; no new refresh stage or
+live association query is needed to populate it. The build waiting message
+offers Dotterel Finder in a new tab. These source changes and local verification
+do not establish installed field-server versions. Earlier architecture and
+deployment assertions below are historical where they conflict with this addendum.
+
 ## Document status
 
 This is the tracked Thread 4 handoff document refreshed on 2026-10-26. It is a

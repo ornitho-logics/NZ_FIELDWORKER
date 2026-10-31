@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en-NZ"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="manual-source-md5" content="4eea25a3983560576cadeaaa332aa6e7"><title>BADO Field Manual 2026</title><style>/* Scoped by the reader iframe; does not change dashboard styling. */
+<html lang="en-NZ"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="manual-source-md5" content="a33ed6910d6bc875392489061b0bf4d5"><title>BADO Field Manual 2026</title><style>/* Scoped by the reader iframe; does not change dashboard styling. */
 :root { color-scheme: light; --ink: #23343d; --accent: #315e70; --line: #d8e1e5; }
 * { box-sizing: border-box; }
 html { scroll-padding-top: 110px; }
@@ -73,7 +73,7 @@ pre code { overflow-wrap: anywhere; }
   mark { background: none; }
 }</style></head><body><a class="skip-link" href="#manual-content">Skip to manual</a><header class="reader-tools" aria-label="Manual controls"><div class="reader-tools-inner"><a class="contents-button" href="#manual-contents">Contents</a><label for="manual-search">Search manual</label><input id="manual-search" type="search" placeholder="e.g. hiding photographs" aria-controls="manual-search-results" aria-describedby="manual-search-help" autocomplete="off"><button id="manual-clear" type="button">Clear</button><button id="manual-expand" type="button">Expand all</button><button id="manual-collapse" type="button">Collapse all</button></div></header><main><p id="manual-search-help" class="reader-hint">Search words or field names; choose a result to open its section. <a href="manual.md" download>Download Markdown</a></p><p id="manual-search-status" role="status" aria-live="polite"></p><section id="manual-search-results" aria-label="Search results" hidden></section><noscript><p>Search and expand/collapse controls need JavaScript. The manual remains readable: open each section using its heading.</p></noscript><article id="manual-content" tabindex="-1"><h1>BADO Field Manual 2026</h1>
 <p>Protocols for studying breeding Banded Dotterel / Pohowera<br />
-<strong>Markdown review draft v2.4.11 · Revised 29 October 2026</strong></p>
+<strong>Markdown review draft v2.4.12 · Revised 31 October 2026</strong></p>
 <p>This draft aims to describe the field procedures and the data-entry
 validation logic for Banded Dotterel fieldwork throughout New Zealand during the breeding season.
 If the app disagrees with an instruction, keep
@@ -1388,7 +1388,7 @@ sibling colour bands alone do not distinguish the photographed chick.</p>
 summary on the To-Do PDF and the chick's saved ring/capture history to check
 the family. A partly read mark or a waypoint alone is not enough to choose
 between families. If the ID cannot be established reliably, preserve the
-photograph, ring and encounter notes and ask Luke to resolve the link; do not
+photograph, ring and encounter notes and ask Luke Eberhart-Hertel to resolve the link; do not
 guess or use the ordinary blank-ID exception to submit an H row.</p>
 <div class="table-scroll" tabindex="0" role="region" aria-label="Supporting table; scroll sideways if needed"><table>
 <thead>
@@ -1408,7 +1408,7 @@ guess or use the ordinary blank-ID exception to submit an H row.</p>
 </tr>
 <tr>
 <td>Prior ring/family association is ambiguous</td>
-<td>Retain the evidence and ask Luke to resolve it before entering the H record; do not select a convenient ID.</td>
+<td>Retain the evidence and ask Luke Eberhart-Hertel to resolve it before entering the H record; do not select a convenient ID.</td>
 </tr>
 </tbody>
 </table></div>
@@ -1482,13 +1482,13 @@ updated To-Do PDF. Keep a per-chick list of what remains, not just a brood total
 <details>
 <summary><strong>8. Geolocator deployment and retrieval</strong></summary>
 <h2>8. Geolocator deployment and retrieval</h2>
-<h3>Follow Luke's deployment directions</h3>
+<h3>Follow Luke Eberhart-Hertel's deployment directions</h3>
 <p>Deployments are spread across nesting phenology to sample residents and migrants
 evenly. Early nests are predicted to contain more residents and later nests
 more migrants; nest timing alone does not identify an individual as either.</p>
 <p>For the 2026 Cass River deployment, the plan is roughly 50 of the 100 geolocators in the first nesting wave and 50
 in the second. A possible third wave is expected to contain renesters and
-double-brooding parents, rather than first-time nesters. Luke monitors the
+double-brooding parents, rather than first-time nesters. Luke Eberhart-Hertel monitors the
 waves and directs the team to pause or continue deployment.</p>
 <p>Aim to sample both members of selected active pairs, helping balance the sexes.
 This is a pair-level aim over time, <strong>not permission to catch both parents on
@@ -1513,7 +1513,7 @@ leave it unhandled and recheck its current To-Do instructions later.</p>
 </tr>
 <tr>
 <td>Nest/brood and wave</td>
-<td>Suitable active unit, current processing requirements met and Luke's wave directions permit deployment.</td>
+<td>Suitable active unit, current processing requirements met and Luke Eberhart-Hertel's wave directions permit deployment.</td>
 </tr>
 <tr>
 <td>Seven-day interval</td>
@@ -1595,11 +1595,41 @@ enough. The current To-Do decision must still meet the applicable nest/plot,
 association, welfare and timing rules.</p>
 <p>If the mate is confirmed unbanded, an eligible instruction can read
 <code>tag X-X M (pair completion)</code> or its female equivalent, rather than simply
-<code>band X-X</code>. If the mate's status still needs checking, <code>resight/tag M (status ?)</code>
-or its female equivalent asks the team to establish that status and tag only
+<code>band X-X</code>. If the mate's status still needs checking,
+<code>resight/tag M (status ?; pair completion)</code> or its female equivalent asks the
+team to establish that status and tag only
 when eligible. A <code>resight/tag</code> note is not permission to bypass a closed
 seven-day or 36-hour gate. Without qualifying GEO pair-completion evidence,
 an ordinary <code>band X-X</code> instruction remains banding work, not a deployment.</p>
+<p>An already-tagged bird may still need its nest association confirmed. Keep
+its resighting follow-up, but do not fit another tag to that bird. Pending
+association does not erase its existing tag. Confirming the association does
+not turn it into an untagged target; any different parent established later
+must be assessed on its own evidence.</p>
+<h3>When a banded parent has an unknown mate</h3>
+<p>For the current 2026 Cass River late-wave instructions, the note
+<code>tag any, but only if one is confirmed X-X</code> can also appear when one reliably
+associated parent is banded without a tag and the other parent's identity or
+banding status is unknown. Either sex can be the known banded parent. The
+existing both-unknown case uses the same conditional wording.</p>
+<p>This instruction applies only to eligible positive nests on plots B and C
+whose clutch-completion basis is <strong>after 9 October 2026</strong>. Completion on
+9 October does not qualify; nest initiation or discovery alone does not set
+this cutoff. The separate seven-day and 36-hour gates must also be open.
+Existing tag evidence, death, ambiguous identities and unresolved MM follow-up
+continue to restrict the instruction. The known banded parent must have a
+confirmed association; an unknown mate can still require association work.</p>
+<ol>
+<li>Confirm that the unknown bird is X-X and confirm its association with the
+nest before the first deployment.</li>
+<li>If that bird is already banded, this note does not authorize an initial
+deployment to either parent.</li>
+<li>After an eligible deployment to the confirmed X-X parent, the banded mate
+can qualify through the usual same-nest pair-completion rules, including
+the independent 36-hour interval.</li>
+</ol>
+<p>The note supplies a conditional instruction on an existing capture task. It
+does not itself confirm a parent association or remove a timing restriction.</p>
 <h3>Which geolocator/tag action occurred?</h3>
 <ol>
 <li><strong>Was the adult handled?</strong> No: record what was visible in RESIGHTINGS;
@@ -1676,7 +1706,7 @@ only seen is recorded in RESIGHTINGS with the visible tag/spacer and comments.
 see a tag is not proof of retrieval.</p>
 <p>Before release and entry, compare ring and tag labels with the written
 record. A retrieved unit is not automatically available for redeployment;
-Luke must confirm its physical condition and allocation.</p>
+Luke Eberhart-Hertel must confirm its physical condition and allocation.</p>
 </details>
 <a id="section-9"></a>
 <details>
@@ -1849,7 +1879,7 @@ capture status for an inferred loss.</p>
 <tr>
 <td>Brood resolved at the juvenile stage</td>
 <td>One reliably origin-linked age-J capture or resighting, including a confirmed age-J dead recovery.</td>
-<td>Under Luke's project rule, siblings are presumed to have reached J too, so chick-stage follow-up stops. This is not proof that every sibling survived.</td>
+<td>Under Luke Eberhart-Hertel's project rule, siblings are presumed to have reached J too, so chick-stage follow-up stops. This is not proof that every sibling survived.</td>
 </tr>
 </tbody>
 </table></div>
@@ -1966,10 +1996,10 @@ own positive nest_id, then record the adult's actual association with it.
 One eligible SC observation can confirm the scraping parent's link; IN or NM
 can also confirm a link when those behaviours are genuinely observed.
 Do not add a behaviour merely to remove the old brood from the To-Do PDF.</p>
-<p>Luke's project rule treats qualifying renesting as automatic presumed loss
+<p>Luke Eberhart-Hertel's project rule treats qualifying renesting as automatic presumed loss
 of the earlier dependent brood: BADO parents do not begin another attempt
 while still tending that brood. This route has no 21-day wait. Record any
-contrary chick evidence truthfully and refer an apparent contradiction to Luke.
+contrary chick evidence truthfully and refer an apparent contradiction to Luke Eberhart-Hertel.
 If the old brood has already resolved through reliable age-J evidence, a new
 attempt does not turn that developmental resolution into presumed death.</p>
 <div class="table-scroll" tabindex="0" role="region" aria-label="Supporting table; scroll sideways if needed"><table>
@@ -2005,7 +2035,7 @@ attempt does not turn that developmental resolution into presumed death.</p>
 <p>The candidate loss date cannot precede the required nest and identity evidence
 for either the old brood or the new attempt. A later confirmation must not be
 used to backdate the result. Proximity alone, a possible identity or a future
-observation cannot supply the link. Report a mistaken link to Luke.</p>
+observation cannot supply the link. Report a mistaken link to Luke Eberhart-Hertel.</p>
 <h3>Route 3 — no live brood encounter during ages 21–35 days</h3>
 <p>Plan to locate broods again between ages <strong>21 and 35 days, inclusive</strong>. From
 day 36, a brood with no qualifying live encounter anywhere in that window is
@@ -2085,7 +2115,7 @@ living siblings and tending parents actually encountered.</p>
 <p>Record the bird's actual age. An engraved flag identifies a bird; it does not
 by itself establish age J. One genuinely age-J capture or resighting that can
 be reliably traced to its original brood resolves that brood's chick-stage
-work. Under Luke's project rule, siblings develop at the same rate and are
+work. Under Luke Eberhart-Hertel's project rule, siblings develop at the same rate and are
 presumed to have reached J too. Do not wait for a separate J record for each
 sibling simply to clear the brood's To-Do work.</p>
 <p>A readable flag may be traced through the capture that linked it to a metal
@@ -2111,7 +2141,7 @@ entered on the new row.</p>
 </tr>
 <tr>
 <td>Identity cannot yet be traced safely</td>
-<td>Keep the actual observation and refer the unresolved result to Luke. Do not move dates or invent earlier captures.</td>
+<td>Keep the actual observation and refer the unresolved result to Luke Eberhart-Hertel. Do not move dates or invent earlier captures.</td>
 </tr>
 </tbody>
 </table></div>
@@ -2188,6 +2218,11 @@ record or downloading the PDF again does not necessarily rebuild that snapshot.
 Check the date and ask the designated operator for a refresh if new records
 are missing. Do not change the app-wide reference date casually; other outputs
 use it too.</p>
+<p><strong>Build To-do snapshot</strong> can take up to 20 minutes; a busy server may take
+longer. Its waiting message shows the reported build stage and elapsed time,
+and offers the Dotterel Finder game in a new browser tab while you wait. Do
+not start another build while one is running. Wait for a successful result
+before using a newly downloaded PDF as the current work plan.</p>
 <div class="table-scroll" tabindex="0" role="region" aria-label="Supporting table; scroll sideways if needed"><table>
 <thead>
 <tr>
@@ -2244,6 +2279,29 @@ Map points for nests are stationary; brood points show the latest supported
 encounter location, not a promise that the family is still there. Overview
 panels help assess progress and hatch forecasts; they are not capture permits
 or substitutes for the current To-Do instructions.</p>
+<p>Any Parent capture note containing <code>tag</code>, including a conditional
+<code>resight/tag</code> instruction, receives a white outline on its map point. The
+outline directs attention to the row's instructions; all identity, association
+and timing conditions in that row still apply.</p>
+<h3>Look up historical notA nests</h3>
+<p>Under <strong>Show Views</strong>, <code>notA_summary</code> replaces the former View2 tab. It shows
+one row per nest whose latest published visit is notA, with both parents,
+separate pending or ambiguous identity information, the notA visit date and
+any observed hatch date. Its current scope is BADO at Cass River, matching the
+parent engine. A notA nest site can still have a living brood and outstanding
+brood tasks.</p>
+<p>Later-nest links require the same reliably confirmed individual and sex at
+both nests. X-X or a shared chick/recruit colour does not establish a link.
+Multiple later confirmed nests can be shown. Here, later means a later
+recorded first-found date; it does not prove a later laying date or that the
+old nest was formally closed before the next attempt.</p>
+<p>The report uses the latest successful published snapshot at the selected
+reference date. Refresh it through the normal snapshot build when new records
+need to be included. Changing the date or an unfinished/failed latest build
+can leave the report empty until a successful matching snapshot is published;
+an empty report does not by itself mean there are no historical notA nests.
+The operator installs its small view script once after the initial successful
+snapshot; it does not need reinstalling for each date or build.</p>
 <p>If a parent-association row disappears, first check whether its link was
 resolved under Section 5. If brood work disappears, also check normal task
 completion/expiry, presumed loss and juvenile-stage resolution in Section 9.
@@ -3180,7 +3238,7 @@ family exceptions retain the conditions in Sections 3 and 5.</p>
 </tr>
 <tr>
 <td>Likely To-Do follow-up</td>
-<td>Luke's wave/stock directions, mate eligibility and future retrieval.</td>
+<td>Luke Eberhart-Hertel's wave/stock directions, mate eligibility and future retrieval.</td>
 </tr>
 </tbody>
 </table></div>
@@ -3682,7 +3740,7 @@ is absent. Enter the actual parent behaviour and the shared date, site and gps_i
 with the chick's ring and full H photo fields. Check the ring history and
 Parent–Nest summary, then enter the established positive/negative ID explicitly
 on the H row. No absent mate row is needed. If the family cannot be identified
-reliably, keep the field notes and photographs and ask Luke to resolve it;
+reliably, keep the field notes and photographs and ask Luke Eberhart-Hertel to resolve it;
 do not submit a new H row with a blank ID. Check updated per-ring To-Do progress
 separately after the snapshot refresh.</p>
 <h3>Unbanded parent versus no parent seen</h3>
@@ -4039,7 +4097,7 @@ developmental resolution, not a statement that all siblings survived.</p>
 </tr>
 <tr>
 <td>v2.4.1, 26 October 2026</td>
-<td>Luke confirmed pP, P or D fate checks remain open until notA, and the very rare positive-nest discovery with newly hatched chicks inside uses F then H at least one minute later. Keys, procedures, scenarios, examples and checklists updated; remaining validator/task alignment explicitly distinguished.</td>
+<td>Luke Eberhart-Hertel confirmed pP, P or D fate checks remain open until notA, and the very rare positive-nest discovery with newly hatched chicks inside uses F then H at least one minute later. Keys, procedures, scenarios, examples and checklists updated; remaining validator/task alignment explicitly distinguished.</td>
 </tr>
 <tr>
 <td>v2.4.2, 26 October 2026</td>
@@ -4047,7 +4105,7 @@ developmental resolution, not a statement that all siblings survived.</p>
 </tr>
 <tr>
 <td>v2.4.3, 26 October 2026</td>
-<td>Preserved Luke's direct edits; replaced vague GPS wording with gps_id/point, standardised field house wording and expanded capture/resighting shortcuts. Removed the retired no-nest entry convention throughout; unrelated adult captures use blank nest_id and gps_id/point. Added the known-ring exception for uncertain parent marks and the same-encounter conflicting-ID rule. Full software integration verification remains pending.</td>
+<td>Preserved Luke Eberhart-Hertel's direct edits; replaced vague GPS wording with gps_id/point, standardised field house wording and expanded capture/resighting shortcuts. Removed the retired no-nest entry convention throughout; unrelated adult captures use blank nest_id and gps_id/point. Added the known-ring exception for uncertain parent marks and the same-encounter conflicting-ID rule. Full software integration verification remains pending.</td>
 </tr>
 <tr>
 <td>v2.4.4, 26 October 2026</td>
@@ -4059,7 +4117,7 @@ developmental resolution, not a statement that all siblings survived.</p>
 </tr>
 <tr>
 <td>v2.4.6, 27 October 2026</td>
-<td>Added the authorship/AI disclosure and Luke's contact address before Contents. Added a local app reading page with collapsible sections, contents navigation and search; no field-method or database-rule change.</td>
+<td>Added the authorship/AI disclosure and Luke Eberhart-Hertel's contact address before Contents. Added a local app reading page with collapsible sections, contents navigation and search; no field-method or database-rule change.</td>
 </tr>
 <tr>
 <td>v2.4.7, 27 October 2026</td>
@@ -4067,7 +4125,7 @@ developmental resolution, not a statement that all siblings survived.</p>
 </tr>
 <tr>
 <td>v2.4.8, 27 October 2026</td>
-<td>Aligned the manual with Luke's approved automatic renesting-loss rule, including associated scrapes; same-day and unambiguous inferred live-evidence safeguards; separate whole-brood juvenile-stage resolution, including confirmed J dead recoveries; and truthful chick/juvenile D entries. Added decision-key steps, supporting tables and worked examples. Updated source-state notes to local protocol v1.3.17; live installation remains unverified.</td>
+<td>Aligned the manual with Luke Eberhart-Hertel's approved automatic renesting-loss rule, including associated scrapes; same-day and unambiguous inferred live-evidence safeguards; separate whole-brood juvenile-stage resolution, including confirmed J dead recoveries; and truthful chick/juvenile D entries. Added decision-key steps, supporting tables and worked examples. Updated source-state notes to local protocol v1.3.17; live installation remains unverified.</td>
 </tr>
 <tr>
 <td>v2.4.9, 28 October 2026</td>
@@ -4081,13 +4139,17 @@ developmental resolution, not a statement that all siblings survived.</p>
 <td>v2.4.11, 29 October 2026</td>
 <td>Clarified New Zealand-wide scope and labelled site-specific examples; moved the authorship/AI statement after Appendix B with a contents link; clarified geolocator/tag terminology and corrected spelling. No biological rule or SQL change.</td>
 </tr>
+<tr>
+<td>v2.4.12, 31 October 2026</td>
+<td>Documented the post-9-October clutch-completion cutoff and conditional B/unknown tagging instruction, same-nest pair-completion follow-up, already-tagged pending-parent protection, consistent pair-completion wording and white map outlines. Added snapshot waiting guidance and the historical notA_summary report. Reconciled source status with local validator protocol v1.3.20 and completed local verification.</td>
+</tr>
 </tbody>
 </table></div>
-<p>This app publication copy is separate from Luke's editable private review
+<p>This app publication copy is separate from Luke Eberhart-Hertel's editable private review
 draft and the retained Word/PDF references; those files have not been
 overwritten. Section numbers and contents links are retained for navigation.</p>
 <h3>Source basis and deployment boundary</h3>
-<p>Luke's latest explicit decisions govern methodology. Field names and available
+<p>Luke Eberhart-Hertel's latest explicit decisions govern methodology. Field names and available
 values were checked against current SQL and DataEntry forms; the recent
 approved corrections were checked against the reviewed inspectors, local
 protocol mirror, specialist handoffs and mock-test evidence. Older historical
@@ -4101,59 +4163,52 @@ wording does not override them.</p>
 </thead>
 <tbody>
 <tr>
-<td>Remote <code>main</code></td>
-<td>Refreshed and inspected at <code>cd8ef26</code>; its tracked file tree matches local HEAD <code>72889c6</code>.</td>
-</tr>
-<tr>
-<td>Local approved correction work</td>
-<td>Uncommitted inspector, derived SQL and documentation changes. The install/refresh source and PDF helpers are frozen for isolated verification; not represented here as merged or deployed.</td>
+<td>Repository source</td>
+<td>The source merged through PR #163 includes the conditional tagging instruction, pending tagged-parent protection, historical report and waiting message. The subsequent pair-completion wording correction and this documentation update require their own publication.</td>
 </tr>
 <tr>
 <td>Reviewed local protocol mirror</td>
-<td>Local v1.3.19, including mandatory explicit IDs for new H rows, family/uncertainty and SC corrections, and truthful chick/juvenile dead-recovery rules. Focused family and mark-history checks passed on invented data. This does not establish live installation or external-YAML synchronisation.</td>
+<td>Local v1.3.20, including registered two-or-three-character uppercase letter/digit observer codes, mandatory explicit IDs for new H rows, family/uncertainty and SC corrections, and truthful chick/juvenile dead-recovery rules. Operational task-note changes do not add save-time validator rules.</td>
 </tr>
 <tr>
-<td>AGENTS protocol header</td>
-<td>Still records the earlier v1.3.14 mirror. This metadata has not been silently updated; Luke's subsequent explicit decisions and the inspected reviewed mirror govern the new rules.</td>
+<td>External validator protocol</td>
+<td>No external YAML synchronisation was performed during this review. Read the tracked local mirror for its current reviewed version.</td>
 </tr>
 <tr>
-<td>External canonical validator YAML</td>
-<td>Last separately inspected at v1.3.5, generated 24 October 2026; no newer inspection or synchronisation is claimed by this manual revision.</td>
+<td>Local verification</td>
+<td>A completed isolated MariaDB 11.8.9 install/refresh and four-page PDF inspection support the recent task changes. The historical report separately passed focused invented-data checks. These are distinct verification scopes.</td>
 </tr>
 <tr>
 <td>Live database, inspectors and Shiny process</td>
-<td>Not inspected; installation of the recent corrections is unverified.</td>
+<td>This documentation review did not inspect live installation. A source merge or local success does not establish which versions are installed on the field server.</td>
 </tr>
 </tbody>
 </table></div>
 <p>Some older protocol/handoff lists still mention EGGS media columns absent from
 current SQL, retired no-nest instructions, older timing descriptions or superseded family
-rules. This draft uses the current table definitions and Luke's explicit
-decisions instead. It does not amend those source documents or implementation.</p>
-<p>Luke resolved both field-method questions on 26 October: pP, P or D visits remain
+rules. Dated handoffs retain that history; their current addenda and this
+manual use the reviewed table definitions and Luke Eberhart-Hertel's explicit decisions.</p>
+<p>Luke Eberhart-Hertel resolved both field-method questions on 26 October: pP, P or D visits remain
 open to further fate checks until final notA, and newly hatched chicks still
 inside an obvious nest establish a positive origin with F followed immediately
 by H at least one minute later. Chicks found outside a nest with no known
 origin use the negative-brood route, without NESTS events. Banded Dotterels leave
 the nest shortly after hatch, so the inside-nest exception is very rare.</p>
 <p>The first-F zero-clutch rejection is an intentional safeguard, not an
-implementation gap. Luke confirmed that this extremely rare, correct
+implementation gap. Luke Eberhart-Hertel confirmed that this extremely rare, correct
 observation should be handled through an explanatory comment and the
 documented override if blocked; the validator must not be programmed to
 accept it automatically. Preserve truthful counts and the F → H sequence.</p>
-<p>The earlier isolated rehearsal used MariaDB 11.8.9 with the selected production
-collation and case-sensitivity settings, invented records only, and exact
-frozen source versions. Installation, refresh and the corrected family/identity
-controls have been exercised. Snapshot upgrade, repeat-refresh and reference-date
-checks passed. The normal four-page To-Do PDF rendered successfully, including
-empty map plots; all four pages were inspected. The tested record set was
-invented and deliberately contained many edge cases, not current field records.
-This is not a deployment audit, an Adminer browser test or proof of performance
-on production-sized data. Release, external-YAML synchronisation and live
-verification remain separate steps.</p>
-<p>Those earlier checks do not establish successful execution or performance of
-the latest combined v2.4.9 SQL/PDF corrections. Their production-sized local
-replay is still a separate release requirement.</p>
+<p>Earlier invented-data checks covered snapshot upgrades, repeat refreshes,
+reference-date changes and family/identity edge cases. A subsequent authorised
+local replay exercised the selected SQL against a frozen local input and
+produced the 31 October work plan; its required publication/task checks passed
+and all four PDF pages were inspected. Full comparison against older retained
+golden task/context rows was unavailable and is not claimed. The historical
+report was checked separately on invented records; its later-nest links have
+not been verified against current field records. The wording correction changes
+only the two tag-note literals and passed its focused check. This review does
+not establish live Adminer runtime or live deployment.</p>
 <p>The parent-association explanation follows the reviewed matching and selected
 association rules in <code>DATABASE/views.SQL</code>. Brood inference follows the closure
 stage and task exclusions in <code>DATABASE/refresh_todo_list_snapshot.SQL</code>.
@@ -4493,11 +4548,11 @@ methods, protocols and underlying logic presented in this manual, including the
 relational data structure and the rules connecting field observations to
 database records. He retains full accountability for these methods, decisions,
 and their scientific reasoning.</p>
-<p>A GPT AI model was used under Luke's direction to translate the
+<p>A GPT AI model was used under Luke Eberhart-Hertel's direction to translate the
 code-based logic and protocols into a human-friendly Markdown manual, and to
 help organise and refine its wording and presentation. AI assistance does not
 transfer authorship of the methods or responsibility for their accuracy away
-from Luke.</p>
+from Luke Eberhart-Hertel.</p>
 <p>For questions or clarification, contact Luke Eberhart-Hertel at
 <a href="mailto:luke.eberhart@bi.mpg.de">luke.eberhart@bi.mpg.de</a>.</p>
 </details>

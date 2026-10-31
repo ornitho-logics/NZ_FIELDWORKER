@@ -16,6 +16,14 @@ the diff first: all files under `main/www` are browser-readable. Never import
 private records, coordinates, credentials or unpublished operational reports.
 The private review draft is not loaded at runtime or silently kept in sync.
 
+The app publication copy is v2.4.12 (31 October 2026). It includes the
+conditional late-wave tagging instruction, consistent pair-completion notes,
+pending tagged-parent protection, map highlights, snapshot waiting guidance
+and the historical `notA_summary` report. Its source notes distinguish the
+v1.3.20 local validator protocol, completed local checks and unverified live
+installation. Dated specialist handoffs retain earlier decisions beneath their
+current addenda. Do not copy their historical status claims into the manual.
+
 `manual.css` and `manual.js` are embedded during the build, making the reading
 page usable as a standalone saved HTML file. Contents links open collapsed
 sections. Search is literal, case-insensitive and requires all entered words
