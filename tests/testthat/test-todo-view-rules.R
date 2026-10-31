@@ -2432,12 +2432,12 @@ test_that("pending known-banded associations bypass GEO candidate selection", {
   expect_match(sql, "association.M_authoritative_resolved", fixed = TRUE)
   expect_match(
     sql,
-    "resight/tag M (status ?; F w/GEO)",
+    "resight/tag M (status ?; pair completion)",
     fixed = TRUE
   )
   expect_match(
     sql,
-    "resight/tag F (status ?; M w/GEO)",
+    "resight/tag F (status ?; pair completion)",
     fixed = TRUE
   )
   expect_match(

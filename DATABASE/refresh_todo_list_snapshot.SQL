@@ -5738,7 +5738,7 @@ todo_untrapped_parent AS (
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
            AND COALESCE(capture_interval_open, 0) = 1
-          THEN 'resight/tag M (status ?; F w/GEO)'
+          THEN 'resight/tag M (status ?; pair completion)'
           ELSE 'resight M (status ?; F w/GEO)'
         END,
         CASE
@@ -5757,7 +5757,7 @@ todo_untrapped_parent AS (
         CASE
           WHEN COALESCE(capture_allowed_after_completion, 0) = 1
            AND COALESCE(capture_interval_open, 0) = 1
-          THEN 'resight/tag F (status ?; M w/GEO)'
+          THEN 'resight/tag F (status ?; pair completion)'
           ELSE 'resight F (status ?; M w/GEO)'
         END,
         CASE
