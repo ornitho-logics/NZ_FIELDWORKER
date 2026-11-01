@@ -69,6 +69,9 @@ test_that("AI disclosure links public evidence and states its privacy boundaries
   md <- paste(readLines(manual_file("manual.md"), encoding = "UTF-8"), collapse = "\n")
   html <- paste(readLines(manual_file("index.html"), encoding = "UTF-8"), collapse = "\n")
   section <- strsplit(md, "## Authorship and use of AI", fixed = TRUE)[[1L]][2L]
+  expect_match(section, "If the GitHub links below do not open in the FIELDWORKER app", fixed = TRUE)
+  expect_match(section, "**Open Field Manual in a separate window** above the manual", fixed = TRUE)
+  expect_match(html, "<strong>Open Field Manual in a separate window</strong> above the manual", fixed = TRUE)
   urls <- c(
     "https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/notes/CODEX_USAGE_TRANSPARENCY.md",
     "https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/AGENTS.md",
