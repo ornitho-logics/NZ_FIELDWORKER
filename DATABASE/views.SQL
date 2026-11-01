@@ -3909,73 +3909,96 @@ FROM FIELD_2026_BADOatNZ.ADULT_CHICK_GPS_PARENT_LINKS;
 
 CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.ADULT_PARENT_NEST_ASSOCIATIONS AS
 
-WITH xx_supersession_evidence AS (
+WITH first_marking_counts AS (
+  /* Count all eligible same-day candidates before later resighting proof or
+     ambiguity filters; do not manufacture uniqueness by excluding a rival. */
+  SELECT nest_id, capture_sex, capture_date,
+    COUNT(DISTINCT identity_key) AS n_first_marked_identities
+  FROM FIELD_2026_BADOatNZ.ADULT_CAPTURE_IDENTITIES
+  WHERE capture_status = 'F'
+    AND is_confirmed_xx = 0
+    AND association_evidence_eligible = 1
+  GROUP BY nest_id, capture_sex, capture_date
+), xx_supersession_evidence AS (
   SELECT
     xx.nest_id,
     xx.sex,
     xx.identity_key AS xx_identity_key,
     captured.identity_key AS captured_identity_key,
-    MIN(captured.capture_date) AS supersession_capture_date
+    MIN(captured.capture_date) AS supersession_capture_date,
+    MIN(captured.capture_datetime) AS supersession_capture_datetime,
+    MAX(CASE WHEN captured.capture_date = xx.observation_date
+      AND first_marking.n_first_marked_identities = 1
+      THEN 1 ELSE 0 END) AS has_same_day_confirmation
   FROM FIELD_2026_BADOatNZ.ADULT_IDENTITY_MATCHES xx
   JOIN FIELD_2026_BADOatNZ.ADULT_CAPTURE_IDENTITIES captured
     ON captured.nest_id = xx.nest_id
    AND captured.capture_sex = xx.sex
    AND captured.is_confirmed_xx = 0
+   AND captured.capture_status = 'F'
    AND captured.association_evidence_eligible = 1
-   AND (
-     captured.capture_date > xx.observation_date
-     OR (
-       captured.capture_date = xx.observation_date
-       AND captured.capture_status = 'F'
-     )
-   )
-  JOIN FIELD_2026_BADOatNZ.ADULT_IDENTITY_MATCHES confirming
+   AND captured.capture_date >= xx.observation_date
+  JOIN first_marking_counts first_marking
+    ON first_marking.nest_id = captured.nest_id
+   AND first_marking.capture_sex = captured.capture_sex
+   AND first_marking.capture_date = captured.capture_date
+  LEFT JOIN FIELD_2026_BADOatNZ.ADULT_IDENTITY_MATCHES confirming
     ON confirming.nest_id = captured.nest_id
    AND confirming.sex = captured.capture_sex
    AND confirming.identity_key = captured.identity_key
-   AND confirming.observation_date > captured.capture_date
    AND confirming.association_evidence_eligible = 1
-   AND confirming.association_confirming = 1
   WHERE xx.identity_key LIKE 'xx:%'
     AND xx.association_confirming = 1
     AND xx.association_evidence_eligible = 1
+    AND xx.is_ambiguous_match = 0
   GROUP BY
     xx.nest_id,
     xx.sex,
     xx.identity_key,
     captured.identity_key
+  /* A same-day confirming X-X sighting targets this first banding capture
+     under the approved field protocol; it needs no later sighting. Earlier-
+     day X-X evidence still requires independently earned later proof. */
+  HAVING COALESCE(MAX(confirming.is_ambiguous_match), 0) = 0
+    AND (
+      MAX(CASE WHEN captured.capture_date = xx.observation_date
+        AND first_marking.n_first_marked_identities = 1
+        THEN 1 ELSE 0 END) = 1
+      OR MAX(CASE WHEN confirming.observation_date > captured.capture_date
+        THEN confirming.association_confirming ELSE 0 END) = 1
+      OR COUNT(DISTINCT CASE
+        WHEN confirming.observation_date > captured.capture_date
+         AND confirming.association_nonconfirming = 1
+        THEN confirming.resighting_pk END) >= 3
+    )
 ), xx_supersession_candidate_counts AS (
   SELECT
-    xx_supersession_evidence.nest_id,
-    xx_supersession_evidence.sex,
-    xx_supersession_evidence.xx_identity_key,
-    COUNT(DISTINCT xx_supersession_evidence.captured_identity_key)
-      AS n_captured_candidates
+    xx_supersession_evidence.*,
+    COUNT(*) OVER (
+      PARTITION BY xx_supersession_evidence.nest_id,
+        xx_supersession_evidence.sex, xx_supersession_evidence.xx_identity_key
+    ) AS n_captured_candidates
   FROM xx_supersession_evidence
-  GROUP BY
-    xx_supersession_evidence.nest_id,
-    xx_supersession_evidence.sex,
-    xx_supersession_evidence.xx_identity_key
 ), xx_superseded AS (
   /*
-    An X-X observation is a placeholder for a later captured individual only
-    when chronology and later confirming evidence identify one unique bird.
-    This is intentionally narrower than "same nest and same sex": a second
-    captured candidate, or an X-X observation after the capture, remains a
-    genuine ambiguity for review.
+    A unique same-sex/nest first-marking capture on the date of a confirming
+    X-X sighting is the targeted bird: link that day's eligible X-X evidence
+    to its captured identity. This is an approved field-protocol assumption,
+    not a timestamp inferred from row order. Different-day earlier proof is
+    never transferred; one confirming or three distinct later observations,
+    or the new same-day linkage proof, may retire the earlier placeholder.
+    Multiple qualifying candidates and later X-X events remain reviewable.
   */
   SELECT
     evidence.nest_id,
     evidence.sex,
     evidence.xx_identity_key,
     evidence.captured_identity_key,
-    evidence.supersession_capture_date
-  FROM xx_supersession_evidence evidence
-  JOIN xx_supersession_candidate_counts counts
-    ON counts.nest_id = evidence.nest_id
-   AND counts.sex = evidence.sex
-   AND counts.xx_identity_key = evidence.xx_identity_key
-   AND counts.n_captured_candidates = 1
+    evidence.supersession_capture_date,
+    evidence.supersession_capture_datetime,
+    evidence.has_same_day_confirmation
+  FROM xx_supersession_candidate_counts evidence
+  WHERE evidence.n_captured_candidates = 1
 ), mm_capture_identities AS (
   /*
     MM is a nest-specific association annotation.  A bird that was caught
@@ -3983,13 +4006,53 @@ WITH xx_supersession_evidence AS (
     later nest where it was only resighted.  Keep the identity key here so
     the resighting branch below can test the capture at the same nest.
   */
-  SELECT DISTINCT
+  SELECT
     captured.nest_id,
     captured.capture_sex AS sex,
-    captured.identity_key
+    captured.identity_key,
+    MIN(captured.capture_date) AS first_mm_capture_date
   FROM FIELD_2026_BADOatNZ.ADULT_CAPTURE_IDENTITIES captured
   WHERE captured.has_mm_capture = 1
     AND captured.association_evidence_eligible = 1
+  GROUP BY captured.nest_id, captured.capture_sex, captured.identity_key
+), mm_xx_conflict_dates AS (
+  /* Preserve original X-X history, not just the remaining placeholders.
+     This small per-identity aggregate avoids re-expanding identity_summary. */
+  SELECT mm.nest_id, mm.sex, mm.identity_key,
+    MIN(xx.observation_date) AS first_conflicting_xx_date
+  FROM mm_capture_identities mm
+  JOIN FIELD_2026_BADOatNZ.ADULT_IDENTITY_MATCHES xx
+    ON xx.nest_id = mm.nest_id
+   AND xx.sex = mm.sex
+   AND xx.identity_key LIKE 'xx:%'
+   AND xx.association_confirming = 1
+   AND xx.association_evidence_eligible = 1
+   AND xx.is_ambiguous_match = 0
+   AND xx.observation_date > mm.first_mm_capture_date
+  GROUP BY mm.nest_id, mm.sex, mm.identity_key
+), resighting_evidence AS (
+  /* Reuse one unique-candidate join for both retirement and same-day linkage;
+     do not expand the supersession graph separately for each operation. */
+  SELECT r.*,
+    CASE WHEN superseded.has_same_day_confirmation = 1
+       AND r.observation_date = superseded.supersession_capture_date
+       AND r.is_ambiguous_match = 0
+      THEN superseded.captured_identity_key ELSE r.identity_key
+    END AS associated_identity_key,
+    CASE WHEN superseded.has_same_day_confirmation = 1
+       AND r.observation_date = superseded.supersession_capture_date
+       AND r.is_ambiguous_match = 0
+      THEN superseded.supersession_capture_datetime
+      ELSE CAST(CONCAT(r.observation_date, ' 00:00:00') AS DATETIME)
+    END AS association_event_datetime
+  FROM FIELD_2026_BADOatNZ.ADULT_IDENTITY_MATCHES r
+  LEFT JOIN xx_superseded superseded
+    ON superseded.nest_id = r.nest_id
+   AND superseded.sex = r.sex
+   AND superseded.xx_identity_key = r.identity_key
+  WHERE r.association_evidence_eligible = 1
+    AND (superseded.xx_identity_key IS NULL
+      OR r.observation_date >= superseded.supersession_capture_date)
 ), event_union AS (
   SELECT
     c.nest_id,
@@ -4050,14 +4113,9 @@ WITH xx_supersession_evidence AS (
   SELECT
     r.nest_id,
     r.sex,
-    CASE
-      WHEN superseded.xx_identity_key IS NOT NULL
-       AND r.observation_date <= superseded.supersession_capture_date
-      THEN superseded.captured_identity_key
-      ELSE r.identity_key
-    END AS identity_key,
+    r.associated_identity_key AS identity_key,
     r.resighting_pk AS event_pk,
-    CAST(CONCAT(r.observation_date, ' 00:00:00') AS DATETIME) AS event_datetime,
+    r.association_event_datetime AS event_datetime,
     0 AS capture_source,
     r.display_mark,
     r.has_geo,
@@ -4073,22 +4131,14 @@ WITH xx_supersession_evidence AS (
         FROM mm_capture_identities mm
         WHERE mm.nest_id = r.nest_id
           AND mm.sex = r.sex
-          AND mm.identity_key = COALESCE(
-            superseded.captured_identity_key,
-            r.identity_key
-          )
+          AND mm.identity_key = r.associated_identity_key
       )
       THEN 1
       ELSE 0
     END AS has_mm_capture,
     r.is_ambiguous_match AS ambiguous_match,
     0 AS chick_gps_parent_link
-  FROM FIELD_2026_BADOatNZ.ADULT_IDENTITY_MATCHES r
-  LEFT JOIN xx_superseded superseded
-    ON superseded.nest_id = r.nest_id
-   AND superseded.sex = r.sex
-   AND superseded.xx_identity_key = r.identity_key
-  WHERE r.association_evidence_eligible = 1
+  FROM resighting_evidence r
 ), event_identity_counts AS (
   SELECT
     event_union.nest_id,
@@ -4107,24 +4157,29 @@ WITH xx_supersession_evidence AS (
     event_union.sex,
     event_union.capture_source,
     event_union.event_pk
+), nonconfirming_distinct AS (
+  SELECT DISTINCT event_union.nest_id, event_union.sex,
+    event_union.identity_key, event_union.event_pk,
+    event_union.capture_source, event_union.event_datetime
+  FROM event_union
+  WHERE event_union.nonconfirming_resighting = 1
 ), nonconfirming_ranked AS (
   SELECT
-    event_union.*,
+    distinct_event.*,
     ROW_NUMBER() OVER (
       PARTITION BY
-        event_union.nest_id,
-        event_union.sex,
-        event_union.identity_key
-      ORDER BY event_union.event_datetime, event_union.event_pk
+        distinct_event.nest_id,
+        distinct_event.sex,
+        distinct_event.identity_key
+      ORDER BY distinct_event.event_datetime, distinct_event.event_pk
     ) AS nonconfirming_rank
-  FROM event_union
+  FROM nonconfirming_distinct distinct_event
   JOIN event_identity_counts event_counts
-    ON event_counts.nest_id = event_union.nest_id
-   AND event_counts.sex = event_union.sex
-   AND event_counts.capture_source = event_union.capture_source
-   AND event_counts.event_pk = event_union.event_pk
+    ON event_counts.nest_id = distinct_event.nest_id
+   AND event_counts.sex = distinct_event.sex
+   AND event_counts.capture_source = distinct_event.capture_source
+   AND event_counts.event_pk = distinct_event.event_pk
    AND event_counts.n_identity_keys = 1
-  WHERE event_union.nonconfirming_resighting = 1
 ), identity_summary AS (
   SELECT
     event_union.nest_id,
@@ -4189,8 +4244,19 @@ WITH xx_supersession_evidence AS (
       THEN CONCAT(event_union.capture_source, ':', event_union.event_pk)
     END) AS n_resightings,
     MAX(event_union.has_mm_capture) AS has_mm_capture,
-    MAX(event_union.ambiguous_match) AS has_ambiguous_match
+    MAX(event_union.ambiguous_match) AS has_ambiguous_match,
+    MAX(conflict.first_conflicting_xx_date) AS first_conflicting_xx_date,
+    MIN(CASE WHEN event_union.definitive_capture = 1
+      THEN DATE(event_union.event_datetime) END) AS first_definitive_date,
+    MIN(CASE WHEN event_union.confirming_resighting = 1
+      THEN DATE(event_union.event_datetime) END) AS first_confirming_date,
+    MIN(CASE WHEN nonconfirming.nonconfirming_rank = 3
+      THEN DATE(nonconfirming.event_datetime) END) AS third_nonconfirming_date
   FROM event_union
+  LEFT JOIN mm_xx_conflict_dates conflict
+    ON conflict.nest_id = event_union.nest_id
+   AND conflict.sex = event_union.sex
+   AND conflict.identity_key = event_union.identity_key
   LEFT JOIN nonconfirming_ranked nonconfirming
     ON nonconfirming.nest_id = event_union.nest_id
    AND nonconfirming.sex = event_union.sex
@@ -4205,6 +4271,22 @@ WITH xx_supersession_evidence AS (
   WHERE event_union.nest_id IS NOT NULL
     AND event_union.sex IN ('M', 'F')
   GROUP BY event_union.nest_id, event_union.sex, event_union.identity_key
+), identity_chronology AS (
+  /*
+    Retain original X-X history even after placeholder retirement. A later
+    same-sex confirmed unbanded bird excludes an earlier MM-only candidate;
+    do not revive it by accumulating nonconfirming sightings. Previously
+    earned proof survives; later definitive/confirming conflict stays visible.
+    Use the existing aggregates, not a second expansion of the event graph.
+    Same-day evidence cannot be ordered from RESIGHTINGS, so preserve it.
+  */
+  SELECT prior.*,
+    CASE WHEN prior.first_conflicting_xx_date IS NOT NULL
+      AND (prior.first_definitive_date IS NULL OR prior.first_definitive_date > prior.first_conflicting_xx_date)
+      AND (prior.first_confirming_date IS NULL OR prior.first_confirming_date > prior.first_conflicting_xx_date)
+      AND (prior.third_nonconfirming_date IS NULL OR prior.third_nonconfirming_date > prior.first_conflicting_xx_date)
+    THEN 1 ELSE 0 END AS mm_displaced
+  FROM identity_summary prior
 ), levels AS (
   SELECT
     identity_summary.*,
@@ -4212,10 +4294,11 @@ WITH xx_supersession_evidence AS (
       WHEN identity_summary.has_ambiguous_match = 1 THEN 0
       WHEN identity_summary.has_definitive_capture = 1 THEN 3
       WHEN identity_summary.has_confirming_resighting = 1 THEN 2
+      WHEN identity_summary.mm_displaced = 1 THEN 0
       WHEN identity_summary.n_nonconfirming_resightings >= 3 THEN 1
       ELSE 0
     END AS association_level
-  FROM identity_summary
+  FROM identity_chronology identity_summary
 ), ranked AS (
   SELECT
     levels.*,
@@ -4261,7 +4344,8 @@ SELECT
   END AS parent_mark,
   classified.observed_mark,
   classified.identity_key,
-  classified.association_evidence_datetime,
+  CASE WHEN classified.mm_displaced = 1 AND classified.association_level = 0
+    THEN NULL ELSE classified.association_evidence_datetime END AS association_evidence_datetime,
   classified.association_level,
   classified.has_chick_gps_link,
   classified.association_selected,

@@ -10,6 +10,16 @@ approve or deploy the protected validator WIP.
 
 ## Audit status
 
+### 2026-10-31 documentation reconciliation
+
+The reviewed tracked validator protocol remains v1.3.20, generated
+2026-10-29, including registered uppercase letter/digit observer codes. The
+recent conditional tagging notes, pending tagged-parent task guard, map
+highlighting and `notA_summary` report belong to the derived operational
+layer. They do not add save-time validators, change inspector roles or imply
+external YAML synchronisation. Current field wording is in app manual
+v2.4.12; earlier version/state descriptions below retain their audit dates.
+
 ### 2026-10-29 clarification: live inspector row names and roles
 
 Luke's supplied Adminer metadata confirms that `inspectors.table_name` contains
@@ -124,8 +134,10 @@ The local architecture is:
 3. `DataEntry/inspectors/ui.R` and `server.R` expose the central inspector editor.
 4. The external package loads the DB-stored inspector lists and evaluates them against
    the submitted table as `x` before save.
-5. The portal reports `variable`, `reason`, and `rowid`. Hard and warning behavior is
-   separated by inspector row name, not by an extra output column.
+5. The portal reports `variable`, `reason`, and `rowid`. Select hard and warning
+   lists by actual table name plus the final `hard`/`warn` word in
+   `inspectors.comments`; export filenames are not database row names.
+   An extra output column does not itself change severity.
 
 The intended live categories are exactly:
 

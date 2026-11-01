@@ -19,9 +19,9 @@ test_that("app manual preserves disclosure, sections and expected event table", 
   expect_lt(regexpr("[Appendix B.", md, fixed = TRUE)[1],
             regexpr("[Authorship and use of AI](#authorship)", md, fixed = TRUE)[1])
   expect_match(html, '<a id="authorship"></a>', fixed = TRUE)
-  expect_match(md, "full accountability for these", fixed = TRUE)
+  expect_match(md, "remains responsible for the methods and final", fixed = TRUE)
   expect_match(md, "mailto:luke.eberhart@bi.mpg.de", fixed = TRUE)
-  expect_match(md, "A GPT AI model", fixed = TRUE)
+  expect_match(md, "AI assistance did not replace his scientific judgement", fixed = TRUE)
   expect_match(md, "Luke Eberhart-Hertel developed", fixed = TRUE)
   expect_false(grepl("\\bLuke\\b(?! Eberhart-Hertel)", md, perl = TRUE))
   expect_false(grepl("\\bLuke\\b(?! Eberhart-Hertel)", html, perl = TRUE))
@@ -43,7 +43,7 @@ test_that("app manual preserves disclosure, sections and expected event table", 
   expect_match(md, "Distinct known chicks count once", fixed = TRUE)
   expect_match(md, "same ring's earlier capture", fixed = TRUE)
   expect_match(md, "tag X-X M (pair completion)", fixed = TRUE)
-  expect_match(md, "Local v1.3.19", fixed = TRUE)
+  expect_match(md, "Local v1.3.20", fixed = TRUE)
   expect_match(html, 'id="manual-search"', fixed = TRUE)
   expect_match(html, 'id="manual-contents"', fixed = TRUE)
   expect_match(html, 'aria-live="polite"', fixed = TRUE)
@@ -63,6 +63,34 @@ test_that("manual presents nationwide scope and clear tracking-tag terminology",
   expect_false(grepl("\\bdevices?\\b", md, ignore.case = TRUE, perl = TRUE))
   expect_match(md, "For example, Cass River BADO IDs", fixed = TRUE)
   expect_match(md, "In the current Cass River To-Do implementation", fixed = TRUE)
+})
+
+test_that("AI disclosure links public evidence and states its privacy boundaries", {
+  md <- paste(readLines(manual_file("manual.md"), encoding = "UTF-8"), collapse = "\n")
+  html <- paste(readLines(manual_file("index.html"), encoding = "UTF-8"), collapse = "\n")
+  section <- strsplit(md, "## Authorship and use of AI", fixed = TRUE)[[1L]][2L]
+  urls <- c(
+    "https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/notes/CODEX_USAGE_TRANSPARENCY.md",
+    "https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/AGENTS.md",
+    "https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/notes/codex_logs/INDEX.md",
+    "https://github.com/ornitho-logics/NZ_FIELDWORKER/tree/main/notes/codex_proposals",
+    "https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/notes/codex_proposals/THREAD3_VALIDATION_ARCHITECTURE.md#mock-data-and-tests",
+    "https://github.com/ornitho-logics/NZ_FIELDWORKER/tree/main/notes/codex_proposals/validator_sandbox/inspector_lists_by_table",
+    "https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/notes/codex_proposals/THREAD4_TODO_MAP_LIST_DEBUG_PLAN.md",
+    "https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/1559b166e77d177fe01e278e1b112d912f032b1a/docs/reconstruction/README.md",
+    "https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/1559b166e77d177fe01e278e1b112d912f032b1a/tools/reconstruction/fixtures.sql"
+  )
+  for (url in urls) {
+    expect_match(section, url, fixed = TRUE)
+    expect_match(html, paste0('href="', url, '"'), fixed = TRUE)
+  }
+  expect_match(section, "reviewed changes and personally installed updates on the field server", fixed = TRUE)
+  expect_match(section, "The initial data-entry checks were developed using invented records", fixed = TRUE)
+  expect_match(section, "Later development and troubleshooting also used selected real records", fixed = TRUE)
+  expect_match(section, "the complete season's dataset was not\nincluded in prompts", fixed = TRUE)
+  expect_match(section, "Larger database checks were carried out locally", fixed = TRUE)
+  expect_match(section, "notes and summaries, rather than every conversation or private working file", fixed = TRUE)
+  expect_false(grepl("no real data was ever (used|submitted)", section, ignore.case = TRUE))
 })
 
 test_that("malformed fragments do not disable the reader controls", {
@@ -113,4 +141,18 @@ test_that("static reader rebuild is deterministic and needs no database", {
   output <- system2(file.path(R.home("bin"), "Rscript"), c("--vanilla", shQuote(script)), stdout = TRUE, stderr = TRUE)
   expect_null(attr(output, "status"))
   expect_identical(unname(tools::md5sum(file.path(target, "index.html"))), unname(tools::md5sum(manual_file("index.html"))))
+})
+
+test_that("MM guidance distinguishes identifiable birds from unbanded chronology", {
+  md <- paste(readLines(manual_file("manual.md"), encoding = "UTF-8"), collapse = "\n")
+  expect_match(md, "eligible observations from before and after MM can count together", fixed = TRUE)
+  expect_match(md, "later MM capture does not erase independently established association", fixed = TRUE)
+  expect_match(md, "That different-day X-X evidence is not transferred", fixed = TRUE)
+  expect_match(md, "Apply the same rule independently to females", fixed = TRUE)
+  expect_match(md, "That same-day confirmation transfers", fixed = TRUE)
+  expect_match(md, "without requiring later sightings", fixed = TRUE)
+  expect_match(md, "This derived timestamp is not an observed resighting time", fixed = TRUE)
+  expect_match(md, "all eligible F identity keys", fixed = TRUE)
+  expect_match(md, "A later X-X stays separate", fixed = TRUE)
+  expect_false(grepl("a same-day record alone cannot", md, fixed = TRUE))
 })

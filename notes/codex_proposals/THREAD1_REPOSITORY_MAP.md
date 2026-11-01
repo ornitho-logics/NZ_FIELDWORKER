@@ -1,5 +1,20 @@
 # Thread 1 Repository Map: Current State
 
+## Current inventory addendum — 31 October 2026
+
+This addendum supersedes older current-state claims below. Source merged
+through PR #163 replaces the app's `VIEW_2` registration with `notA_summary`,
+installed from the separate `DATABASE/notA_summary.SQL` after an initial
+successful snapshot. It reads published nest/parent context and updates on
+subsequent successful refreshes without reinstalling the view. The app also
+has a static Field Manual and a Dotterel Finder link during snapshot builds.
+
+The app manual is `main/www/field-manual/manual.md`; rebuild its generated
+`index.html` with `main/tools/render_field_manual.R`. The reviewed local
+validator YAML is v1.3.20. Current operational guidance and installation steps
+are in the manual and repository README. Earlier recovery inventories remain
+historical; source publication alone does not establish live installation.
+
 Last contract reconciliation: 2026-10-26 (static documentation only).
 Repository inventory/recovery checkpoint: 2026-10-23 (historical).
 

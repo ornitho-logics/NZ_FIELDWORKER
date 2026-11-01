@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0.0",
+  "profile_type": "human_decision_intake_not_runtime_config",
+  "id": null,
+  "scientific_owner": null,
+  "source_reference": "9e010e5",
+  "decisions": [
+    {"id": "entities_and_event_meaning", "status": "unresolved", "value": null, "rationale": null, "approved_by": null},
+    {"id": "database_archive_species_sites_season_timezone", "status": "unresolved", "value": null, "rationale": null, "approved_by": null},
+    {"id": "nest_brood_individual_identifiers_and_marking", "status": "unresolved", "value": null, "rationale": null, "approved_by": null},
+    {"id": "parent_roles_behaviours_capture_methods_and_evidence_precedence", "status": "unresolved", "value": null, "rationale": null, "approved_by": null},
+    {"id": "uncertainty_death_missing_and_conflicting_evidence", "status": "unresolved", "value": null, "rationale": null, "approved_by": null},
+    {"id": "clutch_completion_incubation_and_hatch_model", "status": "unresolved", "value": null, "rationale": null, "approved_by": null},
+    {"id": "capture_welfare_intervals_and_reference_clock", "status": "unresolved", "value": null, "rationale": null, "approved_by": null},
+    {"id": "brood_loss_renesting_juvenile_resolution_and_reopening", "status": "unresolved", "value": null, "rationale": null, "approved_by": null},
+    {"id": "tagging_eligibility_cutoffs_pair_completion_and_inventory", "status": "unresolved", "value": null, "rationale": null, "approved_by": null},
+    {"id": "photos_flags_and_latest_encounter_completion", "status": "unresolved", "value": null, "rationale": null, "approved_by": null},
+    {"id": "observer_registration_permissions_and_field_descriptions", "status": "unresolved", "value": null, "rationale": null, "approved_by": null},
+    {"id": "reports_maps_privacy_and_operational_acceptance", "status": "unresolved", "value": null, "rationale": null, "approved_by": null},
+    {"id": "reference_specific_repairs_removed_or_justified", "status": "unresolved", "value": null, "rationale": null, "approved_by": null}
+  ]
+}

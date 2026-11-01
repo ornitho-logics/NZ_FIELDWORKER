@@ -16,6 +16,41 @@ the diff first: all files under `main/www` are browser-readable. Never import
 private records, coordinates, credentials or unpublished operational reports.
 The private review draft is not loaded at runtime or silently kept in sync.
 
+The app publication copy is v2.4.15 (revised 1 November 2026). Its plain-language
+authorship disclosure links the public AI-use record, governance, sanitized summaries,
+specialist handoffs, validator sources and reproducible synthetic workflow.
+It distinguishes initial invented-data validation from later approved local
+snapshot/field-example troubleshooting, and manual human deployment from agent
+repository/local work. It makes no blanket zero-disclosure or provider-audit
+claim. It explicitly describes selected real examples and partial-season local
+snapshots, and records Luke's confirmation that the complete season's dataset
+was not included in prompts. The new reconstruction/fixture links use an already
+published commit permalink so they do not depend on an unmerged or later-deleted
+topic branch.
+Luke's approved
+1 November decision assumes confirming X-X and a unique eligible status-F first
+banding of the same sex, nest and date target the same individual, including
+MM without later sightings. Same-day confirmation transfers; preserve the date,
+infer no exact observed time/order and conservatively date linked proof at capture
+datetime. Older different-day proof cannot transfer; the new bird's own valid
+same-day confirmation can retire an older placeholder without inheriting its proof.
+Multiple competing identities and ineligible/ambiguous links remain guarded;
+the first-marking pool counts all eligible F identity keys before later-proof
+or ambiguity filters, which cannot manufacture uniqueness from multiple identities.
+MM displacement, evidence hierarchy, capture timing/tag gates and unrelated
+same-day safeguards remain unchanged. The approved rule's verification scope is
+recorded separately in the [dated verification record](../../../docs/reconstruction/MM_FOLLOWUP_VERIFICATION_2026-10-31.md#approved-decision-addendum--1-november-2026).
+No live-deployment claim; this rebuild is documentation generation.
+This supersedes the earlier blanket same-day no-link text while preserving
+pre-MM proof for reliably identified birds.
+It also includes the
+conditional late-wave tagging instruction, consistent pair-completion notes,
+pending tagged-parent protection, map highlights, snapshot waiting guidance
+and the historical `notA_summary` report. Its source notes distinguish the
+v1.3.20 local validator protocol, completed local checks and unverified live
+installation. Dated specialist handoffs retain earlier decisions beneath their
+current addenda. Do not copy their historical status claims into the manual.
+
 `manual.css` and `manual.js` are embedded during the build, making the reading
 page usable as a standalone saved HTML file. Contents links open collapsed
 sections. Search is literal, case-insensitive and requires all entered words

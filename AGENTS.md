@@ -17,6 +17,14 @@ retains control of PR creation, merge, deployment, and live database changes.
 
 ## Project identity
 
+For reconstruction or transfer to another study, start with
+`docs/reconstruction/README.md` and its machine-readable `workflow.json`.
+The current specification, study-decision template, rule crosswalk, dependency
+lock and isolated synthetic development tools complement the existing handoffs.
+Profiles are planning metadata, not app configuration. Historical handoffs do
+not override current approved decisions. This documentation grants no production,
+publication, deployment or data-access authority beyond the human's current task.
+
 This repository is `ornitho-logics/NZ_FIELDWORKER`, a modular R/Shiny application for organizing fieldwork.
 
 The project is being adapted for the 2026 Banded Dotterel / Pohowera field season in New Zealand.
@@ -1028,12 +1036,12 @@ Current reviewed local protocol mirror:
 notes/codex_proposals/validator_sandbox/xlsx_short_tag_update/bdot_dataentry_validator_protocol_plot_aligned.yaml
 ```
 
-Mirror identity inspected during the 2026-10-26 documentation reconciliation:
+Current tracked mirror identity, reconciled 2026-10-31:
 
 ```text
 protocol_id: bdot_2026_2027_dataentry_validator_protocol
-protocol_version: 1.3.14
-generated_on: 2026-10-26
+protocol_version: 1.3.20
+generated_on: 2026-10-29
 ```
 
 The mirror is a local review candidate, not proof of deployment. Thread 3.1
@@ -1041,6 +1049,15 @@ completed its focused inspector checks; full SQL/refresh/PDF integration
 verification remains a separate release gate. Record exact source hashes in
 the release verification record rather than treating a version label alone
 as evidence that subsequent edits were inspected.
+
+Version 1.3.20 permits registered internal observer codes of two or three
+uppercase ASCII letters/digits. Version 1.3.19 requires explicit valid positive
+or negative nest_id on every new age-C H row; prior ring or family inference
+cannot waive that entry requirement. Historical blank-H compatibility remains
+separate. The version notes below preserve earlier decisions and do not label
+v1.3.14 as the latest mirror. Operational task notes/report changes are specified
+in the reconstruction current-system/rule crosswalk and manual, not invented
+save-time rules or automatic external YAML synchronisation.
 
 Version 1.3.14 adds `SC` (scraping) to independent adult parent–nest
 association candidates, matching the approved single-observation confirmation
@@ -1113,8 +1130,8 @@ captured away from the nest. Version 1.3.2 added save-blocking H-ring format
 and current-CAPTURES existence checks. The H-ring rule remains restricted to
 normalized `rclass = "H"`; ordinary RESIGHTINGS classes may leave `ring` blank.
 
-The local protocol mirror is the v1.3.14 review artifact inspected for this
-update. The external canonical working copy was separately inspected at v1.3.5
+The local protocol mirror is the v1.3.20 tracked review artifact. The external
+canonical working copy was separately inspected historically at v1.3.5
 (generated 2026-10-24), and the live `inspectors`
 table is a separate artifact; neither is changed or implied to be synchronized
 by this documentation reconciliation or a repository commit. Do not overwrite
@@ -1269,6 +1286,17 @@ A matching parent association resolves after one such behaviour observation or
 after three matching nest-linked resightings, counting the initial resighting.
 Unresolved or ambiguous association evidence remains in `Parent resighting`
 rather than silently becoming capture/GEO work.
+
+Luke's 1 November 2026 clarification explicitly assumes that a confirming X-X
+resighting and one eligible same-sex, same-nest first-banding (`capture_status
+= 'F'`) capture on the same field date concern the targeted bird. Link that
+day's eligible X-X evidence to its captured identity without requiring later
+sightings; do not invent a resighting time or transfer evidence from earlier
+dates. Multiple first-marked candidates, ambiguity, other sexes/nests and
+recaptures do not qualify this exception. Different-day X-X proof still needs
+the later marked bird's own qualifying evidence. Preserve original conflict
+history, later X-X events, reference-date bounds, and the independent timing/tag
+gates. The full current contract is `docs/reconstruction/PARENT_ASSOCIATION_CHRONOLOGY.md`.
 
 Current `nest check` tasks may carry note-level distinctions such as pre-hatch nest checks versus hatch-sign follow-up. Use current SQL and app code as source of truth for exact task names, note text, and cadence.
 

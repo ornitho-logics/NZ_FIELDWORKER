@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0.0",
+  "states": ["PASS", "FAIL", "NOT RUN", "NOT AVAILABLE"],
+  "full_acceptance_rule": "Every required item must PASS. Any FAIL stops dependent execution. Required NOT RUN or NOT AVAILABLE prevents full acceptance. Missing legacy golden artifacts never become equivalence passes.",
+  "checks": [
+    {"id": "recipe", "required": true, "executor": "tools/reconstruction/verify.py", "evidence": "recipe DAG, paths, roles and rules; reference mode requires unchanged runtime, adaptation mode requires explicit approved changes and an unchanged separate retained control"},
+    {"id": "environment", "required": true, "executor": "tools/reconstruction/runtime_inventory.R", "evidence": "exact installed versions and source provenance compared to lock; missing/unpinned provenance explicit"},
+    {"id": "isolated_install", "required": true, "executor": "tools/reconstruction/bootstrap.py", "evidence": "owned fresh server, no defaults/network, synthetic seed and actual unmodified source installation"},
+    {"id": "inspectors", "required": true, "executor": "tools/reconstruction/bootstrap.py", "evidence": "tracked exports parsed, loaded by table/comment role into synthetic DB and round-tripped; package save-time integration separate"},
+    {"id": "publication", "required": true, "executor": "tools/reconstruction/bootstrap.py", "evidence": "newest succeeded status, exact TODO/snapshot multiset, reference date, no BUILD/PREVIOUS leftovers and snapshot helper routing"},
+    {"id": "semantic_fixtures", "required": true, "executor": "tools/reconstruction/bootstrap.py", "evidence": "actual extracted SQL gate tests executed against owned socket, no skipped required SQL tests"},
+    {"id": "reference_transition", "required": true, "executor": "tools/reconstruction/bootstrap.py", "evidence": "stale-date report hides; second normal refresh publishes new date without reinstalling notA view"},
+    {"id": "report_render", "required": true, "executor": "tools/reconstruction/render.R", "evidence": "current production PDF helpers render only synthetic rows/maps after semantic success"},
+    {"id": "visual_review", "required": true, "executor": "independent_verifier", "evidence": "each newly rendered PDF page inspected, page hashes recorded; never inferred from render success"},
+    {"id": "package_browser_integration", "required": true, "executor": "authorised_human_or_browser_agent", "evidence": "DataEntry hard/warn save behaviour, GPS upload, permissions, app refresh/status and downloads checked with synthetic DB only"},
+    {"id": "study_decisions", "required": true, "executor": "scientific_owner", "evidence": "all target decisions approved or explicitly disabled with rationale; baseline reproduction records reference-only scope"},
+    {"id": "legacy_golden_equivalence", "required": false, "executor": "independent_verifier", "evidence": "NOT AVAILABLE unless complete older row artifacts actually exist; new synthetic baseline is a distinct contract"}
+  ]
+}

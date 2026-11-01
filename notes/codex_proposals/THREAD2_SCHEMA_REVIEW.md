@@ -1,5 +1,24 @@
 # Thread 2 Schema Review: Current Database Architecture
 
+## Current schema addendum — 31 October 2026
+
+`DATABASE/notA_summary.SQL` defines the app's replacement for `VIEW_2`. It is
+a separate optional view installer, dependent on `settings`,
+`TODO_REFRESH_STATUS`, `TODO_NEST_CONTEXT_SNAPSHOT` and
+`TODO_PARENT_STATUS_SNAPSHOT`. Install it after the first successful snapshot;
+it is intentionally absent from the clean `views.SQL` bootstrap and the
+refresh script. Normal atomic publication updates its inputs automatically.
+It adds no table, base-record update or refresh stage. See the repository
+README for installation/rollback and the SQL header for exact identity rules.
+
+The report is one row per latest-published notA nest with both parent sexes.
+It keeps pending/ambiguous observations separate, permits historical dead
+parents, and links later nests only through reliable confirmed same-sex
+identity at both endpoints. It does not infer brood death from notA. Missing,
+stale or unsuccessful latest publication returns no rows. This resolves the
+older undocumented-`VIEW_2` inventory gap below; those dated audits do not
+describe the current source tree or prove live deployment.
+
 Last refreshed: 2026-10-26
 
 Historical publication reconciliation: this handoff was published from
@@ -56,6 +75,7 @@ Use the current `DATABASE/` directory as the schema layer, not the historical
 | `DATABASE/predict_hatching.SQL` | current stable support object | hatching calibration table and seed values |
 | `DATABASE/views.SQL` | current derived-view source | archive, combo, nest, brood, identity, parent, hatch, task, and reporting views |
 | `DATABASE/refresh_todo_list_snapshot.SQL` | current refresh workflow | reference-date-specific materialization and publication |
+| `DATABASE/notA_summary.SQL` | optional view installer after first successful refresh | historical notA nest/parent report over published snapshots |
 | `DATABASE/_reset.SQL` | destructive local reset helper | local-only drop workflow, not an in-place migration |
 
 The dated `DATABASE/FIELD_2026_BADOatNZ_*.sql` files are read-only alignment

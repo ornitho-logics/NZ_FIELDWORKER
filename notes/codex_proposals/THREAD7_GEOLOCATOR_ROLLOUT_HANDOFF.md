@@ -4,6 +4,26 @@ Status: tracked, sanitized specialist handoff
 Last reconciled: 2026-10-26
 Scope: seasonal GEO deployment planning for Cass River Banded Dotterels
 
+## Current operational clarification — 31 October 2026
+
+Later explicit field decisions supersede conflicting dated planning defaults
+below. The late-wave initial-deployment cutoff uses clutch completion strictly
+after 9 October 2026, not initiation or discovery. The conditional
+`tag any, but only if one is confirmed X-X` note can cover one confirmed
+banded/untagged parent with an unknown mate, as well as its existing
+both-unknown use. It is restricted to eligible positive B/C nests and open
+seven-day/36-hour gates. Confirm the unknown bird as X-X and nest-associated
+before deployment. A bird that proves banded does not authorize that initial
+deployment. The known banded mate may qualify later only through the existing
+same-nest deployment provenance and independent timing checks.
+
+Existing GEO evidence remains effective while a bird's nest association is
+pending: retain its resighting follow-up and suppress another tag for that
+individual. Never resolve an association merely to remove a task. Eligible
+tag-bearing notes use `pair completion` consistently; their white map outlines
+are a prompt to read the row, not an eligibility waiver. See Section 8 of app
+manual v2.4.12 and current refresh SQL for the exact operational contract.
+
 ## Purpose
 
 Thread 7 maintains the scientific method used to distribute geolocators across

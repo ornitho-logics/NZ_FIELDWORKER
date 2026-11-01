@@ -1,0 +1,2072 @@
+{
+  "schema_version": "1.0.0",
+  "reference": "9e010e5",
+  "captured_on": "2026-10-31",
+  "R": "4.6.0",
+  "platform": "aarch64-apple-darwin23",
+  "packages": [
+    {
+      "name": "askpass",
+      "version": "1.2.1",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "sys"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "base64enc",
+      "version": "0.1-6",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "bit",
+      "version": "4.6.0",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "bit64",
+      "version": "4.8.2",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "bit",
+        "graphics",
+        "methods",
+        "stats",
+        "utils"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "blob",
+      "version": "1.3.0",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "methods",
+        "rlang",
+        "vctrs"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "brio",
+      "version": "1.1.5",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "bs4Dash",
+      "version": "2.3.5",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "bslib",
+        "cli",
+        "fresh",
+        "htmltools",
+        "httpuv",
+        "httr",
+        "jsonlite",
+        "lifecycle",
+        "rlang",
+        "shiny",
+        "waiter"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "bslib",
+      "version": "0.11.0",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "base64enc",
+        "cachem",
+        "fastmap",
+        "grDevices",
+        "htmltools",
+        "jquerylib",
+        "jsonlite",
+        "lifecycle",
+        "memoise",
+        "mime",
+        "rlang",
+        "sass"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "cachem",
+      "version": "1.1.0",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "rlang",
+        "fastmap"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "callr",
+      "version": "3.8.0",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "otel",
+        "processx",
+        "R6",
+        "utils"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "class",
+      "version": "7.3-23",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "stats",
+        "utils",
+        "MASS"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "classInt",
+      "version": "0.4-11",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "grDevices",
+        "stats",
+        "graphics",
+        "e1071",
+        "class",
+        "KernSmooth"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "cli",
+      "version": "3.6.6",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "utils"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "commonmark",
+      "version": "2.0.0",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "cpp11",
+      "version": "0.5.5",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "crayon",
+      "version": "1.5.3",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "grDevices",
+        "methods",
+        "utils"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "crosstalk",
+      "version": "1.2.2",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "htmltools",
+        "jsonlite",
+        "lazyeval",
+        "R6"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "curl",
+      "version": "7.1.0",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "data.table",
+      "version": "1.18.4",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "methods"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "DataEntry",
+      "version": "2026.0.0.7",
+      "repository": null,
+      "remote_type": "github",
+      "remote_owner": "ornitho-logics",
+      "remote_repo": "DataEntry",
+      "remote_sha": "5eeabc7cf0ad8c1a541bd293d905701310102638",
+      "dependencies": [
+        "data.table",
+        "DBI",
+        "fs",
+        "glue",
+        "htmltools",
+        "htmlwidgets",
+        "jsonlite",
+        "praise",
+        "RMariaDB",
+        "rhandsontable",
+        "shiny",
+        "shinyjs",
+        "shinyWidgets",
+        "shinyjqui",
+        "stringr",
+        "tableHTML",
+        "unix",
+        "utils"
+      ],
+      "provenance": "commit"
+    },
+    {
+      "name": "DBI",
+      "version": "1.3.0",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "methods"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "dbo",
+      "version": "2.0",
+      "repository": null,
+      "remote_type": "github",
+      "remote_owner": "mpio-be",
+      "remote_repo": "dbo",
+      "remote_sha": "601ef6acd8cae0ba14c650c7d40561ada7ddb50a",
+      "dependencies": [
+        "methods",
+        "utils",
+        "stringr",
+        "glue",
+        "rappdirs",
+        "data.table",
+        "DBI",
+        "RMariaDB",
+        "sf"
+      ],
+      "provenance": "commit"
+    },
+    {
+      "name": "desc",
+      "version": "1.4.3",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "cli",
+        "R6",
+        "utils"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "diffobj",
+      "version": "0.3.6",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "crayon",
+        "tools",
+        "methods",
+        "utils",
+        "stats"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "digest",
+      "version": "0.6.39",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "utils"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "dplyr",
+      "version": "1.2.1",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "cli",
+        "generics",
+        "glue",
+        "lifecycle",
+        "magrittr",
+        "methods",
+        "pillar",
+        "R6",
+        "rlang",
+        "tibble",
+        "tidyselect",
+        "utils",
+        "vctrs"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "DT",
+      "version": "0.34.0",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "crosstalk",
+        "htmltools",
+        "htmlwidgets",
+        "jquerylib",
+        "jsonlite",
+        "magrittr",
+        "promises"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "e1071",
+      "version": "1.7-17",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "graphics",
+        "grDevices",
+        "class",
+        "stats",
+        "methods",
+        "utils",
+        "proxy"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "evaluate",
+      "version": "1.0.5",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "farver",
+      "version": "2.1.2",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "fastmap",
+      "version": "1.2.0",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "fontawesome",
+      "version": "0.5.3",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "rlang",
+        "htmltools"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "fresh",
+      "version": "0.2.2",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "bslib",
+        "htmltools",
+        "rstudioapi",
+        "sass",
+        "shiny"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "fs",
+      "version": "2.1.0",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "methods"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "generics",
+      "version": "0.1.4",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "methods"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "ggplot2",
+      "version": "4.0.3",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "cli",
+        "grDevices",
+        "grid",
+        "gtable",
+        "isoband",
+        "lifecycle",
+        "rlang",
+        "S7",
+        "scales",
+        "stats",
+        "vctrs",
+        "withr"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "ggrepel",
+      "version": "0.9.8",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "ggplot2",
+        "grid",
+        "Rcpp",
+        "rlang",
+        "S7",
+        "scales",
+        "withr"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "glue",
+      "version": "1.8.1",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "methods"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "gpxui",
+      "version": null,
+      "status": "NOT AVAILABLE"
+    },
+    {
+      "name": "gtable",
+      "version": "0.3.6",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "cli",
+        "glue",
+        "grid",
+        "lifecycle",
+        "rlang",
+        "stats"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "highr",
+      "version": "0.12",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "xfun"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "hms",
+      "version": "1.1.4",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "cli",
+        "lifecycle",
+        "methods",
+        "pkgconfig",
+        "rlang",
+        "vctrs"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "htmltools",
+      "version": "0.5.9",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "base64enc",
+        "digest",
+        "fastmap",
+        "grDevices",
+        "rlang",
+        "utils"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "htmlwidgets",
+      "version": "1.6.4",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "grDevices",
+        "htmltools",
+        "jsonlite",
+        "knitr",
+        "rmarkdown",
+        "yaml"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "httpuv",
+      "version": "1.6.17",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "later",
+        "promises",
+        "R6",
+        "Rcpp",
+        "utils"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "httr",
+      "version": "1.4.8",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "curl",
+        "jsonlite",
+        "mime",
+        "openssl",
+        "R6"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "ini",
+      "version": "0.3.1",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "isoband",
+      "version": "0.3.0",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "cli",
+        "grid",
+        "rlang",
+        "utils",
+        "cpp11"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "jpeg",
+      "version": "0.1-11",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "jquerylib",
+      "version": "0.1.4",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "htmltools"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "jsonlite",
+      "version": "2.0.0",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "methods"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "KernSmooth",
+      "version": "2.23-26",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "stats"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "knitr",
+      "version": "1.51",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "evaluate",
+        "highr",
+        "methods",
+        "tools",
+        "xfun",
+        "yaml"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "labeling",
+      "version": "0.4.3",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "stats",
+        "graphics"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "later",
+      "version": "1.4.8",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "Rcpp",
+        "rlang"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "lattice",
+      "version": "0.22-9",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "grid",
+        "grDevices",
+        "graphics",
+        "stats",
+        "utils"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "lazyeval",
+      "version": "0.2.3",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "rlang"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "leaflet",
+      "version": "2.2.3",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "crosstalk",
+        "htmltools",
+        "htmlwidgets",
+        "jquerylib",
+        "leaflet.providers",
+        "magrittr",
+        "methods",
+        "png",
+        "raster",
+        "RColorBrewer",
+        "rlang",
+        "scales",
+        "sf",
+        "stats",
+        "viridisLite",
+        "xfun"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "leaflet.providers",
+      "version": "3.0.0",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "htmltools"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "lifecycle",
+      "version": "1.0.5",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "cli",
+        "rlang"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "lubridate",
+      "version": "1.9.5",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "methods",
+        "generics",
+        "timechange"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "magrittr",
+      "version": "2.0.5",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "MASS",
+      "version": "7.3-65",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "grDevices",
+        "graphics",
+        "stats",
+        "utils",
+        "methods"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "Matrix",
+      "version": "1.7-5",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "methods",
+        "grDevices",
+        "graphics",
+        "grid",
+        "lattice",
+        "stats",
+        "utils"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "memoise",
+      "version": "2.0.1",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "rlang",
+        "cachem"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "mgcv",
+      "version": "1.9-4",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "nlme",
+        "methods",
+        "stats",
+        "graphics",
+        "Matrix",
+        "splines",
+        "utils"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "mime",
+      "version": "0.13",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "tools"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "nlme",
+      "version": "3.1-169",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "graphics",
+        "stats",
+        "utils",
+        "lattice"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "openssl",
+      "version": "2.4.1",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "askpass"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "otel",
+      "version": "0.2.0",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "patchwork",
+      "version": "1.3.2",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "ggplot2",
+        "gtable",
+        "grid",
+        "stats",
+        "grDevices",
+        "utils",
+        "graphics",
+        "rlang",
+        "cli",
+        "farver"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "pillar",
+      "version": "1.11.1",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "cli",
+        "glue",
+        "lifecycle",
+        "rlang",
+        "utf8",
+        "utils",
+        "vctrs"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "pkgbuild",
+      "version": "1.4.8",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "callr",
+        "cli",
+        "desc",
+        "processx",
+        "R6"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "pkgconfig",
+      "version": "2.0.3",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "utils"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "pkgload",
+      "version": "1.5.2",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "cli",
+        "desc",
+        "fs",
+        "glue",
+        "lifecycle",
+        "methods",
+        "pkgbuild",
+        "processx",
+        "rlang",
+        "rprojroot",
+        "utils"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "png",
+      "version": "0.1-9",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "praise",
+      "version": "1.0.0",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "processx",
+      "version": "3.9.0",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "ps",
+        "R6",
+        "utils"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "promises",
+      "version": "1.5.0",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "fastmap",
+        "later",
+        "lifecycle",
+        "magrittr",
+        "otel",
+        "R6",
+        "rlang"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "proxy",
+      "version": "0.4-29",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "stats",
+        "utils"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "ps",
+      "version": "1.9.3",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "utils"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "quarto",
+      "version": "1.5.1",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "cli",
+        "fs",
+        "htmltools",
+        "jsonlite",
+        "later",
+        "lifecycle",
+        "processx",
+        "rlang",
+        "rmarkdown",
+        "rstudioapi",
+        "tools",
+        "utils",
+        "xfun",
+        "yaml"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "R6",
+      "version": "2.6.1",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "rappdirs",
+      "version": "0.3.4",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "raster",
+      "version": "3.6-32",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "sp",
+        "Rcpp",
+        "methods",
+        "terra"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "RColorBrewer",
+      "version": "1.1-3",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "Rcpp",
+      "version": "1.1.1-1.1",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "methods",
+        "utils"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "remotes",
+      "version": "2.5.0",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "methods",
+        "stats",
+        "tools",
+        "utils"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "rhandsontable",
+      "version": "0.3.8",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "jsonlite",
+        "htmlwidgets",
+        "magrittr",
+        "methods",
+        "utils"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "rlang",
+      "version": "1.2.0",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "utils"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "RMariaDB",
+      "version": "1.3.5",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "bit64",
+        "blob",
+        "DBI",
+        "hms",
+        "lubridate",
+        "methods",
+        "rlang",
+        "cpp11"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "rmarkdown",
+      "version": "2.31",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "bslib",
+        "evaluate",
+        "fontawesome",
+        "htmltools",
+        "jquerylib",
+        "jsonlite",
+        "knitr",
+        "methods",
+        "tinytex",
+        "tools",
+        "utils",
+        "xfun",
+        "yaml"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "rprojroot",
+      "version": "2.1.1",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "rstudioapi",
+      "version": "0.18.0",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "s2",
+      "version": "1.1.9",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "Rcpp",
+        "wk"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "S7",
+      "version": "0.2.2",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "utils"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "sass",
+      "version": "0.4.10",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "fs",
+        "rlang",
+        "htmltools",
+        "R6",
+        "rappdirs"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "scales",
+      "version": "1.4.0",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "cli",
+        "farver",
+        "glue",
+        "labeling",
+        "lifecycle",
+        "R6",
+        "RColorBrewer",
+        "rlang",
+        "viridisLite"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "sf",
+      "version": "1.1-1",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "methods",
+        "classInt",
+        "DBI",
+        "graphics",
+        "grDevices",
+        "grid",
+        "s2",
+        "stats",
+        "tools",
+        "units",
+        "utils",
+        "Rcpp"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "shiny",
+      "version": "1.14.0",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "methods",
+        "bslib",
+        "cachem",
+        "cli",
+        "commonmark",
+        "fastmap",
+        "fontawesome",
+        "glue",
+        "grDevices",
+        "htmltools",
+        "httpuv",
+        "jsonlite",
+        "later",
+        "lifecycle",
+        "mime",
+        "otel",
+        "promises",
+        "R6",
+        "rlang",
+        "sourcetools",
+        "tools",
+        "utils",
+        "withr",
+        "xtable"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "shinycssloaders",
+      "version": "1.1.0",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "digest",
+        "glue",
+        "grDevices",
+        "htmltools",
+        "shiny"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "shinyjqui",
+      "version": "0.4.1",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "shiny",
+        "htmltools",
+        "htmlwidgets",
+        "jsonlite",
+        "rlang"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "shinyjs",
+      "version": "2.1.1",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "digest",
+        "jsonlite",
+        "shiny"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "shinyWidgets",
+      "version": "0.9.1",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "bslib",
+        "sass",
+        "shiny",
+        "htmltools",
+        "jsonlite",
+        "grDevices",
+        "rlang"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "sourcetools",
+      "version": "0.1.7-2",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "sp",
+      "version": "2.2-1",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "methods",
+        "utils",
+        "stats",
+        "graphics",
+        "grDevices",
+        "lattice",
+        "grid"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "stringi",
+      "version": "1.8.7",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "tools",
+        "utils",
+        "stats"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "stringr",
+      "version": "1.6.0",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "cli",
+        "glue",
+        "lifecycle",
+        "magrittr",
+        "rlang",
+        "stringi",
+        "vctrs"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "sys",
+      "version": "3.4.3",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "tableHTML",
+      "version": "2.1.3",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "htmltools",
+        "magrittr",
+        "shiny",
+        "jpeg",
+        "methods",
+        "png",
+        "webshot"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "terra",
+      "version": "1.9-27",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "methods",
+        "Rcpp"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "testthat",
+      "version": "3.3.2",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "brio",
+        "callr",
+        "cli",
+        "desc",
+        "evaluate",
+        "jsonlite",
+        "lifecycle",
+        "magrittr",
+        "methods",
+        "pkgload",
+        "praise",
+        "processx",
+        "ps",
+        "R6",
+        "rlang",
+        "utils",
+        "waldo",
+        "withr"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "tibble",
+      "version": "3.3.1",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "cli",
+        "lifecycle",
+        "magrittr",
+        "methods",
+        "pillar",
+        "pkgconfig",
+        "rlang",
+        "utils",
+        "vctrs"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "tidyselect",
+      "version": "1.2.1",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "cli",
+        "glue",
+        "lifecycle",
+        "rlang",
+        "vctrs",
+        "withr"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "timechange",
+      "version": "0.4.0",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "cpp11"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "tinytex",
+      "version": "0.60",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "xfun"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "units",
+      "version": "1.0-1",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "Rcpp"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "unix",
+      "version": "1.6.0",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "utf8",
+      "version": "1.2.6",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "vctrs",
+      "version": "0.7.3",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "cli",
+        "glue",
+        "lifecycle",
+        "rlang"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "viridisLite",
+      "version": "0.4.3",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "waiter",
+      "version": "0.2.5.1",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "R6",
+        "shiny",
+        "htmltools"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "waldo",
+      "version": "0.6.2",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "cli",
+        "diffobj",
+        "glue",
+        "methods",
+        "rlang"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "webshot",
+      "version": "0.5.5",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "magrittr",
+        "jsonlite",
+        "callr"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "withr",
+      "version": "3.0.3",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "graphics",
+        "grDevices"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "wk",
+      "version": "0.9.5",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "xfun",
+      "version": "0.59",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "grDevices",
+        "stats",
+        "tools"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "xml2",
+      "version": "1.5.2",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "cli",
+        "methods",
+        "rlang"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "xtable",
+      "version": "1.8-8",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [
+        "stats",
+        "utils",
+        "methods"
+      ],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "yaml",
+      "version": "2.3.12",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [],
+      "provenance": "CRAN version archive"
+    },
+    {
+      "name": "zip",
+      "version": "2.3.3",
+      "repository": "CRAN",
+      "remote_type": null,
+      "remote_owner": null,
+      "remote_repo": null,
+      "remote_sha": null,
+      "dependencies": [],
+      "provenance": "CRAN version archive"
+    }
+  ],
+  "tools": {
+    "quarto": "1.9.37"
+  },
+  "database": {
+    "engine": "MariaDB",
+    "version": "11.8.9",
+    "charset": "utf8mb4",
+    "collation": "utf8mb4_uca1400_ai_ci"
+  },
+  "policy": "Reference pins only; no auto-activation. Versions with unresolved source provenance need an approved source artifact/commit before full environment reconstruction acceptance."
+}

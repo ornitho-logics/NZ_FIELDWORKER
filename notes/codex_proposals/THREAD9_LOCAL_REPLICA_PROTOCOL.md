@@ -1,5 +1,32 @@
 # Thread 9 local-replica protocol
 
+## Current verification addendum — 31 October 2026
+
+The latest completed authorised full local run used frozen current source,
+MariaDB 11.8.9 and the approved local input for reference date 2026-10-31.
+Installation, refresh, all 19 required runtime publication/task gates and
+four-page PDF inspection passed. Earlier stopped runs and failed harness
+checks remain failures in their retained private evidence. Full older golden
+task/H/closure/context artifacts were unavailable; do not claim their exact
+equivalence or replace that missing evidence with task partitions. Local
+success and elapsed times are not a guarantee of live Adminer performance.
+
+`notA_summary` subsequently passed a separate focused invented-data check in
+an empty no-network MariaDB 11.8.9 instance with lower_case_table_names=2.
+Its actual standalone CREATE VIEW and identity/date/publication fixtures
+passed; that check was not another case-sensitive full field integration run
+or a verification of a specific field-record link. The two-literal
+pair-completion note correction passed a focused 15-assertion check and an
+exact comparison showing no SQL predicate changes. No new full refresh is
+needed solely for this documentation reconciliation.
+
+Use the current source and selected manifest for future work. The operator
+installs `DATABASE/notA_summary.SQL` once after an initial successful snapshot;
+the view follows subsequent atomic publications automatically. Preserve the
+latest-status gate, stale-date protection, identity uncertainty and distinct
+verification scopes when adding it to a future replay. Earlier dated recovery
+instructions below retain their history and do not imply current deployment.
+
 Last reconstructed: 2026-10-24
 Current regression-contract reconciliation: 2026-10-26 (static only).
 

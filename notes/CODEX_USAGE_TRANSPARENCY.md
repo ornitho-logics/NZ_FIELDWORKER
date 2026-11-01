@@ -1,6 +1,37 @@
 # Codex use and task handoff transparency
 
-Last reconciled: 2026-10-23
+Current reconstruction addendum: 2026-11-01. Earlier publication chronology below
+retains its dates and does not define current deployed state.
+
+`docs/reconstruction/` now collects the current reference contract, adaptation
+decision intake, machine-readable role/DAG recipe, rule crosswalk, acceptance
+requirements and captured dependency metadata. `tools/reconstruction/` contains
+development-only validators and an owned no-network synthetic bootstrap. These
+are intentionally tracked reviewed artifacts; generated reports, server files,
+PDFs and synthetic runtime evidence remain ignored. The kit changes no app
+runtime or operator workflow and neither grants live access nor publishes data.
+See its README for exact checked and missing verification scopes.
+
+Separate 31 October follow-up: Luke explicitly resolved the MM chronology
+question and approved capture-mark field-description alignment. That later
+candidate changes the parent-association SQL and manual wording, plus eight
+source comments and a read-only live-comment patch generator; it is not part
+of the earlier runtime-unchanged reconstruction verification. It uses only
+invented local checks, changes no validator or raw field records, and grants
+no live installation or publication authority. See the reconstruction
+chronology contract and follow-up verification record for precise scope.
+
+On 1 November Luke clarified the targeted same-day first-banding exception:
+confirming X-X evidence and a unique eligible same-sex/nest first capture on
+that date identify the targeted bird without later resightings. This supersedes
+the earlier blanket refusal to link same-day evidence, not the different-day
+X-X safeguards or independent timing/tag gates. Code, invented regression cases,
+manual and machine-readable reconstruction contracts are updated together;
+dated verification records keep their original source identities and limits.
+The preceding narrowly authorized local trace remains private; no raw field
+records are included in the reconstruction package or these summaries.
+
+Historical reconciliation: 2026-10-23
 
 ## Purpose
 
@@ -24,6 +55,45 @@ animal-welfare decisions, and field actions remain human-controlled.
 No tracked handoff or local test proves that a view, validator, database,
 Shiny process, or field protocol has been deployed. Documents label source,
 mock/local replay, protected WIP, and live state separately.
+
+## Public disclosure, synthetic development and privacy limits
+
+The manual's authorship statement links this record, `AGENTS.md`, the
+[sanitized prompt/decision index](codex_logs/INDEX.md), and the
+[specialist handoffs](codex_proposals/). For implementation detail, read the
+[validator architecture and mock workflow](codex_proposals/THREAD3_VALIDATION_ARCHITECTURE.md#mock-data-and-tests),
+[reviewed inspector exports](codex_proposals/validator_sandbox/inspector_lists_by_table/),
+[To-Do/map/PDF contract](codex_proposals/THREAD4_TODO_MAP_LIST_DEBUG_PLAN.md),
+and [reconstruction/verification guide](../docs/reconstruction/README.md).
+[Invented connected fixtures](../tools/reconstruction/fixtures.sql) and the
+development-only runner make a small synthetic workflow reproducible. Some
+older working mock spreadsheets, raw conversations and generated diagnostics
+remain private; the public record is a curated account, not an exhaustive archive.
+
+The initial validator/data-entry development workflow used connected invented
+mock fixtures with passing, failing and boundary cases. Those tests did not
+require real field records as fixtures. This must not be conflated with later
+operational troubleshooting: Luke Eberhart-Hertel explicitly authorized local
+copies of field snapshots and also supplied selected real-case examples and
+screenshots in AI conversations. Local processing, public GitHub publication
+and disclosure to an AI service are different boundaries. Luke Eberhart-Hertel
+clarified that the snapshots covered part of the field season and that the
+complete season's dataset was never included in a prompt. Selected real examples
+and summaries were discussed with the AI; larger database checks ran locally.
+This is his account of the development workflow, not an independent audit of
+provider-side transmission, retention or model training. Development/testing
+exercises should not be described as training an AI model.
+No confidential examples or record values are reproduced in this disclosure.
+
+Luke Eberhart-Hertel retained source review, merge and deployment control and
+performed field-server code/SQL/inspector installations manually, as he
+confirmed in the project workflow. Agents were not authorized to autonomously
+access or deploy to the field server. Authorized source edits, Git publication
+and isolated local test execution are distinct from production deployment.
+Credentials, full confidential snapshots, sensitive locations and raw operational
+material are excluded from the public transparency resources. This states the
+documented controls and their scope, not a claim that every possible system
+event or third-party service has been independently audited.
 
 ## Specialist structure
 

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FIELDWORKER reconstruction workflow",
+  "type": "object",
+  "required": ["schema_version", "id", "reference_commit", "modes", "entrypoint", "authority", "coordination", "roles", "steps"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "id": {"type": "string", "minLength": 1},
+    "reference_commit": {"type": "string", "pattern": "^[0-9a-f]{7,40}$"},
+    "modes": {"type": "array", "items": {"enum": ["reference_reproduction", "study_adaptation"]}, "minItems": 2, "uniqueItems": true},
+    "entrypoint": {"type": "string"},
+    "authority": {"type": "object", "required": ["human_scientific_decisions_required", "production_access_by_default", "publication_by_default", "profiles_are_runtime_configuration", "history_is_normative", "failed_required_gate_stops_dependents"], "properties": {"human_scientific_decisions_required": {"const": true}, "production_access_by_default": {"const": false}, "publication_by_default": {"const": false}, "profiles_are_runtime_configuration": {"const": false}, "history_is_normative": {"const": false}, "failed_required_gate_stops_dependents": {"const": true}}},
+    "coordination": {"type": "object", "required": ["max_concurrent_workers", "shared_worktree_writes", "integration_owner", "handoff_fields", "evidence_states"], "properties": {"max_concurrent_workers": {"type": "integer", "minimum": 1}, "shared_worktree_writes": {"const": false}, "integration_owner": {"type": "string"}, "handoff_fields": {"type": "array", "items": {"type": "string"}}, "evidence_states": {"const": ["PASS", "FAIL", "NOT RUN", "NOT AVAILABLE"]}}},
+    "roles": {"type": "array", "minItems": 1, "items": {"type": "object", "required": ["id", "specialty", "owns"], "properties": {"id": {"type": "string"}, "specialty": {"type": "string"}, "owns": {"type": "array", "items": {"type": "string"}}}}},
+    "steps": {"type": "array", "minItems": 1, "items": {"type": "object", "required": ["id", "role", "action", "depends_on", "inputs", "outputs", "gate"], "properties": {"id": {"type": "string"}, "role": {"type": "string"}, "action": {"type": "string", "minLength": 1}, "depends_on": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}, "inputs": {"type": "array", "items": {"type": "string"}}, "outputs": {"type": "array", "items": {"type": "string"}}, "gate": {"type": "string", "minLength": 1}}}}
+  }
+}
