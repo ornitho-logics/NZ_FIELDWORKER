@@ -162,6 +162,63 @@
 }
 
 
+.nest_map_popups <- function(n) {
+  # Presentation only: reuse the SQL encounter date for broods and the last
+  # nest visit for other points. Never substitute today's date or an older
+  # nest visit when a brood encounter date is unavailable.
+  n <- copy(as.data.table(n))
+  date_column <- function(name) {
+    value <- if (name %in% names(n)) n[[name]] else rep(NA_character_, nrow(n))
+    suppressWarnings(as.Date(substr(as.character(value), 1, 10), format = "%Y-%m-%d"))
+  }
+  encounter_date <- date_column("last_visit_datetime")
+  is_brood <- if ("map_category" %in% names(n)) {
+    !is.na(n$map_category) & n$map_category == "brood"
+  } else {
+    rep(FALSE, nrow(n))
+  }
+  encounter_date[is_brood] <- date_column("latest_encounter_date")[is_brood]
+  days_since <- as.integer(date_column("reference_date") - encounter_date)
+  last_encounter <- rep("Unknown", nrow(n))
+  valid <- !is.na(days_since) & days_since >= 0L
+  last_encounter[valid] <- paste(days_since[valid], "days ago")
+  last_encounter[valid & days_since == 0L] <- "today"
+  last_encounter[valid & days_since == 1L] <- "1 day ago"
+  set(n, j = "last_encounter", value = last_encounter)
+
+  popup_labels <- c(
+    nest_id = "Nest / brood",
+    map_category = "State",
+    M_mark = "Male",
+    F_mark = "Female",
+    hatch_state = "Hatching status",
+    clutch_size = "Clutch size",
+    brood_size = "Brood size",
+    last_encounter = "Last encounter",
+    last_observer = "Last observer"
+  )
+  popup_cols <- intersect(names(popup_labels), names(n))
+  vapply(seq_len(nrow(n)), function(i) {
+    row <- as.list(n[i, ..popup_cols])
+    keep <- vapply(row, function(value) {
+      !is.na(value[1]) && nzchar(as.character(value[1]))
+    }, logical(1))
+    row <- row[keep]
+    rows <- Map(function(field, value) {
+      glue(
+        "<tr><th>{htmlEscape(popup_labels[[field]])}</th>",
+        "<td>{htmlEscape(as.character(value[1]))}</td></tr>"
+      )
+    }, names(row), row)
+    glue(
+      "<table class='table table-sm table-striped mb-0'>",
+      "{glue_collapse(rows)}",
+      "</table>"
+    )
+  }, character(1))
+}
+
+
 live_nest_leaflet <- function(
   n = DBq("SELECT * FROM NESTS_LATEST"),
   plots = DBq("SELECT * FROM spatial_objects where variable = 'study_area' "),
@@ -296,71 +353,7 @@ live_nest_leaflet <- function(
     )
   ]
 
-  popup_fields <- c(
-    "nest_id",
-    "map_category",
-    "nest_state",
-    "is_negative_brood",
-    "has_hatch_evidence",
-    "latest_encounter_date",
-    "latest_chick_event_date",
-    "location_source",
-    "location_event_date",
-    "location_source_table",
-    "M_mark",
-    "F_mark",
-    "hatch_state",
-    "clutch_size",
-    "brood_size",
-    "days_ago",
-    "last_observer"
-  )
-  popup_cols <- intersect(popup_fields, names(n))
-  if (!length(popup_cols)) {
-    popup_cols <- setdiff(names(n), c("lat", "lon", "marker_col", "label_text"))
-  }
-
-  n[,
-    popup := vapply(
-      seq_len(.N),
-      function(i) {
-        row <- as.list(.SD[i])
-        keep <- vapply(
-          row,
-          function(value) {
-            !is.na(value[1]) &&
-              nzchar(as.character(value[1]))
-          },
-          logical(1)
-        )
-
-        row <- row[keep]
-
-        if (!length(row)) {
-          return("")
-        }
-
-        rows <- Map(
-          function(field, value) {
-            glue(
-              "<tr><th>{htmlEscape(field)}</th>",
-              "<td>{htmlEscape(as.character(value[1]))}</td></tr>"
-            )
-          },
-          names(row),
-          row
-        )
-
-        glue(
-          "<table class='table table-sm table-striped mb-0'>",
-          "{glue_collapse(rows)}",
-          "</table>"
-        )
-      },
-      character(1)
-    ),
-    .SDcols = popup_cols
-  ]
+  n[, popup := .nest_map_popups(n)]
 
   state_cols <- n[
     !is.na(map_category) & nzchar(map_category),
