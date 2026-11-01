@@ -162,19 +162,59 @@
 }
 
 
-.nest_map_parent_status_query <- function() {
-  # Only the small, published table: never expand ADULT_PARENT_STATUS on a
-  # map request. SELECT * also tolerates an older snapshot without display
-  # columns while an operator installs the new views/refresh scripts.
+.nest_map_snapshot_query <- function(table) {
+  # Read small published tables, never the expanded association pipeline.
+  # SELECT * tolerates older snapshots without the new display columns.
+  table <- match.arg(table, c("TODO_PARENT_STATUS_SNAPSHOT", "TODO_LIST_SNAPSHOT"))
   paste(
-    "SELECT parents.* FROM TODO_PARENT_STATUS_SNAPSHOT parents",
+    "SELECT snapshot_rows.* FROM", table, "snapshot_rows",
     "JOIN (SELECT reference_date, state, completed_at FROM TODO_REFRESH_STATUS",
     "      ORDER BY refresh_id DESC LIMIT 1) published",
-    "  ON parents.reference_date = published.reference_date",
+    "  ON snapshot_rows.reference_date = published.reference_date",
     "JOIN settings ON settings.variable = 'reference_date'",
-    "  AND parents.reference_date = settings.value",
+    "  AND snapshot_rows.reference_date = settings.value",
     "WHERE published.state = 'succeeded' AND published.completed_at IS NOT NULL"
   )
+}
+
+
+.nest_map_parent_status_query <- function() {
+  .nest_map_snapshot_query("TODO_PARENT_STATUS_SNAPSHOT")
+}
+
+
+.nest_map_add_hatch_timing <- function(n, todo, hatch_prediction) {
+  n <- copy(as.data.table(n))
+  set(n, j = "hatch_timing", value = rep("Unknown", nrow(n)))
+  if (!nrow(n) || !all(c("nest_id", "reference_date") %in% names(n)) ||
+      "error" %in% names(todo) || "error" %in% names(hatch_prediction)) return(n)
+
+  # Reuse the PDF's fieldworker-facing Est. Hatch formatter, including its
+  # flotation safeguards, published task override and negative-brood proxy.
+  # No second hatch algorithm, database access or PDF rendering occurs here.
+  reference_dates <- unique(as.character(n$reference_date))
+  for (reference in reference_dates[!is.na(reference_dates)]) {
+    refdate <- suppressWarnings(as.Date(reference, format = "%Y-%m-%d"))
+    if (is.na(refdate)) next
+    rows <- which(as.character(n$reference_date) == reference)
+    tasks <- copy(as.data.table(todo))
+    prediction <- copy(as.data.table(hatch_prediction))
+    if ("reference_date" %in% names(tasks)) {
+      tasks <- tasks[as.character(reference_date) == reference]
+    }
+    if ("nest_id" %in% names(tasks)) tasks <- tasks[nest_id %in% n$nest_id[rows]]
+    if ("reference_date" %in% names(prediction)) {
+      prediction <- prediction[as.character(reference_date) == reference]
+    }
+    summary <- todo_pdf_prepare_nest_summary(
+      copy(n[rows]), refdate, todo = tasks, hatch_prediction = prediction,
+      broods_authoritative = TRUE
+    )
+    timing <- as.character(summary[["Est. Hatch"]][match(n$nest_id[rows], summary$Nest)])
+    valid <- !is.na(timing) & nzchar(trimws(timing))
+    set(n, i = rows[valid], j = "hatch_timing", value = timing[valid])
+  }
+  n
 }
 
 
@@ -264,6 +304,7 @@
     M_mark = "Male",
     F_mark = "Female",
     hatch_state = "Hatching status",
+    hatch_timing = "Hatch timing (days)",
     clutch_size = "Clutch size",
     brood_size = "Brood size",
     last_encounter = "Last encounter",

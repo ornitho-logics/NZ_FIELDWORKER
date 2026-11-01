@@ -16,7 +16,9 @@ the diff first: all files under `main/www` are browser-readable. Never import
 private records, coordinates, credentials or unpublished operational reports.
 The private review draft is not loaded at runtime or silently kept in sync.
 
-The app publication copy is v2.4.17 (revised 1 November 2026). It explains the
+The app publication copy is v2.4.18 (revised 1 November 2026). It documents
+Hatch timing (days), which reuses the PDF summary formatter without changing
+SQL or scientific rules. It explains the
 cleaned Nest Map popup and its cached parent-association annotations, including
 their snapshot freshness boundary and reference-date encounter timing. It directs app
 readers to the existing separate-window link if GitHub links do not open within
