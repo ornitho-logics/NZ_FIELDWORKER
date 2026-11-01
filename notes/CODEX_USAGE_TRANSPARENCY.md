@@ -56,6 +56,45 @@ No tracked handoff or local test proves that a view, validator, database,
 Shiny process, or field protocol has been deployed. Documents label source,
 mock/local replay, protected WIP, and live state separately.
 
+## Public disclosure, synthetic development and privacy limits
+
+The manual's authorship statement links this record, `AGENTS.md`, the
+[sanitized prompt/decision index](codex_logs/INDEX.md), and the
+[specialist handoffs](codex_proposals/). For implementation detail, read the
+[validator architecture and mock workflow](codex_proposals/THREAD3_VALIDATION_ARCHITECTURE.md#mock-data-and-tests),
+[reviewed inspector exports](codex_proposals/validator_sandbox/inspector_lists_by_table/),
+[To-Do/map/PDF contract](codex_proposals/THREAD4_TODO_MAP_LIST_DEBUG_PLAN.md),
+and [reconstruction/verification guide](../docs/reconstruction/README.md).
+[Invented connected fixtures](../tools/reconstruction/fixtures.sql) and the
+development-only runner make a small synthetic workflow reproducible. Some
+older working mock spreadsheets, raw conversations and generated diagnostics
+remain private; the public record is a curated account, not an exhaustive archive.
+
+The initial validator/data-entry development workflow used connected invented
+mock fixtures with passing, failing and boundary cases. Those tests did not
+require real field records as fixtures. This must not be conflated with later
+operational troubleshooting: Luke Eberhart-Hertel explicitly authorized local
+copies of field snapshots and also supplied selected real-case examples and
+screenshots in AI conversations. Local processing, public GitHub publication
+and disclosure to an AI service are different boundaries. Luke Eberhart-Hertel
+clarified that the snapshots covered part of the field season and that the
+complete season's dataset was never included in a prompt. Selected real examples
+and summaries were discussed with the AI; larger database checks ran locally.
+This is his account of the development workflow, not an independent audit of
+provider-side transmission, retention or model training. Development/testing
+exercises should not be described as training an AI model.
+No confidential examples or record values are reproduced in this disclosure.
+
+Luke Eberhart-Hertel retained source review, merge and deployment control and
+performed field-server code/SQL/inspector installations manually, as he
+confirmed in the project workflow. Agents were not authorized to autonomously
+access or deploy to the field server. Authorized source edits, Git publication
+and isolated local test execution are distinct from production deployment.
+Credentials, full confidential snapshots, sensitive locations and raw operational
+material are excluded from the public transparency resources. This states the
+documented controls and their scope, not a claim that every possible system
+event or third-party service has been independently audited.
+
 ## Specialist structure
 
 - Thread 1 maps the repository and maintains cross-thread ownership/read order.

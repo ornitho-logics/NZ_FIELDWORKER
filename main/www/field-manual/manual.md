@@ -1,7 +1,7 @@
 # BADO Field Manual 2026
 
 Protocols for studying breeding Banded Dotterel / Pohowera\
-**Markdown review draft v2.4.14 · Revised 1 November 2026**
+**Markdown review draft v2.4.15 · Revised 1 November 2026**
 
 This draft aims to describe the field procedures and the data-entry
 validation logic for Banded Dotterel fieldwork throughout New Zealand during the breeding season.
@@ -2376,6 +2376,7 @@ developmental resolution, not a statement that all siblings survived.
 | v2.4.12, 31 October 2026 | Documented the post-9-October clutch-completion cutoff and conditional B/unknown tagging instruction, same-nest pair-completion follow-up, already-tagged pending-parent protection, consistent pair-completion wording and white map outlines. Added snapshot waiting guidance and the historical notA_summary report. Reconciled source status with local validator protocol v1.3.20 and completed local verification. |
 | v2.4.13, 31 October 2026 | Clarified Luke Eberhart-Hertel's MM chronology decision: eligible pre-MM evidence counts for a reliably identified bird; X-X proof cannot transfer to a later first-marked bird, which needs its own subsequent evidence. Added sex-specific chronology, conflict and same-day-order safeguards. Capture-field hint alignment preserves the existing F/R/C/D validator contract; this is not a live-installation claim. |
 | v2.4.14, 1 November 2026 | Luke Eberhart-Hertel approved linking unambiguous confirming X-X to a unique eligible same-sex/same-nest/same-date status-F first-banding identity, including MM without later sightings. Same-day proof transfers with capture-datetime proof dating and no inferred exact observation time/order. Count all distinct eligible F identities before later-proof/ambiguity filters. Different-day older proof cannot transfer; own valid same-day confirmation can retire an older placeholder. All ambiguity, displacement, timing/tag and unrelated same-day safeguards remain. Supersedes the blanket same-day no-link wording in v2.4.13. |
+| v2.4.15, 1 November 2026 | Expanded the AI-use disclosure with public governance, sanitized prompt-summary, specialist-handoff, validator and synthetic-workflow links. Clarified human review/manual field-server installation, confidentiality exclusions, initial invented-data testing and the distinct later authorized local/field-example troubleshooting scope. No scientific, validator, SQL or app-interaction change. |
 
 This app publication copy is separate from Luke Eberhart-Hertel's editable private review
 draft and the retained Word/PDF references; those files have not been
@@ -2620,17 +2621,46 @@ separate `caught_with = M?` convention is not a leg-mark entry.
 
 ## Authorship and use of AI
 
-Luke Eberhart-Hertel developed, described, and reasoned through the fieldwork
-methods, protocols and underlying logic presented in this manual, including the
-relational data structure and the rules connecting field observations to
-database records. He retains full accountability for these methods, decisions,
-and their scientific reasoning.
+Luke Eberhart-Hertel developed the field methods, protocols and scientific
+reasoning described in this manual. He also directed the design of the database
+and its data-entry rules, and remains responsible for the methods and final
+decisions.
 
-A GPT AI model was used under Luke Eberhart-Hertel's direction to translate the
-code-based logic and protocols into a human-friendly Markdown manual, and to
-help organise and refine its wording and presentation. AI assistance does not
-transfer authorship of the methods or responsibility for their accuracy away
-from Luke Eberhart-Hertel.
+Under his direction, AI helped turn these methods into a readable manual and
+assisted with writing, checking and testing parts of the supporting software.
+This included the rules that check data entry, the To-Do lists and other
+database tools. AI assistance did not replace his scientific judgement or
+responsibility.
+
+For anyone interested in how this work was done, the project makes its
+development process available for inspection on GitHub:
+
+- [Overview of how AI was used](https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/notes/CODEX_USAGE_TRANSPARENCY.md).
+- [Instructions and safety rules given to the AI assistants](https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/AGENTS.md).
+- [Summaries of requests, discussions and decisions](https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/notes/codex_logs/INDEX.md).
+- [Working notes for the different specialist tasks](https://github.com/ornitho-logics/NZ_FIELDWORKER/tree/main/notes/codex_proposals).
+- [How the data-entry checks were developed and tested](https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/notes/codex_proposals/THREAD3_VALIDATION_ARCHITECTURE.md#mock-data-and-tests), alongside the [checks themselves](https://github.com/ornitho-logics/NZ_FIELDWORKER/tree/main/notes/codex_proposals/validator_sandbox/inspector_lists_by_table).
+- [How the To-Do lists, maps and PDFs were developed](https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/notes/codex_proposals/THREAD4_TODO_MAP_LIST_DEBUG_PLAN.md).
+- [A guide to reproducing the development and testing process](https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/1559b166e77d177fe01e278e1b112d912f032b1a/docs/reconstruction/README.md), with [invented example data](https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/1559b166e77d177fe01e278e1b112d912f032b1a/tools/reconstruction/fixtures.sql).
+
+These resources explain the work and its limitations. They contain reviewed
+notes and summaries, rather than every conversation or private working file.
+
+Security and human oversight were central to the process. Luke Eberhart-Hertel
+reviewed changes and personally installed updates on the field server. AI
+assistants did not independently access or change that server. Private database
+copies, passwords and sensitive field information are not published in these
+transparency resources.
+
+The initial data-entry checks were developed using invented records, including
+deliberately incorrect examples to test whether problems would be detected.
+Later development and troubleshooting also used selected real records and
+database snapshots covering part of the field season. Selected examples and
+summaries were discussed with the AI; the complete season's dataset was not
+included in prompts. Larger database checks were carried out locally on
+Luke Eberhart-Hertel's computer. This distinction is important: the work was
+not entirely artificial-data testing, but neither was the complete seasonal
+database supplied as an AI prompt.
 
 For questions or clarification, contact Luke Eberhart-Hertel at
 [luke.eberhart@bi.mpg.de](mailto:luke.eberhart@bi.mpg.de).

@@ -16,7 +16,18 @@ the diff first: all files under `main/www` are browser-readable. Never import
 private records, coordinates, credentials or unpublished operational reports.
 The private review draft is not loaded at runtime or silently kept in sync.
 
-The app publication copy is v2.4.14 (revised 1 November 2026). Luke's approved
+The app publication copy is v2.4.15 (revised 1 November 2026). Its plain-language
+authorship disclosure links the public AI-use record, governance, sanitized summaries,
+specialist handoffs, validator sources and reproducible synthetic workflow.
+It distinguishes initial invented-data validation from later approved local
+snapshot/field-example troubleshooting, and manual human deployment from agent
+repository/local work. It makes no blanket zero-disclosure or provider-audit
+claim. It explicitly describes selected real examples and partial-season local
+snapshots, and records Luke's confirmation that the complete season's dataset
+was not included in prompts. The new reconstruction/fixture links use an already
+published commit permalink so they do not depend on an unmerged or later-deleted
+topic branch.
+Luke's approved
 1 November decision assumes confirming X-X and a unique eligible status-F first
 banding of the same sex, nest and date target the same individual, including
 MM without later sightings. Same-day confirmation transfers; preserve the date,
