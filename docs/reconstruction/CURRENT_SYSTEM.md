@@ -97,6 +97,17 @@ app update; no inspector or base-table migration is required. Rollback restores
 the prior SQL/R sources and rebuilds the derived snapshots; never replace raw
 base tables. Earlier dated verification records do not verify this later change.
 
+The subsequent **Hatch timing (days)** popup field delegates to the existing
+`todo_pdf_prepare_nest_summary()` formatter rather than copying its hatch rules.
+The map supplies the same reference-date published task values and the existing
+`EGGS_HATCH_PREDICTION` metadata, alongside its nest/brood rows. This preserves
+negative overdue/brood-age values, task overrides, no-float suppression and
+explicit flotation exemptions. It uses small published task rows and one
+narrow projection of the existing hatch-prediction view when map data changes;
+there is no per-click query, new SQL object, schema change, refresh stage or PDF
+render. An unavailable/withheld value displays Unknown. This map-only addition
+requires an app update, not another SQL import.
+
 Select exactly one identity at the highest positive level for each nest and sex.
 Ties at that level, ambiguous matching or no positive level remain unresolved.
 The direct gates share level 3; these are alternative evidence routes. TN resolves

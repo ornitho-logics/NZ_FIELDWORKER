@@ -147,6 +147,66 @@ test_that("map reads published snapshot metadata rather than expanding live asso
   expect_match(sql, "FROM TODO_PARENT_STATUS_SNAPSHOT", fixed = TRUE)
   expect_match(sql, "ORDER BY refresh_id DESC LIMIT 1", fixed = TRUE)
   expect_match(sql, "published.state = 'succeeded'", fixed = TRUE)
-  expect_match(sql, "parents.reference_date = settings.value", fixed = TRUE)
+  expect_match(sql, "snapshot_rows.reference_date = settings.value", fixed = TRUE)
   expect_false(grepl("ADULT_PARENT|CAPTURES|RESIGHTINGS", sql))
+  task_sql <- env$.nest_map_snapshot_query("TODO_LIST_SNAPSHOT")
+  expect_match(task_sql, "FROM TODO_LIST_SNAPSHOT", fixed = TRUE)
+  expect_error(env$.nest_map_snapshot_query("ADULT_PARENT_STATUS"))
+})
+
+popup_hatch_test_env <- function() {
+  env <- popup_test_env()
+  for (file in c("display_nest_ids.R", "pdf_todo.R", "pdf_todo_map.R")) {
+    sys.source(testthat::test_path("..", "..", "main", "R", file), env)
+  }
+  env
+}
+
+test_that("map hatch timing reuses PDF summary values for nests and broods", {
+  env <- popup_hatch_test_env()
+  points <- data.table::data.table(
+    nest_id = c("MOCK-ACTIVE", "MOCK-OVERDUE", "MOCK-HATCHED", "-MOCK-BROOD"),
+    reference_date = as.Date("2026-11-02"),
+    nest_state = c("I", "I", "H", NA), map_category = c("I", "I", "brood", "brood"),
+    has_hatch_evidence = c(FALSE, FALSE, TRUE, TRUE), is_negative_brood = c(FALSE, FALSE, FALSE, TRUE),
+    hatch_evidence_date = as.Date(c(NA, NA, "2026-10-29", NA)),
+    discovery_date = as.Date(c(NA, NA, NA, "2026-10-23")),
+    min_days_to_hatch = c(6, -2, 99, NA), M_mark = "MOCK-M", F_mark = "MOCK-F"
+  )
+  tasks <- data.table::data.table(
+    nest_id = "MOCK-HATCHED", reference_date = as.Date("2026-11-02"),
+    todo = "Parent resighting", min_days_to_hatch = -5, M_mark = "MOCK-M", F_mark = "MOCK-F"
+  )
+  before <- data.table::copy(points)
+  expected <- env$todo_pdf_prepare_nest_summary(data.table::copy(points), as.Date("2026-11-02"), todo = tasks)
+  result <- env$.nest_map_add_hatch_timing(points, tasks, data.table::data.table())
+  expect_identical(result$hatch_timing, c("6", "-2", "-5", "-10"))
+  expect_identical(result$hatch_timing, expected[["Est. Hatch"]][match(points$nest_id, expected$Nest)])
+  expect_identical(points, before)
+  popup <- env$.nest_map_popups(result)
+  expect_match(popup[1], "<th>Hatch timing (days)</th><td>6</td>", fixed = TRUE)
+  expect_match(popup[3], "<th>Hatch timing (days)</th><td>-5</td>", fixed = TRUE)
+  # A task from another reference date cannot override the live map date.
+  tasks[, reference_date := as.Date("2026-11-01")]
+  result <- env$.nest_map_add_hatch_timing(points, tasks, data.table::data.table())
+  expect_identical(result$hatch_timing[3], "-4")
+})
+
+test_that("map retains the PDF flotation safeguards and handles unavailable estimates", {
+  env <- popup_hatch_test_env()
+  points <- data.table::data.table(
+    nest_id = c("MOCK-NO-FLOAT", "MOCK-EXEMPT", "MOCK-UNKNOWN"),
+    reference_date = as.Date("2026-11-02"), nest_state = "I",
+    min_days_to_hatch = c(6, 7, NA_real_), M_mark = "MOCK-M", F_mark = "MOCK-F"
+  )
+  prediction <- data.table::data.table(
+    nest_id = c("MOCK-NO-FLOAT", "MOCK-EXEMPT"), reference_date = as.Date("2026-11-02"),
+    calibration_match_type = c("complete clutch chronology", "found as incomplete"),
+    float_date = as.Date(NA), days_to_hatch = c(6, 7)
+  )
+  result <- env$.nest_map_add_hatch_timing(points, data.table::data.table(), prediction)
+  expect_identical(result$hatch_timing, c("Unknown", "7", "Unknown"))
+  result <- env$.nest_map_add_hatch_timing(points, data.frame(error = "unavailable"), prediction)
+  expect_true(all(result$hatch_timing == "Unknown"))
+  expect_equal(nrow(env$.nest_map_add_hatch_timing(points[0], NULL, NULL)), 0L)
 })

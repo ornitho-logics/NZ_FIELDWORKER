@@ -1,7 +1,7 @@
 # BADO Field Manual 2026
 
 Protocols for studying breeding Banded Dotterel / Pohowera\
-**Markdown review draft v2.4.17 · Revised 1 November 2026**
+**Markdown review draft v2.4.18 · Revised 1 November 2026**
 
 This draft aims to describe the field procedures and the data-entry
 validation logic for Banded Dotterel fieldwork throughout New Zealand during the breeding season.
@@ -1466,6 +1466,15 @@ brood point, or the latest nest visit for an unhatched nest. Unknown timing is
 shown as Unknown. Last observer is shown only when supplied by the source;
 an old nest visitor is not presented as the observer of a later brood sighting.
 
+**Hatch timing (days)** follows the PDF's **Est. Hatch** display. Positive values
+are days until estimated hatch. For an unhatched nest, negative values mean
+days overdue; for a brood, negative values mean days since hatch using the
+existing hatch-evidence or unknown-origin brood age/discovery proxy. Zero is
+the hatch-day estimate, not proof of hatching. All values use the app's reference
+date. Missing estimates, including estimates withheld pending flotation, show
+Unknown rather than a misleading number. The map reuses the PDF formatter;
+it does not introduce another hatch calculation or change task eligibility.
+
 Parent annotations describe nest association, not tag eligibility. For example,
 `MOCK-F (IN)` means association through confirming IN behaviour; `MOCK-M (2)`
 means two qualifying nonconfirming resightings and, without other proof, needs
@@ -2404,6 +2413,7 @@ developmental resolution, not a statement that all siblings survived.
 | v2.4.15, 1 November 2026 | Expanded the AI-use disclosure with public governance, sanitized prompt-summary, specialist-handoff, validator and synthetic-workflow links. Clarified human review/manual field-server installation, confidentiality exclusions, initial invented-data testing and the distinct later authorized local/field-example troubleshooting scope. No scientific, validator, SQL or app-interaction change. |
 | v2.4.16, 1 November 2026 | Added guidance to open the Field Manual in a separate window if GitHub links do not open within the FIELDWORKER app. No protocol, database or link-handling change. |
 | v2.4.17, 1 November 2026 | Explained the simplified Nest Map popup, reference-date Last encounter display and cached per-parent association evidence. Display-only snapshot metadata does not change association, timing or task rules. |
+| v2.4.18, 1 November 2026 | Added Hatch timing (days) to the Nest Map popup using the existing PDF Est. Hatch formatter, including its flotation safeguards, published task values and brood-age convention. No SQL, schema or task-rule change. |
 
 This app publication copy is separate from Luke Eberhart-Hertel's editable private review
 draft and the retained Word/PDF references; those files have not been

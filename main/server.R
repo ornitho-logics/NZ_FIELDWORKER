@@ -538,7 +538,12 @@ function(input, output, session) {
       list(
         nests = DBq("SELECT * FROM NESTS_LATEST"),
         broods = DBq("SELECT * FROM BROODS_LATEST"),
-        parents = DBq(.nest_map_parent_status_query())
+        parents = DBq(.nest_map_parent_status_query()),
+        tasks = DBq(.nest_map_snapshot_query("TODO_LIST_SNAPSHOT")),
+        hatch_prediction = DBq(paste(
+          "SELECT nest_id, reference_date, calibration_match_type, float_date, days_to_hatch",
+          "FROM EGGS_HATCH_PREDICTION"
+        ))
       )
     }
   )
@@ -588,6 +593,9 @@ function(input, output, session) {
 
         map_data <- .prepare_live_nest_map_data(n, broods)
         map_data <- .nest_map_add_parent_associations(map_data, source_data$parents)
+        map_data <- .nest_map_add_hatch_timing(
+          map_data, source_data$tasks, source_data$hatch_prediction
+        )
 
         missing_negative_coords <- map_data[
           is_negative_brood & (is.na(lat) | is.na(lon))

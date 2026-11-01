@@ -80,3 +80,15 @@ to show plain identities without the new annotations. No inspector update is
 required. Preserve normal backup, quiet-window and stop-on-error controls.
 To roll back, restore the prior SQL/R source and rebuild derived snapshots;
 do not recreate the biological base tables or rewrite field records.
+
+## Later same-day hatch-timing display addition
+
+The map-only Hatch timing (days) addition reuses the existing PDF summary
+formatter, published task values and hatch-prediction metadata. No SQL changed,
+so the SQL source hashes and installation evidence above remain applicable.
+The R/map and manual changes postdate the source identities above; they were
+checked separately with 45 invented-data popup assertions (including PDF value
+parity, brood ages, task/date overrides, no-float suppression and explicit
+flotation exemptions) and 112 manual assertions. All passed, without database,
+app, browser, tile or PDF-render access. No further SQL integration run or field
+replay was performed for this display-only addition. It needs only an app update.
