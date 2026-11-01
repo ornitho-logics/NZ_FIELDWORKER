@@ -1,7 +1,7 @@
 # BADO Field Manual 2026
 
 Protocols for studying breeding Banded Dotterel / Pohowera\
-**Markdown review draft v2.4.15 · Revised 1 November 2026**
+**Markdown review draft v2.4.16 · Revised 1 November 2026**
 
 This draft aims to describe the field procedures and the data-entry
 validation logic for Banded Dotterel fieldwork throughout New Zealand during the breeding season.
@@ -2377,6 +2377,7 @@ developmental resolution, not a statement that all siblings survived.
 | v2.4.13, 31 October 2026 | Clarified Luke Eberhart-Hertel's MM chronology decision: eligible pre-MM evidence counts for a reliably identified bird; X-X proof cannot transfer to a later first-marked bird, which needs its own subsequent evidence. Added sex-specific chronology, conflict and same-day-order safeguards. Capture-field hint alignment preserves the existing F/R/C/D validator contract; this is not a live-installation claim. |
 | v2.4.14, 1 November 2026 | Luke Eberhart-Hertel approved linking unambiguous confirming X-X to a unique eligible same-sex/same-nest/same-date status-F first-banding identity, including MM without later sightings. Same-day proof transfers with capture-datetime proof dating and no inferred exact observation time/order. Count all distinct eligible F identities before later-proof/ambiguity filters. Different-day older proof cannot transfer; own valid same-day confirmation can retire an older placeholder. All ambiguity, displacement, timing/tag and unrelated same-day safeguards remain. Supersedes the blanket same-day no-link wording in v2.4.13. |
 | v2.4.15, 1 November 2026 | Expanded the AI-use disclosure with public governance, sanitized prompt-summary, specialist-handoff, validator and synthetic-workflow links. Clarified human review/manual field-server installation, confidentiality exclusions, initial invented-data testing and the distinct later authorized local/field-example troubleshooting scope. No scientific, validator, SQL or app-interaction change. |
+| v2.4.16, 1 November 2026 | Added guidance to open the Field Manual in a separate window if GitHub links do not open within the FIELDWORKER app. No protocol, database or link-handling change. |
 
 This app publication copy is separate from Luke Eberhart-Hertel's editable private review
 draft and the retained Word/PDF references; those files have not been
@@ -2631,6 +2632,10 @@ assisted with writing, checking and testing parts of the supporting software.
 This included the rules that check data entry, the To-Do lists and other
 database tools. AI assistance did not replace his scientific judgement or
 responsibility.
+
+If the GitHub links below do not open in the FIELDWORKER app, select
+**Open Field Manual in a separate window** above the manual, then try the links
+again.
 
 For anyone interested in how this work was done, the project makes its
 development process available for inspection on GitHub:
