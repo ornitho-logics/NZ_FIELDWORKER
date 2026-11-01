@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en-NZ"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="manual-source-md5" content="5ad9e053390e0d1b458ea51a000f43d6"><title>BADO Field Manual 2026</title><style>/* Scoped by the reader iframe; does not change dashboard styling. */
+<html lang="en-NZ"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="manual-source-md5" content="5a8ed7e81125b03125c2457b0e016e51"><title>BADO Field Manual 2026</title><style>/* Scoped by the reader iframe; does not change dashboard styling. */
 :root { color-scheme: light; --ink: #23343d; --accent: #315e70; --line: #d8e1e5; }
 * { box-sizing: border-box; }
 html { scroll-padding-top: 110px; }
@@ -73,7 +73,7 @@ pre code { overflow-wrap: anywhere; }
   mark { background: none; }
 }</style></head><body><a class="skip-link" href="#manual-content">Skip to manual</a><header class="reader-tools" aria-label="Manual controls"><div class="reader-tools-inner"><a class="contents-button" href="#manual-contents">Contents</a><label for="manual-search">Search manual</label><input id="manual-search" type="search" placeholder="e.g. hiding photographs" aria-controls="manual-search-results" aria-describedby="manual-search-help" autocomplete="off"><button id="manual-clear" type="button">Clear</button><button id="manual-expand" type="button">Expand all</button><button id="manual-collapse" type="button">Collapse all</button></div></header><main><p id="manual-search-help" class="reader-hint">Search words or field names; choose a result to open its section. <a href="manual.md" download>Download Markdown</a></p><p id="manual-search-status" role="status" aria-live="polite"></p><section id="manual-search-results" aria-label="Search results" hidden></section><noscript><p>Search and expand/collapse controls need JavaScript. The manual remains readable: open each section using its heading.</p></noscript><article id="manual-content" tabindex="-1"><h1>BADO Field Manual 2026</h1>
 <p>Protocols for studying breeding Banded Dotterel / Pohowera<br />
-<strong>Markdown review draft v2.4.16 · Revised 1 November 2026</strong></p>
+<strong>Markdown review draft v2.4.17 · Revised 1 November 2026</strong></p>
 <p>This draft aims to describe the field procedures and the data-entry
 validation logic for Banded Dotterel fieldwork throughout New Zealand during the breeding season.
 If the app disagrees with an instruction, keep
@@ -2254,6 +2254,27 @@ notes or WRYB records. Hover over column headings for hints, but do not change
 a truthful entry to follow a hint contradicted by the current procedure.
 Different people can enter data simultaneously; agree who is entering each
 encounter to avoid duplicate submissions.</p>
+<h3>Read the Nest Map popup</h3>
+<p>Click a point to see its nest/brood ID, state, parents, hatching status and
+clutch/brood sizes where available. <strong>Last encounter</strong> counts days back from
+the app's reference date: it uses the latest qualifying brood encounter for a
+brood point, or the latest nest visit for an unhatched nest. Unknown timing is
+shown as Unknown. Last observer is shown only when supplied by the source;
+an old nest visitor is not presented as the observer of a later brood sighting.</p>
+<p>Parent annotations describe nest association, not tag eligibility. For example,
+<code>MOCK-F (IN)</code> means association through confirming IN behaviour; <code>MOCK-M (2)</code>
+means two qualifying nonconfirming resightings and, without other proof, needs
+a third or confirming evidence. Definitive capture evidence can instead show
+<code>TN</code>, <code>TB</code> or <code>HA</code>; capture with chicks or GPS-linked chicks is identified
+separately. <code>MM, 2</code> means an MM capture and two qualifying resightings at this
+nest. Competing or uncertain matches are marked ambiguous; do not treat them
+as established parents. A resolved parent's stronger evidence takes precedence
+over a lower resighting tally or another pending candidate.</p>
+<p>These parent annotations come from the latest successful To-Do snapshot, not
+from a new association calculation whenever you open the map. Refresh the
+snapshot after new observations to update the counts. If matching published
+evidence is unavailable, or the live map shows a different bird, its plain
+identity remains without an association annotation.</p>
 <h3>Read the To-Do PDF as a dated work plan</h3>
 <p>The PDF reads the published To-Do snapshot for its reference date. Saving a
 record or downloading the PDF again does not necessarily rebuild that snapshot.
@@ -4200,6 +4221,10 @@ developmental resolution, not a statement that all siblings survived.</p>
 <tr>
 <td>v2.4.16, 1 November 2026</td>
 <td>Added guidance to open the Field Manual in a separate window if GitHub links do not open within the FIELDWORKER app. No protocol, database or link-handling change.</td>
+</tr>
+<tr>
+<td>v2.4.17, 1 November 2026</td>
+<td>Explained the simplified Nest Map popup, reference-date Last encounter display and cached per-parent association evidence. Display-only snapshot metadata does not change association, timing or task rules.</td>
 </tr>
 </tbody>
 </table></div>

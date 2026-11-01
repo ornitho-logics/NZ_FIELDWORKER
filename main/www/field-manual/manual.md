@@ -1,7 +1,7 @@
 # BADO Field Manual 2026
 
 Protocols for studying breeding Banded Dotterel / Pohowera\
-**Markdown review draft v2.4.16 · Revised 1 November 2026**
+**Markdown review draft v2.4.17 · Revised 1 November 2026**
 
 This draft aims to describe the field procedures and the data-entry
 validation logic for Banded Dotterel fieldwork throughout New Zealand during the breeding season.
@@ -1457,6 +1457,31 @@ a truthful entry to follow a hint contradicted by the current procedure.
 Different people can enter data simultaneously; agree who is entering each
 encounter to avoid duplicate submissions.
 
+### Read the Nest Map popup
+
+Click a point to see its nest/brood ID, state, parents, hatching status and
+clutch/brood sizes where available. **Last encounter** counts days back from
+the app's reference date: it uses the latest qualifying brood encounter for a
+brood point, or the latest nest visit for an unhatched nest. Unknown timing is
+shown as Unknown. Last observer is shown only when supplied by the source;
+an old nest visitor is not presented as the observer of a later brood sighting.
+
+Parent annotations describe nest association, not tag eligibility. For example,
+`MOCK-F (IN)` means association through confirming IN behaviour; `MOCK-M (2)`
+means two qualifying nonconfirming resightings and, without other proof, needs
+a third or confirming evidence. Definitive capture evidence can instead show
+`TN`, `TB` or `HA`; capture with chicks or GPS-linked chicks is identified
+separately. `MM, 2` means an MM capture and two qualifying resightings at this
+nest. Competing or uncertain matches are marked ambiguous; do not treat them
+as established parents. A resolved parent's stronger evidence takes precedence
+over a lower resighting tally or another pending candidate.
+
+These parent annotations come from the latest successful To-Do snapshot, not
+from a new association calculation whenever you open the map. Refresh the
+snapshot after new observations to update the counts. If matching published
+evidence is unavailable, or the live map shows a different bird, its plain
+identity remains without an association annotation.
+
 ### Read the To-Do PDF as a dated work plan
 
 The PDF reads the published To-Do snapshot for its reference date. Saving a
@@ -2378,6 +2403,7 @@ developmental resolution, not a statement that all siblings survived.
 | v2.4.14, 1 November 2026 | Luke Eberhart-Hertel approved linking unambiguous confirming X-X to a unique eligible same-sex/same-nest/same-date status-F first-banding identity, including MM without later sightings. Same-day proof transfers with capture-datetime proof dating and no inferred exact observation time/order. Count all distinct eligible F identities before later-proof/ambiguity filters. Different-day older proof cannot transfer; own valid same-day confirmation can retire an older placeholder. All ambiguity, displacement, timing/tag and unrelated same-day safeguards remain. Supersedes the blanket same-day no-link wording in v2.4.13. |
 | v2.4.15, 1 November 2026 | Expanded the AI-use disclosure with public governance, sanitized prompt-summary, specialist-handoff, validator and synthetic-workflow links. Clarified human review/manual field-server installation, confidentiality exclusions, initial invented-data testing and the distinct later authorized local/field-example troubleshooting scope. No scientific, validator, SQL or app-interaction change. |
 | v2.4.16, 1 November 2026 | Added guidance to open the Field Manual in a separate window if GitHub links do not open within the FIELDWORKER app. No protocol, database or link-handling change. |
+| v2.4.17, 1 November 2026 | Explained the simplified Nest Map popup, reference-date Last encounter display and cached per-parent association evidence. Display-only snapshot metadata does not change association, timing or task rules. |
 
 This app publication copy is separate from Luke Eberhart-Hertel's editable private review
 draft and the retained Word/PDF references; those files have not been

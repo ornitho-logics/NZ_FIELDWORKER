@@ -134,7 +134,9 @@ dbtabs_show_view_sources <- list(
     "CAPTURES",
     "EGGS",
     "predict_hatching",
-    "RESIGHTINGS"
+    "RESIGHTINGS",
+    "TODO_REFRESH_STATUS",
+    "TODO_PARENT_STATUS_SNAPSHOT"
   ),
   CAPTURES_ARCHIVE = c("BADOatNZ.CAPTURES"),
 

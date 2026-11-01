@@ -4073,7 +4073,14 @@ WITH first_marking_counts AS (
     c.has_mm_capture,
     0 AS ambiguous_match,
     CASE WHEN chick_link.capture_pk IS NOT NULL THEN 1 ELSE 0 END
-      AS chick_gps_parent_link
+      AS chick_gps_parent_link,
+    CASE
+      WHEN c.definitive_capture = 1 AND c.capture_method IN ('TB', 'TN', 'HA')
+      THEN c.capture_method
+      WHEN c.definitive_capture = 1 THEN 'with chicks'
+      WHEN chick_link.capture_pk IS NOT NULL THEN 'GPS + chicks'
+      ELSE NULL
+    END AS display_evidence_method
   FROM FIELD_2026_BADOatNZ.ADULT_CAPTURE_IDENTITIES c
   LEFT JOIN FIELD_2026_BADOatNZ.ADULT_CHICK_GPS_PARENT_LINKS_INPUT chick_link
     ON chick_link.capture_pk = c.capture_pk
@@ -4100,7 +4107,8 @@ WITH first_marking_counts AS (
     0 AS nonconfirming_resighting,
     0 AS has_mm_capture,
     0 AS ambiguous_match,
-    1 AS chick_gps_parent_link
+    1 AS chick_gps_parent_link,
+    'GPS + chicks' AS display_evidence_method
   FROM FIELD_2026_BADOatNZ.ADULT_CHICK_GPS_PARENT_LINKS_INPUT chick_link
   WHERE NOT EXISTS (
     SELECT 1
@@ -4137,7 +4145,17 @@ WITH first_marking_counts AS (
       ELSE 0
     END AS has_mm_capture,
     r.is_ambiguous_match AS ambiguous_match,
-    0 AS chick_gps_parent_link
+    0 AS chick_gps_parent_link,
+    CASE WHEN r.association_confirming = 1 THEN CONCAT_WS('/',
+      CASE WHEN r.behav REGEXP '(^|[,[:space:]])IN([,[:space:]]|$)' THEN 'IN' END,
+      CASE WHEN r.behav REGEXP '(^|[,[:space:]])NM([,[:space:]]|$)' THEN 'NM' END,
+      CASE WHEN r.behav REGEXP '(^|[,[:space:]])SC([,[:space:]]|$)' THEN 'SC' END,
+      CASE WHEN r.behav REGEXP '(^|[,[:space:]])BW([,[:space:]]|$)' THEN 'BW' END,
+      CASE WHEN r.behav REGEXP '(^|[,[:space:]])BC([,[:space:]]|$)' THEN 'BC' END,
+      CASE WHEN r.behav REGEXP '(^|[,[:space:]])FC([,[:space:]]|$)' THEN 'FC' END,
+      CASE WHEN r.behav REGEXP '(^|[,[:space:]])AC([,[:space:]]|$)' THEN 'AC' END
+    ) ELSE NULL END
+      AS display_evidence_method
   FROM resighting_evidence r
 ), event_identity_counts AS (
   SELECT
@@ -4251,7 +4269,15 @@ WITH first_marking_counts AS (
     MIN(CASE WHEN event_union.confirming_resighting = 1
       THEN DATE(event_union.event_datetime) END) AS first_confirming_date,
     MIN(CASE WHEN nonconfirming.nonconfirming_rank = 3
-      THEN DATE(nonconfirming.event_datetime) END) AS third_nonconfirming_date
+      THEN DATE(nonconfirming.event_datetime) END) AS third_nonconfirming_date,
+    /* Display provenance only: reuse this identity's existing event scan.
+       These aggregates do not participate in selection or task eligibility. */
+    GROUP_CONCAT(DISTINCT CASE WHEN event_union.definitive_capture = 1
+      THEN event_union.display_evidence_method END
+      ORDER BY event_union.display_evidence_method SEPARATOR '/') AS definitive_display_methods,
+    GROUP_CONCAT(DISTINCT CASE WHEN event_union.confirming_resighting = 1
+      AND event_counts.n_identity_keys = 1 THEN event_union.display_evidence_method END
+      ORDER BY event_union.display_evidence_method SEPARATOR '/') AS confirming_display_methods
   FROM event_union
   LEFT JOIN mm_xx_conflict_dates conflict
     ON conflict.nest_id = event_union.nest_id
@@ -4363,7 +4389,14 @@ SELECT
   classified.n_nonconfirming_resightings,
   classified.n_confirming_resightings,
   classified.n_resightings,
-  classified.has_ambiguous_match
+  classified.has_ambiguous_match,
+  CASE
+    WHEN classified.association_level = 3 THEN classified.definitive_display_methods
+    WHEN classified.association_level = 2 THEN classified.confirming_display_methods
+    WHEN classified.association_level = 1
+    THEN CAST(classified.n_nonconfirming_resightings AS CHAR)
+    ELSE NULL
+  END AS association_display_basis
 FROM classified;
 
 
@@ -4406,7 +4439,9 @@ WITH sr AS (
     MAX(association.identity_single_colour_recruit) AS single_colour_recruit,
     MAX(association.has_mm_capture) AS has_mm_capture,
     MAX(association.n_nonconfirming_resightings) AS n_nonconfirming_resightings,
-    MAX(association.n_resightings) AS n_resightings
+    MAX(association.n_resightings) AS n_resightings,
+    MAX(association.association_display_basis) AS display_basis,
+    MAX(association.has_ambiguous_match) AS display_ambiguous_match
   FROM FIELD_2026_BADOatNZ.ADULT_PARENT_NEST_ASSOCIATIONS association
   GROUP BY association.nest_id, association.sex, association.identity_key
 ), status_by_sex AS (
@@ -4459,6 +4494,22 @@ WITH sr AS (
       ORDER BY by_identity.parent_mark
       SEPARATOR ' & '
     ) AS association_details,
+    /* Keep selected proof and each pending individual's count separate.
+       Existing pending-detail columns retain their original contracts. */
+    COALESCE(
+      MAX(CASE WHEN by_identity.association_selected = 1 THEN CONCAT(
+        by_identity.parent_mark,
+        CASE WHEN NULLIF(by_identity.display_basis, '') IS NOT NULL
+          THEN CONCAT(' (', by_identity.display_basis, ')') ELSE '' END
+      ) END),
+      GROUP_CONCAT(DISTINCT CASE WHEN by_identity.association_pending = 1
+        THEN CONCAT(COALESCE(by_identity.parent_mark, 'unknown'), ' (',
+          CASE WHEN by_identity.association_ambiguous = 1
+            OR by_identity.display_ambiguous_match = 1 THEN 'ambiguous; ' ELSE '' END,
+          CASE WHEN by_identity.has_mm_capture = 1 THEN 'MM, ' ELSE '' END,
+          by_identity.n_nonconfirming_resightings, ')') END
+        ORDER BY by_identity.parent_mark SEPARATOR ' & ')
+    ) AS association_display,
     GROUP_CONCAT(
       DISTINCT CASE WHEN by_identity.association_pending = 1 THEN by_identity.parent_mark END
       ORDER BY by_identity.parent_mark
@@ -4525,7 +4576,9 @@ WITH sr AS (
     MAX(CASE WHEN status_by_sex.sex = 'M' THEN status_by_sex.any_mm_capture ELSE 0 END) AS M_has_mm_capture,
     MAX(CASE WHEN status_by_sex.sex = 'F' THEN status_by_sex.any_mm_capture ELSE 0 END) AS F_has_mm_capture,
     MAX(CASE WHEN status_by_sex.sex = 'M' THEN status_by_sex.mm_capture_mark END) AS M_mm_capture_mark,
-    MAX(CASE WHEN status_by_sex.sex = 'F' THEN status_by_sex.mm_capture_mark END) AS F_mm_capture_mark
+    MAX(CASE WHEN status_by_sex.sex = 'F' THEN status_by_sex.mm_capture_mark END) AS F_mm_capture_mark,
+    MAX(CASE WHEN status_by_sex.sex = 'M' THEN status_by_sex.association_display END) AS M_association_display,
+    MAX(CASE WHEN status_by_sex.sex = 'F' THEN status_by_sex.association_display END) AS F_association_display
   FROM units
   LEFT JOIN status_by_sex
     ON units.nest_id = status_by_sex.nest_id
@@ -4634,7 +4687,9 @@ SELECT
   capture_timing.last_any_adult_capture_datetime,
   0 AS both_parents_need_geo,
   0 AS M_has_unique_scrape_resight,
-  0 AS F_has_unique_scrape_resight
+  0 AS F_has_unique_scrape_resight,
+  pivoted.M_association_display,
+  pivoted.F_association_display
 FROM pivoted
 LEFT JOIN capture_timing
   ON pivoted.nest_id = capture_timing.nest_id;

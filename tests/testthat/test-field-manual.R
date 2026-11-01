@@ -44,6 +44,8 @@ test_that("app manual preserves disclosure, sections and expected event table", 
   expect_match(md, "same ring's earlier capture", fixed = TRUE)
   expect_match(md, "tag X-X M (pair completion)", fixed = TRUE)
   expect_match(md, "Local v1.3.20", fixed = TRUE)
+  expect_match(md, "### Read the Nest Map popup", fixed = TRUE)
+  expect_match(md, "These parent annotations come from the latest successful To-Do snapshot", fixed = TRUE)
   expect_match(html, 'id="manual-search"', fixed = TRUE)
   expect_match(html, 'id="manual-contents"', fixed = TRUE)
   expect_match(html, 'aria-live="polite"', fixed = TRUE)

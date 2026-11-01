@@ -2,7 +2,7 @@ library(testthat)
 
 # Execute the actual association SELECT with invented input CTEs, not a second
 # R implementation of the association rules. No schema or records are written.
-mm_xx_query <- function(captures, sightings, reference_date = "2026-10-31") {
+mm_xx_query <- function(captures, sightings, reference_date = "2026-10-31", include_display = FALSE) {
   sql <- paste(readLines(app_file("DATABASE", "views.SQL"), warn = FALSE), collapse = "\n")
   start <- regexpr("CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.ADULT_PARENT_NEST_ASSOCIATIONS AS", sql, fixed = TRUE)[[1L]]
   stopifnot(start > 0L)
@@ -41,7 +41,8 @@ mm_xx_query <- function(captures, sightings, reference_date = "2026-10-31") {
     "adult_chick_gps_parent_links_input AS (SELECT capture_fixture.* FROM capture_fixture WHERE 1=0),",
     ctes, ", actual_associations AS (", result_select, ")",
     "SELECT CONCAT_WS('|', identity_key, association_level, association_selected, association_pending,",
-    "COALESCE(CAST(association_evidence_datetime AS CHAR), 'NULL'), n_nonconfirming_resightings)",
+    paste0("COALESCE(CAST(association_evidence_datetime AS CHAR), 'NULL'), n_nonconfirming_resightings",
+      if (include_display) ", COALESCE(association_display_basis, 'NULL')" else "", ")"),
     "FROM actual_associations ORDER BY identity_key;"
   )
 }
@@ -63,7 +64,7 @@ mm_xx_capture <- function(identity, day, sex = "M", status = "F", method = "MM")
   data.frame(nest_id = "MOCK_NEST", capture_sex = sex, identity_key = identity,
     capture_pk = paste(identity, day), capture_date = sprintf("2026-10-%02d", day),
     capture_datetime = sprintf("2026-10-%02d 10:00:00", day),
-    capture_status = status, is_confirmed_xx = 0, association_evidence_eligible = 1,
+    capture_status = status, capture_method = method, is_confirmed_xx = 0, association_evidence_eligible = 1,
     display_mark = identity, has_geo = 0, is_au_migrant = 0, is_dead = 0,
     is_single_colour_recruit = 0, definitive_capture = as.integer(method == "TN"),
     has_mm_capture = as.integer(method == "MM"), stringsAsFactors = FALSE)
@@ -72,12 +73,34 @@ mm_xx_capture <- function(identity, day, sex = "M", status = "F", method = "MM")
 mm_xx_sighting <- function(identity, day, sex = "M", confirming = FALSE, pk = day, ambiguous = FALSE) {
   data.frame(nest_id = "MOCK_NEST", sex = sex, identity_key = identity,
     resighting_pk = pk, observation_date = sprintf("2026-10-%02d", day),
+    behav = if (confirming) "IN" else "AT",
     display_mark = identity, has_geo = 0, is_au_migrant = 0, is_dead = 0,
     is_single_colour_recruit = 0, association_evidence_eligible = 1,
     association_confirming = as.integer(confirming),
     association_nonconfirming = as.integer(!confirming),
     is_ambiguous_match = as.integer(ambiguous), stringsAsFactors = FALSE)
 }
+
+test_that("actual SQL display provenance follows the existing winning association gate", {
+  for (sex in c("M", "F")) {
+    capture <- mm_xx_capture("ring:MOCK_DISPLAY", 3, sex)
+    for (behav in c("IN", "NM", "SC", "BW", "BC", "FC", "AC", "AT, IN")) {
+      sighting <- mm_xx_sighting("ring:MOCK_DISPLAY", 4, sex, TRUE)
+      sighting$behav <- behav
+      expected <- if (behav == "AT, IN") "IN" else behav
+      result <- mm_xx_execute(mm_xx_query(capture, sighting, include_display = TRUE))
+      expect_true(endsWith(result, paste0("|0|", expected)))
+    }
+    sighting <- mm_xx_sighting("ring:MOCK_DISPLAY", 4, sex, TRUE)
+    tn <- transform(capture, capture_method = "TN", definitive_capture = 1L, has_mm_capture = 0L)
+    expect_true(endsWith(mm_xx_execute(mm_xx_query(tn, sighting, include_display = TRUE)), "|0|TN"))
+    repeated <- do.call(rbind, lapply(4:6, function(day) mm_xx_sighting("ring:MOCK_DISPLAY", day, sex)))
+    expect_true(endsWith(mm_xx_execute(mm_xx_query(capture, repeated, include_display = TRUE)), "|3|3"))
+    expect_true(endsWith(mm_xx_execute(mm_xx_query(capture, repeated[1:2, ], include_display = TRUE)), "|2|NULL"))
+    xx <- mm_xx_sighting(paste0("xx:MOCK_NEST:", sex), 3, sex, TRUE)
+    expect_true(endsWith(mm_xx_execute(mm_xx_query(capture, xx, include_display = TRUE)), "|0|IN"))
+  }
+})
 
 test_that("actual SQL preserves identified pre-MM evidence independently for both sexes", {
   for (sex in c("M", "F")) {
