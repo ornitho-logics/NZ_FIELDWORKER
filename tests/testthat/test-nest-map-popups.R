@@ -103,3 +103,50 @@ test_that("prepared nest and brood dates reach the actual map popup", {
   expect_match(text, "<th>Last encounter</th><td>2 days ago</td>", fixed = TRUE)
   expect_match(text, "<th>Last encounter</th><td>1 day ago</td>", fixed = TRUE)
 })
+
+test_that("cached association displays match nest, date and current identity", {
+  env <- popup_test_env()
+  points <- data.table::data.table(
+    nest_id = c("MOCK-OK", "MOCK-OLD", "MOCK-NEW-BIRD", "MOCK-DUP"),
+    reference_date = as.Date("2026-11-02"), M_mark = "MOCK-M", F_mark = "MOCK-F"
+  )
+  parents <- data.table::data.table(
+    nest_id = c("MOCK-OK", "MOCK-OLD", "MOCK-NEW-BIRD", "MOCK-DUP", "MOCK-DUP"),
+    reference_date = as.Date(c("2026-11-02", "2026-11-01", "2026-11-02", "2026-11-02", "2026-11-02")),
+    M_parent_mark = c("MOCK-M", "MOCK-M", "OTHER-M", "MOCK-M", "MOCK-M"),
+    F_parent_mark = "MOCK-F", M_association_display = "MOCK-M (2)",
+    F_association_display = "MOCK-F (IN)"
+  )
+  before <- data.table::copy(points)
+  result <- env$.nest_map_add_parent_associations(points, parents)
+  popup <- env$.nest_map_popups(result)
+  expect_match(popup[1], "<th>Male</th><td>MOCK-M (2)</td>", fixed = TRUE)
+  expect_match(popup[1], "<th>Female</th><td>MOCK-F (IN)</td>", fixed = TRUE)
+  expect_false(grepl("MOCK-M (2)", popup[2], fixed = TRUE))
+  expect_false(grepl("MOCK-M (2)", popup[3], fixed = TRUE))
+  expect_false(grepl("MOCK-M (2)", popup[4], fixed = TRUE))
+  expect_match(popup[3], "MOCK-F (IN)", fixed = TRUE)
+  expect_identical(points, before)
+  expect_identical(env$.nest_map_add_parent_associations(points, parents[, !"M_association_display"]), points)
+  expect_identical(env$.nest_map_add_parent_associations(points, data.frame(error = "unavailable")), points)
+  parents <- parents[1]
+  parents[, M_parent_mark := "MOCK-M & MOCK-OTHER"]
+  parents[, M_association_display := "MOCK-M (2) & MOCK-OTHER (MM, 1)"]
+  popup <- env$.nest_map_popups(env$.nest_map_add_parent_associations(points, parents))
+  expect_match(popup[1], "MOCK-M (2) &amp; MOCK-OTHER (MM, 1)", fixed = TRUE)
+  parents[, `:=`(M_parent_mark = "MOCK-COMPETITOR", M_selected_mark = "MOCK-M",
+                 M_association_display = "MOCK-M (TN)")]
+  popup <- env$.nest_map_popups(env$.nest_map_add_parent_associations(points, parents))
+  expect_match(popup[1], "MOCK-M (TN)", fixed = TRUE)
+  expect_false(grepl("MOCK-COMPETITOR", popup[1], fixed = TRUE))
+})
+
+test_that("map reads published snapshot metadata rather than expanding live associations", {
+  env <- popup_test_env()
+  sql <- env$.nest_map_parent_status_query()
+  expect_match(sql, "FROM TODO_PARENT_STATUS_SNAPSHOT", fixed = TRUE)
+  expect_match(sql, "ORDER BY refresh_id DESC LIMIT 1", fixed = TRUE)
+  expect_match(sql, "published.state = 'succeeded'", fixed = TRUE)
+  expect_match(sql, "parents.reference_date = settings.value", fixed = TRUE)
+  expect_false(grepl("ADULT_PARENT|CAPTURES|RESIGHTINGS", sql))
+})

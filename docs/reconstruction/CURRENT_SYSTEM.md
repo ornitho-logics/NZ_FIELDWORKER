@@ -68,6 +68,35 @@ In [views.SQL](../../DATABASE/views.SQL), read `ADULT_CAPTURE_IDENTITIES_ALL`,
 | Confirming resighting | One eligible nest-linked IN/NM/SC/BW/BC/FC/AC token observation with observed lower fields and a valid dated nest/brood; level 2. |
 | Repeated resighting | Three distinct unambiguous nonconfirming events of the same nest, sex and identity; level 1, including the initial event. |
 
+### Nest-map association display (1 November 2026)
+
+`M_association_display` and `F_association_display` are additive, display-only
+columns on `ADULT_PARENT_STATUS` and its derived parent snapshot. Their labels
+reuse the existing per-identity event scan and winning association level:
+definitive capture method (`TN`, `TB`, `HA`, or `with chicks`), `GPS + chicks`,
+confirming behaviour code(s), or the distinct qualifying nonconfirming count.
+No selection, ambiguity, MM chronology, reference-date or task gate uses these
+columns. Selected evidence takes precedence over pending competitors; without
+a selected parent, each pending identity keeps its own count and nest-specific
+MM/ambiguity annotation. Existing pending-detail fields are unchanged.
+
+The map reads only a small published snapshot after the latest refresh has
+succeeded for the current reference date; it never queries the expanded live
+association view for these annotations. Counts therefore reflect that snapshot,
+not subsequently entered observations, until another successful build. Missing
+new columns, an in-progress/failed build, a different reference date, duplicate
+snapshot keys or a disagreement with the live displayed bird withhold the
+annotation, retaining the plain map identity. No raw records are changed.
+
+The popup also uses one **Last encounter** field relative to the reference date:
+the existing SQL brood encounter date for brood points, or the latest nest visit
+for other points. Missing/future timing shows Unknown rather than substituting
+an old nest visit for a missing brood encounter. Deployment of the new evidence
+columns requires views installation followed by a successful refresh, then the
+app update; no inspector or base-table migration is required. Rollback restores
+the prior SQL/R sources and rebuilds the derived snapshots; never replace raw
+base tables. Earlier dated verification records do not verify this later change.
+
 Select exactly one identity at the highest positive level for each nest and sex.
 Ties at that level, ambiguous matching or no positive level remain unresolved.
 The direct gates share level 3; these are alternative evidence routes. TN resolves

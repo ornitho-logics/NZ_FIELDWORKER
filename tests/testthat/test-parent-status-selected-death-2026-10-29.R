@@ -95,6 +95,29 @@ test_that("selected death is projected separately from historical death", {
   expect_match(sql, "FROM pivoted\nLEFT JOIN capture_timing", fixed = TRUE)
 })
 
+test_that("actual status display keeps selected methods and individual pending counts separate", {
+  rows <- data.frame(
+    nest_id = c("DISPLAY_SELECTED", "DISPLAY_SELECTED", "DISPLAY_PENDING", "DISPLAY_PENDING", "DISPLAY_AMBIGUOUS"),
+    sex = "M", parent_mark = c("MOCK-A", "MOCK-B", "MOCK-C", "MOCK-D", "MOCK-E"),
+    identity_key = paste0("ring:DISPLAY", 1:5),
+    association_selected = c(1, 0, 0, 0, 0),
+    association_pending = c(0, 1, 1, 1, 1), association_ambiguous = c(0, 0, 0, 0, 1),
+    is_dead = 0, has_geo = 0, is_au_migrant = 0, single_colour_recruit = 0,
+    has_mm_capture = c(1, 0, 0, 1, 0), n_resightings = c(1, 2, 2, 1, 2),
+    n_nonconfirming_resightings = c(1, 2, 2, 1, 2),
+    display_basis = c("TN", NA, NA, NA, NA), display_ambiguous_match = 0,
+    stringsAsFactors = FALSE
+  )
+  status <- extract_selected_death_cte(selected_death_source_sql(), "status_by_sex", "), capture_timing AS (")
+  sql <- paste("WITH", selected_death_values_cte("by_identity", rows), ",", status,
+               "SELECT CONCAT(nest_id, '|', association_display) FROM status_by_sex ORDER BY nest_id;")
+  expect_identical(selected_death_mariadb_query(sql), c(
+    "DISPLAY_AMBIGUOUS|MOCK-E (ambiguous; 2)",
+    "DISPLAY_PENDING|MOCK-C (2) & MOCK-D (MM, 1)",
+    "DISPLAY_SELECTED|MOCK-A (TN)"
+  ))
+})
+
 test_that("actual selected-death projection handles competing and ambiguous identities", {
   rows <- data.frame(
     nest_id = c(
@@ -127,6 +150,8 @@ test_that("actual selected-death projection handles competing and ambiguous iden
     has_mm_capture = rep(0, 11),
     n_nonconfirming_resightings = rep(0, 11),
     n_resightings = rep(0, 11),
+    display_basis = rep("TN", 11),
+    display_ambiguous_match = rep(0, 11),
     stringsAsFactors = FALSE
   )
   status_by_sex <- extract_selected_death_cte(

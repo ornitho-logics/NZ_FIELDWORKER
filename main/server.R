@@ -537,7 +537,8 @@ function(input, output, session) {
     valueFunc = function() {
       list(
         nests = DBq("SELECT * FROM NESTS_LATEST"),
-        broods = DBq("SELECT * FROM BROODS_LATEST")
+        broods = DBq("SELECT * FROM BROODS_LATEST"),
+        parents = DBq(.nest_map_parent_status_query())
       )
     }
   )
@@ -586,6 +587,7 @@ function(input, output, session) {
         }
 
         map_data <- .prepare_live_nest_map_data(n, broods)
+        map_data <- .nest_map_add_parent_associations(map_data, source_data$parents)
 
         missing_negative_coords <- map_data[
           is_negative_brood & (is.na(lat) | is.na(lon))

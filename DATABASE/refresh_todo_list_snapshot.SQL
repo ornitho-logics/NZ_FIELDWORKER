@@ -1536,6 +1536,9 @@ CREATE TABLE FIELD_2026_BADOatNZ.TODO_PARENT_STATUS_SNAPSHOT_BUILD (
   both_parents_need_geo TINYINT NULL,
   M_has_unique_scrape_resight TINYINT NULL,
   F_has_unique_scrape_resight TINYINT NULL,
+  /* Additive map-only provenance; never used in task/association gates. */
+  M_association_display LONGTEXT NULL,
+  F_association_display LONGTEXT NULL,
   INDEX idx_todo_parent_status_nest (nest_id),
   INDEX idx_todo_parent_status_reference (reference_date)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci;
