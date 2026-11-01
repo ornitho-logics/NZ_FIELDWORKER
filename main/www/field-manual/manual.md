@@ -1,7 +1,7 @@
 # BADO Field Manual 2026
 
 Protocols for studying breeding Banded Dotterel / Pohowera\
-**Markdown review draft v2.4.12 · Revised 31 October 2026**
+**Markdown review draft v2.4.14 · Revised 1 November 2026**
 
 This draft aims to describe the field procedures and the data-entry
 validation logic for Banded Dotterel fieldwork throughout New Zealand during the breeding season.
@@ -494,9 +494,56 @@ resolved, even when some of its other evidence appears strong. Obtain a better
 reading and refer the conflict; do not remove the original observation.
 
 A mobile-mistnet capture (`capture_method = MM`) does not, by itself, prove
-which nest that adult belongs to. Obtain genuine matching follow-up sightings.
-For an MM follow-up, one confirming behaviour or three matching post-capture
-resightings can resolve the link. The To-Do follow-up can begin two calendar
+which nest that adult belongs to. For a reliably identified bird at the same
+nest, eligible observations from before and after MM can count together: one
+confirming behaviour or three matching observations can resolve the link. A
+later MM capture does not erase independently established association.
+
+X-X is different: it identifies an unbanded bird of the recorded sex at that
+nest, not a uniquely identifiable individual across encounters. For example,
+an adult male caught by MM on day 1 is not established as the parent merely
+by that capture. A male X-X observed incubating there on day 2 instead confirms
+an unbanded male as the associated parent. If another male is first caught and
+marked by MM on day 3, do not assume it was that day-2 bird. The newly marked
+male needs its own one confirming observation or three distinct qualifying
+observations after capture. That different-day X-X evidence is not transferred
+to it. Apply the same rule independently to females.
+
+**Approved decision — Luke Eberhart-Hertel, 1 November 2026:** an unambiguous confirming
+X-X resighting and a unique eligible `capture_status = F` (first banding)
+capture of the same sex, at the same nest and on the same date are assumed to
+be the targeted same individual. That same-day confirmation transfers to the
+newly marked identity, including an MM capture, without requiring later sightings.
+Keep the actual observation date. RESIGHTINGS has no observation-time field;
+do not invent an exact sighting time or before/after order. The SQL calculation
+will conservatively date this linked proof at the capture datetime on that date.
+This derived timestamp is not an observed resighting time.
+
+For an invented example, `sameDayXXIN + firstMM` means an X-X adult observed
+incubating and one eligible same-sex first-banding MM capture at the same nest
+on day 1. With no later sightings, the marked identity resolves on day 1 under
+this assumption. By contrast, X-X IN on day 1 followed only by first MM capture
+on day 2 leaves the newly marked identity pending. If that bird has its own
+eligible same-day confirming X-X linkage on day 2, that supplies day-2 proof
+and allows retirement of an older placeholder without transferring day-1 proof.
+
+There is no unique link with multiple competing captured identities,
+ambiguous or otherwise ineligible evidence, another sex or nest, recapture
+only, or evidence beyond the reference date. First-marking uniqueness counts
+all eligible F identity keys for that sex, nest and date before later-proof
+or ambiguity filters. A competing candidate cannot be filtered out to create
+a unique link just because it lacks later proof or fails a later ambiguity
+check. Duplicate rows of one identity do not create another identity.
+A later X-X stays separate.
+Do not split or duplicate records to reach three. Preserve original X-X/MM
+displacement history and refer contradictory strong evidence for review;
+do not erase observations or silently choose between competing birds.
+The evidence hierarchy, seven-day/36-hour capture gates and tag rules remain
+unchanged, as do unrelated same-day safeguards for juvenile origins and brood
+closure. This approved method supersedes the earlier blanket same-day no-link
+wording. Verification scope is recorded separately in the dated source notes.
+
+The To-Do follow-up can begin two calendar
 days after capture; this is separate from the 36-hour capture-disturbance rule
 in Section 8. A timing-blocked capture instruction can also appear as
 resighting work, so read the To-Do note rather than assuming every resighting
@@ -2327,6 +2374,8 @@ developmental resolution, not a statement that all siblings survived.
 | v2.4.10, 29 October 2026 | Added the fixed inclusive age-21-to-35 live-encounter window, first suppression on day 36, negative-brood age proxy and later-live reactivation. Explained associated parent-task/summary suppression, late-upload correction and independent notA/juvenile resolution; added a dated worked example. |
 | v2.4.11, 29 October 2026 | Clarified New Zealand-wide scope and labelled site-specific examples; moved the authorship/AI statement after Appendix B with a contents link; clarified geolocator/tag terminology and corrected spelling. No biological rule or SQL change. |
 | v2.4.12, 31 October 2026 | Documented the post-9-October clutch-completion cutoff and conditional B/unknown tagging instruction, same-nest pair-completion follow-up, already-tagged pending-parent protection, consistent pair-completion wording and white map outlines. Added snapshot waiting guidance and the historical notA_summary report. Reconciled source status with local validator protocol v1.3.20 and completed local verification. |
+| v2.4.13, 31 October 2026 | Clarified Luke Eberhart-Hertel's MM chronology decision: eligible pre-MM evidence counts for a reliably identified bird; X-X proof cannot transfer to a later first-marked bird, which needs its own subsequent evidence. Added sex-specific chronology, conflict and same-day-order safeguards. Capture-field hint alignment preserves the existing F/R/C/D validator contract; this is not a live-installation claim. |
+| v2.4.14, 1 November 2026 | Luke Eberhart-Hertel approved linking unambiguous confirming X-X to a unique eligible same-sex/same-nest/same-date status-F first-banding identity, including MM without later sightings. Same-day proof transfers with capture-datetime proof dating and no inferred exact observation time/order. Count all distinct eligible F identities before later-proof/ambiguity filters. Different-day older proof cannot transfer; own valid same-day confirmation can retire an older placeholder. All ambiguity, displacement, timing/tag and unrelated same-day safeguards remain. Supersedes the blanket same-day no-link wording in v2.4.13. |
 
 This app publication copy is separate from Luke Eberhart-Hertel's editable private review
 draft and the retained Word/PDF references; those files have not been
@@ -2346,6 +2395,7 @@ wording does not override them.
 | Reviewed local protocol mirror | Local v1.3.20, including registered two-or-three-character uppercase letter/digit observer codes, mandatory explicit IDs for new H rows, family/uncertainty and SC corrections, and truthful chick/juvenile dead-recovery rules. Operational task-note changes do not add save-time validator rules. |
 | External validator protocol | No external YAML synchronisation was performed during this review. Read the tracked local mirror for its current reviewed version. |
 | Local verification | A completed isolated MariaDB 11.8.9 install/refresh and four-page PDF inspection support the recent task changes. The historical report separately passed focused invented-data checks. These are distinct verification scopes. |
+| Approved 1 November same-day linkage | Approved same-day rule; verification scope is recorded separately in the [dated verification record](../../../docs/reconstruction/MM_FOLLOWUP_VERIFICATION_2026-10-31.md#approved-decision-addendum--1-november-2026). No live-deployment claim. Regenerating this manual's HTML is documentation generation only. |
 | Live database, inspectors and Shiny process | This documentation review did not inspect live installation. A source merge or local success does not establish which versions are installed on the field server. |
 
 Some older protocol/handoff lists still mention EGGS media columns absent from
@@ -2378,7 +2428,9 @@ only the two tag-note literals and passed its focused check. This review does
 not establish live Adminer runtime or live deployment.
 
 The parent-association explanation follows the reviewed matching and selected
-association rules in `DATABASE/views.SQL`. Brood inference follows the closure
+association rules in `DATABASE/views.SQL`, with the approved 1 November same-day
+linkage decision recorded above awaiting separate implementation verification.
+Brood inference follows the closure
 stage and task exclusions in `DATABASE/refresh_todo_list_snapshot.SQL`.
 The reviewed rules require shared date/site/gps_id/point, reject conflicting
 inferred family targets, retain the verified-ring exception for uncertain

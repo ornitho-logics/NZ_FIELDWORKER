@@ -1,6 +1,37 @@
 # Codex use and task handoff transparency
 
-Last reconciled: 2026-10-23
+Current reconstruction addendum: 2026-11-01. Earlier publication chronology below
+retains its dates and does not define current deployed state.
+
+`docs/reconstruction/` now collects the current reference contract, adaptation
+decision intake, machine-readable role/DAG recipe, rule crosswalk, acceptance
+requirements and captured dependency metadata. `tools/reconstruction/` contains
+development-only validators and an owned no-network synthetic bootstrap. These
+are intentionally tracked reviewed artifacts; generated reports, server files,
+PDFs and synthetic runtime evidence remain ignored. The kit changes no app
+runtime or operator workflow and neither grants live access nor publishes data.
+See its README for exact checked and missing verification scopes.
+
+Separate 31 October follow-up: Luke explicitly resolved the MM chronology
+question and approved capture-mark field-description alignment. That later
+candidate changes the parent-association SQL and manual wording, plus eight
+source comments and a read-only live-comment patch generator; it is not part
+of the earlier runtime-unchanged reconstruction verification. It uses only
+invented local checks, changes no validator or raw field records, and grants
+no live installation or publication authority. See the reconstruction
+chronology contract and follow-up verification record for precise scope.
+
+On 1 November Luke clarified the targeted same-day first-banding exception:
+confirming X-X evidence and a unique eligible same-sex/nest first capture on
+that date identify the targeted bird without later resightings. This supersedes
+the earlier blanket refusal to link same-day evidence, not the different-day
+X-X safeguards or independent timing/tag gates. Code, invented regression cases,
+manual and machine-readable reconstruction contracts are updated together;
+dated verification records keep their original source identities and limits.
+The preceding narrowly authorized local trace remains private; no raw field
+records are included in the reconstruction package or these summaries.
+
+Historical reconciliation: 2026-10-23
 
 ## Purpose
 

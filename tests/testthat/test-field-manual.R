@@ -114,3 +114,17 @@ test_that("static reader rebuild is deterministic and needs no database", {
   expect_null(attr(output, "status"))
   expect_identical(unname(tools::md5sum(file.path(target, "index.html"))), unname(tools::md5sum(manual_file("index.html"))))
 })
+
+test_that("MM guidance distinguishes identifiable birds from unbanded chronology", {
+  md <- paste(readLines(manual_file("manual.md"), encoding = "UTF-8"), collapse = "\n")
+  expect_match(md, "eligible observations from before and after MM can count together", fixed = TRUE)
+  expect_match(md, "later MM capture does not erase independently established association", fixed = TRUE)
+  expect_match(md, "That different-day X-X evidence is not transferred", fixed = TRUE)
+  expect_match(md, "Apply the same rule independently to females", fixed = TRUE)
+  expect_match(md, "That same-day confirmation transfers", fixed = TRUE)
+  expect_match(md, "without requiring later sightings", fixed = TRUE)
+  expect_match(md, "This derived timestamp is not an observed resighting time", fixed = TRUE)
+  expect_match(md, "all eligible F identity keys", fixed = TRUE)
+  expect_match(md, "A later X-X stays separate", fixed = TRUE)
+  expect_false(grepl("a same-day record alone cannot", md, fixed = TRUE))
+})

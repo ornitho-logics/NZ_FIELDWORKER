@@ -134,8 +134,10 @@ The local architecture is:
 3. `DataEntry/inspectors/ui.R` and `server.R` expose the central inspector editor.
 4. The external package loads the DB-stored inspector lists and evaluates them against
    the submitted table as `x` before save.
-5. The portal reports `variable`, `reason`, and `rowid`. Hard and warning behavior is
-   separated by inspector row name, not by an extra output column.
+5. The portal reports `variable`, `reason`, and `rowid`. Select hard and warning
+   lists by actual table name plus the final `hard`/`warn` word in
+   `inspectors.comments`; export filenames are not database row names.
+   An extra output column does not itself change severity.
 
 The intended live categories are exactly:
 

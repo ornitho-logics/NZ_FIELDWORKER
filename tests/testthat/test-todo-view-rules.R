@@ -2633,10 +2633,12 @@ test_that("four-gate parent-resighting identities are canonicalized and counted 
   expect_match(sql, "association_eligible", fixed = TRUE)
   expect_match(sql, "xx_supersession_evidence AS", fixed = TRUE)
   expect_match(sql, "xx.identity_key LIKE 'xx:%'", fixed = TRUE)
-  expect_match(sql, "captured.capture_date > xx.observation_date", fixed = TRUE)
+  expect_match(sql, "captured.capture_date >= xx.observation_date", fixed = TRUE)
+  expect_match(sql, "first_marking.n_first_marked_identities = 1", fixed = TRUE)
+  expect_match(sql, "has_same_day_confirmation", fixed = TRUE)
   expect_match(
     sql,
-    "r.observation_date <= superseded.supersession_capture_date",
+    "r.observation_date >= superseded.supersession_capture_date",
     fixed = TRUE
   )
   expect_match(

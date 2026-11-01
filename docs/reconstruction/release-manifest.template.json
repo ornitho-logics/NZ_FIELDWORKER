@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0.0",
+  "state": "NOT RUN",
+  "source_commit": null,
+  "source_file_sha256": {},
+  "approved_profile_sha256": null,
+  "validator_protocol_version": null,
+  "environment_lock_sha256": null,
+  "acceptance_report_sha256": null,
+  "rendered_pdf_sha256": null,
+  "visual_review": {"reviewer": null, "page_count": null, "page_image_sha256": [], "state": "NOT RUN"},
+  "scientific_review": {"owner": null, "state": "NOT RUN"},
+  "package_browser_review": {"reviewer": null, "state": "NOT RUN"},
+  "publication_authority": null,
+  "deployment_authority": null,
+  "install_order": [],
+  "rollback_reference": null,
+  "missing_evidence": []
+}

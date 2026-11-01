@@ -1,5 +1,43 @@
 # THREAD 4 - To-do, map, list, and PDF operational reference
 
+## Approved parent-linkage decision — 1 November 2026
+
+Luke approved a narrow same-day identity assumption: a confirming X-X resighting
+and exactly one eligible `capture_status = F` first-banding captured identity
+of the same sex, nest and date target the same individual. Transfer this same-day
+confirmation to the new marked identity, including MM without later sightings.
+Preserve the observation date; infer no exact observed time or before/after order.
+SQL will conservatively date linked proof at the capture datetime on that date.
+The `first_marking_counts` pool counts all distinct eligible F capture identity
+keys at the same sex/nest/date before later-proof or ambiguity filters. Those filters cannot manufacture
+uniqueness from multiple competing captured identities; count keys, not rows.
+The same-day link requires a unique replacement and unambiguous confirming
+resighting (`r`), while original X-X history keeps a previous MM-only candidate displaced.
+
+Different-day earlier X-X cannot transfer. A later first-marked identity still
+needs its own one confirming or three distinct eligible postcapture observations;
+its own valid same-day confirming linkage now qualifies and can retire older
+placeholders without transferring older proof or backdating association. No unique
+link with multiple competing captured identities, ambiguous/ineligible evidence,
+other sex/nest, recapture only or evidence beyond reference. Later X-X stays
+separate; retain original MM displacement history and independent strong conflicts.
+The existing hierarchy, seven-day/36-hour/tag gates and unrelated same-day
+juvenile-origin/brood-closure safeguards are unchanged.
+
+This approved decision supersedes blanket same-day no-link wording below.
+See manual v2.4.14 (revised 1 November 2026),
+`docs/reconstruction/PARENT_ASSOCIATION_CHRONOLOGY.md` and
+`docs/reconstruction/parent-association-cases.json`. Invented case
+`sameDayXXIN + firstMM` with no later proof resolves marked; different-day X-X
+plus first MM capture without own proof leaves the newly marked identity pending.
+The new source passes 65 actual-SQL chronology assertions, 1,004 assertions
+overall and one fresh no-network MariaDB 11.8.9 synthetic install/refresh.
+See `docs/reconstruction/SAME_DAY_LINKAGE_VERIFICATION_2026-11-01.md` for exact
+sources, coverage and field/PDF/live/browser limits. Historical results below
+do not verify this decision. Roll back only the same-day source/test/doc patch,
+preserving pre-existing dirty work; deployed rollback needs human view reinstall
+and snapshot rebuild.
+
 ## Current task/report addendum — 31 October 2026
 
 Use current `DATABASE/` source and app manual v2.4.12 over the older recovery
@@ -640,10 +678,23 @@ earlier X-X or dead record permanently win. A selected resighting identity is
 allowed to replace the current capture/resighting identity only when its latest
 eligible association date is not older than that identity evidence.
 
-For a post-MM X-X record, X-X can become the current parent only when the
-qualifying nest association is chronologically valid. A later capture and
-banding event for that sex supersedes an earlier X-X observation when the
-capture is the better current identity evidence.
+Luke's 31 October clarification distinguishes identified birds from X-X.
+Eligible pre-MM observations count for a reliably identified bird at the same
+nest; MM does not reset independently established proof. A later first-marking
+MM capture cannot inherit different-day earlier same-sex X-X proof. Its own one
+confirming or three distinct eligible postcapture observations can retire the
+earlier placeholder only for one unique qualifying candidate. Under Luke's
+approved 1 November exception, its own eligible same-day X-X confirmation now
+transfers to the unique status-F captured identity, including MM without later
+sightings; that proof is conservatively dated at capture datetime, without
+inventing observed time/order. Older different-day proof is not transferred
+or backdated. Original X-X history still prevents an earlier MM-only candidate
+from reviving via nonconfirming counts. Strong independent conflicts remain
+reviewable; opposite-sex evidence never displaces this sex. Same-day order is
+unknown, but the narrow approved identity assumption supplies that same-day link.
+See `docs/reconstruction/PARENT_ASSOCIATION_CHRONOLOGY.md`, its machine-readable
+cases and the source-bound 1 November verification record. The actual-SQL
+`test-mm-xx-chronology-2026-10-31.R` passes the revised same-day cases.
 
 Timing gates remain important:
 
@@ -660,14 +711,17 @@ Timing gates remain important:
 For field planning, the current pre-capture checklist is therefore:
 
 - confirm that the nest/brood is active and operational for parent work;
-- use `capture_gate_clutch_size` and
-  `capture_gate_clutch_start_datetime` for the seven-day calculation;
+- use the current derived `clutch_completion_basis_date` and completion
+  evidence for the seven-day calculation; the earlier context fields feed
+  history but do not replace the final-egg completion rule;
 - when a clutch decreases after egg removal, retain the historical maximum
   clutch and its original start for the capture gate rather than resetting the
   clock from the lower value;
-- for a current two-egg clutch, use the last float plus the approved three-day
-  completion inference, while a current clutch of at least three uses its
-  observed completion basis;
+- for a stable two-egg clutch, require the three-day confirmation and count
+  seven days from the second/final egg's valid laying/float estimate or its
+  conservative observed-date proxy, not the confirmation visit; a later third
+  egg resets the completion basis. See current manual Section 8 for the full
+  final-egg/no-float/reset cases;
 - allow hatch signs or confirmed hatch evidence to satisfy the clutch-age
   requirement only where the task rules permit it, and still apply the
   separate 36-hour gate;
@@ -745,7 +799,11 @@ can be banded directly. MM uncertainty alone does not create a capture task.
 The PDF heading is `Parents to resight for nest association`. It is populated
 by two evidence pathways and one temporary timing pathway.
 
-**MM-capture follow-up.** `adult_mm_capture_latest` selects the latest adult
+**Historical MM-capture follow-up (not the current task engine).** The legacy
+description below records an earlier implementation. Current authoritative
+parent tasks use `ADULT_PARENT_NEST_ASSOCIATIONS` and the 31 October contract
+above; do not implement a universal post-MM clock or copy the old note format
+from this historical subsection. `adult_mm_capture_latest` selects the latest adult
 MM capture by nest and sex. After `DATEDIFF(reference_date, mm_capture_date)
 >= 2`, the follow-up can be emitted for an eligible positive nest, hatched
 positive `notA` nest, or negative brood. This is a calendar-day SQL gate; it

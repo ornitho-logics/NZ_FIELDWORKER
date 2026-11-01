@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0.0",
+  "purpose": "Explicit source pins for a dependency absent from the original installed inventory. Package/browser integration is not inferred from source inspection.",
+  "packages": [
+    {"name": "gpxui", "version": "1.0.0", "remote_type": "github", "remote_owner": "ornitho-logics", "remote_repo": "gpxui", "remote_sha": "37639e3ba1dbb2bb2c3368017b106339e5f77ded", "provenance": "public source commit and DESCRIPTION inspected 2026-10-31", "dependencies": ["bs4Dash", "data.table", "DBI", "dplyr", "fs", "glue", "htmltools", "knitr", "leaflet", "methods", "rlang", "RMariaDB", "sf", "shiny", "shinycssloaders", "stringr", "units", "xml2"]}
+  ]
+}

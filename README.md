@@ -47,6 +47,18 @@ how to set the database credentials.
 shiny::runApp("./main", launch.browser = TRUE)
 ```
 
+### Reconstructing for another study
+
+Start with [the reconstruction package](docs/reconstruction/README.md).
+It supplies a current architecture/rule specification, scientific adaptation
+checklist, source/test/manual crosswalk, captured dependency lock, synthetic
+bootstrap/acceptance tools and a [platform-neutral agent recipe](docs/reconstruction/workflow.json).
+The recipe assigns staged specialist roles and requires explicit decisions
+before transferring biological assumptions. Its profiles are planning documents;
+they do not reconfigure the app. The package introduces no app interaction or
+runtime behaviour changes. Use its evidence states to distinguish successful
+synthetic reproduction from missing package/browser or live deployment evidence.
+
 ### Updating To-do reports
 
 The current view definitions are in `DATABASE/views.SQL`; the explicit snapshot

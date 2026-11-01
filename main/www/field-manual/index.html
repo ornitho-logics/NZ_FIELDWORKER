@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en-NZ"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="manual-source-md5" content="a33ed6910d6bc875392489061b0bf4d5"><title>BADO Field Manual 2026</title><style>/* Scoped by the reader iframe; does not change dashboard styling. */
+<html lang="en-NZ"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="manual-source-md5" content="26c951a3b7ec240201024a7bc91a3c20"><title>BADO Field Manual 2026</title><style>/* Scoped by the reader iframe; does not change dashboard styling. */
 :root { color-scheme: light; --ink: #23343d; --accent: #315e70; --line: #d8e1e5; }
 * { box-sizing: border-box; }
 html { scroll-padding-top: 110px; }
@@ -73,7 +73,7 @@ pre code { overflow-wrap: anywhere; }
   mark { background: none; }
 }</style></head><body><a class="skip-link" href="#manual-content">Skip to manual</a><header class="reader-tools" aria-label="Manual controls"><div class="reader-tools-inner"><a class="contents-button" href="#manual-contents">Contents</a><label for="manual-search">Search manual</label><input id="manual-search" type="search" placeholder="e.g. hiding photographs" aria-controls="manual-search-results" aria-describedby="manual-search-help" autocomplete="off"><button id="manual-clear" type="button">Clear</button><button id="manual-expand" type="button">Expand all</button><button id="manual-collapse" type="button">Collapse all</button></div></header><main><p id="manual-search-help" class="reader-hint">Search words or field names; choose a result to open its section. <a href="manual.md" download>Download Markdown</a></p><p id="manual-search-status" role="status" aria-live="polite"></p><section id="manual-search-results" aria-label="Search results" hidden></section><noscript><p>Search and expand/collapse controls need JavaScript. The manual remains readable: open each section using its heading.</p></noscript><article id="manual-content" tabindex="-1"><h1>BADO Field Manual 2026</h1>
 <p>Protocols for studying breeding Banded Dotterel / Pohowera<br />
-<strong>Markdown review draft v2.4.12 · Revised 31 October 2026</strong></p>
+<strong>Markdown review draft v2.4.14 · Revised 1 November 2026</strong></p>
 <p>This draft aims to describe the field procedures and the data-entry
 validation logic for Banded Dotterel fieldwork throughout New Zealand during the breeding season.
 If the app disagrees with an instruction, keep
@@ -786,9 +786,51 @@ identity, not ownership of a current nest.</p>
 resolved, even when some of its other evidence appears strong. Obtain a better
 reading and refer the conflict; do not remove the original observation.</p>
 <p>A mobile-mistnet capture (<code>capture_method = MM</code>) does not, by itself, prove
-which nest that adult belongs to. Obtain genuine matching follow-up sightings.
-For an MM follow-up, one confirming behaviour or three matching post-capture
-resightings can resolve the link. The To-Do follow-up can begin two calendar
+which nest that adult belongs to. For a reliably identified bird at the same
+nest, eligible observations from before and after MM can count together: one
+confirming behaviour or three matching observations can resolve the link. A
+later MM capture does not erase independently established association.</p>
+<p>X-X is different: it identifies an unbanded bird of the recorded sex at that
+nest, not a uniquely identifiable individual across encounters. For example,
+an adult male caught by MM on day 1 is not established as the parent merely
+by that capture. A male X-X observed incubating there on day 2 instead confirms
+an unbanded male as the associated parent. If another male is first caught and
+marked by MM on day 3, do not assume it was that day-2 bird. The newly marked
+male needs its own one confirming observation or three distinct qualifying
+observations after capture. That different-day X-X evidence is not transferred
+to it. Apply the same rule independently to females.</p>
+<p><strong>Approved decision — Luke Eberhart-Hertel, 1 November 2026:</strong> an unambiguous confirming
+X-X resighting and a unique eligible <code>capture_status = F</code> (first banding)
+capture of the same sex, at the same nest and on the same date are assumed to
+be the targeted same individual. That same-day confirmation transfers to the
+newly marked identity, including an MM capture, without requiring later sightings.
+Keep the actual observation date. RESIGHTINGS has no observation-time field;
+do not invent an exact sighting time or before/after order. The SQL calculation
+will conservatively date this linked proof at the capture datetime on that date.
+This derived timestamp is not an observed resighting time.</p>
+<p>For an invented example, <code>sameDayXXIN + firstMM</code> means an X-X adult observed
+incubating and one eligible same-sex first-banding MM capture at the same nest
+on day 1. With no later sightings, the marked identity resolves on day 1 under
+this assumption. By contrast, X-X IN on day 1 followed only by first MM capture
+on day 2 leaves the newly marked identity pending. If that bird has its own
+eligible same-day confirming X-X linkage on day 2, that supplies day-2 proof
+and allows retirement of an older placeholder without transferring day-1 proof.</p>
+<p>There is no unique link with multiple competing captured identities,
+ambiguous or otherwise ineligible evidence, another sex or nest, recapture
+only, or evidence beyond the reference date. First-marking uniqueness counts
+all eligible F identity keys for that sex, nest and date before later-proof
+or ambiguity filters. A competing candidate cannot be filtered out to create
+a unique link just because it lacks later proof or fails a later ambiguity
+check. Duplicate rows of one identity do not create another identity.
+A later X-X stays separate.
+Do not split or duplicate records to reach three. Preserve original X-X/MM
+displacement history and refer contradictory strong evidence for review;
+do not erase observations or silently choose between competing birds.
+The evidence hierarchy, seven-day/36-hour capture gates and tag rules remain
+unchanged, as do unrelated same-day safeguards for juvenile origins and brood
+closure. This approved method supersedes the earlier blanket same-day no-link
+wording. Verification scope is recorded separately in the dated source notes.</p>
+<p>The To-Do follow-up can begin two calendar
 days after capture; this is separate from the 36-hour capture-disturbance rule
 in Section 8. A timing-blocked capture instruction can also appear as
 resighting work, so read the To-Do note rather than assuming every resighting
@@ -4143,6 +4185,14 @@ developmental resolution, not a statement that all siblings survived.</p>
 <td>v2.4.12, 31 October 2026</td>
 <td>Documented the post-9-October clutch-completion cutoff and conditional B/unknown tagging instruction, same-nest pair-completion follow-up, already-tagged pending-parent protection, consistent pair-completion wording and white map outlines. Added snapshot waiting guidance and the historical notA_summary report. Reconciled source status with local validator protocol v1.3.20 and completed local verification.</td>
 </tr>
+<tr>
+<td>v2.4.13, 31 October 2026</td>
+<td>Clarified Luke Eberhart-Hertel's MM chronology decision: eligible pre-MM evidence counts for a reliably identified bird; X-X proof cannot transfer to a later first-marked bird, which needs its own subsequent evidence. Added sex-specific chronology, conflict and same-day-order safeguards. Capture-field hint alignment preserves the existing F/R/C/D validator contract; this is not a live-installation claim.</td>
+</tr>
+<tr>
+<td>v2.4.14, 1 November 2026</td>
+<td>Luke Eberhart-Hertel approved linking unambiguous confirming X-X to a unique eligible same-sex/same-nest/same-date status-F first-banding identity, including MM without later sightings. Same-day proof transfers with capture-datetime proof dating and no inferred exact observation time/order. Count all distinct eligible F identities before later-proof/ambiguity filters. Different-day older proof cannot transfer; own valid same-day confirmation can retire an older placeholder. All ambiguity, displacement, timing/tag and unrelated same-day safeguards remain. Supersedes the blanket same-day no-link wording in v2.4.13.</td>
+</tr>
 </tbody>
 </table></div>
 <p>This app publication copy is separate from Luke Eberhart-Hertel's editable private review
@@ -4179,6 +4229,10 @@ wording does not override them.</p>
 <td>A completed isolated MariaDB 11.8.9 install/refresh and four-page PDF inspection support the recent task changes. The historical report separately passed focused invented-data checks. These are distinct verification scopes.</td>
 </tr>
 <tr>
+<td>Approved 1 November same-day linkage</td>
+<td>Approved same-day rule; verification scope is recorded separately in the <a href="../../../docs/reconstruction/MM_FOLLOWUP_VERIFICATION_2026-10-31.md#approved-decision-addendum--1-november-2026">dated verification record</a>. No live-deployment claim. Regenerating this manual's HTML is documentation generation only.</td>
+</tr>
+<tr>
 <td>Live database, inspectors and Shiny process</td>
 <td>This documentation review did not inspect live installation. A source merge or local success does not establish which versions are installed on the field server.</td>
 </tr>
@@ -4210,7 +4264,9 @@ not been verified against current field records. The wording correction changes
 only the two tag-note literals and passed its focused check. This review does
 not establish live Adminer runtime or live deployment.</p>
 <p>The parent-association explanation follows the reviewed matching and selected
-association rules in <code>DATABASE/views.SQL</code>. Brood inference follows the closure
+association rules in <code>DATABASE/views.SQL</code>, with the approved 1 November same-day
+linkage decision recorded above awaiting separate implementation verification.
+Brood inference follows the closure
 stage and task exclusions in <code>DATABASE/refresh_todo_list_snapshot.SQL</code>.
 The reviewed rules require shared date/site/gps_id/point, reject conflicting
 inferred family targets, retain the verified-ring exception for uncertain

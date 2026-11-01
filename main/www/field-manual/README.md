@@ -16,7 +16,23 @@ the diff first: all files under `main/www` are browser-readable. Never import
 private records, coordinates, credentials or unpublished operational reports.
 The private review draft is not loaded at runtime or silently kept in sync.
 
-The app publication copy is v2.4.12 (31 October 2026). It includes the
+The app publication copy is v2.4.14 (revised 1 November 2026). Luke's approved
+1 November decision assumes confirming X-X and a unique eligible status-F first
+banding of the same sex, nest and date target the same individual, including
+MM without later sightings. Same-day confirmation transfers; preserve the date,
+infer no exact observed time/order and conservatively date linked proof at capture
+datetime. Older different-day proof cannot transfer; the new bird's own valid
+same-day confirmation can retire an older placeholder without inheriting its proof.
+Multiple competing identities and ineligible/ambiguous links remain guarded;
+the first-marking pool counts all eligible F identity keys before later-proof
+or ambiguity filters, which cannot manufacture uniqueness from multiple identities.
+MM displacement, evidence hierarchy, capture timing/tag gates and unrelated
+same-day safeguards remain unchanged. The approved rule's verification scope is
+recorded separately in the [dated verification record](../../../docs/reconstruction/MM_FOLLOWUP_VERIFICATION_2026-10-31.md#approved-decision-addendum--1-november-2026).
+No live-deployment claim; this rebuild is documentation generation.
+This supersedes the earlier blanket same-day no-link text while preserving
+pre-MM proof for reliably identified birds.
+It also includes the
 conditional late-wave tagging instruction, consistent pair-completion notes,
 pending tagged-parent protection, map highlights, snapshot waiting guidance
 and the historical `notA_summary` report. Its source notes distinguish the
