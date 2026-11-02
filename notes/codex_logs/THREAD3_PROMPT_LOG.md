@@ -5,9 +5,9 @@ transcripts, attachments, and field identifiers remain local/ignored.
 
 ## Current supersession notice — 2026-10-26
 
-Historical prompts, versions and decisions below remain unchanged. Their
+Historical prompts, versions, and decisions below remain unchanged. Their
 former sentinel/format/terminal-state instructions are superseded by current
-AGENTS, the owning handoff and the reviewed local protocol mirror inspected
+AGENTS, the owning handoff, and the reviewed local protocol mirror inspected
 at v1.3.13 (2026-10-26). The external canonical YAML separately remains
 v1.3.5 (2026-10-24); neither synchronization nor live deployment is implied.
 The mirror owner is still finalizing it, so recheck its final contents.
@@ -27,7 +27,7 @@ Conflicting nonblank nest/brood IDs save-block within one same-date/site/GPS
 family encounter even when all rows are explicit or split across tables.
 Brood mixing across separate encounters remains possible. `pP`/`P`/`D` allow
 fate review until final `notA`. The rare inside-nest F-zero/H case retains the
-intentional first-F rejection, verified comment and documented override if
+intentional first-F rejection, verified comment, and documented override if
 correct, with no automatic exception or invented egg history. EGGS has no
 media columns; clutch photos belong on NESTS.
 
@@ -757,7 +757,7 @@ The authorized documentation targets were only:
 The prompt required inspection of repository state, all current hard/warning
 exports, both protocol copies and their identity/version/date/checksum, the
 central inspector editor, table wrappers, schema/view SQL, connected mock
-fixtures and focused checks, recent validator history, and the Thread 1/2/4
+fixtures, and focused checks, recent validator history, and the Thread 1/2/4
 handoffs. It required the reconciliation to distinguish approved specification,
 local implementation artifact, protected WIP, mock-tested behavior, and
 live/deployed behavior; to document negative broods, H-photo ring rules,

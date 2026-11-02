@@ -71,7 +71,7 @@ or AC; the local v1.3.14 candidate and PDF subtitle now preserve that distinctio
   release and `_in` leg fields. Preserve raw uncertain sightings.
 - `pP`/`P`/`D` permit fate-review visits until final `notA`; this does not reopen
   failed-nest capture/GEO work. A rare inside-nest F-zero then H discovery
-  retains truthful counts, a positive ID, first-only nest GPS and at least one
+  retains truthful counts, a positive ID, first-only nest GPS, and at least one
   minute between F and H. The normal first-F zero-clutch rejection remains
   intentional: verify/comment and use the documented override if correct,
   with no automatic exception or invented egg history.
@@ -827,7 +827,7 @@ fixtures; the external canonical copy remains a separate v1.3.5 artifact.
 It owns inspector lists, connected
 mock validation, the `RES_010` H-class `RESIGHTINGS.ring` rule, and the
 distinction between save-time validation, post-save QA, and mock-generation-only
-rules. Alignment of the finalized protocol, inspector drafts and SQL must be
+rules. Alignment of the finalized protocol, inspector drafts, and SQL must be
 verified after the correction pass; live inspector rows still require separate
 deployment verification.
 
@@ -1052,7 +1052,7 @@ not authorize publication of the private artifacts above.
   rows do not resolve H-photo work.
 - Parent identity and association are sex-aware, chronology-aware, bounded by
   `settings.reference_date`, and subject to the event-wide uncertainty,
-  verified-ring and same-date/site/GPS conflict rules stated above.
+  verified-ring, and same-date/site/GPS conflict rules stated above.
 - Combo availability subtracts historic archive plus current final and `_in`
   evidence globally; the recyclable workbook is informational.
 - Validators are organized as `TABLE_hard` and `TABLE_warning`; protocol

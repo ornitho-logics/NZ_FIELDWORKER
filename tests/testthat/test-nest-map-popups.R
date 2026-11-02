@@ -104,7 +104,7 @@ test_that("prepared nest and brood dates reach the actual map popup", {
   expect_match(text, "<th>Last encounter</th><td>1 day ago</td>", fixed = TRUE)
 })
 
-test_that("cached association displays match nest, date and current identity", {
+test_that("cached association displays match nest, date, and current identity", {
   env <- popup_test_env()
   points <- data.table::data.table(
     nest_id = c("MOCK-OK", "MOCK-OLD", "MOCK-NEW-BIRD", "MOCK-DUP"),

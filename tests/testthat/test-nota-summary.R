@@ -1,6 +1,6 @@
 # Invented data only. SELECT fixtures use an explicitly selected disposable
 # socket. The separately opted-in DDL check requires an empty owned instance;
-# no field records, app or real configuration are loaded.
+# no field records, app, or real configuration are loaded.
 nota_summary_source <- function() {
   paste(readLines(app_file("DATABASE", "notA_summary.SQL")), collapse = "\n")
 }

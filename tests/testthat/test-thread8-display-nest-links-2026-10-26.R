@@ -105,7 +105,7 @@ test_that("PDF source no longer contains a competing raw chick resolver", {
   expect_false(exists("todo_pdf_latest_chick_encounter_counts", envir = env, inherits = FALSE))
 })
 
-test_that("PDF tasks keep labels, notes and selected parent identities for valid links", {
+test_that("PDF tasks keep labels, notes, and selected parent identities for valid links", {
   env <- thread8_display_env()
   todo <- data.table::data.table(
     nest_id = thread8_display_ids, reference_date = as.Date("2026-10-26"),

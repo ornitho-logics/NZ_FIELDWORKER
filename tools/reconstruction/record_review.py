@@ -20,7 +20,7 @@ def reviewed_report(report, pdf, images, pages, reviewer, note):
     if checks["report_render"]["state"] != "PASS" or report["synthetic_pipeline_state"] != "PASS":
         raise ValueError("Rendering and the synthetic pipeline must PASS first")
     if not reviewer.strip() or not note.strip() or len(images) != pages or len(set(images)) != pages:
-        raise ValueError("Named reviewer, notes and one distinct image path for EVERY page required")
+        raise ValueError("Named reviewer, notes, and one distinct image path for EVERY page required")
     if report.get("pdf_sha256") and report["pdf_sha256"] != digest(pdf):
         raise ValueError("PDF changed after rendering")
     if any(not image.is_file() or not image.stat().st_size for image in images):

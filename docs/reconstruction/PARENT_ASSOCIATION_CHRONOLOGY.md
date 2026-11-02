@@ -22,7 +22,7 @@ instead of that merely captured candidate. The other sex is evaluated independen
 ## Approved same-day linkage — 1 November 2026
 
 An unambiguous confirming X-X resighting and exactly one eligible `capture_status = F`
-(first banding) captured identity of the same sex, at the same nest and on the
+(first banding) captured identity of the same sex, at the same nest, and on the
 same field date are assumed to be the targeted same individual. Transfer that
 same-day confirming evidence to the newly marked identity, including an MM
 capture with no later sightings. This is a specific identity assumption, not
@@ -38,7 +38,7 @@ confirming resighting (`r` in the SQL); original X-X history remains available
 so an earlier displaced MM-only candidate cannot revive through this replacement.
 
 Keep the observation date and raw rows. RESIGHTINGS has no observation-time
-field: infer no exact sighting time from capture time, primary keys or midnight.
+field: infer no exact sighting time from capture time, primary keys, or midnight.
 The approved SQL contract will conservatively date linked proof at the capture
 datetime on that date; this is a derived proof timestamp, not an observed time.
 
@@ -69,16 +69,16 @@ or proof that all historical X-X encounters were that captured individual.
 - Same-day sighting/capture order is unknown: RESIGHTINGS has no time field.
   The approved same-day first-banding assumption above supplies the narrow link;
   it does not infer order or erase independent proof by guessing that order.
-- Restrict both sexes, candidates and proof to the reference date and exact
+- Restrict both sexes, candidates, and proof to the reference date and exact
   nest. Ambiguous identity matches do not qualify replacement. Count each
   observation event once, including when calculating the third-event proof date.
 - The new bird's association date is its own proof date, including the linked
   capture date for valid same-day confirmation, not an older X-X date. Never
-  backdate closure, tag provenance or a historical link using newly earned proof.
+  backdate closure, tag provenance, or a historical link using newly earned proof.
 
 The different-day subsequent-observation requirement is an **X-X identity**
 safeguard, not a universal post-MM clock. Seven-day clutch timing, 36-hour
-disturbance, tag eligibility and hierarchy remain unchanged. Unrelated same-day
+disturbance, tag eligibility, and hierarchy remain unchanged. Unrelated same-day
 safety rules, including juvenile origins and brood closure, are unchanged.
 
 Invented examples (relative days, no field identities):
@@ -87,7 +87,7 @@ Invented examples (relative days, no field identities):
   capture of the same sex/nest resolve the marked identity on day 1 with no
   later proof. Use the capture datetime for linked proof, never a claimed
   exact observation time.
-- `differentDayXXIN + firstMM`: day 1 X-X IN, day 2 first MM capture and no
+- `differentDayXXIN + firstMM`: day 1 X-X IN, day 2 first MM capture, and no
   own confirmation leave the newly marked identity pending. A qualifying day-2
   same-day X-X IN link could supply its own proof and retire the older placeholder,
   without transferring day-1 proof.
@@ -101,7 +101,7 @@ association definition is introduced. Public view columns remain unchanged.
 `tests/testthat/test-mm-xx-chronology-2026-10-31.R` evaluates the actual extracted
 SQL SELECT using invented CTE inputs, including both-sex timelines, pre-MM proof,
 X-X replacement through one/three observations, duplicate IDs, future evidence,
-the approved same-day targeted-banding exception, conflicting candidates and
+the approved same-day targeted-banding exception, conflicting candidates, and
 displaced-identity protection. The earlier same-day no-link expectation is
 superseded, while the 31 October results remain historical.
 [Machine-readable cases](parent-association-cases.json) are a planning crosswalk,
@@ -109,11 +109,11 @@ not a second executable association implementation or complete scientific oracle
 
 1 November verification: **PASS for the focused synthetic scope** — 65 actual-SQL
 chronology assertions, 1,004 assertions overall, and one fresh isolated MariaDB
-11.8.9 synthetic install/refresh. See the source hashes, exact coverage and
+11.8.9 synthetic install/refresh. See the source hashes, exact coverage, and
 unexecuted field/PDF/live/browser limits in
 [the new verification record](SAME_DAY_LINKAGE_VERIFICATION_2026-11-01.md).
 
-No field dump, field-server query, new deployment or automatic live migration
+No field dump, field-server query, new deployment, or automatic live migration
 is authorized by this document. A full field refresh/PDF and performance replay
 remain separate release checks. To roll back an unpublished candidate, remove
 only this reviewed source/doc/test patch; for a deployed view, reinstall the

@@ -55,7 +55,7 @@ Exact task scope:
 
 - Inspect the complete workflow from `format_mark()` and `CAPTURES_ARCHIVE` through
   `USED_COMBOS_DETAIL`, `AVAILABLE_COMBOS`, and PDF team allocation.
-- Verify candidate colours and site rules, reference-date behavior, release and `_in`
+- Verify candidate colours and site rules, reference-date behavior, release, and `_in`
   sources, classic and tag/spacer normalization, ambiguity reporting, global used-pair
   subtraction, fixed exclusions, ranking, the temporary CR/CX gate, and the PDF's
   three teams of ten.

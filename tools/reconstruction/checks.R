@@ -1,4 +1,4 @@
-# Child of bootstrap.py only. No main/global.R, real config or live app.
+# Child of bootstrap.py only. No main/global.R, real config, or live app.
 args <- commandArgs(trailingOnly = TRUE)
 stopifnot(length(args) == 4L)
 root <- normalizePath(args[[1L]])
@@ -24,4 +24,4 @@ for (file in c("test-sql-todo-task-gates-2026-10-29.R", "test-sql-latest-chick-e
   failures <- failures + row$failed + row$skipped + row$warnings
 }
 jsonlite::write_json(summary, output, pretty = TRUE, auto_unbox = TRUE)
-if (failures) stop("Required focused SQL checks failed, skipped or warned; stop before rendering.")
+if (failures) stop("Required focused SQL checks failed, skipped, or warned; stop before rendering.")

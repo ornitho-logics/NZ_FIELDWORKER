@@ -2,21 +2,21 @@
 
 __Fieldworker__ is a modular Shiny application for organizing fieldwork.
 
-It brings field observations, maps and daily planning together in one place.
+It brings field observations, maps, and daily planning together in one place.
 This version supports breeding Banded Dotterel / Pohowera fieldwork in New
-Zealand, connecting nest visits, egg measurements, captures, resightings and GPS
+Zealand, connecting nest visits, egg measurements, captures, resightings, and GPS
 records to help teams decide what to do next.
 
 ### What you can do
 
 * **Plan the day's fieldwork.** Download a To-do PDF with task tables and a map
   for the selected reference date, covering nest checks, parent capture and
-  resighting, chick banding, photographs and flagging work.
+  resighting, chick banding, photographs, and flagging work.
 * **Follow nests and broods on the map.** Explore their latest available
-  locations and click a point for parents, association evidence, hatch timing
+  locations and click a point for parents, association evidence, hatch timing,
   and the time since the last encounter.
 * **Review the bigger picture.** The Overview dashboard and summary views
-  bring together field progress, nest histories and parent associations,
+  bring together field progress, nest histories, and parent associations,
   including historical nests that are no longer active.
 * **Enter and check observations.** Dedicated forms support field records.
   Data-entry validators flag missing or inconsistent information and explain
@@ -24,7 +24,7 @@ records to help teams decide what to do next.
 * **Link GPS records.** Upload waypoints and tracks and connect locations to
   the corresponding field observations.
 * **Consult the Field Manual.** Browse or search the app's guide to field
-  procedures, data entry and interpreting the reports.
+  procedures, data entry, and interpreting the reports.
 
 Reports use the app's selected reference date. After entering new records,
 **Build To-do snapshot** updates the daily task plan; downloading the PDF alone
@@ -59,7 +59,7 @@ latest successful snapshot.
 The interface in `main/` is both:
 
 * a landing page that links to the [DataEntry](https://github.com/ornitho-logics/DataEntry) and [gpxui](https://github.com/ornitho-logics/gpxui) interfaces.
-* a mapping, viewing, reporting and database-summary interface.
+* a mapping, viewing, reporting, and database-summary interface.
 
 The interfaces outside `main/` are self-contained and can be run independently if needed.
 
