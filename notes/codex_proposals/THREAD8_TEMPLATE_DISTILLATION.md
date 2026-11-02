@@ -10,13 +10,13 @@ with generated self-contained `index.html`. Regenerate it only through
 `main/tools/render_field_manual.R`; keep the authorship section after
 Appendix B and use Luke Eberhart-Hertel's full name throughout the manual.
 Recent guidance covers conditional late-wave tagging, consistent pair-completion
-wording, pending tagged-parent protection, map highlighting, snapshot waiting
+wording, pending tagged-parent protection, map highlighting, snapshot waiting,
 and the historical notA report. The reviewed local validator protocol is
 v1.3.20; operational notes do not themselves change save-time validation.
 
 The earlier private authoring instructions below describe retained review
 artifacts. Update the explicitly authorised app publication copy without
-overwriting private drafts, historical references or external YAML. Local
+overwriting private drafts, historical references, or external YAML. Local
 verification and Git publication must remain distinct from live installation.
 
 ## Current authoring boundary — 26 October 2026

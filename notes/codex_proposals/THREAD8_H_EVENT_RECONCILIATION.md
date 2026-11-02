@@ -9,7 +9,7 @@ review establishes deployment or live inspector state.
 
 The reviewed local validator protocol is v1.3.20. Since v1.3.19, every new
 age-C H row requires an explicit valid positive or negative `nest_id`, its own
-normalised nonblank metal ring, complete direct GPS and photo metadata. Ring
+normalised nonblank metal ring, complete direct GPS, and photo metadata. Ring
 history or same-occasion parents cannot waive the entered H-row ID. Older
 blank-ID H associations remain a compatibility route and do not define what
 new records may omit. The unused H-specific S10 fallback was removed; shared
@@ -17,20 +17,20 @@ ordinary-family and closure consumers retain their separate rules.
 
 Current app guidance is manual v2.4.12 under `main/www/field-manual/`. Preserve
 the split between captures/tent photographs and H hiding photographs, distinct
-ring counts and reference-date/uncertainty safeguards. The dated reconciliation
+ring counts, and reference-date/uncertainty safeguards. The dated reconciliation
 below retains its history; its candidate-status and private-authoring claims
 do not describe the current published app copy or establish live installation.
 
 ## Current approved contract — 26 October 2026
 
-- Keep save-time validation, derived association and To-Do resolution separate.
+- Keep save-time validation, derived association, and To-Do resolution separate.
   `RESIGHTINGS_H_BROOD_ASSOCIATIONS` and the S10 task helper now exist in
   repository source. A valid saved row is not by itself proof of task closure.
 - An H photograph remains its own age-C RESIGHTINGS event, with nonblank
-  metal ring, complete direct GPS and its own photo metadata. A capture/tent
+  metal ring, complete direct GPS, and its own photo metadata. A capture/tent
   photograph remains a separate CAPTURES event. Preserve raw nest IDs and
   observed marks; matching/normalisation must not rewrite field observations.
-- Family encounters share date, site, gps_id and gps_point. Enter every
+- Family encounters share date, site, gps_id, and gps_point. Enter every
   individual actually encountered, including observed X-X parents; never
   fabricate chick sightings alongside genuine captures or an absent mate.
 - Conflicting nonblank nest/brood IDs within that same family occasion must
@@ -50,7 +50,7 @@ do not describe the current published app copy or establish live installation.
 The current correction pass is uncommitted and subject to source-frozen
 validator/SQL/output verification. Read the reviewed protocol and specialist
 handoffs for exact predicates; do not imply that a local correction is merged,
-installed or live. The private manual is under concurrent human review and
+installed, or live. The private manual is under concurrent human review and
 must not be regenerated or overwritten by the implementation work.
 
 ## Historical reconciliation record

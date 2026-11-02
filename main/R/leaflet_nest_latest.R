@@ -190,8 +190,8 @@
       "error" %in% names(todo) || "error" %in% names(hatch_prediction)) return(n)
 
   # Reuse the PDF's fieldworker-facing Est. Hatch formatter, including its
-  # flotation safeguards, published task override and negative-brood proxy.
-  # No second hatch algorithm, database access or PDF rendering occurs here.
+  # flotation safeguards, published task override, and negative-brood proxy.
+  # No second hatch algorithm, database access, or PDF rendering occurs here.
   reference_dates <- unique(as.character(n$reference_date))
   for (reference in reference_dates[!is.na(reference_dates)]) {
     refdate <- suppressWarnings(as.Date(reference, format = "%Y-%m-%d"))

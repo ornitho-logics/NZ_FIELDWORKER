@@ -4,14 +4,14 @@ This is separate from the earlier reconstruction-only verification. Luke
 explicitly approved preserving pre-MM evidence for known individuals, applying
 sex-aware X-X/new-marking chronology, fixing any relevant gaps, and aligning
 capture-field hints without changing validator behaviour. No production access,
-publication, field-dump replay or live migration was performed.
+publication, field-dump replay, or live migration was performed.
 
 ## Source scope
 
 - `DATABASE/views.SQL`: only `ADULT_PARENT_NEST_ASSOCIATIONS`. Remove transfer
   of earlier X-X proof, allow unique replacement through one confirming or
   three distinct eligible postcapture observations, preserve original conflict
-  history, protect independent proof and deduplicate third-event chronology.
+  history, protect independent proof, and deduplicate third-event chronology.
   Public view columns and ordinary identity matching remain unchanged.
 - `DATABASE/main_tables.SQL`: eight incoming/release leg COMMENT literals only.
   No type/default/constraint or biological-row changes.
@@ -33,12 +33,12 @@ Frozen SHA256 at the accepted run:
 The private run report records thirteen source/test/manual hashes and confirms
 they were unchanged during the accepted run. This documentation was written
 after execution. Unrelated existing changes and the untracked `to-do` item were
-preserved; no Git staging, commit, push or PR was performed.
+preserved; no Git staging, commit, push, or PR was performed.
 
 ## Completed checks
 
 - PASS: independent source review of chronology, ambiguity, grouping, proof
-  dates, same-sex partitions, unchanged output columns and planning shape.
+  dates, same-sex partitions, unchanged output columns, and planning shape.
 - PASS: full current views install and actual refresh on an owned MariaDB
   11.8.9 instance, networking disabled, case-sensitive names (`lower_case_table_names=0`)
   on a newly owned case-sensitive volume. Only invented connected fixtures.
@@ -47,8 +47,8 @@ preserved; no Git staging, commit, push or PR was performed.
   column types and null-aware byte-value row multisets, including duplicates.
   No BUILD/PREVIOUS tables remained.
 - PASS: 36 new actual-extracted-SQL chronology assertions; 106 identity repair,
-  11 selected-death, 685 existing To-Do rule, 75 manual and 55 field-hint
-  assertions. Total 968; zero failures, errors, skips or warnings. The 685
+  11 selected-death, 685 existing To-Do rule, 75 manual, and 55 field-hint
+  assertions. Total 968; zero failures, errors, skips, or warnings. The 685
   existing rule checks include static contracts and are not 685 SQL replays.
 - PASS: read-only hint generator returned eight PASS rows; the unsupported
   NO_BACKSLASH_ESCAPES mode failed all eight and withheld apply/rollback commands.
@@ -56,7 +56,7 @@ preserved; no Git staging, commit, push or PR was performed.
 - PASS: fourteen reconstruction-tool safety checks, JSON parsing/unique case
   IDs, deterministic static manual rebuild and whitespace checks.
 - PASS: owned server stopped, private socket removed, case-sensitive volume
-  detached. No existing server, field config, field data or package library used.
+  detached. No existing server, field config, field data, or package library used.
 
 Accepted ignored evidence:
 `tmp/codex/mm-chronology-2026-10-31/run-52bcb11f94/`, including report.json,
@@ -80,13 +80,13 @@ graph twice. Hint metadata lookup uses literal base-table pruning alongside
 exact-spelling guards, avoiding unrelated view expansion.
 
 Earlier harness failures (socket sandbox denial, missing schema context,
-nested fixture-CTE visibility and semicolon-containing SQL comments) remain in
+nested fixture-CTE visibility, and semicolon-containing SQL comments) remain in
 ignored logs. They were not treated as biological failures or passed results.
 
 ## Explicit release limits and rollback
 
 NOT RUN: a new approved field-dump refresh, final team PDF, Adminer/browser
-installation, live hint update or production performance check. Old field
+installation, live hint update, or production performance check. Old field
 golden artifacts remain NOT AVAILABLE; no exact historical field equivalence
 is claimed. Synthetic task count four is not an operational team task count.
 
@@ -104,11 +104,11 @@ an undo mechanism for DDL.
 
 ## Approved-decision addendum — 1 November 2026
 
-The 31 October source scope, frozen hashes, results and measured costs above
+The 31 October source scope, frozen hashes, results, and measured costs above
 are retained unchanged as historical evidence. Luke's approved 1 November
 decision supersedes the blanket same-day no-link expectation: an eligible
 confirming X-X and unique eligible `capture_status = F` first-banding identity
-of the same sex, nest and date are assumed the targeted same individual,
+of the same sex, nest, and date are assumed the targeted same individual,
 including MM without later sightings. Same-day proof transfers; different-day
 older proof does not. The new bird's own valid same-day linkage can now retire
 an older placeholder without transferring its proof. Preserve the date and
@@ -121,7 +121,7 @@ confirming resighting, preserving original X-X history and MM displacement.
 New focused verification: **PASS**, recorded separately in
 [SAME_DAY_LINKAGE_VERIFICATION_2026-11-01.md](SAME_DAY_LINKAGE_VERIFICATION_2026-11-01.md).
 The changed association SELECT passed 65 actual-SQL chronology assertions,
-1,004 assertions overall and one fresh isolated synthetic MariaDB 11.8.9
+1,004 assertions overall, and one fresh isolated synthetic MariaDB 11.8.9
 install/refresh. Prior counts/hashes above remain historical, not reused.
-The new full field/PDF replay, live installation, Adminer and package/browser
+The new full field/PDF replay, live installation, Adminer, and package/browser
 integration remain NOT RUN; see the new record for exact sources and limits.

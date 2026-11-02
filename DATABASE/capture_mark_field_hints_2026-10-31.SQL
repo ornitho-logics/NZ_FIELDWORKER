@@ -8,7 +8,7 @@
   Adminer's export may contain this query rather than the generated values.
 
   All output commands are withheld unless all eight columns pass exact
-  varchar(10), nullable, SQL-NULL-default and ordinary-column metadata checks.
+  varchar(10), nullable, SQL-NULL-default, and ordinary-column metadata checks.
   Actual charset/collation/type are retained. Generated commands require
   INSTANT / LOCK=NONE and a 30-second metadata-lock wait; do not remove guards.
   Comment-only DDL still commits separately and is not undone by ROLLBACK.
@@ -82,7 +82,7 @@ WITH targets AS (
 )
 SELECT table_name, column_name,
   CASE
-    WHEN is_safe = 0 THEN 'FAIL: inspect target metadata, selected database and SQL mode'
+    WHEN is_safe = 0 THEN 'FAIL: inspect target metadata, selected database, and SQL mode'
     WHEN all_safe = 0 THEN 'FAIL: another target failed preflight; no commands generated'
     ELSE 'PASS'
   END AS preflight_status,

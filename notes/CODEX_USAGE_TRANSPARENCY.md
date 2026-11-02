@@ -5,10 +5,10 @@ retains its dates and does not define current deployed state.
 
 `docs/reconstruction/` now collects the current reference contract, adaptation
 decision intake, machine-readable role/DAG recipe, rule crosswalk, acceptance
-requirements and captured dependency metadata. `tools/reconstruction/` contains
+requirements, and captured dependency metadata. `tools/reconstruction/` contains
 development-only validators and an owned no-network synthetic bootstrap. These
 are intentionally tracked reviewed artifacts; generated reports, server files,
-PDFs and synthetic runtime evidence remain ignored. The kit changes no app
+PDFs, and synthetic runtime evidence remain ignored. The kit changes no app
 runtime or operator workflow and neither grants live access nor publishes data.
 See its README for exact checked and missing verification scopes.
 
@@ -26,7 +26,7 @@ confirming X-X evidence and a unique eligible same-sex/nest first capture on
 that date identify the targeted bird without later resightings. This supersedes
 the earlier blanket refusal to link same-day evidence, not the different-day
 X-X safeguards or independent timing/tag gates. Code, invented regression cases,
-manual and machine-readable reconstruction contracts are updated together;
+manual, and machine-readable reconstruction contracts are updated together;
 dated verification records keep their original source identities and limits.
 The preceding narrowly authorized local trace remains private; no raw field
 records are included in the reconstruction package or these summaries.
@@ -56,7 +56,7 @@ No tracked handoff or local test proves that a view, validator, database,
 Shiny process, or field protocol has been deployed. Documents label source,
 mock/local replay, protected WIP, and live state separately.
 
-## Public disclosure, synthetic development and privacy limits
+## Public disclosure, synthetic development, and privacy limits
 
 The manual's authorship statement links this record, `AGENTS.md`, the
 [sanitized prompt/decision index](codex_logs/INDEX.md), and the
@@ -67,30 +67,30 @@ The manual's authorship statement links this record, `AGENTS.md`, the
 and [reconstruction/verification guide](../docs/reconstruction/README.md).
 [Invented connected fixtures](../tools/reconstruction/fixtures.sql) and the
 development-only runner make a small synthetic workflow reproducible. Some
-older working mock spreadsheets, raw conversations and generated diagnostics
+older working mock spreadsheets, raw conversations, and generated diagnostics
 remain private; the public record is a curated account, not an exhaustive archive.
 
 The initial validator/data-entry development workflow used connected invented
-mock fixtures with passing, failing and boundary cases. Those tests did not
+mock fixtures with passing, failing, and boundary cases. Those tests did not
 require real field records as fixtures. This must not be conflated with later
 operational troubleshooting: Luke Eberhart-Hertel explicitly authorized local
 copies of field snapshots and also supplied selected real-case examples and
-screenshots in AI conversations. Local processing, public GitHub publication
+screenshots in AI conversations. Local processing, public GitHub publication,
 and disclosure to an AI service are different boundaries. Luke Eberhart-Hertel
 clarified that the snapshots covered part of the field season and that the
 complete season's dataset was never included in a prompt. Selected real examples
 and summaries were discussed with the AI; larger database checks ran locally.
 This is his account of the development workflow, not an independent audit of
-provider-side transmission, retention or model training. Development/testing
+provider-side transmission, retention, or model training. Development/testing
 exercises should not be described as training an AI model.
 No confidential examples or record values are reproduced in this disclosure.
 
-Luke Eberhart-Hertel retained source review, merge and deployment control and
+Luke Eberhart-Hertel retained source review, merge, and deployment control and
 performed field-server code/SQL/inspector installations manually, as he
 confirmed in the project workflow. Agents were not authorized to autonomously
-access or deploy to the field server. Authorized source edits, Git publication
+access or deploy to the field server. Authorized source edits, Git publication,
 and isolated local test execution are distinct from production deployment.
-Credentials, full confidential snapshots, sensitive locations and raw operational
+Credentials, full confidential snapshots, sensitive locations, and raw operational
 material are excluded from the public transparency resources. This states the
 documented controls and their scope, not a claim that every possible system
 event or third-party service has been independently audited.

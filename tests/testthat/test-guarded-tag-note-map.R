@@ -26,7 +26,7 @@ test_that("guarded tag notes retain the existing white capture-point stroke", {
       }
     }
   }
-  # Entirely invented locations and IDs; no app, database or tile service.
+  # Entirely invented locations and IDs; no app, database, or tile service.
   todo <- data.frame(
     nest_id = sprintf("B_TEST_%d", 1:5),
     todo = c(rep("Parent capture", 3), "Parent resighting", "Parent capture"),

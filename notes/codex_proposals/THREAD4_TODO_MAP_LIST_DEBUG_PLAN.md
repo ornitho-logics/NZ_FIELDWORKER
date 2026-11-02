@@ -4,7 +4,7 @@
 
 Luke approved a narrow same-day identity assumption: a confirming X-X resighting
 and exactly one eligible `capture_status = F` first-banding captured identity
-of the same sex, nest and date target the same individual. Transfer this same-day
+of the same sex, nest, and date target the same individual. Transfer this same-day
 confirmation to the new marked identity, including MM without later sightings.
 Preserve the observation date; infer no exact observed time or before/after order.
 SQL will conservatively date linked proof at the capture datetime on that date.
@@ -19,9 +19,9 @@ needs its own one confirming or three distinct eligible postcapture observations
 its own valid same-day confirming linkage now qualifies and can retire older
 placeholders without transferring older proof or backdating association. No unique
 link with multiple competing captured identities, ambiguous/ineligible evidence,
-other sex/nest, recapture only or evidence beyond reference. Later X-X stays
+other sex/nest, recapture only, or evidence beyond reference. Later X-X stays
 separate; retain original MM displacement history and independent strong conflicts.
-The existing hierarchy, seven-day/36-hour/tag gates and unrelated same-day
+The existing hierarchy, seven-day/36-hour/tag gates, and unrelated same-day
 juvenile-origin/brood-closure safeguards are unchanged.
 
 This approved decision supersedes blanket same-day no-link wording below.
@@ -31,9 +31,9 @@ See manual v2.4.14 (revised 1 November 2026),
 `sameDayXXIN + firstMM` with no later proof resolves marked; different-day X-X
 plus first MM capture without own proof leaves the newly marked identity pending.
 The new source passes 65 actual-SQL chronology assertions, 1,004 assertions
-overall and one fresh no-network MariaDB 11.8.9 synthetic install/refresh.
+overall, and one fresh no-network MariaDB 11.8.9 synthetic install/refresh.
 See `docs/reconstruction/SAME_DAY_LINKAGE_VERIFICATION_2026-11-01.md` for exact
-sources, coverage and field/PDF/live/browser limits. Historical results below
+sources, coverage, and field/PDF/live/browser limits. Historical results below
 do not verify this decision. Roll back only the same-day source/test/doc patch,
 preserving pre-existing dirty work; deployed rollback needs human view reinstall
 and snapshot rebuild.
@@ -54,7 +54,7 @@ not task selection or association. Confirm the unknown as X-X and nest-linked
 before the first deployment; a banded unknown does not qualify for that initial
 deployment. Later pair completion retains current-nest deployment provenance
 and the independent 36-hour gate. Already-tagged selected/pending identities,
-death, ambiguous identities, invalid marks and unresolved MM evidence remain
+death, ambiguous identities, invalid marks, and unresolved MM evidence remain
 guarded. Tag-bearing fallback notes now say `pair completion` for both sexes;
 non-tag notes can still describe an opposite parent's GEO without allowing a tag.
 The existing map matcher gives every note containing `tag` its white outline.
@@ -111,7 +111,7 @@ No raw rows, coordinates, credentials, or field records are included here.
 The accepted unrelated-adult CAPTURES convention is NULL `nest_id` plus a
 complete `gps_id`/`gps_point` pair. `NO_NEST` is retired, with no replacement
 sentinel. Older references below are historical. Display helpers reject the
-retired literal case-insensitively, blanks and missing-value text as nest
+retired literal case-insensitively, blanks, and missing-value text as nest
 links; they do not rewrite records. Site-specific ID syntax remains an
 inspector responsibility. Positive links and negative broods remain supported.
 
@@ -693,7 +693,7 @@ from reviving via nonconfirming counts. Strong independent conflicts remain
 reviewable; opposite-sex evidence never displaces this sex. Same-day order is
 unknown, but the narrow approved identity assumption supplies that same-day link.
 See `docs/reconstruction/PARENT_ASSOCIATION_CHRONOLOGY.md`, its machine-readable
-cases and the source-bound 1 November verification record. The actual-SQL
+cases, and the source-bound 1 November verification record. The actual-SQL
 `test-mm-xx-chronology-2026-10-31.R` passes the revised same-day cases.
 
 Timing gates remain important:

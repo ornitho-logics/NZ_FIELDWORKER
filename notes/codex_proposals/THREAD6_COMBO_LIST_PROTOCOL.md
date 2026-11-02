@@ -276,7 +276,7 @@ regex because the stored protocol expects the spacer in `UR` and the remaining
 tibia colour in `LR`. Thread 3.1 mock generation must store those components in
 the separate fields or explicitly normalize them before they reach SQL.
 
-### Right side, classic and placeholders
+### Right side, classic, and placeholders
 
 After tag branches:
 

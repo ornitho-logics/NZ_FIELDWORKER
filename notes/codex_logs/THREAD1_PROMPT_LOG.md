@@ -18,7 +18,7 @@ Conflicting nonblank nest/brood IDs save-block within one same-date/site/GPS
 family encounter, including fully explicit rows and split tables. Separate
 encounters may record brood mixing. `pP`/`P`/`D` allow fate review until final
 `notA`; the rare first-F zero-clutch rejection remains intentional, requiring
-verification/comment and the documented override if correct, not an automatic
+verification/comment, and the documented override if correct, not an automatic
 exception. EGGS has no media columns. The reviewed local mirror is v1.3.14,
 distinct from external canonical v1.3.5. Its SC clarification confirms that
 scraping can resolve parent association alone, without becoming a BC/FC/AC
@@ -383,7 +383,7 @@ credentials, coordinates, or private overrides.
 ## Exact Prompt Entry: 2026-10-23 documentation publication
 
 - User request: after all specialist documentation was complete, create a new
-  branch, commit and push the complete safe handoff set, and provide a PR link
+  branch, commit, and push the complete safe handoff set, and provide a PR link
   with detailed documentation/key-change comments.
 - Publication decision: start from the latest `origin/main`, exclude the
   protected dirty SQL/PDF/validator/test checkout, track sanitized Thread 1-9

@@ -28,7 +28,7 @@ prompt. The task was to update the retained Banded Dotterel field manual as a
 separate A4 DOCX while preserving its fonts and compact field-handbook style;
 use current repository SQL/app/protocol evidence; include field-to-database
 decision keys, event tables, invented examples, H-photo and negative-brood
-rules, geolocator allocation guidance and end-of-day checks; preserve the
+rules, geolocator allocation guidance, and end-of-day checks; preserve the
 retained reference; avoid live database/raw-record access and implementation
 changes; and render and inspect the complete artifact before delivery.
 
@@ -71,7 +71,7 @@ the durable intent and boundaries needed to restart Thread 8 safely.
 The manual revision was completed as a separate private working artifact; the
 retained historical DOCX was not overwritten. The authoring pass used the
 current directly inspected validator protocol v1.3.4 and the latest parent-
-identity decision. It did not modify tracked SQL, R, validator, test, database
+identity decision. It did not modify tracked SQL, R, validator, test, database,
 or app files, and it did not access a live database or reproduce raw records or
 GPS data.
 
@@ -80,7 +80,7 @@ All 23 A4 pages were visually inspected after the final pass. The final pass
 centred the cover title/subtitle and prevented table rows from splitting over
 pages. The artifact-level checks include ZIP/package validation, A4 PDF page
 geometry, rendered-page inspection, and text checks for the current H/rclass,
-negative-brood, direct-GPS, parent-linkage and geolocator wording.
+negative-brood, direct-GPS, parent-linkage, and geolocator wording.
 
 ## Correction follow-up — 2026-10-23
 

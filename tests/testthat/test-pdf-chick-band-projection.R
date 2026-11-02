@@ -1,6 +1,6 @@
 test_that("the real PDF loader preserves canonical links and supplies chick colours", {
   # Function definitions plus fake query results only: no app globals, config,
-  # database connection, SQL execution or Quarto process is loaded.
+  # database connection, SQL execution, or Quarto process is loaded.
   root <- testthat::test_path("..", "..")
   env <- new.env(parent = asNamespace("data.table"))
   for (name in c("display_nest_ids.R", "pdf_todo.R", "pdf_todo_map.R")) {

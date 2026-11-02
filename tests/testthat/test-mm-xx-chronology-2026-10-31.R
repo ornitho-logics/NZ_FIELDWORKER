@@ -145,7 +145,7 @@ test_that("actual SQL keeps X-X separate until the newly marked bird earns its o
   }
 })
 
-test_that("different-day X-X replacement rejects ambiguous, wrong-sex and recapture evidence", {
+test_that("different-day X-X replacement rejects ambiguous, wrong-sex, and recapture evidence", {
   capture <- mm_xx_capture("ring:MOCK_B", 3)
   old_xx <- mm_xx_sighting("xx:MOCK_NEST:M", 2, confirming = TRUE)
   proof <- mm_xx_sighting("ring:MOCK_B", 4, confirming = TRUE)
@@ -185,7 +185,7 @@ test_that("same-day confirming X-X targets one first-marked bird without later p
   }
 })
 
-test_that("same-day linkage preserves identity, nest, sex, eligibility and date guards", {
+test_that("same-day linkage preserves identity, nest, sex, eligibility, and date guards", {
   first <- mm_xx_capture("ring:MOCK_B", 3)
   xx <- mm_xx_sighting("xx:MOCK_NEST:M", 3, confirming = TRUE)
   cases <- list(
@@ -273,7 +273,7 @@ test_that("displaced MM-only identities cannot revive when the earlier X-X place
   }
 })
 
-test_that("retirement preserves duplicates, later X-X and competing-candidate safeguards", {
+test_that("retirement preserves duplicates, later X-X, and competing-candidate safeguards", {
   captures <- rbind(mm_xx_capture("ring:MOCK_A", 1), mm_xx_capture("ring:MOCK_B", 3))
   xx <- mm_xx_sighting("xx:MOCK_NEST:M", 2, confirming = TRUE)
   b <- do.call(rbind, lapply(4:6, function(day) mm_xx_sighting("ring:MOCK_B", day)))

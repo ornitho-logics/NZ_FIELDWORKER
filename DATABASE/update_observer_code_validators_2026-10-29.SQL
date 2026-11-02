@@ -7,7 +7,7 @@
   table_name contains the actual table name (e.g. OBSERVERS), not the export
   filename OBSERVERS_hard. The hard/warn role is the final word in comments.
   This accepts only five hard-role rows and exact old/new R snippets.
-  Custom, missing, duplicate or differently formatted rows
+  Custom, missing, duplicate, or differently formatted rows
   cause FAIL with no updates; do not weaken the guard to force installation.
   Re-running after success is safe. The external protocol is not synchronized.
 */
@@ -104,4 +104,4 @@ END AS result, @observer_rows_changed AS inspector_rows_changed;
 
 /* Start a new data-entry session after installing; existing sessions may cache
    validators. Register P3 with the correct person and active dates in OBSERVERS.
-   No views installation, To-Do refresh or field-record rewrite is needed. */
+   No views installation, To-Do refresh, or field-record rewrite is needed. */

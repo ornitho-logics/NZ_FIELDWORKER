@@ -1,7 +1,7 @@
 # Field Manual reader
 
 `manual.md` is the reviewed app publication copy; `index.html` is its generated,
-self-contained reader. The page needs no database, CDN, server-side search or
+self-contained reader. The page needs no database, CDN, server-side search, or
 new runtime package. Calibri/Arial typography follows the field handbook.
 
 After editing this app copy, rebuild from the repository root:
@@ -13,10 +13,11 @@ Rscript --vanilla main/tools/render_field_manual.R
 To deliberately publish an updated private review draft, pass its path as the
 sole argument. This replaces **only** the app copy and rebuilds its HTML. Review
 the diff first: all files under `main/www` are browser-readable. Never import
-private records, coordinates, credentials or unpublished operational reports.
+private records, coordinates, credentials, or unpublished operational reports.
 The private review draft is not loaded at runtime or silently kept in sync.
 
-The app publication copy is v2.4.18 (revised 1 November 2026). It documents
+The app publication copy is v2.4.19 (revised 2 November 2026). The latest edit
+applies the Oxford comma without changing field procedures. It documents
 Hatch timing (days), which reuses the PDF summary formatter without changing
 SQL or scientific rules. It explains the
 cleaned Nest Map popup and its cached parent-association annotations, including
@@ -24,7 +25,7 @@ their snapshot freshness boundary and reference-date encounter timing. It direct
 readers to the existing separate-window link if GitHub links do not open within
 the embedded manual; link-handling behaviour is unchanged. Its plain-language
 authorship disclosure links the public AI-use record, governance, sanitized summaries,
-specialist handoffs, validator sources and reproducible synthetic workflow.
+specialist handoffs, validator sources, and reproducible synthetic workflow.
 It distinguishes initial invented-data validation from later approved local
 snapshot/field-example troubleshooting, and manual human deployment from agent
 repository/local work. It makes no blanket zero-disclosure or provider-audit
@@ -35,31 +36,28 @@ published commit permalink so they do not depend on an unmerged or later-deleted
 topic branch.
 Luke's approved
 1 November decision assumes confirming X-X and a unique eligible status-F first
-banding of the same sex, nest and date target the same individual, including
+banding of the same sex, nest, and date target the same individual, including
 MM without later sightings. Same-day confirmation transfers; preserve the date,
-infer no exact observed time/order and conservatively date linked proof at capture
+infer no exact observed time/order, and conservatively date linked proof at capture
 datetime. Older different-day proof cannot transfer; the new bird's own valid
 same-day confirmation can retire an older placeholder without inheriting its proof.
 Multiple competing identities and ineligible/ambiguous links remain guarded;
 the first-marking pool counts all eligible F identity keys before later-proof
 or ambiguity filters, which cannot manufacture uniqueness from multiple identities.
-MM displacement, evidence hierarchy, capture timing/tag gates and unrelated
-same-day safeguards remain unchanged. The approved rule's verification scope is
+MM displacement, evidence hierarchy, capture timing/tag gates, and unrelated same-day safeguards remain unchanged. The approved rule's verification scope is
 recorded separately in the [dated verification record](../../../docs/reconstruction/MM_FOLLOWUP_VERIFICATION_2026-10-31.md#approved-decision-addendum--1-november-2026).
 No live-deployment claim; this rebuild is documentation generation.
 This supersedes the earlier blanket same-day no-link text while preserving
 pre-MM proof for reliably identified birds.
 It also includes the
 conditional late-wave tagging instruction, consistent pair-completion notes,
-pending tagged-parent protection, map highlights, snapshot waiting guidance
-and the historical `notA_summary` report. Its source notes distinguish the
-v1.3.20 local validator protocol, completed local checks and unverified live
-installation. Dated specialist handoffs retain earlier decisions beneath their
+pending tagged-parent protection, map highlights, snapshot waiting guidance, and the historical `notA_summary` report. Its source notes distinguish the
+v1.3.20 local validator protocol, completed local checks, and unverified live installation. Dated specialist handoffs retain earlier decisions beneath their
 current addenda. Do not copy their historical status claims into the manual.
 
 `manual.css` and `manual.js` are embedded during the build, making the reading
 page usable as a standalone saved HTML file. Contents links open collapsed
-sections. Search is literal, case-insensitive and requires all entered words
+sections. Search is literal, case-insensitive, and requires all entered words
 within a passage; it shows up to 80 passage links with section context. It does
 not send queries to a server or store them. Table content is searchable. Clear
 or Escape removes highlighting. Print opens every section and restores its

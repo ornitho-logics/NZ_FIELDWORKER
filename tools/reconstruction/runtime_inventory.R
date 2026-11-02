@@ -1,4 +1,4 @@
-# Development metadata only: no app sourcing, config, database or installation.
+# Development metadata only: no app sourcing, config, database, or installation.
 args <- commandArgs(trailingOnly = TRUE)
 root <- normalizePath(file.path(dirname(sub("^--file=", "", grep("^--file=", commandArgs(), value = TRUE)[1])), "..", ".."))
 lock <- file.path(root, "docs", "reconstruction", "environment.lock.json")

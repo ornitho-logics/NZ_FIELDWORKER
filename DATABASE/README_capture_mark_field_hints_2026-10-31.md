@@ -4,7 +4,7 @@ This comment-only update aligns the eight leg-field descriptions with the
 [current manual](../main/www/field-manual/manual.md#section-6) and the tracked
 [CAPTURES hard inspector](../notes/codex_proposals/validator_sandbox/inspector_lists_by_table/CAPTURES_hard.R),
 especially its capture-mark and dead-recovery checks. It changes no validator,
-input value, field type, default, requiredness or application interaction.
+input value, field type, default, requiredness, or application interaction.
 
 ## Meaning of the descriptions
 
@@ -28,7 +28,7 @@ belong in the incoming fields; do not invent a new marking event.
 literals. Existing databases retain their existing comments until an authorized
 operator applies a separate update. Do not import the full base-table DDL as
 an upgrade. No inspector installation, view rebuild, To-do snapshot refresh,
-record rewrite, column widening or new dependency is needed.
+record rewrite, column widening, or new dependency is needed.
 
 [capture_mark_field_hints_2026-10-31.SQL](capture_mark_field_hints_2026-10-31.SQL)
 is one read-only WITH/SELECT query over information_schema. Its eight desired
@@ -44,10 +44,10 @@ exact-spelling guards and all metadata/collation safeguards remain in place.
 
 The generator requires the exact selected schema and object spelling,
 an InnoDB base table, and all eight ordinary columns to be nullable
-varchar(10) with SQL NULL defaults, no extra/generated attributes and known
+varchar(10) with SQL NULL defaults, no extra/generated attributes, and known
 charset/collation. The metadata check accepts MariaDB's unquoted NULL default
 representation, not a quoted string default. Missing columns, changed metadata,
-the wrong selected schema or NO_BACKSLASH_ESCAPES fail closed. One failed
+the wrong selected schema, or NO_BACKSLASH_ESCAPES fail closed. One failed
 target suppresses **all** apply/rollback commands. Do not bypass a failed guard.
 
 ## Operator procedure, when separately authorized
@@ -64,17 +64,17 @@ target suppresses **all** apply/rollback commands. Do not bypass a failed guard.
    authorized SQL command with **Stop on error** enabled. Never paste the
    rollback column alongside them. Use a connection with the same privileges
    and server/target schema, and do not alter columns between generation/apply.
-5. Retain ALGORITHM=INSTANT, LOCK=NONE and the finite 30-second metadata-lock
+5. Retain ALGORITHM=INSTANT, LOCK=NONE, and the finite 30-second metadata-lock
    timeout. Failure is a reason to stop and inspect, not to permit a table copy,
-   remove safeguards or rerun the complete base-table DDL.
+   remove safeguards, or rerun the complete base-table DDL.
 
-Generated commands retain each column's inspected type, charset and collation,
+Generated commands retain each column's inspected type, charset, and collation,
 and explicitly keep NULL DEFAULT NULL. Each command reasserts the inspected
 session sql_mode so QUOTE-escaped comments, including original rollback values
 with apostrophes or backslashes, have the same interpretation on a new session.
 They change session settings only, never global server configuration.
 
-## Checks, risks and rollback
+## Checks, risks, and rollback
 
 The preparation checks compare all eight desired comments byte-for-byte with
 the CAPTURES DDL and verify that removing those literals leaves the original
@@ -102,5 +102,5 @@ No biological rows or validator code need restoration.
 
 For repository rollback, revert only these eight COMMENT literals and remove
 the two new hint-documentation files if no longer needed. Preserve all other
-shared reconstruction, SQL, manual and test work. No live change is implied by
-a repository edit, commit or merge.
+shared reconstruction, SQL, manual, and test work. No live change is implied by
+a repository edit, commit, or merge.
