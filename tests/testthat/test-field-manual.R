@@ -145,11 +145,81 @@ test_that("static reader rebuild is deterministic and needs no database", {
   script <- file.path(folder, "main", "tools", "render_field_manual.R")
   file.copy(file.path(manual_root, "main", "tools", "render_field_manual.R"), script)
   target <- file.path(folder, "main", "www", "field-manual")
-  for (name in c("manual.md", "core-guide.md", "manual.css", "manual.js")) file.copy(manual_file(name), target)
+  for (name in c("manual.md", "core-guide.md", "manual-de.md", "core-guide-de.md", "manual.css", "manual.js")) file.copy(manual_file(name), target)
   output <- system2(file.path(R.home("bin"), "Rscript"), c("--vanilla", shQuote(script)), stdout = TRUE, stderr = TRUE)
   expect_null(attr(output, "status"))
   expect_identical(unname(tools::md5sum(file.path(target, "index.html"))), unname(tools::md5sum(manual_file("index.html"))))
   expect_identical(unname(tools::md5sum(file.path(target, "core-guide.html"))), unname(tools::md5sum(manual_file("core-guide.html"))))
+  expect_identical(unname(tools::md5sum(file.path(target, "index-de.html"))), unname(tools::md5sum(manual_file("index-de.html"))))
+  expect_identical(unname(tools::md5sum(file.path(target, "core-guide-de.html"))), unname(tools::md5sum(manual_file("core-guide-de.html"))))
+})
+
+test_that("English and German readers switch languages without losing the manual kind", {
+  for (core in c(TRUE, FALSE)) for (german in c(TRUE, FALSE)) {
+    page <- if (core) { if (german) "core-guide-de.html" else "core-guide.html" } else {
+      if (german) "index-de.html" else "index.html"
+    }
+    input <- if (core) { if (german) "core-guide-de.md" else "core-guide.md" } else {
+      if (german) "manual-de.md" else "manual.md"
+    }
+    english <- if (core) "core-guide.html" else "index.html"
+    deutsch <- if (core) "core-guide-de.html" else "index-de.html"
+    html <- paste(readLines(manual_file(page), encoding = "UTF-8"), collapse = "\n")
+    expect_match(html, paste0('<html lang="', if (german) 'de' else 'en-NZ', '">'), fixed = TRUE)
+    expect_match(html, paste0('data-language-link href="', english, '" lang="en" hreflang="en-NZ"'), fixed = TRUE)
+    expect_match(html, paste0('data-language-link href="', deutsch, '" lang="de" hreflang="de"'), fixed = TRUE)
+    expect_match(html, if (german) 'href="core-guide-de.html"' else 'href="core-guide.html"', fixed = TRUE)
+    expect_match(html, if (german) 'href="index-de.html"' else 'href="index.html"', fixed = TRUE)
+    expect_match(html, paste0('href="', input, '" download'), fixed = TRUE)
+    expect_match(html, unname(tools::md5sum(manual_file(input))), fixed = TRUE)
+    expect_match(html, 'id="manual-search"', fixed = TRUE)
+    expect_match(html, 'id="manual-print"', fixed = TRUE)
+    if (german) {
+      expect_match(html, "Bei Unklarheiten gilt das englische Original", fixed = TRUE)
+      expect_match(html, "Keine passenden Textstellen", fixed = TRUE)
+      expect_match(html, 'aria-label="Suchergebnisse"', fixed = TRUE)
+      expect_match(html, if (core) 'href="index-de.html#authorship"' else 'href="#authorship"', fixed = TRUE)
+    }
+  }
+})
+
+test_that("German translation sources retain full section and table coverage", {
+  for (core in c(TRUE, FALSE)) {
+    english <- paste(readLines(manual_file(if (core) "core-guide.md" else "manual.md"), encoding = "UTF-8"), collapse = "\n")
+    german <- paste(readLines(manual_file(if (core) "core-guide-de.md" else "manual-de.md"), encoding = "UTF-8"), collapse = "\n")
+    anchors <- function(text) regmatches(text, gregexpr('<a id="[^"]+"></a>', text, perl = TRUE))[[1L]]
+    table_rows <- function(text) sum(grepl("^\\|", strsplit(text, "\n", fixed = TRUE)[[1L]]))
+    literals <- function(text) sort(regmatches(text, gregexpr("`[^`\n]+`", text, perl = TRUE))[[1L]])
+    numbers <- function(text) regmatches(text, gregexpr("\\b[0-9]+(?:\\.[0-9]+)*\\b", text, perl = TRUE))[[1L]]
+    # The source digest is metadata, not a translated number or field code.
+    translated_body <- sub("<!-- English-source-md5: [a-f0-9]{32} -->", "", german)
+    expect_identical(anchors(german), anchors(english))
+    expect_identical(table_rows(german), table_rows(english))
+    expect_identical(literals(translated_body), literals(english))
+    expect_identical(numbers(translated_body), numbers(english))
+    expect_false(grepl("\\bLuke\\b(?! Eberhart-Hertel)", german, perl = TRUE))
+    expect_match(german, "English-source-md5:", fixed = TRUE)
+    expect_false(grepl("(?i)\\b(boarisch|bairisch|bavarian)\\b", german, perl = TRUE))
+  }
+})
+
+test_that("a stale German translation stops the build before any HTML publication", {
+  skip_if_not_installed("commonmark")
+  folder <- withr::local_tempdir()
+  dir.create(file.path(folder, "main", "tools"), recursive = TRUE)
+  target <- file.path(folder, "main", "www", "field-manual")
+  dir.create(target, recursive = TRUE)
+  script <- file.path(folder, "main", "tools", "render_field_manual.R")
+  file.copy(file.path(manual_root, "main", "tools", "render_field_manual.R"), script)
+  for (name in c("manual.md", "core-guide.md", "manual-de.md", "core-guide-de.md", "manual.css", "manual.js",
+                 "index.html", "core-guide.html", "index-de.html", "core-guide-de.html")) file.copy(manual_file(name), target)
+  pages <- file.path(target, c("index.html", "core-guide.html", "index-de.html", "core-guide-de.html"))
+  before <- tools::md5sum(pages)
+  cat("\nAn invented English revision.\n", file = file.path(target, "manual.md"), append = TRUE)
+  output <- suppressWarnings(system2(file.path(R.home("bin"), "Rscript"), c("--vanilla", shQuote(script)), stdout = TRUE, stderr = TRUE))
+  expect_identical(attr(output, "status"), 1L)
+  expect_true(any(grepl("Review the German translation", output, fixed = TRUE)))
+  expect_identical(tools::md5sum(pages), before)
 })
 
 test_that("both manual readers expose navigation, scoped search, and publication sources", {

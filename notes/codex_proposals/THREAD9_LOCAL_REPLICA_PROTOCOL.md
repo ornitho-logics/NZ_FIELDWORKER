@@ -1,5 +1,32 @@
 # Thread 9 local-replica protocol
 
+## Focused hatch-accounting verification — 3 November 2026
+
+Luke authorized invented-data SQL checks only for the new hatch-completion
+inference. The 55 assertions in
+`tests/testthat/test-clutch-hatch-reconciliation-2026-11-03.R` passed with zero
+failures, warnings, or skips in an owned, no-network, socket-only MariaDB 11.4.2.
+Actual source stages, new column inserts, and egg/notA task branches execute;
+unrelated family-resolution inputs use staged fixtures. Coverage includes
+distinct/duplicate rings, insufficient/excess chicks, missing or conflicting
+origin, reference-date limits, untimed/contrary eggs, caught-versus-release
+chronology, dead/live separation, existing notA, and conservative fallbacks.
+
+This did not replay a field dump, render a new PDF, establish actual field task
+counts, run a full install/refresh, or verify target MariaDB 11.8.9/Adminer
+performance. Do not extend the earlier full-run evidence below to this source.
+The owned server shut down cleanly; socket and PID file were absent afterwards.
+No live access, validators, credentials, raw records, or Git operations were used.
+
+Source SHA-256 values for this focused check:
+
+- `DATABASE/views.SQL`: `94096adc5ad485e2850581c3d270de9a02df9ea629158fd943bf9c12cc1d0bb4`
+- `DATABASE/refresh_todo_list_snapshot.SQL`: `c38018e6d06191bd94d3a649594f80c08f551a39512cd8e506f2dd769dfd906d`
+- Focused test: `084e51a22dbb91bf04a388d8ad41cbc9ba36f9e7456ff1f7f97e22f0476eb884`
+
+Use the current-system contract and `HATCH-001` crosswalk for the conservative
+three-or-more-egg scope, not this execution note as biological authority.
+
 ## Current verification addendum — 31 October 2026
 
 The latest completed authorised full local run used frozen current source,

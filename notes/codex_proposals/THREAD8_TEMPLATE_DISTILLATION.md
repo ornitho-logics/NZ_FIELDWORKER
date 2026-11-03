@@ -5,6 +5,37 @@ modify the retained reference manual or any application source.
 
 ## App publication addendum — 3 November 2026
 
+### Standard German reader follow-up
+
+Luke replaced the proposed Bavarian translation with standard German. Both
+the core guide and full reference now have English/Deutsch links, localized
+reader controls, and separately generated static pages. English remains the
+reference; native-team terminology review is still needed. Keep the German
+Markdown sources aligned with their English counterparts before updating
+their source-digest comments. The builder refuses stale translations before
+writing any of the four pages. No translation service or database is called.
+Language switching preserves manual kind and stable section anchors; switching
+between core and full retains the selected language. Actual database fields,
+codes, UI names, thresholds, and scientific rules are not translated into new
+identifiers. See the reader README for source paths and maintenance checks.
+
+The accompanying hatch-accounting documentation advances the full reference
+to v2.4.22 and the core guide to Edition 2, with matching German explanations.
+It distinguishes an operational zero-egg inference and notA follow-up from a
+real visit or closure; known complete clutches of at least three eggs are the
+current conservative scope. Validator changes remain proposals only.
+
+Verification of these final reader sources: 274 focused assertions passed,
+including deterministic four-HTML-page generation and stale-translation rejection;
+86 English and 62 German desktop/mobile browser checks passed. Numeric sequences,
+inline-code multisets, section anchors, and table-row counts match between
+languages. Phone/desktop screenshots were inspected. These are technical and
+structural checks, not native-team approval of German terminology.
+
+The earlier verification totals below describe the preceding English-only
+publication, not subsequent SQL or translation changes. Local language checks
+must be recorded separately and cannot certify field-server deployment.
+
 The app now starts with `main/www/field-manual/core-guide.md` (Edition 1),
 rendered to `core-guide.html`. The complete reference is `manual.md` v2.4.21,
 rendered to its existing `index.html` URL. Both static readers share one builder,

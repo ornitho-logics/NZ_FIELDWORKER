@@ -247,7 +247,11 @@ SELECT
   CAST(NULL AS CHAR(16)) AS latest_encounter_availability,
   CAST(NULL AS CHAR(255)) AS latest_encounter_ring_list,
   CAST(NULL AS CHAR(64)) AS latest_encounter_source,
-  CAST(NULL AS CHAR(128)) AS latest_encounter_provenance
+  CAST(NULL AS CHAR(128)) AS latest_encounter_provenance,
+  CAST(NULL AS SIGNED) AS n_original_hatched_chick_rings,
+  CAST(NULL AS DATETIME) AS original_hatch_accounted_datetime,
+  CAST(NULL AS SIGNED) AS n_hatch_reconciliation_blockers,
+  CAST(NULL AS DATE) AS hatch_reconciliation_reference_date
 WHERE 1 = 0;
 
 /* Repair all other internal input boundaries before removing stale BUILD tables. */
@@ -2575,6 +2579,148 @@ WITH context_units AS (
   UNION
   SELECT nest_id
   FROM tmp_todo_chick_latest_encounter_context
+),
+/*
+  Original hatch accounting is separate from live brood targets. Reuse the
+  staged capture and encounter identities, including deaths, without adding
+  another family resolver or any pairwise origin graph. A first-banded ring
+  with conflicting later links cannot prove an original clutch's hatch count.
+*/
+hatch_ring_origins AS (
+  SELECT
+    events.ring_key,
+    COUNT(DISTINCT events.nest_id) AS n_linked_nests,
+    COUNT(DISTINCT CASE
+      WHEN events.capture_status = 'F' AND events.nest_id_source = 'recorded'
+      THEN events.nest_id
+    END) AS n_first_band_nests
+  FROM tmp_todo_chick_capture_events events
+  WHERE events.age = 'C'
+    AND events.ring_key IS NOT NULL
+    AND events.ring_key REGEXP '^[A-Z0-9]+$'
+    AND events.ring_key <> 'NULL'
+  GROUP BY events.ring_key
+),
+/* Unlinked first captures are absent from the operational event layer. One
+   bounded source pass guards those gaps and dates FIRST hatch proof at caught
+   time (release fallback), independently of all existing operational clocks. */
+first_band_proof AS (
+  SELECT
+    REPLACE(UPPER(TRIM(c.ring)), '-', '') AS ring_key,
+    SUM(CASE
+      WHEN UPPER(TRIM(COALESCE(c.nest_id, ''))) IN ('', 'NO_NEST')
+        OR UPPER(TRIM(COALESCE(c.site, ''))) <> 'CR'
+        OR UPPER(TRIM(COALESCE(c.species, ''))) <> 'BADO'
+      THEN 1 ELSE 0
+    END) AS n_origin_gaps,
+    MIN(CAST(CONCAT(c.date, ' ', COALESCE(c.caught, c.released, '00:00:00')) AS DATETIME))
+      AS first_band_datetime,
+    MAX(CASE WHEN c.caught IS NULL AND c.released IS NULL THEN 1 ELSE 0 END)
+      AS has_untimed_first_band
+  FROM FIELD_2026_BADOatNZ.CAPTURES c
+  JOIN FIELD_2026_BADOatNZ.settings settings
+    ON settings.variable = 'reference_date'
+   AND c.date <= settings.value
+  WHERE c.age = 'C'
+    AND c.capture_status = 'F'
+  GROUP BY REPLACE(UPPER(TRIM(c.ring)), '-', '')
+),
+hatch_encounter_rings AS (
+  SELECT
+    events.ring_key,
+    COUNT(DISTINCT events.nest_id) AS n_encounter_nests,
+    MAX(events.is_unresolved_identity) AS has_unresolved_identity
+  FROM tmp_todo_chick_encounters events
+  WHERE events.ring_key IS NOT NULL
+  GROUP BY events.ring_key
+),
+hatch_ring_status AS (
+  SELECT
+    origins.ring_key,
+    proof.first_band_datetime,
+    CASE
+      WHEN origins.n_linked_nests = 1
+       AND origins.n_first_band_nests = 1
+       AND proof.has_untimed_first_band = 0
+       AND COALESCE(encounters.n_encounter_nests, 1) = 1
+       AND COALESCE(encounters.has_unresolved_identity, 0) = 0
+       AND proof.n_origin_gaps = 0
+      THEN 1 ELSE 0
+    END AS is_trustworthy_origin
+  FROM hatch_ring_origins origins
+  LEFT JOIN hatch_encounter_rings encounters ON encounters.ring_key = origins.ring_key
+  LEFT JOIN first_band_proof proof ON proof.ring_key = origins.ring_key
+),
+hatch_capture_counts AS (
+  SELECT
+    events.nest_id,
+    COUNT(DISTINCT CASE
+      WHEN origins.is_trustworthy_origin = 1
+      THEN events.ring_key
+    END) AS n_original_hatched_chick_rings,
+    MAX(origins.first_band_datetime) AS original_hatch_accounted_datetime,
+    MIN(origins.first_band_datetime) AS first_original_band_datetime,
+    SUM(CASE
+      WHEN origins.is_trustworthy_origin = 1
+       AND COALESCE(consensus.n_explicit_nest_ids, 1) = 1
+      THEN 0 ELSE 1
+    END) AS n_capture_origin_blockers
+  FROM tmp_todo_chick_capture_event_status events
+  LEFT JOIN hatch_ring_status origins
+    ON origins.ring_key = COALESCE(events.ring_key, events.resolved_dead_ring_key)
+  LEFT JOIN tmp_todo_raw_encounter_nest_consensus consensus
+    ON consensus.event_date = events.event_date
+   AND consensus.gps_id = events.gps_id
+   AND consensus.gps_point = events.gps_point
+  WHERE events.age = 'C'
+  GROUP BY events.nest_id
+),
+hatch_encounter_blockers AS (
+  SELECT
+    events.nest_id,
+    SUM(CASE
+      WHEN events.is_unresolved_identity = 1
+       AND COALESCE(status.is_resolved_dead_bridge, 0) = 0
+      THEN 1
+      WHEN COALESCE(consensus.n_explicit_nest_ids, 1) > 1 THEN 1
+      WHEN COALESCE(origins.is_trustworthy_origin, 0) = 0 THEN 1
+      ELSE 0
+    END) AS n_encounter_blockers
+  FROM tmp_todo_chick_encounters events
+  LEFT JOIN tmp_todo_chick_capture_event_status status
+    ON events.source_table = 'CAPTURES'
+   AND status.capture_pk = events.event_pk
+  LEFT JOIN hatch_ring_status origins
+    ON origins.ring_key = COALESCE(events.ring_key, status.resolved_dead_ring_key)
+  LEFT JOIN tmp_todo_raw_encounter_nest_consensus consensus
+    ON consensus.event_date = events.event_date
+   AND consensus.gps_id = events.gps_id
+   AND consensus.gps_point = events.gps_point
+  GROUP BY events.nest_id
+),
+hatch_history_guard AS (
+  SELECT
+    history.nest_id,
+    MAX(CASE
+      WHEN UPPER(TRIM(COALESCE(history.nest_state, ''))) IN ('P', 'D', 'NOTA')
+        OR (history.clutch_size > 0 AND history.time_visit IS NULL
+            AND history.date >= DATE(counts.original_hatch_accounted_datetime))
+      THEN 1 ELSE 0
+    END) AS has_history_conflict
+  FROM FIELD_2026_BADOatNZ.TODO_NEST_HISTORY history
+  JOIN hatch_capture_counts counts ON counts.nest_id = history.nest_id
+  GROUP BY history.nest_id
+),
+hatch_egg_guard AS (
+  SELECT
+    eggs.nest_id,
+    MAX(CAST(CONCAT(eggs.date, ' ', COALESCE(eggs.time_visit, '23:59:59')) AS DATETIME))
+      AS last_explicit_egg_datetime
+  FROM FIELD_2026_BADOatNZ.EGGS eggs
+  JOIN FIELD_2026_BADOatNZ.settings settings
+    ON settings.variable = 'reference_date'
+   AND eggs.date <= settings.value
+  GROUP BY eggs.nest_id
 )
 SELECT
   context_units.nest_id,
@@ -2604,12 +2750,29 @@ SELECT
   latest.latest_encounter_availability,
   latest.latest_encounter_ring_list,
   latest.latest_encounter_source,
-  latest.latest_encounter_provenance
+  latest.latest_encounter_provenance,
+  hatch.n_original_hatched_chick_rings,
+  hatch.original_hatch_accounted_datetime,
+  hatch.n_capture_origin_blockers
+    + COALESCE(blockers.n_encounter_blockers, 0)
+    + COALESCE(guard.has_history_conflict, 0)
+    + CASE
+        WHEN DATE(hatch.first_original_band_datetime) < nest.observed_hatch_date
+          OR eggs.last_explicit_egg_datetime >= hatch.original_hatch_accounted_datetime
+        THEN 1 ELSE 0
+      END AS n_hatch_reconciliation_blockers,
+  nest.reference_date AS hatch_reconciliation_reference_date
 FROM context_units
 LEFT JOIN tmp_todo_chick_capture_context_base base
   ON base.nest_id = context_units.nest_id
 LEFT JOIN tmp_todo_chick_latest_encounter_context latest
-  ON latest.nest_id = context_units.nest_id;
+  ON latest.nest_id = context_units.nest_id
+LEFT JOIN hatch_capture_counts hatch ON hatch.nest_id = context_units.nest_id
+LEFT JOIN hatch_encounter_blockers blockers ON blockers.nest_id = context_units.nest_id
+LEFT JOIN hatch_history_guard guard ON guard.nest_id = context_units.nest_id
+LEFT JOIN hatch_egg_guard eggs ON eggs.nest_id = context_units.nest_id
+LEFT JOIN FIELD_2026_BADOatNZ.TODO_NEST_CONTEXT_SNAPSHOT_BUILD nest
+  ON nest.nest_id = context_units.nest_id;
 
 SELECT 'TODO_REFRESH_STAGE|chick_capture_context' AS refresh_stage;
 
@@ -2648,6 +2811,10 @@ CREATE TABLE FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_SNAPSHOT_BUILD (
   latest_encounter_ring_list LONGTEXT NULL,
   latest_encounter_source VARCHAR(64) NULL,
   latest_encounter_provenance VARCHAR(128) NULL,
+  n_original_hatched_chick_rings BIGINT NULL,
+  original_hatch_accounted_datetime DATETIME NULL,
+  n_hatch_reconciliation_blockers BIGINT NULL,
+  hatch_reconciliation_reference_date DATE NULL,
   INDEX idx_todo_chick_capture_context_nest (nest_id)
 );
 
@@ -2682,7 +2849,11 @@ INSERT INTO FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_SNAPSHOT_BUILD (
   latest_encounter_availability,
   latest_encounter_ring_list,
   latest_encounter_source,
-  latest_encounter_provenance
+  latest_encounter_provenance,
+  n_original_hatched_chick_rings,
+  original_hatch_accounted_datetime,
+  n_hatch_reconciliation_blockers,
+  hatch_reconciliation_reference_date
 )
 SELECT
   nest_id,
@@ -2712,7 +2883,11 @@ SELECT
   latest_encounter_availability,
   latest_encounter_ring_list,
   latest_encounter_source,
-  latest_encounter_provenance
+  latest_encounter_provenance,
+  n_original_hatched_chick_rings,
+  original_hatch_accounted_datetime,
+  n_hatch_reconciliation_blockers,
+  hatch_reconciliation_reference_date
 FROM tmp_todo_chick_capture_context;
 
 /* Feed all downstream task branches from the completed chick aggregate. */
@@ -4092,6 +4267,43 @@ brood_context AS (
   SELECT *
   FROM FIELD_2026_BADOatNZ.TODO_BROOD_CONTEXT_INPUT
 ),
+/*
+  One operational egg count for all TODO/PDF/map consumers. Keep raw context
+  and both capture/tag timing gates unchanged. No visit or notA closure is
+  inferred. Only indexed nest/chick aggregates reach this shared decision;
+  installation does not acquire another dependency on the source graph.
+*/
+clutch_hatch_reconciliation AS (
+  SELECT
+    context.nest_id,
+    context.reference_date,
+    CASE
+      WHEN LEFT(TRIM(context.nest_id), 1) <> '-'
+       AND UPPER(TRIM(context.nest_id)) NOT IN ('', 'NO_NEST')
+       AND UPPER(TRIM(COALESCE(context.nest_state, ''))) = 'H'
+       AND context.observed_hatch_date IS NOT NULL
+       AND context.observed_hatch_date <= context.reference_date
+       AND context.clutch_size > 0
+       /* Three or more eggs already establish completion in the existing
+          capture gate. Smaller, inferred complete clutches stay conservative. */
+       AND context.capture_gate_clutch_size >= 3
+       AND DATE(context.capture_gate_clutch_start_datetime)
+             < context.observed_hatch_date
+       AND chicks.hatch_reconciliation_reference_date = context.reference_date
+       AND chicks.n_original_hatched_chick_rings = context.capture_gate_clutch_size
+       AND COALESCE(context.brood_size, 0) <= context.capture_gate_clutch_size
+       AND chicks.n_hatch_reconciliation_blockers = 0
+       AND DATE(chicks.original_hatch_accounted_datetime) <= context.reference_date
+       /* First-banding completion, never a recapture, dates the inference.
+          A later explicit egg observation always wins. */
+       AND context.latest_clutch_datetime < chicks.original_hatch_accounted_datetime
+      THEN 0
+      ELSE context.clutch_size
+    END AS clutch_size
+  FROM task_context context
+  LEFT JOIN FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_INPUT chicks
+    ON chicks.nest_id = context.nest_id
+),
 latest_nests AS (
   SELECT
     context.nest_id,
@@ -4111,7 +4323,8 @@ latest_nests AS (
     context.hatch_state,
     context.hatch_signs_present,
     context.bird_inc,
-    context.clutch_size,
+    reconciliation.clutch_size,
+    context.clutch_size AS observed_clutch_size,
     context.brood_size,
     context.latest_float_date,
     context.average_ref_date_days_since_laid,
@@ -4134,6 +4347,9 @@ latest_nests AS (
     context.lon,
     sr.reference_date
   FROM task_context context
+  JOIN clutch_hatch_reconciliation reconciliation
+    ON reconciliation.nest_id = context.nest_id
+   AND reconciliation.reference_date = context.reference_date
   LEFT JOIN initial_clutch_status
     ON CONVERT(context.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
        = CONVERT(initial_clutch_status.nest_id USING utf8mb4) COLLATE utf8mb4_general_ci
@@ -4266,7 +4482,12 @@ nota_followup_nests AS (
      OR (
        n.nest_state = 'H'
        AND COALESCE(n.clutch_size, 0) = 0
-       AND COALESCE(n.brood_size, 0) > 0
+       AND (
+         COALESCE(n.brood_size, 0) > 0
+         /* Fully accounted-for dead chicks establish hatch history, too.
+            They do not become live brood targets or a synthetic notA visit. */
+         OR n.observed_clutch_size > 0
+       )
      )
 ),
 chick_captures AS (

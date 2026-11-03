@@ -7,6 +7,16 @@
   var status = document.getElementById("manual-search-status");
   var sections = Array.from(article.querySelectorAll("details"));
   var timer;
+  var german = document.documentElement.lang === "de";
+
+  // Carry stable section IDs across languages, not generated search-passage IDs.
+  var languageLinks = Array.from(document.querySelectorAll("[data-language-link]"));
+  languageLinks.forEach(function(link) { link.dataset.languagePage = link.getAttribute("href"); });
+  function updateLanguageLinks() {
+    var id = fragmentId(location.hash);
+    var hash = /^(?:section-[0-9]+|core-section-[0-9]+|appendix-[ab]|authorship)$/.test(id) ? "#" + id : "";
+    languageLinks.forEach(function(link) { link.setAttribute("href", link.dataset.languagePage + hash); });
+  }
 
   // Wrapped mobile controls must not cover a contents/search destination.
   if (typeof ResizeObserver !== "undefined") {
@@ -49,12 +59,15 @@
     if (!target) return;
     event.preventDefault();
     history.replaceState(null, "", link.hash);
+    updateLanguageLinks();
     reveal(target, true);
   });
   window.addEventListener("hashchange", function() {
+    updateLanguageLinks();
     reveal(document.getElementById(fragmentId(location.hash)), false);
   });
   if (location.hash) reveal(document.getElementById(fragmentId(location.hash)), false);
+  updateLanguageLinks();
 
   var expand = document.getElementById("manual-expand");
   var collapse = document.getElementById("manual-collapse");
@@ -77,7 +90,7 @@
       while (heading.parentElement && heading.parentElement !== article) heading = heading.parentElement;
       while (heading && heading.tagName !== "H2") heading = heading.previousElementSibling;
       var context = parent ? parent.querySelector("summary").textContent.trim() :
-        heading ? heading.textContent.trim() : "Introduction and authorship";
+        heading ? heading.textContent.trim() : german ? "Einleitung und Urheberschaft" : "Introduction and authorship";
       return {node: node, text: text, lower: normal(text), context: context};
     });
 
@@ -132,9 +145,10 @@
     var matches = passages.filter(function(passage) {
       return terms.every(function(term) { return passage.lower.includes(term); });
     });
-    status.textContent = matches.length ? matches.length + " matching passages" +
-      (matches.length > 80 ? " (first 80 shown)." : ".") :
-      "No matching passages. Try fewer words or a field name such as nest_id.";
+    status.textContent = matches.length ? matches.length + (german ? " passende Textstellen" : " matching passages") +
+      (matches.length > 80 ? (german ? " (die ersten 80 werden angezeigt)." : " (first 80 shown).") : ".") :
+      (german ? "Keine passenden Textstellen. Weniger Suchwörter oder einen Feldnamen wie nest_id versuchen." :
+        "No matching passages. Try fewer words or a field name such as nest_id.");
     var list = document.createElement("ol");
     matches.slice(0, 80).forEach(function(passage) {
       var item = document.createElement("li");

@@ -83,6 +83,7 @@ shiny::runApp("./main", launch.browser = TRUE)
   instructions, with links to the [Full Protocol Manual](main/www/field-manual/manual.md)
   for complete requirements, exceptions, and examples. Both are available from
   the app's Field Manual panel, with the short guide opening first.
+  Both versions offer an English/Deutsch language switch.
 * [Database scripts and installation notes](DATABASE/): technical SQL details
   for database maintainers, including the optional historical nest summary.
 * [Reconstruction guide](docs/reconstruction/README.md): setup, verification

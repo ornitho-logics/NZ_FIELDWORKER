@@ -8,6 +8,10 @@ The focused synthetic checks and isolated MariaDB 11.8.9 install/refresh pass
 for the new source. See [the dated verification scope and limits](SAME_DAY_LINKAGE_VERIFICATION_2026-11-01.md);
 this is not live installation or a new full field/PDF replay.
 
+The 3 November language-reader and hatch-accounting additions have separate
+verification scopes below. The earlier integration pass does not verify later
+source changes.
+
 ## Authority and scope
 
 - [AGENTS.md](../../AGENTS.md) governs authority, confidentiality, and human control.
@@ -33,11 +37,22 @@ The Field Manual panel opens the [Core Team Field Guide](../../main/www/field-ma
 with a switch to the [Full Protocol Manual](../../main/www/field-manual/manual.md).
 The latter retains the complete procedures, controlled values, exceptions, and
 authorship/AI disclosure. Keep these published sources aligned; the short guide
-is not a separate biological specification. Rebuild both static HTML readers
+is not a separate biological specification. Rebuild all static language versions
 with `main/tools/render_field_manual.R`, preserving the full manual's existing
 `index.html` URL and section anchors. Superseded review drafts and the relocation
 checklist are not reconstruction prerequisites and have been removed from the
 current tree; Git history retains them.
+
+The manual reader also has standard German translations in `core-guide-de.md`
+and `manual-de.md`, rendered to `core-guide-de.html` and `index-de.html`.
+English remains the reference language. The English/Deutsch switch retains
+manual kind and stable section anchors, and the core/full switch retains the
+language. Translations preserve field names, codes, thresholds, and rules;
+they are not a second source of biology. A source-checksum comment in each
+German Markdown file binds it to its reviewed English source. The builder
+checks both references before generating the four static pages and fails if
+a translation is stale. This does not certify native-language review. No
+translation service, runtime dependency, or database connection is involved.
 
 Comments supplement required event records, not replace them. A bird identity
 written only in `NESTS.comments`, or attendance entered in `bird_inc`, does not
@@ -188,6 +203,43 @@ D event removes that individual globally; a missing-ring D can use only a unique
 global flag-to-ring bridge. Later F/R/C evidence can invalidate death suppression;
 same-day precedence requires observed times. Unresolved deaths never erase siblings.
 Operational brood counts account for death chronology; do not subtract deaths twice.
+
+The 3 November hatch-accounting addition uses one refresh-time operational egg
+count for task rows and their PDF consumers. For an H positive nest with a
+previously documented complete clutch of at least three eggs, distinct original
+first-banded chick rings can account for the full clutch even if the last real
+visit still had eggs. Reference-date-qualified first-banding completion must be
+later than that explicit egg visit. Unknown or conflicting origins, extra or
+unresolved identities, untimed evidence, contrary egg observations, and terminal
+history keep the inference closed. Duplicate rings count once, later recaptures
+do not advance hatch accounting, and dead chicks establish hatch history without
+becoming live targets. One/two-egg clutches remain conservative under this rule.
+The task egg count becomes zero and routes to `notA nest-check`; it does not
+rewrite NESTS, manufacture a visit, close the brood, or reset capture/tag clocks.
+Four additive nullable chick-context columns carry origin count, accounting
+timestamp, blocker count, and reference date. Installer fallbacks carry no proof;
+the explicit refresh computes it from staged identities and bounded source guards.
+No new expanded association view or pairwise origin graph is installed.
+
+Focused verification: 55 assertions passed without failures, warnings, or skips
+on isolated, socket-only MariaDB 11.4.2 with invented records. They execute the
+actual capture/context stages, additive column inserts, and egg/notA task
+branches; unrelated family-resolution inputs are represented by staged fixtures.
+Hatch proof uses caught time, with release fallback, independently of existing
+release-first operational clocks. A positive egg visit between caught and release
+times therefore vetoes the inference. The owned server was shut down cleanly.
+This is not target-version 11.8.9 integration, a full field-dump refresh/PDF
+comparison, a new task-count report, or a live Adminer performance guarantee.
+
+Validation assessment only: a correct morning nest visit must not become a
+save-blocking error merely because the last chick is captured later elsewhere.
+A future post-save reconciliation warning could flag stale positive egg counts
+once complete-clutch accounting is reliable, asking for review or an actual
+follow-up visit, not an invented zero-egg entry. Such a warning would need the
+same duplicate, origin, chronology, death, and uncertainty guards and must not
+block a truthful capture. No inspector message or validation severity is changed
+by this assessment; live implementation needs separate human approval.
+
 Before age 21, unhandled broods generate `Untrapped brood`; from day 21, incomplete
 engraved-flag coverage generates `Broods to recapture for flagging`.
 
