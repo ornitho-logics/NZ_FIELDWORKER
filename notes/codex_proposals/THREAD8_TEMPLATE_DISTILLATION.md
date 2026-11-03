@@ -3,7 +3,33 @@
 This is a tracked field-manual orientation and template record. It does not
 modify the retained reference manual or any application source.
 
-## App publication addendum — 31 October 2026
+## App publication addendum — 3 November 2026
+
+The app now starts with `main/www/field-manual/core-guide.md` (Edition 1),
+rendered to `core-guide.html`. The complete reference is `manual.md` v2.4.21,
+rendered to its existing `index.html` URL. Both static readers share one builder,
+styles, and search implementation, and provide visible links to each other.
+The full manual retains its section anchors, detailed requirements, and AI-use
+disclosure. The core guide explicitly states that comments cannot substitute
+for separately recorded events consumed by the To-Do system.
+
+The former `docs/field-manual-review/` guide has been promoted to the app source;
+its superseded README and relocation checklist are removed from the current
+tree, not from Git history. Reconstruction contracts, machine-readable recipes,
+fixtures, specialist handoffs, and reviewed decision summaries remain. Maintain
+the two app Markdown sources directly and rebuild their HTML together; do not
+reintroduce a second independently edited review copy. No SQL or validator rule
+is changed by this presentation update. Git publication is not live deployment.
+
+Verification: 211 focused reader/rebuild assertions and 86 desktop/mobile
+browser checks passed using local static files, without loading the app or a
+database. Screenshots were inspected at phone and desktop widths. Checks cover
+version switching, search, old full-manual section links, separate-window links,
+print-control wiring, print styling, and section-state restoration. No physical
+printer, field-server deployment, or new database replay was tested. The new
+publication removes drafting labels, not source/deployment uncertainty notes.
+
+## Historical app publication addendum — 31 October 2026
 
 The current app publication is `main/www/field-manual/manual.md` v2.4.12,
 with generated self-contained `index.html`. Regenerate it only through

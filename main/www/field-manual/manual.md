@@ -1,12 +1,15 @@
 # BADO Field Manual 2026
 
 Protocols for studying breeding Banded Dotterel / Pohowera\
-**Markdown review draft v2.4.20 · Revised 3 November 2026**
+**Full Protocol Manual v2.4.21 · Revised 3 November 2026**
 
-This draft aims to describe the field procedures and the data-entry
+This manual describes the field procedures and the data-entry
 validation logic for Banded Dotterel fieldwork throughout New Zealand during the breeding season.
 If the app disagrees with an instruction, keep
 the field record truthful and follow [Section 12](#section-12).
+
+For the shorter daily-use version, open the [Core Team Field Guide](core-guide.md).
+This full manual retains the complete requirements, exceptions, and examples.
 
 ## Contents
 
@@ -76,6 +79,16 @@ separation.
 
 A row is one line in the entry form. Two banded chicks seen together need two
 chick rows, not one row with “two chicks” in the comments.
+
+**Comments supplement events; they do not replace them.** The To-Do algorithm
+does not read free-text comments as substitutes for required event records.
+For example, writing a bird's identity in `NESTS.comments`, or completing
+`bird_inc`, does not replace a separate `RESIGHTINGS` event with the actual
+marks, sex, behaviour, nest ID, and other required observation details. Use IN
+only if the bird was actually incubating. An observation entered only in comments
+will be overlooked as evidence for the corresponding task decision. Enter each
+required event in its proper form so that parent associations and work plans
+can use it; do not duplicate an event already saved.
 
 ### Required, conditional, optional, or blank?
 
@@ -2433,6 +2446,7 @@ developmental resolution, not a statement that all siblings survived.
 | v2.4.18, 1 November 2026 | Added Hatch timing (days) to the Nest Map popup using the existing PDF Est. Hatch formatter, including its flotation safeguards, published task values, and brood-age convention. No SQL, schema, or task-rule change. |
 | v2.4.19, 2 November 2026 | Applied the Oxford comma consistently to prose lists. No field protocol, validator rule, or task logic changed. |
 | v2.4.20, 3 November 2026 | Explained how a later confirmed association for a reliably identified adult supersedes an earlier pending candidate at another nest, without deleting observations or independently established associations. Timing, identity, and ambiguity safeguards remain. |
+| v2.4.21, 3 November 2026 | Added the Core Team Field Guide as the app's starting view, with access to this complete reference. Explicitly explained that comments cannot replace event records used by the To-Do algorithm. No biological or database rule changed. |
 
 This app publication copy is separate from Luke Eberhart-Hertel's editable private review
 draft and the retained Word/PDF references; those files have not been
@@ -2452,7 +2466,7 @@ wording does not override them.
 | Reviewed local protocol mirror | Local v1.3.20, including registered two-or-three-character uppercase letter/digit observer codes, mandatory explicit IDs for new H rows, family/uncertainty and SC corrections, and truthful chick/juvenile dead-recovery rules. Operational task-note changes do not add save-time validator rules. |
 | External validator protocol | No external YAML synchronisation was performed during this review. Read the tracked local mirror for its current reviewed version. |
 | Local verification | A completed isolated MariaDB 11.8.9 install/refresh and four-page PDF inspection support the recent task changes. The historical report separately passed focused invented-data checks. These are distinct verification scopes. |
-| Approved 1 November same-day linkage | Approved same-day rule; verification scope is recorded separately in the [dated verification record](../../../docs/reconstruction/MM_FOLLOWUP_VERIFICATION_2026-10-31.md#approved-decision-addendum--1-november-2026). No live-deployment claim. Regenerating this manual's HTML is documentation generation only. |
+| Approved 1 November same-day linkage | Approved same-day rule; verification scope is recorded separately in the [dated verification record](https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/docs/reconstruction/MM_FOLLOWUP_VERIFICATION_2026-10-31.md#approved-decision-addendum--1-november-2026). No live-deployment claim. Regenerating this manual's HTML is documentation generation only. |
 | Live database, inspectors, and Shiny process | This documentation review did not inspect live installation. A source merge or local success does not establish which versions are installed on the field server. |
 
 Some older protocol/handoff lists still mention EGGS media columns absent from
@@ -2657,6 +2671,7 @@ separate `caught_with = M?` convention is not a leg-mark entry.
 ### Before finishing the day
 
 - [ ] Saved rows match notebook counts; no duplicate submissions.
+- [ ] No observation or other required event is recorded only in comments; a bird seen at a nest has its separate RESIGHTINGS record, not just an identity in NESTS comments.
 - [ ] Original media copied and backup checked without renaming files.
 - [ ] Updated To-Do PDF checked, including reference date and refresh status.
 - [ ] Missing parent/brood work checked for association resolution, completion, expiry, presumed loss, or juvenile-stage resolution—not assumed to mean chicks died.

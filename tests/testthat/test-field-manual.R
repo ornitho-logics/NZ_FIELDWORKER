@@ -7,7 +7,8 @@ test_that("Field Manual is wired directly below Nest Map with a static reader", 
   expect_match(ui, 'menuItem\\(\\s*"Field Manual",\\s*tabName\\s*=\\s*"field_manual"', perl = TRUE)
   expect_lt(regexpr('"Nest Map"', ui)[1], regexpr('"Field Manual"', ui)[1])
   expect_match(ui, 'id = "field_manual_reader"', fixed = TRUE)
-  expect_match(ui, 'src = "field-manual/index.html"', fixed = TRUE)
+  expect_match(ui, 'src = "field-manual/core-guide.html"', fixed = TRUE)
+  expect_match(ui, 'href = "field-manual/core-guide.html"', fixed = TRUE)
   expect_match(ui, 'title = "BADO Field Manual', fixed = TRUE)
 })
 
@@ -144,10 +145,72 @@ test_that("static reader rebuild is deterministic and needs no database", {
   script <- file.path(folder, "main", "tools", "render_field_manual.R")
   file.copy(file.path(manual_root, "main", "tools", "render_field_manual.R"), script)
   target <- file.path(folder, "main", "www", "field-manual")
-  for (name in c("manual.md", "manual.css", "manual.js")) file.copy(manual_file(name), target)
+  for (name in c("manual.md", "core-guide.md", "manual.css", "manual.js")) file.copy(manual_file(name), target)
   output <- system2(file.path(R.home("bin"), "Rscript"), c("--vanilla", shQuote(script)), stdout = TRUE, stderr = TRUE)
   expect_null(attr(output, "status"))
   expect_identical(unname(tools::md5sum(file.path(target, "index.html"))), unname(tools::md5sum(manual_file("index.html"))))
+  expect_identical(unname(tools::md5sum(file.path(target, "core-guide.html"))), unname(tools::md5sum(manual_file("core-guide.html"))))
+})
+
+test_that("both manual readers expose navigation, scoped search, and publication sources", {
+  for (core in c(TRUE, FALSE)) {
+    page <- if (core) "core-guide.html" else "index.html"
+    input <- if (core) "core-guide.md" else "manual.md"
+    html <- paste(readLines(manual_file(page), encoding = "UTF-8"), collapse = "\n")
+    expect_match(html, '<nav class="reader-switch" aria-label="Choose a manual">', fixed = TRUE)
+    expect_match(html, 'href="core-guide.html"', fixed = TRUE)
+    expect_match(html, 'href="index.html"', fixed = TRUE)
+    expect_match(html, paste0('href="', page, '" aria-current="page"'), fixed = TRUE)
+    expect_match(html, paste0('href="', input, '" download'), fixed = TRUE)
+    expect_match(html, paste0('href="', page, '" target="_blank" rel="noopener"'), fixed = TRUE)
+    expect_match(html, 'id="manual-print"', fixed = TRUE)
+    expect_match(html, 'id="manual-contents"', fixed = TRUE)
+    expect_match(html, 'id="manual-search"', fixed = TRUE)
+    expect_match(html, if (core) 'Search this guide' else 'Search full manual', fixed = TRUE)
+    expect_match(html, unname(tools::md5sum(manual_file(input))), fixed = TRUE)
+    expect_false(grepl("<(?:script|link)[^>]+(?:src|href)=\"https?://", html, perl = TRUE))
+    expect_false(grepl("/Users/|dbConnect|db_con\\(", html))
+    expect_identical(grepl('id="manual-expand"', html, fixed = TRUE), !core)
+    expect_identical(grepl('id="manual-collapse"', html, fixed = TRUE), !core)
+  }
+})
+
+test_that("the published guide retains critical rules and links to complete HTML procedures", {
+  guide <- paste(readLines(manual_file("core-guide.md"), encoding = "UTF-8"), collapse = "\n")
+  full <- paste(readLines(manual_file("manual.md"), encoding = "UTF-8"), collapse = "\n")
+  html <- paste(readLines(manual_file("core-guide.html"), encoding = "UTF-8"), collapse = "\n")
+  for (text in c("Comments supplement events; they do not replace them.",
+                 "NESTS.comments", "bird_inc", "RESIGHTINGS")) {
+    expect_match(guide, text, fixed = TRUE)
+    expect_match(full, text, fixed = TRUE)
+  }
+  for (text in c("seven-day and 36-hour", "ages 21–35 inclusive", "22 g or 27 mm",
+                 "explicit valid", "known metal ring")) {
+    expect_match(guide, text, fixed = TRUE)
+  }
+  for (id in paste0("core-section-", 1:7)) {
+    expect_match(html, paste0('id="', id, '"'), fixed = TRUE)
+    expect_match(html, paste0('href="#', id, '"'), fixed = TRUE)
+  }
+  links <- regmatches(guide, gregexpr('manual\\.md(?:#[a-z0-9-]+)?', guide, perl = TRUE))[[1L]]
+  expect_gt(length(links), 5L)
+  for (link in links) {
+    expect_match(html, paste0('href="', sub("manual.md", "index.html", link, fixed = TRUE), '"'), fixed = TRUE)
+    if (grepl("#", link, fixed = TRUE)) {
+      expect_match(full, paste0('id="', sub(".*#", "", link), '"'), fixed = TRUE)
+    }
+  }
+  expect_match(full, "[Core Team Field Guide](core-guide.md)", fixed = TRUE)
+  expect_false(grepl("Draft|Reviewer note|Human-review", guide))
+  expect_false(grepl("\\bLuke\\b(?! Eberhart-Hertel)", guide, perl = TRUE))
+  for (name in c("README.md", "core-team-field-guide.md", "relocation-checklist.md")) {
+    expect_false(file.exists(file.path(manual_root, "docs", "field-manual-review", name)))
+  }
+  for (path in c("README.md", "CURRENT_SYSTEM.md", "workflow.json", "workflow.schema.json",
+                 "rules.json", "parent-association-cases.json", "ADAPTATION.md")) {
+    expect_true(file.exists(file.path(manual_root, "docs", "reconstruction", path)))
+  }
+  expect_true(file.exists(file.path(manual_root, "tools", "reconstruction", "fixtures.sql")))
 })
 
 test_that("MM guidance distinguishes identifiable birds from unbanded chronology", {

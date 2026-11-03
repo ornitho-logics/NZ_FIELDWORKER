@@ -1,7 +1,7 @@
 /* Scoped by the reader iframe; does not change dashboard styling. */
 :root { color-scheme: light; --ink: #23343d; --accent: #315e70; --line: #d8e1e5; }
 * { box-sizing: border-box; }
-html { scroll-padding-top: 110px; }
+html { scroll-padding-top: calc(var(--reader-tools-height, 180px) + 12px); }
 body { margin: 0; background: #f4f7f8; color: var(--ink); font: 17px/1.6 Calibri, Arial, sans-serif; }
 main { max-width: 1080px; margin: 0 auto; padding: 18px 38px 70px; background: #fff; }
 h1, h2, h3, summary { font-family: Arial, sans-serif; color: #203c49; line-height: 1.35; }
@@ -17,6 +17,9 @@ button, .contents-button { border: 1px solid #aebfc7; border-radius: 5px; backgr
 button:hover, .contents-button:hover { background: #eaf1f4; }
 button:focus-visible, input:focus-visible, a:focus-visible, summary:focus-visible, .table-scroll:focus-visible { outline: 3px solid #367a98; outline-offset: 3px; }
 .reader-tools { position: sticky; top: 0; z-index: 5; border-bottom: 1px solid var(--line); background: #eef4f6; }
+.reader-switch { max-width: 1080px; margin: auto; padding: 10px 20px 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.reader-switch a { border: 1px solid #aebfc7; border-radius: 5px; padding: 7px 11px; background: white; text-decoration: none; }
+.reader-switch a[aria-current="page"] { background: #254958; color: white; font-weight: bold; }
 .reader-tools-inner { max-width: 1080px; margin: auto; padding: 12px 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 9px; }
 .contents-button { text-decoration: none; }
 .reader-tools label { font-size: .9rem; }
@@ -52,6 +55,7 @@ pre code { overflow-wrap: anywhere; }
   main { padding: 14px 16px 50px; }
   body { font-size: 16px; }
   .reader-tools-inner { padding: 10px 12px; gap: 7px; }
+  .reader-switch { padding: 10px 12px 0; font-size: .9rem; }
   .reader-tools label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   #manual-search { min-width: 120px; width: 140px; }
   button, .contents-button { font-size: .9rem; }
