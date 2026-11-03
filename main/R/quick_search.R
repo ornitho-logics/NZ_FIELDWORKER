@@ -225,7 +225,11 @@ quick_search_queries <- function(combo, refdate) {
       "\nFROM search_marks\n",
       "WHERE release_combo = ?",
       if (incoming) " OR incoming_combo = ?" else "",
-      if (table == "CAPTURES_ARCHIVE") "\nORDER BY date DESC, ring ASC" else "\nORDER BY date DESC, pk DESC",
+      if (table == "CAPTURES_ARCHIVE") {
+        "\nORDER BY date DESC, ring ASC"
+      } else {
+        "\nORDER BY date DESC, pk DESC"
+      },
       if (incoming) "\nLIMIT 51" else "\nLIMIT 1"
     )
 
@@ -242,12 +246,31 @@ quick_search_queries <- function(combo, refdate) {
 }
 
 
-quick_search_partner_query <- function(combo, refdate) {
+quick_search_partner_query <- function(combo, refdate, focal_nests = NULL) {
   combo <- quick_search_normalize_combo(combo)
   # Shared-nest capture records supply this quick lookup independently of the
   # task-association pipeline. Keep nest IDs scoped to their site and species.
   bands <- c("UL", "LL", "UR", "LR", "UL_in", "LL_in", "UR_in", "LR_in")
   band_fields <- paste0("UPPER(NULLIF(TRIM(", bands, "), '')) AS ", bands)
+  nest_anchors <- ""
+  nest_params <- list()
+  context_columns <- c("nest_id", "site", "species")
+  if (!is.null(focal_nests) && all(context_columns %in% names(focal_nests))) {
+    contexts <- unique(as.data.frame(focal_nests)[context_columns])
+    contexts[] <- lapply(contexts, function(x) toupper(trimws(as.character(x))))
+    valid <- Reduce(`&`, lapply(contexts, function(x) !is.na(x) & nzchar(x))) &
+      !contexts$nest_id %in% c("NA", "N/A", "NULL", "NO_NEST")
+    contexts <- contexts[valid, , drop = FALSE]
+    if (nrow(contexts)) {
+      nest_anchors <- paste(rep(
+        "UNION ALL SELECT NULL AS pk, ? AS nest_id, ? AS site, ? AS species, NULL AS ring_key",
+        nrow(contexts)
+      ), collapse = "\n")
+      for (i in seq_len(nrow(contexts))) {
+        nest_params <- c(nest_params, unname(as.list(contexts[i, , drop = FALSE])))
+      }
+    }
+  }
   has_mark <- function(suffix) {
     paste0(
       "COALESCE(",
@@ -273,7 +296,8 @@ quick_search_partner_query <- function(combo, refdate) {
     "WITH capture_rows AS (\n",
     "  SELECT pk, UPPER(NULLIF(TRIM(nest_id), '')) AS nest_id,\n",
     "    UPPER(NULLIF(TRIM(site), '')) AS site, UPPER(NULLIF(TRIM(species), '')) AS species,\n",
-    "    REPLACE(UPPER(NULLIF(TRIM(ring), '')), '-', '') AS ring_key,\n    ",
+    "    CASE WHEN UPPER(TRIM(ring)) IN ('', 'NA', 'N/A', 'NULL') THEN NULL\n",
+    "      ELSE REPLACE(UPPER(TRIM(ring)), '-', '') END AS ring_key,\n    ",
     paste(band_fields, collapse = ", "),
     "\n",
     "  FROM CAPTURES\n",
@@ -297,24 +321,28 @@ quick_search_partner_query <- function(combo, refdate) {
     display_mark("_in", "incoming_combo"),
     "\n",
     "    ELSE NULL END AS display_combo FROM capture_marks\n",
-    "), focal AS (\n",
+    "), matched_captures AS (\n",
     "  SELECT pk, nest_id, site, species, ring_key FROM marked\n",
     "  WHERE (release_combo = ? OR incoming_combo = ?)\n",
-    "    AND nest_id NOT IN ('NA', 'NULL', 'NO_NEST')\n",
+    "), focal AS (\nSELECT pk, nest_id, site, species, ring_key FROM matched_captures\n",
+    "WHERE nest_id NOT IN ('NA', 'N/A', 'NULL', 'NO_NEST')\n",
+    nest_anchors, "\n",
     ")\nSELECT DISTINCT partner.display_combo AS partner FROM focal\n",
     "JOIN marked partner ON partner.nest_id = focal.nest_id\n",
     "  AND partner.site = focal.site AND partner.species = focal.species\n",
-    "  AND partner.pk <> focal.pk\n",
+    "  AND (focal.pk IS NULL OR partner.pk <> focal.pk)\n",
     "  AND (partner.ring_key IS NULL OR focal.ring_key IS NULL OR partner.ring_key <> focal.ring_key)\n",
     "WHERE partner.display_combo IS NOT NULL AND partner.display_combo NOT LIKE '%?%'\n",
     "  AND COALESCE(partner.release_combo, '') <> ? AND COALESCE(partner.incoming_combo, '') <> ?\n",
+    "  AND NOT EXISTS (SELECT 1 FROM matched_captures own\n",
+    "    WHERE own.ring_key IS NOT NULL AND own.ring_key = partner.ring_key)\n",
     "ORDER BY partner LIMIT 51"
   )
 
   list(
     label = "Partners",
     sql = sql,
-    params = c(list(as.character(as.Date(refdate))), rep(list(combo), 4L))
+    params = c(list(as.character(as.Date(refdate))), rep(list(combo), 2L), nest_params, rep(list(combo), 2L))
   )
 }
 
@@ -376,10 +404,16 @@ quick_search_latest_nest_query <- function(nest_id, site, species, refdate) {
 
 
 quick_search_first_capture_query <- function(
-  combo, refdate, tables = c("CAPTURES", "CAPTURES_ARCHIVE")
+  combo,
+  refdate,
+  tables = c("CAPTURES", "CAPTURES_ARCHIVE")
 ) {
   combo <- quick_search_normalize_combo(combo)
-  tables <- match.arg(tables, c("CAPTURES", "CAPTURES_ARCHIVE"), several.ok = TRUE)
+  tables <- match.arg(
+    tables,
+    c("CAPTURES", "CAPTURES_ARCHIVE"),
+    several.ok = TRUE
+  )
   source_sql <- function(table, incoming) {
     bands <- c("UL", "LL", "UR", "LR")
     fields <- paste0("UPPER(NULLIF(TRIM(", bands, "), '')) AS ", bands)
@@ -400,9 +434,16 @@ quick_search_first_capture_query <- function(
   list(
     sql = paste0(
       "WITH first_capture_rows AS (\n",
-      paste(vapply(tables, function(table) {
-        source_sql(table, identical(table, "CAPTURES"))
-      }, character(1)), collapse = "\nUNION ALL\n"),
+      paste(
+        vapply(
+          tables,
+          function(table) {
+            source_sql(table, identical(table, "CAPTURES"))
+          },
+          character(1)
+        ),
+        collapse = "\nUNION ALL\n"
+      ),
       "\n), first_capture_marks AS (\n",
       "SELECT date, ring_key, ",
       quick_search_combo_sql(),
@@ -433,6 +474,17 @@ quick_search_db_get <- function(sql, params = NULL) {
 
 quick_search_fetch <- function(combo, refdate, db_get = quick_search_db_get) {
   queries <- quick_search_queries(combo, refdate)
+  # Use all matching current-season nest links, including resightings, as
+  # anchors when the focal bird has no capture at a particular nest.
+  nest_query <- quick_search_nest_query(combo, refdate)
+  nests <- tryCatch(
+    db_get(nest_query$sql, params = nest_query$params),
+    error = function(error) NULL
+  )
+  nests_failed <- is.null(nests) || "error" %in% names(nests)
+  if (!nests_failed && nrow(nests)) {
+    queries$NESTS <- quick_search_partner_query(combo, refdate, focal_nests = nests)
+  }
   sources <- lapply(names(queries), function(source) {
     query <- queries[[source]]
     rows <- tryCatch(
@@ -449,7 +501,9 @@ quick_search_fetch <- function(combo, refdate, db_get = quick_search_db_get) {
     list(
       label = query$label,
       failed = failed,
-      more = !failed && !source %in% c("RESIGHTINGS", "CAPTURES_ARCHIVE") && nrow(rows) > limit,
+      more = !failed &&
+        !source %in% c("RESIGHTINGS", "CAPTURES_ARCHIVE") &&
+        nrow(rows) > limit,
       rows = if (failed) {
         data.frame()
       } else {
@@ -460,12 +514,6 @@ quick_search_fetch <- function(combo, refdate, db_get = quick_search_db_get) {
 
   # Read full nest chronology independently of the per-source display limits,
   # so earlier nests remain available alongside recent event details.
-  nest_query <- quick_search_nest_query(combo, refdate)
-  nests <- tryCatch(
-    db_get(nest_query$sql, params = nest_query$params),
-    error = function(error) NULL
-  )
-  nests_failed <- is.null(nests) || "error" %in% names(nests)
   nest_ids <- if (!nests_failed && nrow(nests)) {
     ids <- as.character(nests$nest_id)
     ids <- unique(ids[!is.na(ids) & nzchar(trimws(ids))])
@@ -511,13 +559,19 @@ quick_search_fetch <- function(combo, refdate, db_get = quick_search_db_get) {
   )
   first_failed <- is.null(first) || "error" %in% names(first)
   capture_tables <- c("CAPTURES", "CAPTURES_ARCHIVE")
-  available_tables <- capture_tables[!vapply(
-    sources[match(capture_tables, names(queries))],
-    function(source) source$failed,
-    logical(1)
-  )]
+  available_tables <- capture_tables[
+    !vapply(
+      sources[match(capture_tables, names(queries))],
+      function(source) source$failed,
+      logical(1)
+    )
+  ]
   if (first_failed && length(available_tables) == 1L) {
-    query <- quick_search_first_capture_query(combo, refdate, tables = available_tables)
+    query <- quick_search_first_capture_query(
+      combo,
+      refdate,
+      tables = available_tables
+    )
     first <- tryCatch(
       db_get(query$sql, params = query$params),
       error = function(error) NULL
@@ -687,7 +741,9 @@ quick_search_results_ui <- function(result) {
     if (!n) {
       return(NULL)
     }
-    if (source == "NESTS") return(NULL)
+    if (source == "NESTS") {
+      return(NULL)
+    }
     lapply(seq_len(n), function(i) {
       quick_search_record_ui(
         found$rows[i, , drop = FALSE],
@@ -746,10 +802,16 @@ quick_search_results_ui <- function(result) {
             tags$tr(tags$th(scope = "row", "nest_id"), tags$td(result$nest_ids))
           )
         },
-        if (!is.null(result$sources$NESTS) && !result$sources$NESTS$failed &&
-            nrow(result$sources$NESTS$rows)) {
+        if (
+          !is.null(result$sources$NESTS) &&
+            !result$sources$NESTS$failed &&
+            nrow(result$sources$NESTS$rows)
+        ) {
           quick_search_record_ui(
-            result$sources$NESTS$rows, "NESTS", result$combo, result$refdate
+            result$sources$NESTS$rows,
+            "NESTS",
+            result$combo,
+            result$refdate
           )
         },
         if (
