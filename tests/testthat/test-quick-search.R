@@ -388,6 +388,14 @@ test_that("actual SQL finds shared-nest partners using synthetic MariaDB capture
     UL = "X", LL = "RR", UR = "X", LR = "OR"
   )
   DBI::dbWriteTable(con, "RESIGHTINGS", sightings, overwrite = TRUE)
+  sighting_only <- sightings[1L, , drop = FALSE]
+  sighting_only$pk <- 20L
+  sighting_only$date <- as.Date("2026-11-02")
+  sighting_only$ring <- "MOCKSIGHT"
+  sighting_only$nest_id <- "MOCK01"
+  sighting_only$LL <- "WW"
+  sighting_only$LR <- "GG"
+  DBI::dbAppendTable(con, "RESIGHTINGS", sighting_only)
   visits <- data.frame(
     pk = seq_len(9), nest_id = c(rep("UNDATED01", 7), "MOCK01", "UNDATED01"),
     site = c(rep("CR", 5), "AR", "CR", "CR", "CR"),
@@ -425,6 +433,15 @@ test_that("actual SQL finds shared-nest partners using synthetic MariaDB capture
   expect_false("comments" %in% names(latest))
   expect_identical(as.character(latest$first_seen), "2026-09-01")
   expect_identical(as.character(latest$last_seen), "2026-11-02")
+
+  without_capture <- env$quick_search_fetch("WWGG", as.Date("2026-11-03"), db_get)
+  expect_equal(nrow(without_capture$sources$CAPTURES$rows), 0L)
+  expect_false(without_capture$sources$NESTS$failed)
+  expect_true(all(c("RR-OR", "BY-GB") %in% without_capture$sources$NESTS$rows$partner))
+  expect_false("WW-GG" %in% without_capture$sources$NESTS$rows$partner)
+  without_capture_html <- htmltools::renderTags(env$quick_search_results_ui(without_capture))$html
+  expect_match(without_capture_html, '<th scope="row">partner</th>', fixed = TRUE)
+  expect_match(without_capture_html, "BYGB", fixed = TRUE)
 
   no_matches <- env$quick_search_fetch("LLLL", as.Date("2026-11-03"), db_get)
   expect_false(no_matches$sources$NESTS$failed)
