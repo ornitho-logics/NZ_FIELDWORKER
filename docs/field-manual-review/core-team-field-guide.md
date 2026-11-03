@@ -209,7 +209,3 @@ Before finishing:
 Methods and decisions remain the responsibility of **Luke Eberhart-Hertel**.
 The detailed manual retains the full
 [authorship, AI-use, privacy, and security disclosure](../../main/www/field-manual/manual.md#authorship).
-
-**Reviewer note:** based on manual source v2.4.20, including the approved local
-cross-nest association update. Source wording is not proof of deployment.
-This draft does not change the app, validators, SQL, or published manual.
