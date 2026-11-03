@@ -512,7 +512,7 @@ dashboardPage(
         tags$p(
           class = "small text-muted mb-2",
           tags$a(
-            href = "field-manual/index.html",
+            href = "field-manual/core-guide.html",
             target = "_blank",
             rel = "noopener",
             "Open Field Manual in a separate window"
@@ -520,8 +520,8 @@ dashboardPage(
         ),
         tags$iframe(
           id = "field_manual_reader",
-          title = "BADO Field Manual — contents and search",
-          src = "field-manual/index.html",
+          title = "BADO Field Manual — Core Team Field Guide and Full Protocol Manual",
+          src = "field-manual/core-guide.html",
           loading = "lazy",
           style = paste0(
             "width:100%;height:calc(100vh - 145px);min-height:600px;",

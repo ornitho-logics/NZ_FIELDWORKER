@@ -1,11 +1,24 @@
 # Banded Dotterel / Pohowera — Core Team Field Guide
 
-**Draft · 3 November 2026 · Not a replacement for the current manual**
+**Core Team Field Guide · Edition 1 · 3 November 2026**
 
 For experienced team members working under the approved permits, training, and
-site instructions. This guide summarises the [detailed manual](../../main/www/field-manual/manual.md).
-It proposes no protocol changes. If an entry or situation is unclear, keep the
+site instructions. This guide summarises the [Full Protocol Manual](manual.md).
+For complete requirements and exceptions, follow the linked procedures. If an
+entry or situation is unclear, keep the
 record truthful and consult the linked procedure or Luke Eberhart-Hertel.
+
+## Contents
+
+- [1. Before leaving](#core-section-1)
+- [2. Record the encounter, not the expected result](#core-section-2)
+- [3. Keep family records linked](#core-section-3)
+- [4. Nest visits and eggs](#core-section-4)
+- [5. Handling, marking, and photographs](#core-section-5)
+- [6. Capture and geolocator restrictions](#core-section-6)
+- [7. Follow-up and end-of-day checks](#core-section-7)
+
+<a id="core-section-1"></a>
 
 ## 1. Before leaving
 
@@ -15,6 +28,8 @@ record truthful and consult the linked procedure or Luke Eberhart-Hertel.
   rings, bands, and flags; check Garmin/camera IDs, batteries, and NZ clocks.
 - Use `BADO` and your approved site code. Cass River nest-ID, marking, and
   geolocator instructions are not automatically applicable at another site.
+
+<a id="core-section-2"></a>
 
 ## 2. Record the encounter, not the expected result
 
@@ -54,7 +69,9 @@ justify inventing a negative ID. Clearly unrelated adult captures use a blank
 unknown. `X` means an observed empty band position; `?` means unreadable marks
 in resightings, not an empty position. Capture leg fields must not contain `?`.
 
-[Record and ID rules](../../main/www/field-manual/manual.md#section-2)
+[Record and ID rules](manual.md#section-2)
+
+<a id="core-section-3"></a>
 
 ## 3. Keep family records linked
 
@@ -70,7 +87,7 @@ encountered later elsewhere.
 - Adult captures with chicks require the GPS pair and the actual `caught_with`
   entry. First chick captures require the actual positive or negative ID.
 - Other positive-nest events have specific GPS/blank-field exceptions: use the
-  [GPS requirements](../../main/www/field-manual/manual.md#section-3), not a blanket rule to fill every field.
+  [GPS requirements](manual.md#section-3), not a blanket rule to fill every field.
 
 Record each parent actually observed, including an unbanded parent as **X-X**
 (`LL = X`, `LR = X`). Do not invent an absent mate. Use the behaviour seen:
@@ -95,7 +112,9 @@ resightings. For a genuine no-parent encounter, keep the chick observations,
 waypoint, and specific explanation; follow the exception procedure rather than
 fabricating a parent.
 
-[Family, parent-association, and exception procedures](../../main/www/field-manual/manual.md#section-5)
+[Family, parent-association, and exception procedures](manual.md#section-5)
+
+<a id="core-section-4"></a>
 
 ## 4. Nest visits and eggs
 
@@ -117,8 +136,10 @@ fabricating a parent.
   visit. Later mobile-brood encounters go in bird tables. Final `notA` closure
   remains separate.
 
-[Nest and egg procedure](../../main/www/field-manual/manual.md#section-4) ·
-[Fate and closure](../../main/www/field-manual/manual.md#section-9)
+[Nest and egg procedure](manual.md#section-4) ·
+[Fate and closure](manual.md#section-9)
+
+<a id="core-section-5"></a>
 
 ## 5. Handling, marking, and photographs
 
@@ -127,7 +148,7 @@ release marks separately: **F** first marking, **R** unchanged recapture,
 **C** changed combination, **D** dead recovery. D uses the recovered incoming
 marks, with release marks and release time blank. Do not manufacture a release.
 Complete the age/status-specific measurements, samples, and applicable flags
-in the [capture requirements](../../main/www/field-manual/manual.md#section-6).
+in the [capture requirements](manual.md#section-6).
 
 Follow the flagging To-Do and welfare assessment: follow-up begins from day 21,
 but **do not flag below 22 g or 27 mm tarsus**. Those thresholds do not replace
@@ -146,7 +167,9 @@ Keep original filenames and distinguish individuals by metal ring. The photo
 task expiring on day seven does **not** mean it was completed; negative-brood
 discovery age is not necessarily biological age.
 
-[Photographs and media](../../main/www/field-manual/manual.md#section-7)
+[Photographs and media](manual.md#section-7)
+
+<a id="core-section-6"></a>
 
 ## 6. Capture and geolocator restrictions
 
@@ -168,8 +191,10 @@ live countdown. Follow the full timing procedure and welfare assessment.
 
 Record actual adult tag action, before/after tag IDs, and spacer information.
 Chick/juvenile tag fields stay blank. Consult the complete
-[geolocator and timing instructions](../../main/www/field-manual/manual.md#section-8)
+[geolocator and timing instructions](manual.md#section-8)
 before capture or any exceptional deployment/retrieval.
+
+<a id="core-section-7"></a>
 
 ## 7. Follow-up and end-of-day checks
 
@@ -200,12 +225,12 @@ Before finishing:
 - Review the refreshed, correctly dated To-Do PDF. Hand over missing photos,
   unresolved links, contrary live evidence, and unfinished fate checks.
 
-[Brood follow-up](../../main/www/field-manual/manual.md#section-9) ·
-[Entry and review](../../main/www/field-manual/manual.md#section-10) ·
-[Validator repair](../../main/www/field-manual/manual.md#section-12)
+[Brood follow-up](manual.md#section-9) ·
+[Entry and review](manual.md#section-10) ·
+[Validator repair](manual.md#section-12)
 
 ---
 
 Methods and decisions remain the responsibility of **Luke Eberhart-Hertel**.
 The detailed manual retains the full
-[authorship, AI-use, privacy, and security disclosure](../../main/www/field-manual/manual.md#authorship).
+[authorship, AI-use, privacy, and security disclosure](manual.md#authorship).

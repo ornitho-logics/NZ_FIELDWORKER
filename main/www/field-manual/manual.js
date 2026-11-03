@@ -8,6 +8,13 @@
   var sections = Array.from(article.querySelectorAll("details"));
   var timer;
 
+  // Wrapped mobile controls must not cover a contents/search destination.
+  if (typeof ResizeObserver !== "undefined") {
+    new ResizeObserver(function(entries) {
+      document.documentElement.style.setProperty("--reader-tools-height", entries[0].target.offsetHeight + "px");
+    }).observe(document.querySelector(".reader-tools"));
+  }
+
   function fragmentId(hash) {
     try { return decodeURIComponent(hash.slice(1)); }
     catch (error) { return ""; }
@@ -49,12 +56,11 @@
   });
   if (location.hash) reveal(document.getElementById(fragmentId(location.hash)), false);
 
-  document.getElementById("manual-expand").onclick = function() {
-    sections.forEach(function(section) { section.open = true; });
-  };
-  document.getElementById("manual-collapse").onclick = function() {
-    sections.forEach(function(section) { section.open = false; });
-  };
+  var expand = document.getElementById("manual-expand");
+  var collapse = document.getElementById("manual-collapse");
+  if (expand) expand.onclick = function() { sections.forEach(function(section) { section.open = true; }); };
+  if (collapse) collapse.onclick = function() { sections.forEach(function(section) { section.open = false; }); };
+  document.getElementById("manual-print").onclick = function() { window.print(); };
 
   function normal(text) { return text.replace(/\s+/g, " ").trim().toLowerCase(); }
   // Index passages, not duplicate container text. No server request or analytics.
@@ -67,7 +73,11 @@
       var text = node.textContent.replace(/\s+/g, " ").trim();
       if (!node.id) node.id = "manual-passage-" + index;
       var parent = node.closest("details");
-      var context = parent ? parent.querySelector("summary").textContent.trim() : "Introduction and authorship";
+      var heading = node;
+      while (heading.parentElement && heading.parentElement !== article) heading = heading.parentElement;
+      while (heading && heading.tagName !== "H2") heading = heading.previousElementSibling;
+      var context = parent ? parent.querySelector("summary").textContent.trim() :
+        heading ? heading.textContent.trim() : "Introduction and authorship";
       return {node: node, text: text, lower: normal(text), context: context};
     });
 

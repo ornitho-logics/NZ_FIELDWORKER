@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="en-NZ"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="manual-source-md5" content="806117eb2664a9a27560870b5d765a0a"><title>BADO Field Manual 2026</title><style>/* Scoped by the reader iframe; does not change dashboard styling. */
+<html lang="en-NZ"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="manual-source-md5" content="1e82285c2ebc58b31194f731c8338a38"><title>BADO Field Manual 2026 — Full Protocol Manual</title><style>/* Scoped by the reader iframe; does not change dashboard styling. */
 :root { color-scheme: light; --ink: #23343d; --accent: #315e70; --line: #d8e1e5; }
 * { box-sizing: border-box; }
-html { scroll-padding-top: 110px; }
+html { scroll-padding-top: calc(var(--reader-tools-height, 180px) + 12px); }
 body { margin: 0; background: #f4f7f8; color: var(--ink); font: 17px/1.6 Calibri, Arial, sans-serif; }
 main { max-width: 1080px; margin: 0 auto; padding: 18px 38px 70px; background: #fff; }
 h1, h2, h3, summary { font-family: Arial, sans-serif; color: #203c49; line-height: 1.35; }
@@ -18,6 +18,9 @@ button, .contents-button { border: 1px solid #aebfc7; border-radius: 5px; backgr
 button:hover, .contents-button:hover { background: #eaf1f4; }
 button:focus-visible, input:focus-visible, a:focus-visible, summary:focus-visible, .table-scroll:focus-visible { outline: 3px solid #367a98; outline-offset: 3px; }
 .reader-tools { position: sticky; top: 0; z-index: 5; border-bottom: 1px solid var(--line); background: #eef4f6; }
+.reader-switch { max-width: 1080px; margin: auto; padding: 10px 20px 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.reader-switch a { border: 1px solid #aebfc7; border-radius: 5px; padding: 7px 11px; background: white; text-decoration: none; }
+.reader-switch a[aria-current="page"] { background: #254958; color: white; font-weight: bold; }
 .reader-tools-inner { max-width: 1080px; margin: auto; padding: 12px 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 9px; }
 .contents-button { text-decoration: none; }
 .reader-tools label { font-size: .9rem; }
@@ -53,6 +56,7 @@ pre code { overflow-wrap: anywhere; }
   main { padding: 14px 16px 50px; }
   body { font-size: 16px; }
   .reader-tools-inner { padding: 10px 12px; gap: 7px; }
+  .reader-switch { padding: 10px 12px 0; font-size: .9rem; }
   .reader-tools label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   #manual-search { min-width: 120px; width: 140px; }
   button, .contents-button { font-size: .9rem; }
@@ -71,13 +75,15 @@ pre code { overflow-wrap: anywhere; }
   table { min-width: 0; font-size: 9pt; }
   a { color: inherit; }
   mark { background: none; }
-}</style></head><body><a class="skip-link" href="#manual-content">Skip to manual</a><header class="reader-tools" aria-label="Manual controls"><div class="reader-tools-inner"><a class="contents-button" href="#manual-contents">Contents</a><label for="manual-search">Search manual</label><input id="manual-search" type="search" placeholder="e.g. hiding photographs" aria-controls="manual-search-results" aria-describedby="manual-search-help" autocomplete="off"><button id="manual-clear" type="button">Clear</button><button id="manual-expand" type="button">Expand all</button><button id="manual-collapse" type="button">Collapse all</button></div></header><main><p id="manual-search-help" class="reader-hint">Search words or field names; choose a result to open its section. <a href="manual.md" download>Download Markdown</a></p><p id="manual-search-status" role="status" aria-live="polite"></p><section id="manual-search-results" aria-label="Search results" hidden></section><noscript><p>Search and expand/collapse controls need JavaScript. The manual remains readable: open each section using its heading.</p></noscript><article id="manual-content" tabindex="-1"><h1>BADO Field Manual 2026</h1>
+}</style></head><body><a class="skip-link" href="#manual-content">Skip to manual</a><header class="reader-tools" aria-label="Manual controls"><nav class="reader-switch" aria-label="Choose a manual"><a href="core-guide.html">Core Team Field Guide</a><a href="index.html" aria-current="page">Full Protocol Manual</a></nav><div class="reader-tools-inner"><a class="contents-button" href="#manual-contents">Contents</a><label for="manual-search">Search full manual</label><input id="manual-search" type="search" placeholder="e.g. hiding photographs" aria-controls="manual-search-results" aria-describedby="manual-search-help" autocomplete="off"><button id="manual-clear" type="button">Clear</button><button id="manual-expand" type="button">Expand all</button><button id="manual-collapse" type="button">Collapse all</button><button id="manual-print" type="button">Print</button></div></header><main><p id="manual-search-help" class="reader-hint">Search applies to this full manual. Choose a search result to open its section. <a href="manual.md" download>Download Markdown</a> · <a href="index.html" target="_blank" rel="noopener">Open Field Manual in a separate window</a></p><p id="manual-search-status" role="status" aria-live="polite"></p><section id="manual-search-results" aria-label="Search results" hidden></section><noscript><p>Search and print controls need JavaScript. Both manuals remain readable; use your browser to print, and open any collapsed section using its heading.</p></noscript><article id="manual-content" tabindex="-1"><h1>BADO Field Manual 2026</h1>
 <p>Protocols for studying breeding Banded Dotterel / Pohowera<br />
-<strong>Markdown review draft v2.4.20 · Revised 3 November 2026</strong></p>
-<p>This draft aims to describe the field procedures and the data-entry
+<strong>Full Protocol Manual v2.4.21 · Revised 3 November 2026</strong></p>
+<p>This manual describes the field procedures and the data-entry
 validation logic for Banded Dotterel fieldwork throughout New Zealand during the breeding season.
 If the app disagrees with an instruction, keep
 the field record truthful and follow <a href="#section-12">Section 12</a>.</p>
+<p>For the shorter daily-use version, open the <a href="core-guide.html">Core Team Field Guide</a>.
+This full manual retains the complete requirements, exceptions, and examples.</p>
 <nav id="manual-contents" aria-label="Manual contents"><h2>Contents</h2>
 <ul>
 <li><a href="#section-1">1. How to use this manual</a></li>
@@ -165,6 +171,15 @@ separation.</p>
 </table></div>
 <p>A row is one line in the entry form. Two banded chicks seen together need two
 chick rows, not one row with “two chicks” in the comments.</p>
+<p><strong>Comments supplement events; they do not replace them.</strong> The To-Do algorithm
+does not read free-text comments as substitutes for required event records.
+For example, writing a bird's identity in <code>NESTS.comments</code>, or completing
+<code>bird_inc</code>, does not replace a separate <code>RESIGHTINGS</code> event with the actual
+marks, sex, behaviour, nest ID, and other required observation details. Use IN
+only if the bird was actually incubating. An observation entered only in comments
+will be overlooked as evidence for the corresponding task decision. Enter each
+required event in its proper form so that parent associations and work plans
+can use it; do not duplicate an event already saved.</p>
 <h3>Required, conditional, optional, or blank?</h3>
 <div class="table-scroll" tabindex="0" role="region" aria-label="Supporting table; scroll sideways if needed"><table>
 <thead>
@@ -4261,6 +4276,10 @@ developmental resolution, not a statement that all siblings survived.</p>
 <td>v2.4.20, 3 November 2026</td>
 <td>Explained how a later confirmed association for a reliably identified adult supersedes an earlier pending candidate at another nest, without deleting observations or independently established associations. Timing, identity, and ambiguity safeguards remain.</td>
 </tr>
+<tr>
+<td>v2.4.21, 3 November 2026</td>
+<td>Added the Core Team Field Guide as the app's starting view, with access to this complete reference. Explicitly explained that comments cannot replace event records used by the To-Do algorithm. No biological or database rule changed.</td>
+</tr>
 </tbody>
 </table></div>
 <p>This app publication copy is separate from Luke Eberhart-Hertel's editable private review
@@ -4298,7 +4317,7 @@ wording does not override them.</p>
 </tr>
 <tr>
 <td>Approved 1 November same-day linkage</td>
-<td>Approved same-day rule; verification scope is recorded separately in the <a href="../../../docs/reconstruction/MM_FOLLOWUP_VERIFICATION_2026-10-31.md#approved-decision-addendum--1-november-2026">dated verification record</a>. No live-deployment claim. Regenerating this manual's HTML is documentation generation only.</td>
+<td>Approved same-day rule; verification scope is recorded separately in the <a href="https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/docs/reconstruction/MM_FOLLOWUP_VERIFICATION_2026-10-31.md#approved-decision-addendum--1-november-2026">dated verification record</a>. No live-deployment claim. Regenerating this manual's HTML is documentation generation only.</td>
 </tr>
 <tr>
 <td>Live database, inspectors, and Shiny process</td>
@@ -4651,6 +4670,7 @@ separate <code>caught_with = M?</code> convention is not a leg-mark entry.</p>
 <h3>Before finishing the day</h3>
 <ul>
 <li><input type="checkbox" disabled="" /> Saved rows match notebook counts; no duplicate submissions.</li>
+<li><input type="checkbox" disabled="" /> No observation or other required event is recorded only in comments; a bird seen at a nest has its separate RESIGHTINGS record, not just an identity in NESTS comments.</li>
 <li><input type="checkbox" disabled="" /> Original media copied and backup checked without renaming files.</li>
 <li><input type="checkbox" disabled="" /> Updated To-Do PDF checked, including reference date and refresh status.</li>
 <li><input type="checkbox" disabled="" /> Missing parent/brood work checked for association resolution, completion, expiry, presumed loss, or juvenile-stage resolution—not assumed to mean chicks died.</li>
@@ -4719,6 +4739,13 @@ database supplied as an AI prompt.</p>
   var sections = Array.from(article.querySelectorAll("details"));
   var timer;
 
+  // Wrapped mobile controls must not cover a contents/search destination.
+  if (typeof ResizeObserver !== "undefined") {
+    new ResizeObserver(function(entries) {
+      document.documentElement.style.setProperty("--reader-tools-height", entries[0].target.offsetHeight + "px");
+    }).observe(document.querySelector(".reader-tools"));
+  }
+
   function fragmentId(hash) {
     try { return decodeURIComponent(hash.slice(1)); }
     catch (error) { return ""; }
@@ -4760,12 +4787,11 @@ database supplied as an AI prompt.</p>
   });
   if (location.hash) reveal(document.getElementById(fragmentId(location.hash)), false);
 
-  document.getElementById("manual-expand").onclick = function() {
-    sections.forEach(function(section) { section.open = true; });
-  };
-  document.getElementById("manual-collapse").onclick = function() {
-    sections.forEach(function(section) { section.open = false; });
-  };
+  var expand = document.getElementById("manual-expand");
+  var collapse = document.getElementById("manual-collapse");
+  if (expand) expand.onclick = function() { sections.forEach(function(section) { section.open = true; }); };
+  if (collapse) collapse.onclick = function() { sections.forEach(function(section) { section.open = false; }); };
+  document.getElementById("manual-print").onclick = function() { window.print(); };
 
   function normal(text) { return text.replace(/\s+/g, " ").trim().toLowerCase(); }
   // Index passages, not duplicate container text. No server request or analytics.
@@ -4778,7 +4804,11 @@ database supplied as an AI prompt.</p>
       var text = node.textContent.replace(/\s+/g, " ").trim();
       if (!node.id) node.id = "manual-passage-" + index;
       var parent = node.closest("details");
-      var context = parent ? parent.querySelector("summary").textContent.trim() : "Introduction and authorship";
+      var heading = node;
+      while (heading.parentElement && heading.parentElement !== article) heading = heading.parentElement;
+      while (heading && heading.tagName !== "H2") heading = heading.previousElementSibling;
+      var context = parent ? parent.querySelector("summary").textContent.trim() :
+        heading ? heading.textContent.trim() : "Introduction and authorship";
       return {node: node, text: text, lower: normal(text), context: context};
     });
 

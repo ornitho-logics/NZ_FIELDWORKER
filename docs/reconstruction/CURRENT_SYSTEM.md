@@ -27,6 +27,28 @@ this is not live installation or a new full field/PDF replay.
 
 ## Events, identity, and chronology
 
+### Field instructions and entry records
+
+The Field Manual panel opens the [Core Team Field Guide](../../main/www/field-manual/core-guide.md),
+with a switch to the [Full Protocol Manual](../../main/www/field-manual/manual.md).
+The latter retains the complete procedures, controlled values, exceptions, and
+authorship/AI disclosure. Keep these published sources aligned; the short guide
+is not a separate biological specification. Rebuild both static HTML readers
+with `main/tools/render_field_manual.R`, preserving the full manual's existing
+`index.html` URL and section anchors. Superseded review drafts and the relocation
+checklist are not reconstruction prerequisites and have been removed from the
+current tree; Git history retains them.
+
+Comments supplement required event records, not replace them. A bird identity
+written only in `NESTS.comments`, or attendance entered in `bird_inc`, does not
+supply the separate structured RESIGHTINGS evidence for parent association.
+Record each actual event in its proper table with the required identity,
+behaviour, and nest link; never fabricate or duplicate events to clear a task.
+This is documentation of the existing event model, not new comment-parsing or
+save-time validation behaviour.
+
+### Event identity and chronology
+
 Raw CAPTURES, RESIGHTINGS, NESTS, and EGGS rows remain observations, identified by
 their table and `pk`; a shared occasion does not make rows duplicate events.
 Family encounters use date, site, and the complete `gps_id`/`gps_point` pair.

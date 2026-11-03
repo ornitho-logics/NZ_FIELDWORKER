@@ -1,76 +1,73 @@
-# Field Manual reader
+# Field Manual readers
 
-`manual.md` is the reviewed app publication copy; `index.html` is its generated,
-self-contained reader. The page needs no database, CDN, server-side search, or
-new runtime package. Calibri/Arial typography follows the field handbook.
+The Field Manual panel opens the **Core Team Field Guide**, with a prominent
+switch to the **Full Protocol Manual**. Both readers are static, searchable,
+printable pages; neither needs a database, CDN, or new runtime dependency.
 
-After editing this app copy, rebuild from the repository root:
+## Sources and generated pages
+
+| Purpose | Authoritative Markdown source | Generated reader |
+| --- | --- | --- |
+| Short daily-use guide | [core-guide.md](core-guide.md), Edition 1 | [core-guide.html](core-guide.html), app default |
+| Full procedures and exceptions | [manual.md](manual.md), v2.4.21 | [index.html](index.html), existing URL preserved |
+
+Edit these app Markdown sources directly. Do not maintain a second review copy.
+The full reference retains its section anchors, controlled values, detailed
+requirements, and authorship/AI disclosure. The guide links to those procedures;
+it does not introduce independent scientific rules.
+
+After changing either source, the shared CSS, or the shared JavaScript, rebuild
+both readers from the repository root:
 
 ```sh
 Rscript --vanilla main/tools/render_field_manual.R
 ```
 
-To deliberately publish an updated private review draft, pass its path as the
-sole argument. This replaces **only** the app copy and rebuilds its HTML. Review
-the diff first: all files under `main/www` are browser-readable. Never import
-private records, coordinates, credentials, or unpublished operational reports.
-The private review draft is not loaded at runtime or silently kept in sync.
+The builder converts links between the Markdown sources into HTML links for
+browser readers while preserving section fragments. Each HTML page embeds its
+own source checksum, the shared styles, and the shared search code. Repeated
+builds with unchanged inputs must produce identical pages.
 
-The app publication copy is v2.4.20 (revised 3 November 2026). The latest edit
-explains the narrowly scoped cross-nest override of an earlier pending candidate
-by later, unambiguous strong association evidence for the same identified adult.
-It preserves resolved history and does not transfer proof between nests. The
-Oxford comma remains the writing convention. It documents
-Hatch timing (days), which reuses the PDF summary formatter without changing
-SQL or scientific rules. It explains the
-cleaned Nest Map popup and its cached parent-association annotations, including
-their snapshot freshness boundary and reference-date encounter timing. It directs app
-readers to the existing separate-window link if GitHub links do not open within
-the embedded manual; link-handling behaviour is unchanged. Its plain-language
-authorship disclosure links the public AI-use record, governance, sanitized summaries,
-specialist handoffs, validator sources, and reproducible synthetic workflow.
-It distinguishes initial invented-data validation from later approved local
-snapshot/field-example troubleshooting, and manual human deployment from agent
-repository/local work. It makes no blanket zero-disclosure or provider-audit
-claim. It explicitly describes selected real examples and partial-season local
-snapshots, and records Luke's confirmation that the complete season's dataset
-was not included in prompts. The new reconstruction/fixture links use an already
-published commit permalink so they do not depend on an unmerged or later-deleted
-topic branch.
-Luke's approved
-1 November decision assumes confirming X-X and a unique eligible status-F first
-banding of the same sex, nest, and date target the same individual, including
-MM without later sightings. Same-day confirmation transfers; preserve the date,
-infer no exact observed time/order, and conservatively date linked proof at capture
-datetime. Older different-day proof cannot transfer; the new bird's own valid
-same-day confirmation can retire an older placeholder without inheriting its proof.
-Multiple competing identities and ineligible/ambiguous links remain guarded;
-the first-marking pool counts all eligible F identity keys before later-proof
-or ambiguity filters, which cannot manufacture uniqueness from multiple identities.
-MM displacement, evidence hierarchy, capture timing/tag gates, and unrelated same-day safeguards remain unchanged. The approved rule's verification scope is
-recorded separately in the [dated verification record](../../../docs/reconstruction/MM_FOLLOWUP_VERIFICATION_2026-10-31.md#approved-decision-addendum--1-november-2026).
-No live-deployment claim; this rebuild is documentation generation.
-This supersedes the earlier blanket same-day no-link text while preserving
-pre-MM proof for reliably identified birds.
-It also includes the
-conditional late-wave tagging instruction, consistent pair-completion notes,
-pending tagged-parent protection, map highlights, snapshot waiting guidance, and the historical `notA_summary` report. Its source notes distinguish the
-v1.3.20 local validator protocol, completed local checks, and unverified live installation. Dated specialist handoffs retain earlier decisions beneath their
-current addenda. Do not copy their historical status claims into the manual.
+The optional single builder argument remains a deliberate import into
+`manual.md` for an explicitly approved external publication source. It does not
+import the core guide or keep private working files synchronized. Review any
+import before building: everything under `main/www` is browser-readable. Never
+publish private records, coordinates, credentials, or operational reports.
 
-`manual.css` and `manual.js` are embedded during the build, making the reading
-page usable as a standalone saved HTML file. Contents links open collapsed
-sections. Search is literal, case-insensitive, and requires all entered words
-within a passage; it shows up to 80 passage links with section context. It does
-not send queries to a server or store them. Table content is searchable. Clear
-or Escape removes highlighting. Print opens every section and restores its
-previous state afterwards; the print layout is A4.
+## Reading and checking
 
-The page retains the review-draft and unverified-deployment notices. Adding a
-tab does not install the database or inspector changes described in the text.
-No service-worker/offline-cache policy is changed by this feature.
+- The two navigation links identify the current reader and work in the app or
+  in a separate browser window. No additional sidebar item is needed.
+- Search applies only to the selected document and sends no query to a server.
+  Each result identifies its section. The full manual retains expand/collapse
+  controls; the short guide is open text without unnecessary collapse controls.
+- Print opens the full manual's sections and restores their previous state
+  afterwards. Both readers use the existing A4 print styling; no fixed printed
+  page count is promised.
+- Both readers offer Markdown downloads and a separate-window link. The full
+  disclosure retains the workaround for GitHub links in the embedded app.
+- Comments cannot replace required event records: a bird identity in NESTS
+  comments is not a RESIGHTINGS event or parent-association evidence. This
+  reminder appears in both documents and the end-of-day checks.
 
-Rollback: remove only the Field Manual menu item and tab from `main/ui.R`, plus
-this directory, `main/tools/render_field_manual.R` and its dedicated test. Do
-not revert unrelated changes in the shared checkout. Keep the private review
-draft and retained Word manual.
+Run the focused `test-field-manual.R` checks only within the approved local
+testing scope. Inspect both readers at phone and desktop widths, including
+search, navigation, full-procedure links, printing, and old section URLs.
+These checks require no field data or database connection.
+
+## Reconstruction and cleanup
+
+The superseded `docs/field-manual-review/` review copies and relocation checklist
+are removed; Git history retains them. The [reconstruction package](../../../docs/reconstruction/README.md),
+machine-readable agent recipe, synthetic fixtures, and specialist handoffs remain.
+For association semantics and verification limits, use the
+[parent-association contract](../../../docs/reconstruction/PARENT_ASSOCIATION_CHRONOLOGY.md),
+not an old draft's version label or a successful documentation build.
+
+No SQL, inspector, database, or service-worker policy change is part of this
+reader update. The app must be updated through the human-controlled deployment
+workflow before users see the new default. Git merge is not deployment.
+
+Rollback: restore the previous reviewed reader sources/builder and the former
+`main/ui.R` manual iframe/link, then rebuild. Do not revert unrelated app or
+database changes. The full manual remains at its existing URL throughout.
