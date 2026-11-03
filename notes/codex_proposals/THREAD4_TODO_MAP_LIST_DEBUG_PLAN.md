@@ -1,5 +1,26 @@
 # THREAD 4 - To-do, map, list, and PDF operational reference
 
+## Approved complete-clutch hatch accounting — 3 November 2026
+
+Luke approved operational zero remaining eggs when original individually banded
+chicks fully account for the complete clutch, with a `notA nest-check` follow-up
+rather than an egg check. Do not invent a nest visit or closure. The conservative
+implementation requires a positive H nest, documented pre-hatch completion of
+at least three eggs, dated original first-band identities, and no origin,
+chronology, egg, or terminal-history blocker. One/two-egg clutches remain
+unchanged by this inference. Preserve raw visit counts, existing capture clocks,
+individual-death/live-target rules, and brood closure.
+
+The refresh adds four nullable chick-context evidence columns and one shared
+operational task decision over staged aggregates. Installer fallbacks withhold
+this proof. No new expanded association view is introduced. See `HATCH-001` in
+`docs/reconstruction/rules.json`, the current-system contract, and
+`tests/testthat/test-clutch-hatch-reconciliation-2026-11-03.R` for the executable
+invented records. Focused source-fragment tests must not be presented as a full
+field/PDF replay or an Adminer performance guarantee. No inspector is changed;
+future post-save review warnings are a proposal only, not a reason to block
+truthful captures or manufacture zero-egg visits.
+
 ## Approved cross-nest pending-candidate override — 3 November 2026
 
 For the same reliable adult identity and sex, a later uniquely selected

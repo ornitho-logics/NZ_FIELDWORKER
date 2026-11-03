@@ -20,6 +20,9 @@ button:focus-visible, input:focus-visible, a:focus-visible, summary:focus-visibl
 .reader-switch { max-width: 1080px; margin: auto; padding: 10px 20px 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .reader-switch a { border: 1px solid #aebfc7; border-radius: 5px; padding: 7px 11px; background: white; text-decoration: none; }
 .reader-switch a[aria-current="page"] { background: #254958; color: white; font-weight: bold; }
+.language-switch { max-width: 1080px; margin: auto; padding: 7px 20px 0; display: flex; flex-wrap: wrap; gap: 14px; font-size: .9rem; }
+.language-switch a[aria-current="page"] { font-weight: bold; text-decoration-thickness: 2px; }
+.translation-note { border-left: 4px solid #78949f; background: #f5f8f9; padding: 9px 13px; font-size: .9rem; }
 .reader-tools-inner { max-width: 1080px; margin: auto; padding: 12px 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 9px; }
 .contents-button { text-decoration: none; }
 .reader-tools label { font-size: .9rem; }
@@ -56,6 +59,7 @@ pre code { overflow-wrap: anywhere; }
   body { font-size: 16px; }
   .reader-tools-inner { padding: 10px 12px; gap: 7px; }
   .reader-switch { padding: 10px 12px 0; font-size: .9rem; }
+  .language-switch { padding: 7px 12px 0; }
   .reader-tools label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   #manual-search { min-width: 120px; width: 140px; }
   button, .contents-button { font-size: .9rem; }

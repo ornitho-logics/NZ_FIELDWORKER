@@ -1,6 +1,6 @@
 # Banded Dotterel / Pohowera — Core Team Field Guide
 
-**Core Team Field Guide · Edition 1 · 3 November 2026**
+**Core Team Field Guide · Edition 2 · 3 November 2026**
 
 For experienced team members working under the approved permits, training, and
 site instructions. This guide summarises the [Full Protocol Manual](manual.md).
@@ -135,6 +135,11 @@ fabricating a parent.
 - The first H with no eggs remaining and chicks present is the final hatch
   visit. Later mobile-brood encounters go in bird tables. Final `notA` closure
   remains separate.
+- If later individually banded chicks fully account for a known complete
+  clutch, the To-Do may infer zero remaining eggs and request a `notA nest-check`.
+  This does not invent a nest visit or close the nest. Keep every visit's
+  actual counts; the conservative inference currently requires a complete
+  clutch of at least 3 eggs and trustworthy original-chick links.
 
 [Nest and egg procedure](manual.md#section-4) ·
 [Fate and closure](manual.md#section-9)

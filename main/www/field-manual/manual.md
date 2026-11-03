@@ -1,7 +1,7 @@
 # BADO Field Manual 2026
 
 Protocols for studying breeding Banded Dotterel / Pohowera\
-**Full Protocol Manual v2.4.21 · Revised 3 November 2026**
+**Full Protocol Manual v2.4.22 · Revised 3 November 2026**
 
 This manual describes the field procedures and the data-entry
 validation logic for Banded Dotterel fieldwork throughout New Zealand during the breeding season.
@@ -1209,6 +1209,26 @@ to I after H merely because an egg remains unhatched.
 The first H visit with no eggs left and chicks present is the final hatch
 visit. Later mobile-chick encounters belong in the bird tables, not additional
 H nest visits. One final notA closure may follow.
+
+### When later chick captures account for the complete clutch
+
+A truthful hatch visit can record one egg and two chicks, followed later by
+the capture of the third chick away from the nest. Do not rewrite the visit
+or invent another visit. After a successful refresh, the To-Do can infer zero
+remaining eggs when distinct, reliably origin-linked, first-banded chicks
+account for every egg in a known complete clutch. Its operational egg count
+then becomes zero, and the follow-up becomes `notA nest-check`, not an egg check.
+This is not an observed empty nest or a completed closure visit.
+
+The current conservative inference requires an H nest, a documented complete
+clutch of at least 3 eggs established before hatch, and reference-date-qualified,
+timed first-banding evidence for its original chicks. Duplicate captures count
+once; recaptures do not move the completion time. Unknown origins, mixed or
+conflicting links, unresolved extra chicks, and later egg observations block
+the inference. Smaller clutches are not inferred complete by this rule.
+Known chick deaths can establish that an egg hatched, but do not become live
+chicks in the brood count. Existing capture restrictions and brood-closure
+rules remain unchanged. Record the actual counts on the eventual notA visit.
 
 ### Supporting table — final closure
 
@@ -2447,6 +2467,7 @@ developmental resolution, not a statement that all siblings survived.
 | v2.4.19, 2 November 2026 | Applied the Oxford comma consistently to prose lists. No field protocol, validator rule, or task logic changed. |
 | v2.4.20, 3 November 2026 | Explained how a later confirmed association for a reliably identified adult supersedes an earlier pending candidate at another nest, without deleting observations or independently established associations. Timing, identity, and ambiguity safeguards remain. |
 | v2.4.21, 3 November 2026 | Added the Core Team Field Guide as the app's starting view, with access to this complete reference. Explicitly explained that comments cannot replace event records used by the To-Do algorithm. No biological or database rule changed. |
+| v2.4.22, 3 November 2026 | Added standard German readers for both manuals and documented conservative complete-clutch hatch accounting, operational zero eggs, and notA follow-up without inventing visits or closure. |
 
 This app publication copy is separate from Luke Eberhart-Hertel's editable private review
 draft and the retained Word/PDF references; those files have not been

@@ -3,21 +3,27 @@
 The Field Manual panel opens the **Core Team Field Guide**, with a prominent
 switch to the **Full Protocol Manual**. Both readers are static, searchable,
 printable pages; neither needs a database, CDN, or new runtime dependency.
+An **English / Deutsch** switch provides both manuals in standard German as
+well as English. English remains the reference text; the German translation
+should be reviewed by the team before relying on its terminology.
 
 ## Sources and generated pages
 
 | Purpose | Authoritative Markdown source | Generated reader |
 | --- | --- | --- |
-| Short daily-use guide | [core-guide.md](core-guide.md), Edition 1 | [core-guide.html](core-guide.html), app default |
-| Full procedures and exceptions | [manual.md](manual.md), v2.4.21 | [index.html](index.html), existing URL preserved |
+| Short daily-use guide | [core-guide.md](core-guide.md), Edition 2 | [core-guide.html](core-guide.html), app default |
+| Full procedures and exceptions | [manual.md](manual.md), v2.4.22 | [index.html](index.html), existing URL preserved |
+| German short guide | [core-guide-de.md](core-guide-de.md), translation | [core-guide-de.html](core-guide-de.html) |
+| German full reference | [manual-de.md](manual-de.md), translation | [index-de.html](index-de.html) |
 
 Edit these app Markdown sources directly. Do not maintain a second review copy.
+Update both translations when their corresponding English source changes.
 The full reference retains its section anchors, controlled values, detailed
 requirements, and authorship/AI disclosure. The guide links to those procedures;
 it does not introduce independent scientific rules.
 
-After changing either source, the shared CSS, or the shared JavaScript, rebuild
-both readers from the repository root:
+After changing a source, the shared CSS, or the shared JavaScript, rebuild
+all four pages from the repository root:
 
 ```sh
 Rscript --vanilla main/tools/render_field_manual.R
@@ -27,6 +33,15 @@ The builder converts links between the Markdown sources into HTML links for
 browser readers while preserving section fragments. Each HTML page embeds its
 own source checksum, the shared styles, and the shared search code. Repeated
 builds with unchanged inputs must produce identical pages.
+
+Each German source starts with an `English-source-md5` HTML comment recording
+the English source it translates. After reviewing a translation against changed
+English text, update this checksum using `tools::md5sum()` on the corresponding
+English Markdown file. Do not update the checksum without reviewing the text.
+The builder checks both translation references before writing any HTML and
+stops on a stale or missing reference. This is a freshness guard, not proof
+of translation quality or field-server deployment. Numeric limits, code values,
+field names, and scientific rules must remain unchanged across languages.
 
 The optional single builder argument remains a deliberate import into
 `manual.md` for an explicitly approved external publication source. It does not
@@ -38,6 +53,10 @@ publish private records, coordinates, credentials, or operational reports.
 
 - The two navigation links identify the current reader and work in the app or
   in a separate browser window. No additional sidebar item is needed.
+- The language links retain the current manual kind and stable section anchor.
+  Switching between the short and full manuals retains the selected language.
+  Language selection is URL-based, with no cookie, tracking, or database write.
+  Unstable generated search-passage IDs are not transferred across languages.
 - Search applies only to the selected document and sends no query to a server.
   Each result identifies its section. The full manual retains expand/collapse
   controls; the short guide is open text without unnecessary collapse controls.

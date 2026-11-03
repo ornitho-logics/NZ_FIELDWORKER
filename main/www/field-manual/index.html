@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en-NZ"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="manual-source-md5" content="1e82285c2ebc58b31194f731c8338a38"><title>BADO Field Manual 2026 — Full Protocol Manual</title><style>/* Scoped by the reader iframe; does not change dashboard styling. */
+<html lang="en-NZ"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="manual-source-md5" content="d46b0def8f3dcea6a4e23517ad8d428f"><meta name="manual-reference-md5" content="d46b0def8f3dcea6a4e23517ad8d428f"><title>BADO Field Manual 2026 — Full Protocol Manual</title><style>/* Scoped by the reader iframe; does not change dashboard styling. */
 :root { color-scheme: light; --ink: #23343d; --accent: #315e70; --line: #d8e1e5; }
 * { box-sizing: border-box; }
 html { scroll-padding-top: calc(var(--reader-tools-height, 180px) + 12px); }
@@ -21,6 +21,9 @@ button:focus-visible, input:focus-visible, a:focus-visible, summary:focus-visibl
 .reader-switch { max-width: 1080px; margin: auto; padding: 10px 20px 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .reader-switch a { border: 1px solid #aebfc7; border-radius: 5px; padding: 7px 11px; background: white; text-decoration: none; }
 .reader-switch a[aria-current="page"] { background: #254958; color: white; font-weight: bold; }
+.language-switch { max-width: 1080px; margin: auto; padding: 7px 20px 0; display: flex; flex-wrap: wrap; gap: 14px; font-size: .9rem; }
+.language-switch a[aria-current="page"] { font-weight: bold; text-decoration-thickness: 2px; }
+.translation-note { border-left: 4px solid #78949f; background: #f5f8f9; padding: 9px 13px; font-size: .9rem; }
 .reader-tools-inner { max-width: 1080px; margin: auto; padding: 12px 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 9px; }
 .contents-button { text-decoration: none; }
 .reader-tools label { font-size: .9rem; }
@@ -57,6 +60,7 @@ pre code { overflow-wrap: anywhere; }
   body { font-size: 16px; }
   .reader-tools-inner { padding: 10px 12px; gap: 7px; }
   .reader-switch { padding: 10px 12px 0; font-size: .9rem; }
+  .language-switch { padding: 7px 12px 0; }
   .reader-tools label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   #manual-search { min-width: 120px; width: 140px; }
   button, .contents-button { font-size: .9rem; }
@@ -75,9 +79,9 @@ pre code { overflow-wrap: anywhere; }
   table { min-width: 0; font-size: 9pt; }
   a { color: inherit; }
   mark { background: none; }
-}</style></head><body><a class="skip-link" href="#manual-content">Skip to manual</a><header class="reader-tools" aria-label="Manual controls"><nav class="reader-switch" aria-label="Choose a manual"><a href="core-guide.html">Core Team Field Guide</a><a href="index.html" aria-current="page">Full Protocol Manual</a></nav><div class="reader-tools-inner"><a class="contents-button" href="#manual-contents">Contents</a><label for="manual-search">Search full manual</label><input id="manual-search" type="search" placeholder="e.g. hiding photographs" aria-controls="manual-search-results" aria-describedby="manual-search-help" autocomplete="off"><button id="manual-clear" type="button">Clear</button><button id="manual-expand" type="button">Expand all</button><button id="manual-collapse" type="button">Collapse all</button><button id="manual-print" type="button">Print</button></div></header><main><p id="manual-search-help" class="reader-hint">Search applies to this full manual. Choose a search result to open its section. <a href="manual.md" download>Download Markdown</a> · <a href="index.html" target="_blank" rel="noopener">Open Field Manual in a separate window</a></p><p id="manual-search-status" role="status" aria-live="polite"></p><section id="manual-search-results" aria-label="Search results" hidden></section><noscript><p>Search and print controls need JavaScript. Both manuals remain readable; use your browser to print, and open any collapsed section using its heading.</p></noscript><article id="manual-content" tabindex="-1"><h1>BADO Field Manual 2026</h1>
+}</style></head><body><a class="skip-link" href="#manual-content">Skip to manual</a><header class="reader-tools" aria-label="Manual controls"><nav class="reader-switch" aria-label="Choose a manual"><a href="core-guide.html">Core Team Field Guide</a><a href="index.html" aria-current="page">Full Protocol Manual</a></nav><nav class="language-switch" aria-label="Language"><a data-language-link href="index.html" lang="en" hreflang="en-NZ" aria-current="page">English</a><a data-language-link href="index-de.html" lang="de" hreflang="de">Deutsch</a></nav><div class="reader-tools-inner"><a class="contents-button" href="#manual-contents">Contents</a><label for="manual-search">Search full manual</label><input id="manual-search" type="search" placeholder="e.g. hiding photographs" aria-controls="manual-search-results" aria-describedby="manual-search-help" autocomplete="off"><button id="manual-clear" type="button">Clear</button><button id="manual-expand" type="button">Expand all</button><button id="manual-collapse" type="button">Collapse all</button><button id="manual-print" type="button">Print</button></div></header><main><p id="manual-search-help" class="reader-hint">Search applies to this full manual. Choose a search result to open its section. <a href="manual.md" download>Download Markdown</a> · <a href="index.html" target="_blank" rel="noopener">Open Field Manual in a separate window</a></p><p id="manual-search-status" role="status" aria-live="polite"></p><section id="manual-search-results" aria-label="Search results" hidden></section><noscript><p>Search and print controls need JavaScript. Both manuals remain readable; use your browser to print, and open any collapsed section using its heading.</p></noscript><article id="manual-content" tabindex="-1"><h1>BADO Field Manual 2026</h1>
 <p>Protocols for studying breeding Banded Dotterel / Pohowera<br />
-<strong>Full Protocol Manual v2.4.21 · Revised 3 November 2026</strong></p>
+<strong>Full Protocol Manual v2.4.22 · Revised 3 November 2026</strong></p>
 <p>This manual describes the field procedures and the data-entry
 validation logic for Banded Dotterel fieldwork throughout New Zealand during the breeding season.
 If the app disagrees with an instruction, keep
@@ -1872,6 +1876,23 @@ to I after H merely because an egg remains unhatched.</p>
 <p>The first H visit with no eggs left and chicks present is the final hatch
 visit. Later mobile-chick encounters belong in the bird tables, not additional
 H nest visits. One final notA closure may follow.</p>
+<h3>When later chick captures account for the complete clutch</h3>
+<p>A truthful hatch visit can record one egg and two chicks, followed later by
+the capture of the third chick away from the nest. Do not rewrite the visit
+or invent another visit. After a successful refresh, the To-Do can infer zero
+remaining eggs when distinct, reliably origin-linked, first-banded chicks
+account for every egg in a known complete clutch. Its operational egg count
+then becomes zero, and the follow-up becomes <code>notA nest-check</code>, not an egg check.
+This is not an observed empty nest or a completed closure visit.</p>
+<p>The current conservative inference requires an H nest, a documented complete
+clutch of at least 3 eggs established before hatch, and reference-date-qualified,
+timed first-banding evidence for its original chicks. Duplicate captures count
+once; recaptures do not move the completion time. Unknown origins, mixed or
+conflicting links, unresolved extra chicks, and later egg observations block
+the inference. Smaller clutches are not inferred complete by this rule.
+Known chick deaths can establish that an egg hatched, but do not become live
+chicks in the brood count. Existing capture restrictions and brood-closure
+rules remain unchanged. Record the actual counts on the eventual notA visit.</p>
 <h3>Supporting table — final closure</h3>
 <div class="table-scroll" tabindex="0" role="region" aria-label="Supporting table; scroll sideways if needed"><table>
 <thead>
@@ -4280,6 +4301,10 @@ developmental resolution, not a statement that all siblings survived.</p>
 <td>v2.4.21, 3 November 2026</td>
 <td>Added the Core Team Field Guide as the app's starting view, with access to this complete reference. Explicitly explained that comments cannot replace event records used by the To-Do algorithm. No biological or database rule changed.</td>
 </tr>
+<tr>
+<td>v2.4.22, 3 November 2026</td>
+<td>Added standard German readers for both manuals and documented conservative complete-clutch hatch accounting, operational zero eggs, and notA follow-up without inventing visits or closure.</td>
+</tr>
 </tbody>
 </table></div>
 <p>This app publication copy is separate from Luke Eberhart-Hertel's editable private review
@@ -4738,6 +4763,16 @@ database supplied as an AI prompt.</p>
   var status = document.getElementById("manual-search-status");
   var sections = Array.from(article.querySelectorAll("details"));
   var timer;
+  var german = document.documentElement.lang === "de";
+
+  // Carry stable section IDs across languages, not generated search-passage IDs.
+  var languageLinks = Array.from(document.querySelectorAll("[data-language-link]"));
+  languageLinks.forEach(function(link) { link.dataset.languagePage = link.getAttribute("href"); });
+  function updateLanguageLinks() {
+    var id = fragmentId(location.hash);
+    var hash = /^(?:section-[0-9]+|core-section-[0-9]+|appendix-[ab]|authorship)$/.test(id) ? "#" + id : "";
+    languageLinks.forEach(function(link) { link.setAttribute("href", link.dataset.languagePage + hash); });
+  }
 
   // Wrapped mobile controls must not cover a contents/search destination.
   if (typeof ResizeObserver !== "undefined") {
@@ -4780,12 +4815,15 @@ database supplied as an AI prompt.</p>
     if (!target) return;
     event.preventDefault();
     history.replaceState(null, "", link.hash);
+    updateLanguageLinks();
     reveal(target, true);
   });
   window.addEventListener("hashchange", function() {
+    updateLanguageLinks();
     reveal(document.getElementById(fragmentId(location.hash)), false);
   });
   if (location.hash) reveal(document.getElementById(fragmentId(location.hash)), false);
+  updateLanguageLinks();
 
   var expand = document.getElementById("manual-expand");
   var collapse = document.getElementById("manual-collapse");
@@ -4808,7 +4846,7 @@ database supplied as an AI prompt.</p>
       while (heading.parentElement && heading.parentElement !== article) heading = heading.parentElement;
       while (heading && heading.tagName !== "H2") heading = heading.previousElementSibling;
       var context = parent ? parent.querySelector("summary").textContent.trim() :
-        heading ? heading.textContent.trim() : "Introduction and authorship";
+        heading ? heading.textContent.trim() : german ? "Einleitung und Urheberschaft" : "Introduction and authorship";
       return {node: node, text: text, lower: normal(text), context: context};
     });
 
@@ -4863,9 +4901,10 @@ database supplied as an AI prompt.</p>
     var matches = passages.filter(function(passage) {
       return terms.every(function(term) { return passage.lower.includes(term); });
     });
-    status.textContent = matches.length ? matches.length + " matching passages" +
-      (matches.length > 80 ? " (first 80 shown)." : ".") :
-      "No matching passages. Try fewer words or a field name such as nest_id.";
+    status.textContent = matches.length ? matches.length + (german ? " passende Textstellen" : " matching passages") +
+      (matches.length > 80 ? (german ? " (die ersten 80 werden angezeigt)." : " (first 80 shown).") : ".") :
+      (german ? "Keine passenden Textstellen. Weniger Suchwörter oder einen Feldnamen wie nest_id versuchen." :
+        "No matching passages. Try fewer words or a field name such as nest_id.");
     var list = document.createElement("ol");
     matches.slice(0, 80).forEach(function(passage) {
       var item = document.createElement("li");

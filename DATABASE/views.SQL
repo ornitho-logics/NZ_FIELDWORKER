@@ -7987,7 +7987,12 @@ SELECT
   latest.latest_encounter_availability,
   latest.latest_encounter_ring_list,
   latest.latest_encounter_source,
-  latest.latest_encounter_provenance
+  latest.latest_encounter_provenance,
+  /* Original-clutch evidence is available only after the staged refresh. */
+  CAST(NULL AS SIGNED) AS n_original_hatched_chick_rings,
+  CAST(NULL AS DATETIME) AS original_hatch_accounted_datetime,
+  CAST(NULL AS SIGNED) AS n_hatch_reconciliation_blockers,
+  CAST(NULL AS DATE) AS hatch_reconciliation_reference_date
 FROM FIELD_2026_BADOatNZ.TODO_CHICK_CAPTURE_CONTEXT_BASE_INPUT base
 LEFT JOIN FIELD_2026_BADOatNZ.TODO_CHICK_LATEST_ENCOUNTER_CONTEXT_INPUT latest
   ON latest.nest_id = base.nest_id;
