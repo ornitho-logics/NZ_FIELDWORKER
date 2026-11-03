@@ -2869,10 +2869,11 @@ overview_chick_growth_plot <- function(
   patchwork::wrap_plots(panels, nrow = 1) +
     patchwork::plot_annotation(
       caption = paste0(
-        "Age-C captures from known nests with recorded hatch dates; ",
-        "age-A measurements are included as adult reference measurements ",
-        "at day 365 for the marginal GAMM trend, but are not plotted as ",
-        "chick observations. ",
+        "Age-C captures from known nests with recorded hatch dates are ",
+        "plotted as observations. All eligible age-A measurements are ",
+        "treated as adult reference measurements at day 365 and fitted ",
+        "with the age-C data to inform the marginal GAMM trend and 95% CI; ",
+        "adult observations are not plotted. ",
         "lines connect repeated measurements only when the same ring was ",
         "recorded. Faint curves and ribbons show marginal GAMM trends and ",
         "95% CIs.",
