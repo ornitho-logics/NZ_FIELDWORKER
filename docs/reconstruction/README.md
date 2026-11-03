@@ -40,6 +40,14 @@ contract. This package complements them; it does not generate new validators
 or override scientific decisions. Dated handoffs/logs explain history. A
 conflicting historical instruction must be reported, not selected opportunistically.
 
+The approved **3 November 2026** cross-nest addition supersedes only an older
+unproven candidate when the same reliable adult identity and sex has later,
+unambiguous strong association evidence at another nest. It preserves earlier
+resolved history and never transfers proof between nests. Same-day evidence,
+ambiguous matches, shared colours, and X-X remain protected. See the chronology
+contract and the executable invented cases in the existing MM/chronology test
+file. Earlier dated acceptance results do not verify this later source change.
+
 ## Writing convention
 
 Use the Oxford comma in every prose list of three or more items, including

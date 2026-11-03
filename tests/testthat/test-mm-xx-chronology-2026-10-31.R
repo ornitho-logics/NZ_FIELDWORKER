@@ -2,7 +2,7 @@ library(testthat)
 
 # Execute the actual association SELECT with invented input CTEs, not a second
 # R implementation of the association rules. No schema or records are written.
-mm_xx_query <- function(captures, sightings, reference_date = "2026-10-31", include_display = FALSE) {
+mm_xx_query <- function(captures, sightings, reference_date = "2026-10-31", include_display = FALSE, include_nest = FALSE) {
   sql <- paste(readLines(app_file("DATABASE", "views.SQL"), warn = FALSE), collapse = "\n")
   start <- regexpr("CREATE OR REPLACE VIEW FIELD_2026_BADOatNZ.ADULT_PARENT_NEST_ASSOCIATIONS AS", sql, fixed = TRUE)[[1L]]
   stopifnot(start > 0L)
@@ -40,10 +40,11 @@ mm_xx_query <- function(captures, sightings, reference_date = "2026-10-31", incl
     "adult_identity_matches AS (SELECT * FROM sighting_fixture WHERE observation_date <=", shQuote(reference_date), "),",
     "adult_chick_gps_parent_links_input AS (SELECT capture_fixture.* FROM capture_fixture WHERE 1=0),",
     ctes, ", actual_associations AS (", result_select, ")",
-    "SELECT CONCAT_WS('|', identity_key, association_level, association_selected, association_pending,",
+    paste0("SELECT CONCAT_WS('|', ", if (include_nest) "nest_id, " else "",
+      "identity_key, association_level, association_selected, association_pending,"),
     paste0("COALESCE(CAST(association_evidence_datetime AS CHAR), 'NULL'), n_nonconfirming_resightings",
       if (include_display) ", COALESCE(association_display_basis, 'NULL')" else "", ")"),
-    "FROM actual_associations ORDER BY identity_key;"
+    paste0("FROM actual_associations ORDER BY ", if (include_nest) "nest_id, " else "", "identity_key;")
   )
 }
 
@@ -289,4 +290,165 @@ test_that("retirement preserves duplicates, later X-X, and competing-candidate s
   ambiguous <- mm_xx_sighting("ring:MOCK_B", 7, ambiguous = TRUE)
   expect_true("xx:MOCK_NEST:M|2|1|0|2026-10-02 00:00:00|0" %in%
     mm_xx_execute(mm_xx_query(captures, rbind(xx, b, ambiguous))))
+})
+
+# Cross-nest cases use only invented identities and prequalified source inputs.
+# The same actual SELECT is exercised; no second association implementation.
+cross_nest_sighting <- function(nest, day, sex = "F", confirming = FALSE,
+                                identity = "ring:MOCK_BIRD", pk = day) {
+  transform(mm_xx_sighting(identity, day, sex, confirming, pk), nest_id = nest)
+}
+
+cross_nest_query <- function(sightings, captures = NULL, reference_date = "2026-10-31") {
+  if (is.null(captures)) {
+    captures <- transform(mm_xx_capture("ring:MOCK_UNUSED", 1), nest_id = NA_character_)
+  }
+  mm_xx_query(captures, sightings, reference_date, include_nest = TRUE)
+}
+
+test_that("later selected strong evidence removes only the older pending cross-nest candidate", {
+  for (sex in c("M", "F")) for (key in c("ring:MOCK_BIRD", "flag:MOCK_BIRD", "lower:MOCK_BIRD")) {
+    older <- cross_nest_sighting("MOCK_OLD", 1, sex, identity = key)
+    older$behav <- "AT,FA"
+    newer <- cross_nest_sighting("MOCK_NEW", 3, sex, TRUE, key)
+    expect_identical(mm_xx_execute(cross_nest_query(rbind(older, newer))),
+      paste0("MOCK_NEW|", key, "|2|1|0|2026-10-03 00:00:00|0"))
+    expect_identical(mm_xx_execute(cross_nest_query(rbind(older, newer), reference_date = "2026-10-02")),
+      paste0("MOCK_OLD|", key, "|0|0|1|NULL|1"))
+  }
+})
+
+test_that("cross-nest override preserves independently resolved earlier associations", {
+  newer <- cross_nest_sighting("MOCK_NEW", 5, confirming = TRUE)
+  earlier_three <- do.call(rbind, lapply(1:3, function(day) cross_nest_sighting("MOCK_OLD", day)))
+  expect_identical(mm_xx_execute(cross_nest_query(rbind(earlier_three, newer))), c(
+    "MOCK_NEW|ring:MOCK_BIRD|2|1|0|2026-10-05 00:00:00|0",
+    "MOCK_OLD|ring:MOCK_BIRD|1|1|0|2026-10-03 00:00:00|3"))
+  earlier_in <- cross_nest_sighting("MOCK_OLD", 1, confirming = TRUE)
+  expect_length(mm_xx_execute(cross_nest_query(rbind(earlier_in, newer))), 2L)
+  tn <- transform(mm_xx_capture("ring:MOCK_BIRD", 1, "F", method = "TN"), nest_id = "MOCK_OLD")
+  expect_true("MOCK_OLD|ring:MOCK_BIRD|3|1|0|2026-10-01 10:00:00|0" %in%
+    mm_xx_execute(cross_nest_query(newer, tn)))
+})
+
+test_that("cross-nest override uses strict field dates and respects later candidate evidence", {
+  newer <- cross_nest_sighting("MOCK_NEW", 3, confirming = TRUE)
+  for (day in c(3L, 4L)) {
+    older <- cross_nest_sighting("MOCK_OLD", day)
+    expect_length(mm_xx_execute(cross_nest_query(rbind(older, newer))), 2L)
+  }
+  old_rows <- rbind(cross_nest_sighting("MOCK_OLD", 1), cross_nest_sighting("MOCK_OLD", 4))
+  expect_length(mm_xx_execute(cross_nest_query(rbind(old_rows, newer))), 2L)
+  expect_identical(mm_xx_execute(cross_nest_query(rbind(old_rows, newer), reference_date = "2026-10-03")),
+    "MOCK_NEW|ring:MOCK_BIRD|2|1|0|2026-10-03 00:00:00|0")
+  later_mm <- transform(mm_xx_capture("ring:MOCK_BIRD", 4, "F"), nest_id = "MOCK_OLD")
+  expect_length(mm_xx_execute(cross_nest_query(rbind(old_rows[1, ], newer), later_mm)), 2L)
+  same_day_mm <- transform(later_mm, capture_date = "2026-10-03", capture_datetime = "2026-10-03 10:00:00")
+  expect_length(mm_xx_execute(cross_nest_query(rbind(old_rows[1, ], newer), same_day_mm)), 2L)
+})
+
+test_that("weak, ambiguous, or tied later claims cannot supply cross-nest proof", {
+  older <- cross_nest_sighting("MOCK_OLD", 1)
+  newer <- cross_nest_sighting("MOCK_NEW", 3, confirming = TRUE)
+  weak <- transform(newer, association_confirming = 0L, association_nonconfirming = 1L)
+  ambiguous <- transform(newer, is_ambiguous_match = 1L)
+  ineligible <- transform(newer, association_evidence_eligible = 0L)
+  for (claim in list(weak, ambiguous, ineligible)) {
+    result <- mm_xx_execute(cross_nest_query(rbind(older, claim)))
+    expect_true("MOCK_OLD|ring:MOCK_BIRD|0|0|1|NULL|1" %in% result)
+  }
+  three <- do.call(rbind, lapply(3:5, function(day) transform(weak, observation_date = sprintf("2026-10-%02d", day), resighting_pk = day)))
+  expect_length(mm_xx_execute(cross_nest_query(rbind(older, three))), 2L)
+  competitor <- transform(newer, identity_key = "ring:MOCK_OTHER", display_mark = "MOCK_OTHER", resighting_pk = 30)
+  result <- mm_xx_execute(cross_nest_query(rbind(older, newer, competitor)))
+  expect_true("MOCK_OLD|ring:MOCK_BIRD|0|0|1|NULL|1" %in% result)
+  expect_length(result, 3L)
+})
+
+test_that("cross-nest proof never crosses sex, identity, uncertainty, or shared-mark boundaries", {
+  older <- cross_nest_sighting("MOCK_OLD", 1)
+  newer <- cross_nest_sighting("MOCK_NEW", 3, confirming = TRUE)
+  for (claim in list(transform(newer, sex = "M"),
+                     transform(newer, identity_key = "ring:MOCK_OTHER", display_mark = "MOCK_OTHER"))) {
+    expect_length(mm_xx_execute(cross_nest_query(rbind(older, claim))), 2L)
+  }
+  for (key in c("xx:MOCK_PLACEHOLDER:F", "resighting:MOCK_UNKNOWN", "capture:MOCK_UNKNOWN")) {
+    rows <- transform(rbind(older, newer), identity_key = key, display_mark = "X-X")
+    expect_length(mm_xx_execute(cross_nest_query(rows)), 2L)
+  }
+  shared <- transform(rbind(older, newer), is_single_colour_recruit = 1L)
+  expect_length(mm_xx_execute(cross_nest_query(shared)), 2L)
+  old_ambiguous <- transform(older, is_ambiguous_match = 1L)
+  expect_length(mm_xx_execute(cross_nest_query(rbind(old_ambiguous, newer))), 2L)
+})
+
+test_that("remaining weak candidates are recounted without inventing association proof", {
+  older <- cross_nest_sighting("MOCK_OLD", 1)
+  competitor <- transform(older, identity_key = "ring:MOCK_OTHER", display_mark = "MOCK_OTHER", resighting_pk = 11)
+  newer <- cross_nest_sighting("MOCK_NEW", 3, confirming = TRUE)
+  query <- cross_nest_query(rbind(older, competitor, newer))
+  query <- sub("n_nonconfirming_resightings)", "n_nonconfirming_resightings, association_ambiguous)", query, fixed = TRUE)
+  expect_identical(mm_xx_execute(query), c(
+    "MOCK_NEW|ring:MOCK_BIRD|2|1|0|2026-10-03 00:00:00|0|0",
+    "MOCK_OLD|ring:MOCK_OTHER|0|0|1|NULL|1|0"))
+})
+
+test_that("cross-nest override deduplicates evidence and does not erase strong history", {
+  older <- cross_nest_sighting("-MOCK_OLD", 1)
+  newer <- cross_nest_sighting("MOCK_NEW", 3, confirming = TRUE)
+  expected <- "MOCK_NEW|ring:MOCK_BIRD|2|1|0|2026-10-03 00:00:00|0"
+  expect_identical(mm_xx_execute(cross_nest_query(rbind(older, older, newer, newer))), expected)
+  other <- transform(newer, nest_id = "MOCK_LATER", observation_date = "2026-10-05", resighting_pk = 5)
+  result <- mm_xx_execute(cross_nest_query(rbind(older, newer, other)))
+  expect_length(result, 2L)
+  expect_true(all(grepl("[|]2[|]1[|]0[|]", result)))
+  tn <- transform(mm_xx_capture("ring:MOCK_BIRD", 3, "F", method = "TN"), nest_id = "MOCK_NEW")
+  expect_identical(mm_xx_execute(cross_nest_query(older, tn)),
+    "MOCK_NEW|ring:MOCK_BIRD|3|1|0|2026-10-03 10:00:00|0")
+})
+
+cross_nest_status_query <- function(sightings, sex) {
+  stopifnot(sex %in% c("M", "F"))
+  query <- cross_nest_query(sightings)
+  final <- regexpr("SELECT CONCAT_WS('|', nest_id, identity_key", query, fixed = TRUE)[[1L]]
+  stopifnot(final > 0L)
+  query <- substr(query, 1L, final - 1L)
+  sql <- paste(readLines(app_file("DATABASE", "views.SQL"), warn = FALSE), collapse = "\n")
+  marker <- "CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW FIELD_2026_BADOatNZ.ADULT_PARENT_STATUS AS"
+  start <- regexpr(marker, sql, fixed = TRUE)[[1L]]
+  stopifnot(start > 0L)
+  status <- substring(sql, start + nchar(marker))
+  ending <- "ON pivoted.nest_id = capture_timing.nest_id;"
+  end <- regexpr(ending, status, fixed = TRUE)[[1L]]
+  stopifnot(end > 0L)
+  status <- substr(status, 1L, end + nchar(ending) - 2L)
+  status <- sub("^\\s*WITH\\s+", "", status, perl = TRUE)
+  status <- gsub("FIELD_2026_BADOatNZ.", "", status, fixed = TRUE)
+  status <- gsub("ADULT_PARENT_NEST_ASSOCIATIONS", "actual_associations", status, fixed = TRUE)
+  status <- gsub("CAPTURES c", "fixture_status_captures c", status, fixed = TRUE)
+  projection <- regexpr("\nSELECT\n  pivoted.nest_id,", status, fixed = TRUE)[[1L]]
+  stopifnot(projection > 0L)
+  paste0(query,
+    ", settings AS (SELECT 'reference_date' AS variable, '2026-10-31' AS value)",
+    ", NESTS_LATEST AS (SELECT DISTINCT nest_id, 'CR' AS site, '2026-10-31' AS reference_date FROM sighting_fixture)",
+    ", BROODS_LATEST AS (SELECT nest_id, reference_date, 0 AS is_negative_brood FROM NESTS_LATEST WHERE 1=0)",
+    ", fixture_status_captures AS (SELECT nest_id, 'CR' AS site, 'A' AS age, capture_sex AS field_sex, ",
+      "capture_date AS date, '10:00:00' AS caught, NULL AS released FROM capture_fixture)",
+    ", ", substr(status, 1L, projection - 1L),
+    ", actual_parent_status AS (", substring(status, projection), ") ",
+    "SELECT CONCAT_WS('|', nest_id, COALESCE(", sex, "_parent_mark, 'NULL'), ",
+    sex, "_unknown_status, ", sex, "_resighting_identity_count, ", sex, "_association_pending) ",
+    "FROM actual_parent_status ORDER BY nest_id;")
+}
+
+test_that("shared parent status retains the earlier nest and correctly projects unknown or pending parents", {
+  for (sex in c("M", "F")) {
+    older <- cross_nest_sighting("MOCK_OLD", 1, sex)
+    newer <- cross_nest_sighting("MOCK_NEW", 3, sex, TRUE)
+    expect_identical(mm_xx_execute(cross_nest_status_query(rbind(older, newer), sex)), c(
+      "MOCK_NEW|ring:MOCK_BIRD|0|1|0", "MOCK_OLD|NULL|1|0|0"))
+    competitor <- transform(older, identity_key = "ring:MOCK_OTHER", display_mark = "MOCK_OTHER", resighting_pk = 11)
+    expect_identical(mm_xx_execute(cross_nest_status_query(rbind(older, competitor, newer), sex)), c(
+      "MOCK_NEW|ring:MOCK_BIRD|0|1|0", "MOCK_OLD|MOCK_OTHER|0|1|1"))
+  }
 })

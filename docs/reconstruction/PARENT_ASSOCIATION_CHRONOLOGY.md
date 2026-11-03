@@ -1,7 +1,8 @@
 # Parent identity and MM chronology
 
 Authority: Luke Eberhart-Hertel's explicit decisions on 31 October and
-1 November 2026. The approved 1 November same-day linkage decision supersedes
+1 November 2026, with the narrow cross-nest override approved on 3 November.
+The approved 1 November same-day linkage decision supersedes
 the earlier blanket prohibition on linking same-day X-X and first capture.
 This is a biological task-association contract, not a new data-entry validator,
 permission to alter observations, or evidence of live deployment.
@@ -59,6 +60,39 @@ or proof that all historical X-X encounters were that captured individual.
 
 ## Chronology and conflicts
 
+### Later confirmed association versus an earlier pending candidate
+
+Approved 3 November 2026: for the same reliable identity key and sex, a later
+uniquely selected level-2 or level-3 association at another nest supersedes an
+older level-zero candidate. The candidate's latest association-event field date
+must be strictly earlier than the later nest's strong evidence date. Selection
+and identity matching at the later nest must both be unambiguous. A three-sighting
+level-1 result alone is not strong enough to trigger this new cross-nest rule.
+
+Use only existing ring, flag, or canonical adult lower-mark identity keys.
+Exclude X-X, anonymous event keys, shared single-colour recruits, and ambiguous
+identity matches. Do not infer observation order within a field date. Same-day
+or subsequent evidence at the earlier nest prevents suppression. Earlier
+associations already resolved by any existing gate are preserved, including
+three qualifying nonconfirming observations. Competing strong historical
+associations are not silently rewritten into a single winner.
+
+Suppression removes only the superseded candidate from the derived association
+result. Raw observations and the earlier nest remain. Recount any remaining
+weak-candidate ties without promoting them to resolved status. This can leave
+the earlier nest's parent unknown or pending. The snapshot, map, PDF, and
+historical summary consume the same shared result; no extra R rule is added.
+The latest-event and strong-proof dates reuse the existing event aggregation;
+cross-nest comparison and tie recount use windows over the small identity
+summaries, not a second scan or self-join of the expanded association graph.
+
+The reference date still bounds all input evidence. This rule changes no
+seven-day gate, 36-hour gate, tag eligibility, MM/X-X chronology, or save-time
+validator. Focused synthetic checks are separate from a full dump refresh,
+PDF render, Adminer rehearsal, or live deployment.
+
+### Existing chronology safeguards
+
 - A bird merely caught by MM before the confirmed X-X event must not revive
   through accumulated nonconfirming observations after that placeholder retires.
 - Independently established earlier evidence is not erased. Competing strong
@@ -69,8 +103,9 @@ or proof that all historical X-X encounters were that captured individual.
 - Same-day sighting/capture order is unknown: RESIGHTINGS has no time field.
   The approved same-day first-banding assumption above supplies the narrow link;
   it does not infer order or erase independent proof by guessing that order.
-- Restrict both sexes, candidates, and proof to the reference date and exact
-  nest. Ambiguous identity matches do not qualify replacement. Count each
+- Restrict both sexes, candidates, and proof to the reference date. Count proof
+  within its exact nest; the narrow cross-nest override removes an unproven
+  candidate but never transfers proof. Ambiguous identity matches do not qualify replacement. Count each
   observation event once, including when calculating the third-event proof date.
 - The new bird's association date is its own proof date, including the linked
   capture date for valid same-day confirmation, not an older X-X date. Never
@@ -118,3 +153,29 @@ is authorized by this document. A full field refresh/PDF and performance replay
 remain separate release checks. To roll back an unpublished candidate, remove
 only this reviewed source/doc/test patch; for a deployed view, reinstall the
 previous reviewed view source and rebuild the snapshot under human control.
+
+### 3 November focused cross-nest verification
+
+The changed `views.SQL` SHA256 is
+`c3c61624f340be046bde904dcae2c80be1865090dcfdf84a0ad0d06ddad5ba34`.
+On a newly owned, networking-disabled MariaDB **11.8.9**, 301 focused assertions
+passed: 132 actual association/parent-status SQL chronology assertions, 12
+selected-death assertions, 45 popup assertions, and 112 manual assertions.
+There were no final failures, errors, skips, or warnings. The owned instance
+was stopped. These small SELECT fixtures do not certify full-install runtime,
+case-sensitive schema publication, field-scale refresh cost, or Adminer behaviour.
+
+The shared parent-status SELECT retains the earlier unit when its candidate
+is removed, projects its parent as unknown when no candidate remains, and
+retains a different weak candidate as pending without inventing proof. The
+public association projection and upstream relation references are unchanged;
+the refresh script, inspector exports, and validator YAML are unchanged.
+The manual's Markdown and generated HTML were rebuilt together.
+
+One initial combined run exposed an existing formatting-sensitive manual-menu
+assertion after upstream UI line wrapping. The assertion now tolerates whitespace
+while still requiring the same menu label and tab name; no app code was changed.
+An earlier sandbox socket denial occurred before SQL checks and is not a pass.
+Full field-dump refresh/PDF comparison, Adminer rehearsal, and live deployment
+remain **NOT RUN** for this changed source. Do not extend older full-replay
+results to it.

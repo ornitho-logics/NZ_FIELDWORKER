@@ -1,5 +1,24 @@
 # THREAD 4 - To-do, map, list, and PDF operational reference
 
+## Approved cross-nest pending-candidate override — 3 November 2026
+
+For the same reliable adult identity and sex, a later uniquely selected
+level-2 or level-3 association at another nest supersedes only an older
+level-zero candidate. The later proof date must strictly follow the older
+candidate's latest encounter date. Preserve established earlier associations,
+same-day or subsequent evidence, ambiguous matches, shared recruit colours,
+and X-X. Removing a weak candidate does not remove the nest, transfer proof,
+or resolve another weak candidate; recount remaining weak ties.
+
+`ADULT_PARENT_NEST_ASSOCIATIONS` owns this rule. It adds two date aggregates
+to the existing event summary and two windows over the identity summaries,
+not another raw-event expansion, self-join, public view column, or refresh
+stage. The existing snapshot and all parent-status consumers share the result.
+See `docs/reconstruction/PARENT_ASSOCIATION_CHRONOLOGY.md`, the machine-readable
+rule/case crosswalks, and the executable invented chronology fixtures. The
+validator YAML and inspector implementations are unchanged. Focused local
+checks do not constitute a new field replay, Adminer pass, or live installation.
+
 ## Approved parent-linkage decision — 1 November 2026
 
 Luke approved a narrow same-day identity assumption: a confirming X-X resighting

@@ -1,7 +1,7 @@
 # BADO Field Manual 2026
 
 Protocols for studying breeding Banded Dotterel / Pohowera\
-**Markdown review draft v2.4.19 · Revised 2 November 2026**
+**Markdown review draft v2.4.20 · Revised 3 November 2026**
 
 This draft aims to describe the field procedures and the data-entry
 validation logic for Banded Dotterel fieldwork throughout New Zealand during the breeding season.
@@ -492,6 +492,23 @@ identity, not ownership of a current nest.
 An ambiguous mark match also prevents that candidate from being treated as
 resolved, even when some of its other evidence appears strong. Obtain a better
 reading and refer the conflict; do not remove the original observation.
+
+**A pending bird later confirmed at another nest.** A reliably identified
+adult may first be seen near one nest without enough evidence to establish
+parentage, then be confirmed at a different nest. If the later nest has one
+unambiguous selected parent supported by confirming behaviour or a qualifying
+direct capture, an older, still-unproven candidate for that same bird and sex
+is removed from the earlier nest's current parent display. The later proof
+must be on a strictly later field date than all of that candidate's earlier-nest
+encounters. The earlier nest remains on its normal tasks, with its parent still
+unknown or requiring review; the observation itself stays in the database.
+
+This does not erase an independently resolved earlier association, transfer
+proof between nests, or decide between competing strong claims. A same-day
+encounter or a further encounter at the earlier nest after the new confirmation
+prevents this narrow override. X-X, shared single-colour recruit marks, and
+ambiguous identity matches cannot establish this cross-nest link. Males and
+females are assessed independently, using evidence by the reference date.
 
 A mobile-mistnet capture (`capture_method = MM`) does not, by itself, prove
 which nest that adult belongs to. For a reliably identified bird at the same
@@ -2415,6 +2432,7 @@ developmental resolution, not a statement that all siblings survived.
 | v2.4.17, 1 November 2026 | Explained the simplified Nest Map popup, reference-date Last encounter display, and cached per-parent association evidence. Display-only snapshot metadata does not change association, timing, or task rules. |
 | v2.4.18, 1 November 2026 | Added Hatch timing (days) to the Nest Map popup using the existing PDF Est. Hatch formatter, including its flotation safeguards, published task values, and brood-age convention. No SQL, schema, or task-rule change. |
 | v2.4.19, 2 November 2026 | Applied the Oxford comma consistently to prose lists. No field protocol, validator rule, or task logic changed. |
+| v2.4.20, 3 November 2026 | Explained how a later confirmed association for a reliably identified adult supersedes an earlier pending candidate at another nest, without deleting observations or independently established associations. Timing, identity, and ambiguity safeguards remain. |
 
 This app publication copy is separate from Luke Eberhart-Hertel's editable private review
 draft and the retained Word/PDF references; those files have not been

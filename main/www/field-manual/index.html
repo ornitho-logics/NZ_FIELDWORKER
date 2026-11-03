@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en-NZ"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="manual-source-md5" content="47371c5f1292587214d6d00bdb7530d7"><title>BADO Field Manual 2026</title><style>/* Scoped by the reader iframe; does not change dashboard styling. */
+<html lang="en-NZ"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="manual-source-md5" content="806117eb2664a9a27560870b5d765a0a"><title>BADO Field Manual 2026</title><style>/* Scoped by the reader iframe; does not change dashboard styling. */
 :root { color-scheme: light; --ink: #23343d; --accent: #315e70; --line: #d8e1e5; }
 * { box-sizing: border-box; }
 html { scroll-padding-top: 110px; }
@@ -73,7 +73,7 @@ pre code { overflow-wrap: anywhere; }
   mark { background: none; }
 }</style></head><body><a class="skip-link" href="#manual-content">Skip to manual</a><header class="reader-tools" aria-label="Manual controls"><div class="reader-tools-inner"><a class="contents-button" href="#manual-contents">Contents</a><label for="manual-search">Search manual</label><input id="manual-search" type="search" placeholder="e.g. hiding photographs" aria-controls="manual-search-results" aria-describedby="manual-search-help" autocomplete="off"><button id="manual-clear" type="button">Clear</button><button id="manual-expand" type="button">Expand all</button><button id="manual-collapse" type="button">Collapse all</button></div></header><main><p id="manual-search-help" class="reader-hint">Search words or field names; choose a result to open its section. <a href="manual.md" download>Download Markdown</a></p><p id="manual-search-status" role="status" aria-live="polite"></p><section id="manual-search-results" aria-label="Search results" hidden></section><noscript><p>Search and expand/collapse controls need JavaScript. The manual remains readable: open each section using its heading.</p></noscript><article id="manual-content" tabindex="-1"><h1>BADO Field Manual 2026</h1>
 <p>Protocols for studying breeding Banded Dotterel / Pohowera<br />
-<strong>Markdown review draft v2.4.19 · Revised 2 November 2026</strong></p>
+<strong>Markdown review draft v2.4.20 · Revised 3 November 2026</strong></p>
 <p>This draft aims to describe the field procedures and the data-entry
 validation logic for Banded Dotterel fieldwork throughout New Zealand during the breeding season.
 If the app disagrees with an instruction, keep
@@ -785,6 +785,21 @@ identity, not ownership of a current nest.</p>
 <p>An ambiguous mark match also prevents that candidate from being treated as
 resolved, even when some of its other evidence appears strong. Obtain a better
 reading and refer the conflict; do not remove the original observation.</p>
+<p><strong>A pending bird later confirmed at another nest.</strong> A reliably identified
+adult may first be seen near one nest without enough evidence to establish
+parentage, then be confirmed at a different nest. If the later nest has one
+unambiguous selected parent supported by confirming behaviour or a qualifying
+direct capture, an older, still-unproven candidate for that same bird and sex
+is removed from the earlier nest's current parent display. The later proof
+must be on a strictly later field date than all of that candidate's earlier-nest
+encounters. The earlier nest remains on its normal tasks, with its parent still
+unknown or requiring review; the observation itself stays in the database.</p>
+<p>This does not erase an independently resolved earlier association, transfer
+proof between nests, or decide between competing strong claims. A same-day
+encounter or a further encounter at the earlier nest after the new confirmation
+prevents this narrow override. X-X, shared single-colour recruit marks, and
+ambiguous identity matches cannot establish this cross-nest link. Males and
+females are assessed independently, using evidence by the reference date.</p>
 <p>A mobile-mistnet capture (<code>capture_method = MM</code>) does not, by itself, prove
 which nest that adult belongs to. For a reliably identified bird at the same
 nest, eligible observations from before and after MM can count together: one
@@ -4241,6 +4256,10 @@ developmental resolution, not a statement that all siblings survived.</p>
 <tr>
 <td>v2.4.19, 2 November 2026</td>
 <td>Applied the Oxford comma consistently to prose lists. No field protocol, validator rule, or task logic changed.</td>
+</tr>
+<tr>
+<td>v2.4.20, 3 November 2026</td>
+<td>Explained how a later confirmed association for a reliably identified adult supersedes an earlier pending candidate at another nest, without deleting observations or independently established associations. Timing, identity, and ambiguity safeguards remain.</td>
 </tr>
 </tbody>
 </table></div>

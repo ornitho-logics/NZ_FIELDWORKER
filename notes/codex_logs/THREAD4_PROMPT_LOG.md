@@ -4,6 +4,21 @@ This file is a tracked, sanitized summary log. It contains only reconstructed
 technical prompts and summaries; it does not contain raw database rows,
 coordinates, credentials, or field records.
 
+## 2026-11-03 — Approved narrow cross-nest association correction
+
+Luke identified an adult still shown as a pending parent at an earlier nest
+despite later confirming behaviour at another nest. He authorized a narrow
+cross-nest override and focused invented-data checks. Local inspection of the
+newer supplied snapshot confirmed the reported pending-versus-confirmed state;
+no raw records, identity values, or confidential locations are reproduced here.
+
+The shared SQL rule suppresses only an older unproven same-sex candidate for
+a reliably identified bird with later unambiguous strong proof elsewhere.
+Resolved history, same-day uncertainty, later contrary evidence, X-X, and
+shared-mark safeguards remain. Documentation and executable invented cases
+are updated together. Live database changes, publication, and full field/PDF
+replay require separate authority and verification.
+
 Publication addendum: the refresh terminator fix discussed below was later
 merged through PR #147 at `f7d13fb`. Historical entries retain the state that
 was true when their prompts were written; source merge still does not prove
