@@ -274,6 +274,10 @@ test_that("chick growth plot uses ring-only identity and has three panels", {
   )
 
   expect_s3_class(plot, "patchwork")
+  expect_equal(
+    plot$patches$plots[[1]]$scales$get_scales("y")$limits,
+    c(7, 13)
+  )
 })
 
 

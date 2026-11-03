@@ -2798,6 +2798,22 @@ overview_chick_growth_plot <- function(
     panel_data <- plot_data[measure == measure_name]
     panel_lines <- line_data[measure == measure_name]
     panel_trend <- trend_data[measure == measure_name]
+    y_limits <- if (nrow(panel_data)) {
+      range(panel_data$value, finite = TRUE)
+    } else {
+      c(0, 1)
+    }
+
+    if (
+      length(y_limits) != 2L ||
+        any(!is.finite(y_limits))
+    ) {
+      y_limits <- c(0, 1)
+    }
+
+    if (diff(y_limits) == 0) {
+      y_limits <- y_limits + c(-0.5, 0.5)
+    }
 
     panel <- ggplot(
       panel_data,
@@ -2846,7 +2862,10 @@ overview_chick_growth_plot <- function(
         breaks = scales::breaks_pretty(n = 8),
         expand = expansion(mult = c(0.02, 0.04))
       ) +
-      scale_y_continuous(name = ylab) +
+      scale_y_continuous(
+        name = ylab,
+        limits = y_limits
+      ) +
       base_theme
   }
 
