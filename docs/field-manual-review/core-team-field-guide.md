@@ -23,7 +23,7 @@ record truthful and consult the linked procedure or Luke Eberhart-Hertel.
 | Nest or scrape visited | One `NESTS` row per actual visit. |
 | Eggs measured | One `EGGS` row per egg measured. |
 | Bird handled | One `CAPTURES` row per bird per handling event. |
-| Bird only observed | One `RESIGHTINGS` row per bird per observation. |
+| Bird observed | One `RESIGHTINGS` row per bird per observation. |
 | Chick photographed hiding | A separate `RESIGHTINGS` row per chick, `rclass = H`, in addition to any handling record. |
 
 Do not invent a sighting because a bird was captured. A genuine observation
