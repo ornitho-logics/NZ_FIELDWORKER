@@ -4203,6 +4203,13 @@ WITH first_marking_counts AS (
     event_union.nest_id,
     event_union.sex,
     event_union.identity_key,
+    MAX(DATE(event_union.event_datetime)) AS latest_association_event_date,
+    MAX(CASE
+      WHEN event_union.definitive_capture = 1
+        OR (event_union.confirming_resighting = 1
+          AND event_counts.n_identity_keys = 1)
+      THEN DATE(event_union.event_datetime)
+    END) AS latest_strong_association_date,
     CASE
       WHEN MAX(event_union.definitive_capture) = 1
       THEN MIN(CASE
@@ -4344,22 +4351,65 @@ WITH first_marking_counts AS (
       PARTITION BY ranked.nest_id, ranked.sex
     ) AS n_highest_identities
   FROM ranked
+), cross_nest_evidence AS (
+  /* A later uniquely selected strong association supersedes only an older
+     unproven candidate for the same reliably identified bird and sex. Reuse
+     the small identity summaries: never self-join the expanded event graph.
+     X-X, shared recruit colours, ambiguous identity matches, and ties cannot
+     supply cross-nest proof. Dates are strict because resightings have no time. */
+  SELECT
+    counted.*,
+    MAX(CASE
+      WHEN counted.association_level >= 2
+       AND counted.association_level = counted.highest_association_level
+       AND counted.n_highest_identities = 1
+       AND counted.has_ambiguous_match = 0
+       AND counted.identity_single_colour_recruit = 0
+       AND counted.identity_key REGEXP '^(ring|flag|lower):'
+      THEN counted.latest_strong_association_date
+    END) OVER (
+      PARTITION BY counted.sex, counted.identity_key
+    ) AS latest_selected_strong_date
+  FROM counted
+), retained_candidates AS (
+  SELECT cross_nest_evidence.*
+  FROM cross_nest_evidence
+  WHERE CASE
+    WHEN cross_nest_evidence.association_level = 0
+     AND cross_nest_evidence.has_ambiguous_match = 0
+     AND cross_nest_evidence.identity_single_colour_recruit = 0
+     AND cross_nest_evidence.identity_key REGEXP '^(ring|flag|lower):'
+     AND cross_nest_evidence.latest_association_event_date
+       < cross_nest_evidence.latest_selected_strong_date
+    THEN 0 ELSE 1 END = 1
+), retained_counts AS (
+  /* Only level-zero candidates can disappear. The highest level is unchanged,
+     but weak-candidate ties must be recounted after a candidate is removed. */
+  SELECT
+    retained_candidates.*,
+    SUM(CASE
+      WHEN retained_candidates.association_level = retained_candidates.highest_association_level
+      THEN 1 ELSE 0 END
+    ) OVER (
+      PARTITION BY retained_candidates.nest_id, retained_candidates.sex
+    ) AS n_retained_highest_identities
+  FROM retained_candidates
 ), classified AS (
   SELECT
     counted.*,
     CASE
       WHEN counted.highest_association_level >= 1
-       AND counted.n_highest_identities = 1
+       AND counted.n_retained_highest_identities = 1
        AND counted.association_level = counted.highest_association_level
       THEN 1 ELSE 0
     END AS association_selected,
     CASE
       WHEN counted.highest_association_level >= 0
-       AND counted.n_highest_identities > 1
+       AND counted.n_retained_highest_identities > 1
        AND counted.association_level = counted.highest_association_level
       THEN 1 ELSE 0
     END AS association_ambiguous
-  FROM counted
+  FROM retained_counts counted
 )
 SELECT
   classified.nest_id,

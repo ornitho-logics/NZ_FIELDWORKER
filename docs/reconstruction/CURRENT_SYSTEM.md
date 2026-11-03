@@ -113,6 +113,17 @@ Ties at that level, ambiguous matching, or no positive level remain unresolved.
 The direct gates share level 3; these are alternative evidence routes. TN resolves
 direct association; MM annotates identity at that nest, not a separate task engine.
 
+The 3 November cross-nest rule removes an older, still-level-zero candidate only
+when the same reliably identified bird and sex has a uniquely selected level-2
+or level-3 association at another nest on a strictly later field date than all
+of the older candidate's encounters. Reference-date bounds, identity ambiguity,
+shared-colour exclusions, and same-day uncertainty remain. Earlier resolved
+associations are not erased. Remaining weak candidates are recounted, not
+promoted to resolved status. Both dates are aggregated in the existing event
+scan, followed by windows over the identity summaries; no raw-event self-join,
+new public view column, refresh stage, or R association rule is added. See
+[the chronology contract](PARENT_ASSOCIATION_CHRONOLOGY.md).
+
 Luke's 31 October decision preserves eligible pre-MM evidence for a reliably
 identified bird at the same nest. MM does not reset independently earned proof.
 The approved 1 November exception assumes a confirming X-X resighting and unique

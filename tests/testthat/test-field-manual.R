@@ -4,7 +4,7 @@ manual_file <- function(...) file.path(manual_root, "main", "www", "field-manual
 
 test_that("Field Manual is wired directly below Nest Map with a static reader", {
   ui <- paste(readLines(file.path(manual_root, "main", "ui.R")), collapse = "\n")
-  expect_match(ui, 'menuItem("Field Manual", tabName = "field_manual"', fixed = TRUE)
+  expect_match(ui, 'menuItem\\(\\s*"Field Manual",\\s*tabName\\s*=\\s*"field_manual"', perl = TRUE)
   expect_lt(regexpr('"Nest Map"', ui)[1], regexpr('"Field Manual"', ui)[1])
   expect_match(ui, 'id = "field_manual_reader"', fixed = TRUE)
   expect_match(ui, 'src = "field-manual/index.html"', fixed = TRUE)

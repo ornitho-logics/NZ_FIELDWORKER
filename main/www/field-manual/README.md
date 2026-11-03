@@ -16,8 +16,11 @@ the diff first: all files under `main/www` are browser-readable. Never import
 private records, coordinates, credentials, or unpublished operational reports.
 The private review draft is not loaded at runtime or silently kept in sync.
 
-The app publication copy is v2.4.19 (revised 2 November 2026). The latest edit
-applies the Oxford comma without changing field procedures. It documents
+The app publication copy is v2.4.20 (revised 3 November 2026). The latest edit
+explains the narrowly scoped cross-nest override of an earlier pending candidate
+by later, unambiguous strong association evidence for the same identified adult.
+It preserves resolved history and does not transfer proof between nests. The
+Oxford comma remains the writing convention. It documents
 Hatch timing (days), which reuses the PDF summary formatter without changing
 SQL or scientific rules. It explains the
 cleaned Nest Map popup and its cached parent-association annotations, including
