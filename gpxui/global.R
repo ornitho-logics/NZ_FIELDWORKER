@@ -1,4 +1,4 @@
-# UI for fetching, visualizing and exporting GPS data
+# UI for fetching, visualizing, and exporting GPS data
 #' shiny::devmode(TRUE);shiny::runApp('./gpxui', launch.browser =  TRUE)
 
 #! Packages, functions

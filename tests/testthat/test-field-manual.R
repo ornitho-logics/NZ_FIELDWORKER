@@ -11,7 +11,7 @@ test_that("Field Manual is wired directly below Nest Map with a static reader", 
   expect_match(ui, 'title = "BADO Field Manual', fixed = TRUE)
 })
 
-test_that("app manual preserves disclosure, sections and expected event table", {
+test_that("app manual preserves disclosure, sections, and expected event table", {
   md <- paste(readLines(manual_file("manual.md"), encoding = "UTF-8"), collapse = "\n")
   html <- paste(readLines(manual_file("index.html"), encoding = "UTF-8"), collapse = "\n")
   expect_gt(regexpr("## Authorship and use of AI", md)[1], regexpr("## Appendix B.", md, fixed = TRUE)[1])
@@ -63,7 +63,7 @@ test_that("manual presents nationwide scope and clear tracking-tag terminology",
   expect_false(grepl("throghout", md, fixed = TRUE))
   expect_false(grepl("preceeding", md, fixed = TRUE))
   expect_match(md, "a **geolocator/tag** is a tracking unit fitted to a bird", fixed = TRUE)
-  expect_match(md, "Was there a geolocator/tag action, hatch, failure or closure?", fixed = TRUE)
+  expect_match(md, "Was there a geolocator/tag action, hatch, failure, or closure?", fixed = TRUE)
   expect_false(grepl("\\bdevices?\\b", md, ignore.case = TRUE, perl = TRUE))
   expect_match(md, "For example, Cass River BADO IDs", fixed = TRUE)
   expect_match(md, "In the current Cass River To-Do implementation", fixed = TRUE)

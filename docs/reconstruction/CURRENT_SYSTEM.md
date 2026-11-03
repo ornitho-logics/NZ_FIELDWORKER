@@ -10,10 +10,10 @@ this is not live installation or a new full field/PDF replay.
 
 ## Authority and scope
 
-- [AGENTS.md](../../AGENTS.md) governs authority, confidentiality and human control.
+- [AGENTS.md](../../AGENTS.md) governs authority, confidentiality, and human control.
 - For implemented behaviour, inspect the selected revision's
   [views](../../DATABASE/views.SQL), [refresh](../../DATABASE/refresh_todo_list_snapshot.SQL),
-  [table DDL](../../DATABASE/main_tables.SQL), inspector exports and R consumers.
+  [table DDL](../../DATABASE/main_tables.SQL), inspector exports, and R consumers.
 - Reconcile source/document disagreements explicitly; prose cannot change biology.
 - [Thread 4](../../notes/codex_proposals/THREAD4_TODO_MAP_LIST_DEBUG_PLAN.md) and
   [Thread 9](../../notes/codex_proposals/THREAD9_LOCAL_REPLICA_PROTOCOL.md) retain
@@ -25,18 +25,18 @@ this is not live installation or a new full field/PDF replay.
   Local/external protocols and
   live inspectors are separate artifacts, not implicitly synchronized by a commit.
 
-## Events, identity and chronology
+## Events, identity, and chronology
 
-Raw CAPTURES, RESIGHTINGS, NESTS and EGGS rows remain observations, identified by
+Raw CAPTURES, RESIGHTINGS, NESTS, and EGGS rows remain observations, identified by
 their table and `pk`; a shared occasion does not make rows duplicate events.
-Family encounters use date, site and the complete `gps_id`/`gps_point` pair.
+Family encounters use date, site, and the complete `gps_id`/`gps_point` pair.
 Conflicting nonblank nest/brood IDs, including across tables, veto inferred family
 links. Different encounters can document real brood mixing; raw IDs are not rewritten.
 
 Metal rings and engraved flags identify individuals; ordinary adult matching uses
 LL/LR, with full/spacer aliases where needed. A shared chick colour is not unique.
 Capture identity prefers post-handling marks, with `_in` fallback for missing
-release fields. Ring keys are trimmed, uppercased and dehyphenated; missing/sentinel
+release fields. Ring keys are trimmed, uppercased, and dehyphenated; missing/sentinel
 values do not become identities. Any `?` in a sighting's four leg fields excludes
 the event from parent evidence unless a known capture ring reliably traces identity.
 Archive captures supply identity/sex/tag context, never a historical current-nest link.
@@ -46,7 +46,7 @@ time, then midnight; adult resightings enter association chronology at midnight.
 Preserve match-specific dates/event keys/ambiguity, not a universal “latest row wins”.
 Under the approved 1 November rule, an unambiguous confirming X-X observation links to one
 unique eligible `capture_status = F` first-banding captured identity of the same
-sex, nest and date, including MM without any later proof. The former requirement
+sex, nest, and date, including MM without any later proof. The former requirement
 for an identity with later confirming evidence is superseded for this same-day
 link only; different-day earlier X-X still requires the new bird's own one
 confirming or three distinct eligible observations. Preserve the date;
@@ -66,7 +66,7 @@ In [views.SQL](../../DATABASE/views.SQL), read `ADULT_CAPTURE_IDENTITIES_ALL`,
 | Direct capture | TB/TN/HA or a capture with chick(s) in `caught_with`; level 3. MM alone is not definitive. |
 | Capture with GPS-linked chick | Exact dated site/GPS linkage to one operational nest/brood; eligible opposite-parent evidence may resolve a blank ID; level 3. |
 | Confirming resighting | One eligible nest-linked IN/NM/SC/BW/BC/FC/AC token observation with observed lower fields and a valid dated nest/brood; level 2. |
-| Repeated resighting | Three distinct unambiguous nonconfirming events of the same nest, sex and identity; level 1, including the initial event. |
+| Repeated resighting | Three distinct unambiguous nonconfirming events of the same nest, sex, and identity; level 1, including the initial event. |
 
 ### Nest-map association display (1 November 2026)
 
@@ -75,7 +75,7 @@ columns on `ADULT_PARENT_STATUS` and its derived parent snapshot. Their labels
 reuse the existing per-identity event scan and winning association level:
 definitive capture method (`TN`, `TB`, `HA`, or `with chicks`), `GPS + chicks`,
 confirming behaviour code(s), or the distinct qualifying nonconfirming count.
-No selection, ambiguity, MM chronology, reference-date or task gate uses these
+No selection, ambiguity, MM chronology, reference-date, or task gate uses these
 columns. Selected evidence takes precedence over pending competitors; without
 a selected parent, each pending identity keeps its own count and nest-specific
 MM/ambiguity annotation. Existing pending-detail fields are unchanged.
@@ -85,7 +85,7 @@ succeeded for the current reference date; it never queries the expanded live
 association view for these annotations. Counts therefore reflect that snapshot,
 not subsequently entered observations, until another successful build. Missing
 new columns, an in-progress/failed build, a different reference date, duplicate
-snapshot keys or a disagreement with the live displayed bird withhold the
+snapshot keys, or a disagreement with the live displayed bird withhold the
 annotation, retaining the plain map identity. No raw records are changed.
 
 The popup also uses one **Last encounter** field relative to the reference date:
@@ -101,15 +101,15 @@ The subsequent **Hatch timing (days)** popup field delegates to the existing
 `todo_pdf_prepare_nest_summary()` formatter rather than copying its hatch rules.
 The map supplies the same reference-date published task values and the existing
 `EGGS_HATCH_PREDICTION` metadata, alongside its nest/brood rows. This preserves
-negative overdue/brood-age values, task overrides, no-float suppression and
+negative overdue/brood-age values, task overrides, no-float suppression, and
 explicit flotation exemptions. It uses small published task rows and one
 narrow projection of the existing hatch-prediction view when map data changes;
-there is no per-click query, new SQL object, schema change, refresh stage or PDF
+there is no per-click query, new SQL object, schema change, refresh stage, or PDF
 render. An unavailable/withheld value displays Unknown. This map-only addition
 requires an app update, not another SQL import.
 
 Select exactly one identity at the highest positive level for each nest and sex.
-Ties at that level, ambiguous matching or no positive level remain unresolved.
+Ties at that level, ambiguous matching, or no positive level remain unresolved.
 The direct gates share level 3; these are alternative evidence routes. TN resolves
 direct association; MM annotates identity at that nest, not a separate task engine.
 
@@ -118,7 +118,7 @@ identified bird at the same nest. MM does not reset independently earned proof.
 The approved 1 November exception assumes a confirming X-X resighting and unique
 eligible same-sex/same-nest/same-date status-F capture target the same individual;
 its same-day confirmation transfers to the new marked identity. Multiple competing
-captured identities, ambiguous/ineligible evidence, other sex/nest, recapture only
+captured identities, ambiguous/ineligible evidence, other sex/nest, recapture only,
 or evidence beyond the reference date cannot supply this link. Count all eligible
 distinct F capture identity keys in the same-sex/same-nest/same-date
 `first_marking_counts` pool before
@@ -131,8 +131,8 @@ older X-X, a later first-marked bird still needs its own one confirming or three
 distinct eligible postcapture observations. Its own valid same-day confirming
 linkage now supplies proof to retire older placeholders without transferring
 their proof or backdating association. Original MM displacement history,
-independent conflicts and the four-gate hierarchy remain intact. Seven-day,
-36-hour and tag gates, juvenile-origin and brood-closure same-day safeguards
+independent conflicts, and the four-gate hierarchy remain intact. Seven-day,
+36-hour, and tag gates, juvenile-origin and brood-closure same-day safeguards
 are unchanged. See [chronology contract](PARENT_ASSOCIATION_CHRONOLOGY.md)
 and [machine-readable cases](parent-association-cases.json).
 
@@ -160,7 +160,7 @@ engraved-flag coverage generates `Broods to recapture for flagging`.
 
 During days 1–6 after hatch/discovery, H-photo work compares distinct qualifying
 H-photo rings against active captured chick-ring targets. Require age C, class H,
-resolved linkage, GPS_POINTS match and nonblank photo range. Duplicate photos count
+resolved linkage, GPS_POINTS match, and nonblank photo range. Duplicate photos count
 once; absent targets keep work open within the window. Tent photos do not close it.
 For blank-ID negative-brood family inference both selected parents need prior proof;
 only the parent(s) actually observed need current BC/FC/AC rows. SC is not a substitute.
@@ -177,7 +177,7 @@ An origin-linked age-J event resolves the whole brood, including J/D development
 evidence, which does not prove survival. Closed/resolved broods lose operational
 tasks through the publication guard, while eligible positive `notA nest-check` remains.
 
-## Capture timing, tag instructions and maps
+## Capture timing, tag instructions, and maps
 
 Parent capture normally needs confirmed clutch completion plus seven days, and an
 independent 36-hour interval evaluated at reference-date 08:00. Sex-targeted timing
@@ -209,13 +209,13 @@ snapshots and promotes them together. `TODO_LIST` is the task contract; changing
 source/reference date or downloading a PDF does not itself publish a new snapshot.
 [App guards](../../main/R/system_utils.R) check date/latest refresh state.
 [notA_summary](../../DATABASE/notA_summary.SQL) installs after the first successful
-refresh, reads published nest/parent snapshots and returns no rows for stale or
+refresh, reads published nest/parent snapshots, and returns no rows for stale or
 incomplete latest status. It reports historical terminal nest visits, confirmed
 parents separately from pending details, and conservative later-nest identity links.
 Later links require the same resolved identity/sex and a strictly later first-found
 date: ring/flag or a fully supported classic lower key, never X-X/shared chick marks.
 It neither declares brood death nor imports handwritten links. Repository inspection
-and prior local replay establish no production schema, inspector or running-app version.
+and prior local replay establish no production schema, inspector, or running-app version.
 
 ## Approved follow-up to the reconstruction review
 
@@ -233,6 +233,6 @@ existing manual/validator contract: R/C require incoming and release marks;
 D requires recovered incoming marks and blank release fields/time; X means
 an unmarked position, not a missing observation. Source comments and a separate
 read-only comment-patch generator implement that wording correction. Validator
-code, column types, constraints and stored field records are unchanged. Live
+code, column types, constraints, and stored field records are unchanged. Live
 comments have not been inspected or changed by this work. This follow-up is
 separate from the earlier reconstruction-only verification record.

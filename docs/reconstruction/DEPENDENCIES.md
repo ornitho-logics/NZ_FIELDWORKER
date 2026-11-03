@@ -1,6 +1,6 @@
 # Reconstruction dependencies and source order
 
-Reviewed from repository source on 2026-10-31; no app, test, package installation
+Reviewed from repository source on 2026-10-31; no app, test, package installation,
 or database was run for this document. This is a dependency contract, not a lockfile
 or deployment record. The reconstruction package's machine dependency manifest
 must record observed versions/revisions; no R/package/Quarto pins are invented here.
@@ -14,13 +14,13 @@ The order below describes prerequisites, not permission to execute source script
 | Order | Repository source / prerequisite | Contract |
 | --- | --- | --- |
 | 1 | [main_tables.SQL](../../DATABASE/main_tables.SQL) | Creates/selects the current schema and core event/GPS tables. Some CREATE TABLE statements are not idempotent. |
-| 2 | [support_tables.SQL](../../DATABASE/support_tables.SQL) | Select the intended current schema first; creates settings, spatial_objects and inspectors using unqualified names. |
+| 2 | [support_tables.SQL](../../DATABASE/support_tables.SQL) | Select the intended current schema first; creates settings, spatial_objects, and inspectors using unqualified names. |
 | 3 | Synthetic current/support inputs | Supply one non-NULL `settings.reference_date`; spatial and inspector data are separate prerequisites for those features. DDL alone does not seed them. |
 | 4 | Historic compatibility objects | Provide `BADOatNZ.CAPTURES` and `BADOatNZ.SEX` before archive-dependent views; use synthetic structure/data only. |
 | 5 | [functions.SQL](../../DATABASE/functions.SQL) | Defines `FIELD_2026_BADOatNZ.format_mark()` before consumers. |
 | 6 | [predict_hatching.SQL](../../DATABASE/predict_hatching.SQL) | Creates/seeds the calibration support table before hatch/view consumers. |
 | 7 | [views.SQL](../../DATABASE/views.SQL) | Install the whole ordered helper/identity/compatibility/snapshot-boundary graph. |
-| 8 | [refresh_todo_list_snapshot.SQL](../../DATABASE/refresh_todo_list_snapshot.SQL) | Build indexed contexts, parent/closure/task snapshots and publish them together. |
+| 8 | [refresh_todo_list_snapshot.SQL](../../DATABASE/refresh_todo_list_snapshot.SQL) | Build indexed contexts, parent/closure/task snapshots, and publish them together. |
 | 9 | [notA_summary.SQL](../../DATABASE/notA_summary.SQL) | Optional report installed after the first successful refresh; later publications update its inputs automatically. |
 | 10 | R consumers and PDF resources | Consume a successful current snapshot; do not replace refresh with a PDF download. |
 
@@ -52,14 +52,14 @@ but cannot establish a current-season nest association by itself.
 MariaDB **11.8.9** is the documented local reconstruction/replay baseline, not a
 claim of broad MySQL/SQLite portability or the production server's version.
 Required features include CTEs, window functions, session variables, prepared
-statements/SIGNAL, advisory locks, temporary tables and multi-table RENAME.
+statements/SIGNAL, advisory locks, temporary tables, and multi-table RENAME.
 Views installation and refresh share a cooperative schema lock and bound session
 metadata-lock waits. Run each complete script on one connection and stop on error;
 connection-local refresh inputs must survive until publication completes.
 
 Character semantics matter: current DDL/expressions use `utf8mb4_uca1400_ai_ci`
 alongside explicit `utf8mb4_general_ci` comparisons. `format_mark()` has no explicit
-return collation in tracked source. Record schema, connection, imported-column and
+return collation in tracked source. Record schema, connection, imported-column, and
 function-return collations. Older replay needed disposable collation normalization;
 that diagnostic adaptation is not an automatically approved production migration.
 
@@ -70,7 +70,7 @@ own case-sensitive APFS sparse volume. An initial native macOS value-2 bootstrap
 failed on a temporary-table CTE during refresh; it is retained as a failed
 platform control, not resolved by changing reference SQL or skipping that stage.
 The [Thread 9 record](../../notes/codex_proposals/THREAD9_LOCAL_REPLICA_PROTOCOL.md)
-distinguishes completed local checks, missing older golden artifacts and historical
+distinguishes completed local checks, missing older golden artifacts, and historical
 failures. Stop at a collation/case/install error; a partial build is not publication.
 RDS export requires base tables plus CAPTURES_ARCHIVE; SQL backup needs
 `mariadb-dump` or `mysqldump` and a verified completion marker despite view warnings.
@@ -79,7 +79,7 @@ RDS export requires base tables plus CAPTURES_ARCHIVE; SQL backup needs
 
 | Boundary | Required behaviour / repository consumer |
 | --- | --- |
-| DataEntry | [Entry wrappers](../../DataEntry/CAPTURES/global.R) use ui_append_rows/server_append_rows and prepare_for_dropdown; editor modules use table/inspector/code editors. Package owns loading, validation and saves. |
+| DataEntry | [Entry wrappers](../../DataEntry/CAPTURES/global.R) use ui_append_rows/server_append_rows and prepare_for_dropdown; editor modules use table/inspector/code editors. Package owns loading, validation, and saves. |
 | dbo / connection layer | [DBq/DBx](../../main/R/system_utils.R) expect db_con() plus DBI-compatible connections; group/schema and local configuration resolve externally. DBq returns a data.table error column on failure. |
 | gpxui | [global](../../gpxui/global.R), [UI](../../gpxui/ui.R) and [server](../../gpxui/server.R) require gpx_ui(gps_ids) and gpx_server(), with GPS_POINTS/GPS_TRACKS linkage preserved. |
 
@@ -97,29 +97,29 @@ Package internals/revisions are external and were not audited in this documentat
 pass. Record the actual DataEntry/dbo/gpxui source revisions and dependency metadata
 in the machine manifest; do not infer them from this repository's commit.
 
-`DATAENTRY_CNF`, `GPXUI_CNF` and dbo options identify operator-local configuration.
+`DATAENTRY_CNF`, `GPXUI_CNF`, and dbo options identify operator-local configuration.
 Do not copy those files or paths into fixtures/manifests. Sourcing entry globals can
 query the database; app launch and refresh controls are not read-only diagnostics.
 
-## R, Quarto and Typst PDF path
+## R, Quarto, and Typst PDF path
 
 [main/global.R](../../main/global.R) is the current direct R package inventory:
 DataEntry, DBI, DT, data.table, stringr, glue, ggplot2, mgcv, ggrepel, htmltools,
 htmlwidgets, ini, jsonlite, quarto, patchwork, png, curl, sf, zip, shiny,
-shinyWidgets, shinycssloaders, bs4Dash, fresh, later, waiter and leaflet.
-Capture R/session information, transitive dependencies and database driver versions
+shinyWidgets, shinycssloaders, bs4Dash, fresh, later, waiter, and leaflet.
+Capture R/session information, transitive dependencies, and database driver versions
 from the approved environment; this list supplies neither minimums nor a lockfile.
 The app declares `Pacific/Auckland`; record the SQL/session time assumptions too.
 
 [pdf_todo.R](../../main/R/pdf_todo.R) generates QMD from
 [todo_pdf.qmd](../../main/templates/todo_pdf.qmd), then calls Quarto with
 `output_format = "typst"`. Supply the R quarto package, Quarto CLI and its usable
-Typst toolchain, fonts, writable render directory and compatible graphics devices.
+Typst toolchain, fonts, writable render directory, and compatible graphics devices.
 The to-do PDF path uses **Typst, not LaTeX**; installing TeX is not its remedy.
 `pdfinfo` improves page counting; the R code has a fallback when it is absent.
 
 [pdf_todo_map.R](../../main/R/pdf_todo_map.R) additionally needs sf's native spatial
-libraries/CRS resources, ggplot2/ggrepel/patchwork/png/curl, A/B/C study-area geometry
+libraries/CRS resources, ggplot2/ggrepel/patchwork/png/curl, A/B/C study-area geometry,
 and available imagery/cache inputs. Metric plotting uses EPSG:2193 from EPSG:4326.
 An offline synthetic check must supply safe invented spatial inputs and avoid
 assuming network imagery. Rendering success still needs visual inspection.

@@ -15,15 +15,24 @@ approve or deploy the protected validator WIP.
 The reviewed tracked validator protocol remains v1.3.20, generated
 2026-10-29, including registered uppercase letter/digit observer codes. The
 recent conditional tagging notes, pending tagged-parent task guard, map
-highlighting and `notA_summary` report belong to the derived operational
-layer. They do not add save-time validators, change inspector roles or imply
+highlighting, and `notA_summary` report belong to the derived operational
+layer. They do not add save-time validators, change inspector roles, or imply
 external YAML synchronisation. Current field wording is in app manual
 v2.4.12; earlier version/state descriptions below retain their audit dates.
+
+### 2026-11-02 prose convention
+
+Luke requests the Oxford comma in all prose lists of three or more items,
+including inspector reasons, protocol descriptions, and field guidance. Follow
+the standing rule in `AGENTS.md`. The tracked inspector messages already use
+serial commas in their enumerations; the editorial review does not change
+validator expressions or their severity. The local YAML mirror receives only
+prose punctuation edits, not a scientific version change or an external sync.
 
 ### 2026-10-29 clarification: live inspector row names and roles
 
 Luke's supplied Adminer metadata confirms that `inspectors.table_name` contains
-the actual table name, such as `CAPTURES`, `EGGS` or `OBSERVERS`. Hard and warning
+the actual table name, such as `CAPTURES`, `EGGS`, or `OBSERVERS`. Hard and warning
 lists for the same table share that value. The role is the final word in
 `inspectors.comments`: `hard` versus `warn`, following a descriptive author/date
 prefix. Preserve that prefix. OBSERVERS currently needs only its hard list.
@@ -44,7 +53,7 @@ The current local observer-code protocol update is v1.3.20; the versioned
 reconciliation history below remains historical, not deployment evidence.
 
 See `DATABASE/README_observer_codes_2026-10-29.md` for the narrowly scoped
-installer, tests, session reload and rollback workflow. No live database was
+installer, tests, session reload, and rollback workflow. No live database was
 queried or changed by the agent to establish this clarification; the metadata
 was provided by Luke.
 
@@ -337,7 +346,7 @@ exclusivity rule.
 `CAP_009B` also checks same-occasion family consistency when CAPTURES is the
 current table. A family capture is an age-C row or an age-A row whose
 `caught_with` value records chicks. For the same date, site, complete
-`gps_id/gps_point` pair, current family captures and relevant saved
+`gps_id/gps_point` pair, current family captures, and relevant saved
 CAPTURES/RESIGHTINGS companions must resolve to one positive or negative
 `nest_id`. Conflicting IDs are save-blocking even when all current rows carry
 explicit IDs; separate dates, sites, or GPS pairs remain separate encounters.
@@ -492,8 +501,8 @@ wildcard or complete mark component; a row containing only uncertainty cannot
 become a definitive identity for parent/S10, sex-history, or available-combination
 generation. Independent complete evidence such as a ring, full flag, or complete
 canonical mark component remains available where the existing matching method
-supports it. CAPTURES rejects the same notation in UL, LL, UR and LR, including
-UL_in, LL_in, UR_in and LR_in; `RESIGHTINGS_PUBLIC` is unaffected.
+supports it. CAPTURES rejects the same notation in UL, LL, UR, and LR, including
+UL_in, LL_in, UR_in, and LR_in; `RESIGHTINGS_PUBLIC` is unaffected.
 
 Warning rules cover capture-history mark comparison, capture-history sex comparison
 (`RES_005H`), social-parent mark mismatch, mixed-brood review, device defaults,

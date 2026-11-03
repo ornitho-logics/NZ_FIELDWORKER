@@ -82,7 +82,7 @@ def validate_workflow(workflow):
         if step["role"] not in roles:
             errors.append("unknown role: " + step["id"])
         if not set(step["depends_on"]).issubset(visited):
-            errors.append("missing, cyclic or out-of-order dependency: " + step["id"])
+            errors.append("missing, cyclic, or out-of-order dependency: " + step["id"])
         if not all(step.get(k) for k in ("action", "gate", "outputs")):
             errors.append("empty step contract: " + step["id"])
         for path in step["inputs"]:
@@ -170,7 +170,7 @@ def main():
         errors += ["protected runtime changed: " + p for p in changed]
     else:
         if not args.study or not args.approved_changes or not args.reference_root:
-            errors.append("Adaptation requires approved study, literal change manifest and separate reference-root")
+            errors.append("Adaptation requires approved study, literal change manifest, and separate reference-root")
         else:
             if args.reference_root.resolve() == ROOT:
                 errors.append("Target and retained reference must be separate checkouts")

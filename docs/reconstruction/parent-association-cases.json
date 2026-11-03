@@ -4,7 +4,7 @@
   "scope": "Invented relative-day scenarios; apply independently to M and F at one nest. Not runtime configuration.",
   "source": "DATABASE/views.SQL:ADULT_PARENT_NEST_ASSOCIATIONS",
   "test": "tests/testthat/test-mm-xx-chronology-2026-10-31.R",
-  "verification_2026_11_01": "PASS for focused synthetic scope: 65 actual-SQL chronology assertions, 1,004 assertions overall and a fresh isolated MariaDB 11.8.9 synthetic install/refresh. See SAME_DAY_LINKAGE_VERIFICATION_2026-11-01.md for source hashes and unexecuted field/PDF/live/browser limits; this case catalog is not a second executable implementation.",
+  "verification_2026_11_01": "PASS for focused synthetic scope: 65 actual-SQL chronology assertions, 1,004 assertions overall, and a fresh isolated MariaDB 11.8.9 synthetic install/refresh. See SAME_DAY_LINKAGE_VERIFICATION_2026-11-01.md for source hashes and unexecuted field/PDF/live/browser limits; this case catalog is not a second executable implementation.",
   "cases": [
     {"id": "identified_prior_proof", "events": ["identified A confirms association", "later MM capture of A"], "expected": "Preserve A's independently earned proof and date."},
     {"id": "identified_two_plus_one", "events": ["two eligible nonconfirming A sightings", "MM capture A", "third eligible A sighting"], "expected": "A qualifies through three; no universal post-MM reset."},
@@ -21,6 +21,6 @@
     {"id": "same_day_pool_before_filters", "events": ["same-day eligible unambiguous X-X IN", "two eligible F capture identity keys at same sex/nest/date in first_marking_counts before later-proof or ambiguity filters", "one candidate lacks later proof or is excluded by a later ambiguity filter"], "expected": "The first-marking pool still contains two distinct capture identity keys; later filtering cannot manufacture a unique replacement or authorize same-day proof transfer. Count keys, not duplicate rows; confirming resighting r must also be unambiguous."},
     {"id": "same_day_ineligible_link", "events": ["same-day X-X/capture pair with ambiguous or ineligible evidence, other sex/nest, recapture only, or capture/proof beyond reference date"], "expected": "No same-day proof transfer; all eligibility and reference-date guards still apply."},
     {"id": "later_xx_separate", "events": ["day1 same-day X-X IN and unique eligible first MM capture link", "day2 same-sex X-X IN at that nest"], "expected": "Day2 X-X remains separate evidence; original displacement history and independent strong conflicts are preserved."},
-    {"id": "guardrails", "events": ["duplicates, future proof, ambiguous matches, opposite-sex X-X, later recapture or multiple qualifying candidates"], "expected": "No duplicate inflation, future leakage, opposite-sex displacement or unsupported X-X identity transfer."}
+    {"id": "guardrails", "events": ["duplicates, future proof, ambiguous matches, opposite-sex X-X, later recapture, or multiple qualifying candidates"], "expected": "No duplicate inflation, future leakage, opposite-sex displacement, or unsupported X-X identity transfer."}
   ]
 }

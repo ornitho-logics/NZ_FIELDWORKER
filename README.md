@@ -2,6 +2,36 @@
 
 __Fieldworker__ is a modular Shiny application for organizing fieldwork.
 
+It brings field observations, maps, and daily planning together in one place.
+This version supports breeding Banded Dotterel / Pohowera fieldwork in New
+Zealand, connecting nest visits, egg measurements, captures, resightings, and GPS
+records to help teams decide what to do next.
+
+### What you can do
+
+* **Plan the day's fieldwork.** Download a To-do PDF with task tables and a map
+  for the selected reference date, covering nest checks, parent capture and
+  resighting, chick banding, photographs, and flagging work.
+* **Follow nests and broods on the map.** Explore their latest available
+  locations and click a point for parents, association evidence, hatch timing,
+  and the time since the last encounter.
+* **Review the bigger picture.** The Overview dashboard and summary views
+  bring together field progress, nest histories, and parent associations,
+  including historical nests that are no longer active.
+* **Enter and check observations.** Dedicated forms support field records.
+  Data-entry validators flag missing or inconsistent information and explain
+  what needs attention before saving, with warnings for items needing review.
+* **Link GPS records.** Upload waypoints and tracks and connect locations to
+  the corresponding field observations.
+* **Consult the Field Manual.** Browse or search the app's guide to field
+  procedures, data entry, and interpreting the reports.
+
+Reports use the app's selected reference date. After entering new records,
+**Build To-do snapshot** updates the daily task plan; downloading the PDF alone
+does not rebuild it. Builds show progress and offer Dotterel Finder in a new
+tab while you wait. Parent-association annotations on the map also use the
+latest successful snapshot.
+
 ### Directory structure
 
 ```
@@ -29,7 +59,7 @@ __Fieldworker__ is a modular Shiny application for organizing fieldwork.
 The interface in `main/` is both:
 
 * a landing page that links to the [DataEntry](https://github.com/ornitho-logics/DataEntry) and [gpxui](https://github.com/ornitho-logics/gpxui) interfaces.
-* a mapping, viewing, reporting and database-summary interface.
+* a mapping, viewing, reporting, and database-summary interface.
 
 The interfaces outside `main/` are self-contained and can be run independently if needed.
 
@@ -47,69 +77,20 @@ how to set the database credentials.
 shiny::runApp("./main", launch.browser = TRUE)
 ```
 
-### Reconstructing for another study
+### Further reading
 
-Start with [the reconstruction package](docs/reconstruction/README.md).
-It supplies a current architecture/rule specification, scientific adaptation
-checklist, source/test/manual crosswalk, captured dependency lock, synthetic
-bootstrap/acceptance tools and a [platform-neutral agent recipe](docs/reconstruction/workflow.json).
-The recipe assigns staged specialist roles and requires explicit decisions
-before transferring biological assumptions. Its profiles are planning documents;
-they do not reconfigure the app. The package introduces no app interaction or
-runtime behaviour changes. Use its evidence states to distinguish successful
-synthetic reproduction from missing package/browser or live deployment evidence.
-
-### Updating To-do reports
-
-The current view definitions are in `DATABASE/views.SQL`; the explicit snapshot
-build is in `DATABASE/refresh_todo_list_snapshot.SQL`. Deploy the reviewed app
-and SQL versions together. Updating the app or downloading a PDF does not
-rebuild an existing database snapshot. **Build To-do snapshot** runs the
-deployed refresh workflow for the selected reference date. It reports progress
-and elapsed time, advises that builds can take up to 20 minutes or longer on a
-busy server, and offers Dotterel Finder in a new tab while waiting. Do not start
-another build while one is running. Local runtime measurements do not guarantee
-the same duration through Adminer on the field server.
-
-`DATABASE/notA_summary.SQL` is a separate, optional view installer. After the
-first successful snapshot, select `FIELD_2026_BADOatNZ` in Adminer and execute
-the entire small script with **Stop on error** enabled. It creates/replaces
-only `notA_summary`, using published nest and parent snapshots. It does not
-modify base-table records or add a refresh stage. Install it once; subsequent
-successful snapshot builds update its results automatically. A full views
-import or extra refresh is unnecessary merely to install this report when a
-successful snapshot already exists. Reinstall only if the view definition
-changes or the database is rebuilt.
-
-The app's **Show Views → notA_summary** tab replaces View2 and has one row per
-historical notA nest, both confirmed parents, separate pending details and
-reliable later-nest links. Its scope follows the current BADO/Cass River parent
-engine. A stale date or incomplete latest refresh yields no report rows. A
-notA nest site is not evidence that its brood died. Rollback is to drop only
-the `notA_summary` view and restore the prior tab registration.
-
-Current tagging-note meanings and field restrictions are described in
-[Section 8 of the app manual](main/www/field-manual/manual.md#section-8).
-Notes containing `tag` receive the existing white map-point outline; that
-highlight does not waive the row's conditions. The local save-time validator
-protocol remains v1.3.20; the recent task wording/reporting changes do not
-require an inspector or external YAML update.
-
-### Project handoffs and Codex transparency
-
-Read [`AGENTS.md`](AGENTS.md) before using Codex or changing database-facing
-code. It defines the project's human-control, confidentiality, Git, validation,
-and live-database safety rules.
-
-The current specialist handoffs are under
-[`notes/codex_proposals/`](notes/codex_proposals/). Start with
-[`THREAD1_REPOSITORY_MAP.md`](notes/codex_proposals/THREAD1_REPOSITORY_MAP.md),
-then read the handoff for the relevant schema, validator, TODO/PDF/map,
-Overview, combo, GEO rollout, field-manual, or local-replay workstream.
-
-[`notes/CODEX_USAGE_TRANSPARENCY.md`](notes/CODEX_USAGE_TRANSPARENCY.md)
-documents how Codex was used, which artifacts are tracked, what remains
-human-controlled, and why raw prompts, confidential field data, credentials,
-coordinates, and private rollout reports are deliberately excluded. Sanitized
-prompt/decision summaries are indexed in
-[`notes/codex_logs/INDEX.md`](notes/codex_logs/INDEX.md).
+* [Field Manual](main/www/field-manual/manual.md): procedures and guidance for
+  field teams, including how to read the To-do PDF and map.
+* [Database scripts and installation notes](DATABASE/): technical SQL details
+  for database maintainers, including the optional historical nest summary.
+* [Reconstruction guide](docs/reconstruction/README.md): setup, verification
+  and a step-by-step agent recipe for adapting the project to another study.
+* [Developer guide](notes/codex_proposals/THREAD1_REPOSITORY_MAP.md): repository
+  map and links to the specialist handoffs.
+* [Contribution and safety rules](AGENTS.md): read before using an AI assistant
+  or changing database-facing code. Live changes remain human-controlled.
+* [AI-use transparency](notes/CODEX_USAGE_TRANSPARENCY.md) and
+  [decision summaries](notes/codex_logs/INDEX.md): how AI assisted development
+  and how confidentiality and human review are handled. The public repository
+  documents the software; confidential field data and credentials are not
+  published here.

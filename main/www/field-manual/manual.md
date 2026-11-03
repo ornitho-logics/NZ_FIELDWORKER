@@ -1,7 +1,7 @@
 # BADO Field Manual 2026
 
 Protocols for studying breeding Banded Dotterel / Pohowera\
-**Markdown review draft v2.4.18 · Revised 1 November 2026**
+**Markdown review draft v2.4.19 · Revised 2 November 2026**
 
 This draft aims to describe the field procedures and the data-entry
 validation logic for Banded Dotterel fieldwork throughout New Zealand during the breeding season.
@@ -13,12 +13,12 @@ the field record truthful and follow [Section 12](#section-12).
 - [1. How to use this manual](#section-1)
 - [2. What have I encountered?](#section-2)
 - [3. Before leaving the field house](#section-3)
-- [4. Nests, scrapes and eggs](#section-4)
-- [5. Adults, chicks and broods](#section-5)
-- [6. Captures, bands, rings, flags and tags](#section-6)
+- [4. Nests, scrapes, and eggs](#section-4)
+- [5. Adults, chicks, and broods](#section-5)
+- [6. Captures, bands, rings, flags, and tags](#section-6)
 - [7. Photographs and media handling](#section-7)
 - [8. Geolocator deployment and retrieval](#section-8)
-- [9. Fate, hatching, failure and notA](#section-9)
+- [9. Fate, hatching, failure, and notA](#section-9)
 - [10. End-of-day entry and review](#section-10)
 - [11. Field-to-database data dictionary](#section-11)
 - [12. Validator messages and repair guide](#section-12)
@@ -43,7 +43,7 @@ procedure first; use its supporting table when entering the data.
 The procedures apply to our Banded Dotterel / Pohowera work throughout New Zealand.
 Use `BADO` for the species and the approved code for your study site. `CR` means
 Cass River; it is an example here, not the code for every site. Site-specific
-nest-ID schemes, banding patterns and geolocator allocations below are labelled
+nest-ID schemes, banding patterns, and geolocator allocations below are labelled
 examples or project instructions, not permission to apply them at another site.
 Check your team's approved scheme and app configuration with the field lead.
 Wrybill nests may also be found and
@@ -52,7 +52,7 @@ from BADO in your notes. Other species and site codes in the app support wider p
 they are not additional procedures covered by this manual.
 
 Here, a **geolocator/tag** is a tracking unit fitted to a bird, not the Garmin
-GPS or camera. Section 8 explains geolocator deployment, retrieval and tag records.
+GPS or camera. Section 8 explains geolocator deployment, retrieval, and tag records.
 
 ### Record what happened
 
@@ -77,7 +77,7 @@ separation.
 A row is one line in the entry form. Two banded chicks seen together need two
 chick rows, not one row with “two chicks” in the comments.
 
-### Required, conditional, optional or blank?
+### Required, conditional, optional, or blank?
 
 | Wording in this manual | Meaning |
 |---|---|
@@ -90,9 +90,9 @@ Zero is a real count or an explicit “no” in a 0/1 field. An unknown count is
 not zero. `X` in a leg-mark field means an observed empty position; `?` means
 marks were seen but not confidently read. These are different observations.
 
-Follow the field lead's directions, permits and welfare limits. This manual
+Follow the field lead's directions, permits, and welfare limits. This manual
 connects fieldwork to the database; practical training still governs trapping,
-handling, measuring, sampling and photographic technique.
+handling, measuring, sampling, and photographic technique.
 
 </details>
 
@@ -104,7 +104,7 @@ handling, measuring, sampling and photographic technique.
 ## 2. What have I encountered?
 
 An encounter may need several records. Work through every applicable branch:
-finding a nest, floating eggs and catching a parent are separate things to
+finding a nest, floating eggs, and catching a parent are separate things to
 record, even when they happen on one visit.
 
 ### Master decision tree
@@ -135,7 +135,7 @@ What happened during the encounter? Follow every applicable branch.
 5. **Were photographs or videos taken?** Yes: use the appropriate event's photo
    fields; hiding photographs always need separate H rows. No: leave unrelated
    media fields blank. Go to 6.
-6. **Was there a geolocator/tag action, hatch, failure or closure?** Yes: also follow
+6. **Was there a geolocator/tag action, hatch, failure, or closure?** Yes: also follow
    Section 8 or 9. No: check the records identified above before leaving.
 
 ### Which nest or brood ID?
@@ -183,7 +183,7 @@ The same letter can have different meanings in different columns:
 ## 3. Before leaving the field house
 
 Check the current To-Do PDF and agree the day's work with the field lead. Take
-the Parent–Nest summary, allocated band combinations and the equipment needed
+the Parent–Nest summary, allocated band combinations, and the equipment needed
 for the visits you have been assigned. Read any capture timing notes before
 planning to trap a parent.
 
@@ -238,7 +238,7 @@ point established by the nest's first visit; it is not the waypoint of today's b
 1. **Is this the first nest/scrape visit?** Yes: enter its discovery gps_id/point.
    No, a later visit to that stationary nest: leave both nest GPS fields blank.
    For a bird encounter, go to 2.
-2. **Is it a brood, H photograph, blank-ID family event, age-C status R or C capture or
+2. **Is it a brood, H photograph, blank-ID family event, age-C status R or C capture, or
    adult capture with chicks?** Yes: use the encounter's gps_id/point as
    specified above. No: go to 3.
 3. **Does the permitted event use a positive nest's location?** Yes: follow
@@ -253,18 +253,18 @@ exist among the uploaded points. The biological forms use `gps_id` and
 <a id="section-4"></a>
 
 <details>
-<summary><strong>4. Nests, scrapes and eggs</strong></summary>
+<summary><strong>4. Nests, scrapes, and eggs</strong></summary>
 
-## 4. Nests, scrapes and eggs
+## 4. Nests, scrapes, and eggs
 
 ### A new nest or scrape
 
 Keep the first visit short. Confirm the species, collect a waypoint with your
-Garmin GPS and assign the next unused nest ID under the team's naming system (see below).
-Write down the eggs, chicks and attending bird actually seen. Photograph and
+Garmin GPS, and assign the next unused nest ID under the team's naming system (see below).
+Write down the eggs, chicks, and attending bird actually seen. Photograph and
 process the nest only as directed by the visit plan and welfare conditions.
 
-For example, Cass River BADO IDs use an A, B or C plot prefix and the assigned two-digit
+For example, Cass River BADO IDs use an A, B, or C plot prefix and the assigned two-digit
 observer/GPS code plus two-digit running tally, for example `B0203`. Do not
 restart your tally in another plot: B0203 and A0203 must not be assigned as
 different discoveries using the same code/tally. Check the current register.
@@ -303,7 +303,7 @@ hatch at the same encounter; it does not invent an earlier egg visit.
 
 | Event | Required entries for this exception |
 |---|---|
-| F discovery | New positive `nest_id`, actual discovery date/time, observer/species/site and both nest GPS fields. If no eggs remain, `clutch_size = 0`; do not invent eggs or egg measurements. Record the chicks actually seen. |
+| F discovery | New positive `nest_id`, actual discovery date/time, observer/species/site, and both nest GPS fields. If no eggs remain, `clutch_size = 0`; do not invent eggs or egg measurements. Record the chicks actually seen. |
 | Immediate H | Same positive ID and encounter date; `time_visit` at least one minute after F. Record actual remaining eggs/chicks; with no eggs, clutch 0 and the observed positive brood count. Leave direct nest GPS blank because F establishes the point. |
 | Individual birds | Separate CAPTURES rows if handled or RESIGHTINGS rows if observed; family and photograph rules still apply. |
 
@@ -317,7 +317,7 @@ no eggs remained. F discovery followed by H.”
 If saving remains blocked, check the other fields and use the documented
 validation override in Section 12, retaining the explanation. This is an
 exceptional, commented observation—not a reason to weaken the inspector,
-invent eggs or add a programmed exception.
+invent eggs, or add a programmed exception.
 
 Chicks first encountered **outside** an obvious nest, with no previously known
 nest origin, form an unknown-origin brood: use a negative ID and no NESTS
@@ -328,11 +328,11 @@ already reliably linked to a known nest retains its positive ID, as in Section 5
 
 | Field(s) | Requirement | Entry |
 |---|---|---|
-| `species`, `site`, `observer`, `date`, `time_visit` | Required | Species/site, registered observer code and actual local date/time. |
+| `species`, `site`, `observer`, `date`, `time_visit` | Required | Species/site, registered observer code, and actual local date/time. |
 | `nest_id`, `nest_state` | Required | Positive ID and today's state. Never a negative ID or a placeholder for an unknown association. |
 | `gps_id`, `gps_point` | Required on first visit only | Both on the opening S or F row. A later F after S does not repeat them. |
 | `clutch_size`, `brood_size` | Conditional on what can be established | Eggs still present and chicks observed are separate counts. S requires `clutch_size = 0` and blank/zero brood. Do not use zero for an unknown count. |
-| `bird_inc` | When attending bird assessed | Sex(es), unknown sex or no bird seen; Appendix A. This does not record the individual's identity. |
+| `bird_inc` | When attending bird assessed | Sex(es), unknown sex, or no bird seen; Appendix A. This does not record the individual's identity. |
 | `hatch_state` | When egg condition recorded | Count and condition of remaining eggs; Section 9. |
 | `nest_photo`, `tent_photo` | Record whether clutch photographed in scrape/tent | `1` for the applicable sequence, `0` for no photograph. |
 | `cam_id`, `photo_start`, `photo_end` | Required when photographs recorded | Actual camera and complete image range on this visit. |
@@ -355,19 +355,19 @@ two eggs without measuring them does not, by itself, require two EGGS rows.
 
 | Field(s) | Requirement | Entry |
 |---|---|---|
-| `species`, `observer`, `date`, `time_visit`, `nest_id`, `egg_id` | Required | Measurer, actual local measurement date/time, positive nest ID and egg number 1–4. No `site` field exists in `EGGS`. |
+| `species`, `observer`, `date`, `time_visit`, `nest_id`, `egg_id` | Required | Measurer, actual local measurement date/time, positive nest ID, and egg number 1–4. No `site` field exists in `EGGS`. |
 | `float_angle` | Record when floated | Observed whole degrees, 0–90. Do not replace an unusual reading with an expected one. |
-| `float_location` | Record when floated | `bottom`, `suspended` or `surface`. |
-| `float_surface` | Conditional | `bottom`/`suspended`: blank. `surface`: whole mm `0`, `1`, `2` or `3`. Zero means at the surface with no measured projection, not submerged. |
+| `float_location` | Record when floated | `bottom`, `suspended`, or `surface`. |
+| `float_surface` | Conditional | `bottom`/`suspended`: blank. `surface`: whole mm `0`, `1`, `2`, or `3`. Zero means at the surface with no measured projection, not submerged. |
 | `comments` | When reading omitted or unusual | Reason for omission or uncertainty. |
-| Camera, image and drive fields | Not applicable | No such fields in current `EGGS`; put clutch media in `NESTS`. |
+| Camera, image, and drive fields | Not applicable | No such fields in current `EGGS`; put clutch media in `NESTS`. |
 
 ### Timing and row checks
 
 | Check | What it means in practice |
 |---|---|
 | Egg rows from one check | Use the actual same-day event. Their measurement times must span no more than five minutes under the current check. |
-| Matching nest visit | Same positive ID, date and observer, with the nest visit no more than 60 minutes before or after the egg time. |
+| Matching nest visit | Same positive ID, date, and observer, with the nest visit no more than 60 minutes before or after the egg time. |
 | Egg numbers | Unique within the measurement event; no number above the matched clutch size. Two measured eggs need two rows. |
 | Different measurer or genuine delay | Keep the true observer and times. Explain and refer a failed event match; do not change truthful values to make it pass. A missing match is a review warning, not proof that no nest visit occurred. |
 
@@ -383,14 +383,14 @@ visit evidence and observed hatch signs alongside any estimate.
 <a id="section-5"></a>
 
 <details>
-<summary><strong>5. Adults, chicks and broods</strong></summary>
+<summary><strong>5. Adults, chicks, and broods</strong></summary>
 
-## 5. Adults, chicks and broods
+## 5. Adults, chicks, and broods
 
 ### When you find a family
 
 Record the adult(s) and each chick you actually encounter. Read the marks you
-can see, note what the adults are doing and collect a waypoint with your
+can see, note what the adults are doing, and collect a waypoint with your
 Garmin GPS. Keep the family together in your notebook so the entries can be
 linked later.
 
@@ -429,7 +429,7 @@ all use `gps_id = 4` and `gps_point = 214`. A point number alone, a point from
 another GPS, or yesterday's date cannot identify that shared encounter.
 
 All records from this family encounter must agree on the nest or brood ID
-where one is entered. Different nonblank IDs at the same date, site and
+where one is entered. Different nonblank IDs at the same date, site, and
 gps_id/point trigger a data-entry error, even when the chick's ID is also
 entered. Check the notebook and family identity; do not invent a second
 waypoint to make the entry pass. This does not prevent a chick's association
@@ -444,7 +444,7 @@ changing between separate encounters, for example after brood mixing.
 | Alert with chick(s) | `AC` |
 | Broken-wing display | `BW` |
 
-`BC`, `FC` and `AC` describe a parent with chicks. `BW` alone does not say that
+`BC`, `FC`, and `AC` describe a parent with chicks. `BW` alone does not say that
 individual chicks were seen: a bird can display near eggs or chicks. Keep
 general alert `AT` distinct from alert with chicks `AC`.
 
@@ -468,7 +468,7 @@ for nest association**.
 | Brooding chicks `BC`, foraging with chicks `FC`, alert with chick(s) `AC` | One matching brood-linked resighting. Record the accompanying chicks as actually encountered, using the rules below. |
 | Other behaviour | Three matching nest-linked resightings are needed; the first observation counts towards the three. |
 | A `?` in any leg segment | The event does not supply parent–nest evidence unless a known metal ring reliably identifies the bird from capture history. Keep the observed question marks. |
-| Parent with chicks: `BC`, `FC` or `AC` | Also follow the accompanying-chick rules below. `SC` and the other confirming behaviours do not trigger that requirement on their own. |
+| Parent with chicks: `BC`, `FC`, or `AC` | Also follow the accompanying-chick rules below. `SC` and the other confirming behaviours do not trigger that requirement on their own. |
 
 These are codes for the form's `behav` field. Use the behaviour actually seen,
 not the code most likely to remove a To-Do entry. An adult alert nearby is `AT`;
@@ -484,8 +484,8 @@ identity, not ownership of a current nest.
 
 | Evidence, strongest first | How it affects the parent–nest link |
 |---|---|
-| A qualifying direct capture | A nest-linked adult caught by TN, TB or HA, or with chicks recorded in `caught_with`, supplies direct association evidence. An eligible adult capture linked to a banded chick through the exact family encounter can also establish the link. Record the actual method/context; never choose a capture code to strengthen the result. |
-| One confirming resighting | One of IN, NM, SC, BW, BC, FC or AC above. This takes precedence over an alternative identity supported only by repeated other behaviour. |
+| A qualifying direct capture | A nest-linked adult caught by TN, TB, or HA, or with chicks recorded in `caught_with`, supplies direct association evidence. An eligible adult capture linked to a banded chick through the exact family encounter can also establish the link. Record the actual method/context; never choose a capture code to strengthen the result. |
+| One confirming resighting | One of IN, NM, SC, BW, BC, FC, or AC above. This takes precedence over an alternative identity supported only by repeated other behaviour. |
 | Three other matching resightings | Three genuine, eligible nest-linked observations of the same identity, including the first. These are observation records, not the two separate dates per parent used for brood-loss evidence in Section 9. Do not split one observation or duplicate rows to reach three. |
 | Insufficient or conflicting evidence | The link remains pending if no identity reaches a qualifying level, or ambiguous if more than one identity shares the strongest level. The database does not choose a bird merely because it was seen nearby. |
 
@@ -511,7 +511,7 @@ to it. Apply the same rule independently to females.
 
 **Approved decision — Luke Eberhart-Hertel, 1 November 2026:** an unambiguous confirming
 X-X resighting and a unique eligible `capture_status = F` (first banding)
-capture of the same sex, at the same nest and on the same date are assumed to
+capture of the same sex, at the same nest, and on the same date are assumed to
 be the targeted same individual. That same-day confirmation transfers to the
 newly marked identity, including an MM capture, without requiring later sightings.
 Keep the actual observation date. RESIGHTINGS has no observation-time field;
@@ -530,7 +530,7 @@ and allows retirement of an older placeholder without transferring day-1 proof.
 There is no unique link with multiple competing captured identities,
 ambiguous or otherwise ineligible evidence, another sex or nest, recapture
 only, or evidence beyond the reference date. First-marking uniqueness counts
-all eligible F identity keys for that sex, nest and date before later-proof
+all eligible F identity keys for that sex, nest, and date before later-proof
 or ambiguity filters. A competing candidate cannot be filtered out to create
 a unique link just because it lacks later proof or fails a later ambiguity
 check. Duplicate rows of one identity do not create another identity.
@@ -538,7 +538,7 @@ A later X-X stays separate.
 Do not split or duplicate records to reach three. Preserve original X-X/MM
 displacement history and refer contradictory strong evidence for review;
 do not erase observations or silently choose between competing birds.
-The evidence hierarchy, seven-day/36-hour capture gates and tag rules remain
+The evidence hierarchy, seven-day/36-hour capture gates, and tag rules remain
 unchanged, as do unrelated same-day safeguards for juvenile origins and brood
 closure. This approved method supersedes the earlier blanket same-day no-link
 wording. Verification scope is recorded separately in the dated source notes.
@@ -561,13 +561,13 @@ that it is the same unbanded individual at another nest or on another date.
 Later capture/banding or convincing evidence of a different parent can change
 the selected identity. Older observations must not be copied forward as new
 sightings. Check the refreshed Parent–Nest summary and refer conflicting marks,
-sexes or dates rather than editing observations to make them agree.
+sexes, or dates rather than editing observations to make them agree.
 
 The field requirement is a genuine shared family encounter: the same date,
-site and gps_id/point. The reviewed local matching rules enforce that shared
+site, and gps_id/point. The reviewed local matching rules enforce that shared
 encounter and reject conflicting family IDs. Check the actual field records
 if the Parent–Nest summary looks wrong; an automatic result is not permission
-to ignore a mistaken date, waypoint or identity.
+to ignore a mistaken date, waypoint, or identity.
 
 **A resolved parent is not a dead brood.** A row can disappear from **Parents
 to resight for nest association** because the link is now established, while
@@ -581,7 +581,7 @@ Use the following order to avoid inventing observations to satisfy a message.
 | Encounter | Records and submission order |
 |---|---|
 | Parent(s) and chicks only seen | One RESIGHTINGS row per bird. Submit the parent and chick rows together. |
-| Chicks captured, parent(s) only seen | Save the genuine age-C CAPTURES rows first. Then submit the parent RESIGHTINGS rows, matching date, site and complete gps_id/point. The saved captures satisfy the parent's accompanying-chick check. |
+| Chicks captured, parent(s) only seen | Save the genuine age-C CAPTURES rows first. Then submit the parent RESIGHTINGS rows, matching date, site, and complete gps_id/point. The saved captures satisfy the parent's accompanying-chick check. |
 | Chick only resighted; parent handled but not observed tending chicks | The capture alone does not satisfy the chick resighting's accompanying-parent check. Record what occurred and refer a truthful exceptional encounter; do not invent tending behaviour. |
 | Chick photographed hiding after handling | Capture first, then a separate H row with the actual parent resighting(s); Section 7. |
 
@@ -600,11 +600,11 @@ checked. Avoid splitting one family sighting across separate submissions.
 
 | Check | Requirement |
 |---|---|
-| Parent | `age = A`; actual behaviour includes `BC`, `FC` or `AC`. |
+| Parent | `age = A`; actual behaviour includes `BC`, `FC`, or `AC`. |
 | Uncertain parent marks | Record what was read. If any leg segment contains `?`, the event cannot supply parent–nest evidence unless its known metal ring can be reliably traced to capture history. Enter that known code in `ring`; do not replace observed question marks with inferred colours. Old capture history establishes identity, not a previous season's nest link. |
 | Chick | A separate `age = C` row for each chick resighted, including H rows. |
-| Matching encounter | Same date and either the same valid ID or the same complete gps_id/point. For field recording, retain the shared family date, site and gps_id/point even when the ID is known. |
-| Parent side | Linked chick row in the submission, or an already-saved age-C capture with the exact same date, site and complete gps_id/point. An unsaved capture in another form cannot be checked. |
+| Matching encounter | Same date and either the same valid ID or the same complete gps_id/point. For field recording, retain the shared family date, site, and gps_id/point even when the ID is known. |
+| Parent side | Linked chick row in the submission, or an already-saved age-C capture with the exact same date, site, and complete gps_id/point. An unsaved capture in another form cannot be checked. |
 | Chick resighting side | Linked parent row in the current submission; prior parent history supplies identity evidence, not a new observation. |
 | Positive nest history | Parent-with-chicks observations need latest relevant nest state `H` or `notA`, on or before the encounter date. Do not invent hatch evidence to satisfy this. |
 | Exceptional encounter | Explain a genuinely missing parent/companion observation; Section 12. |
@@ -617,14 +617,14 @@ existing, reliable family links, not permission to choose a nearby nest.
 
 | Resighting circumstance | Conditions before omitting `nest_id` |
 |---|---|
-| Ordinary chick, class `R`, `P`, `V` or `C` | Both GPS fields and at least one same-submission age-A `BC`, `FC` or `AC` parent at that exact date and gps_id/point. Each qualifying parent needs a valid current or resolvable prior association; the family must give one unambiguous nest/brood result. Class P or V resightings retain their camera/range requirements; `ring` remains optional. |
+| Ordinary chick, class `R`, `P`, `V`, or `C` | Both GPS fields and at least one same-submission age-A `BC`, `FC`, or `AC` parent at that exact date and gps_id/point. Each qualifying parent needs a valid current or resolvable prior association; the family must give one unambiguous nest/brood result. Class P or V resightings retain their camera/range requirements; `ring` remains optional. |
 | One or both parents recorded | One or both may supply the link; two parents linked to the same nest are still one unique ID. Conflicting or unresolved identities do not supply an inferred link. |
-| Negative-brood family, with blank IDs on parent and chick rows | The confirmed parent records in the database must already identify both social parents unambiguously for one negative brood, with neither unresolved. Each parent actually seen must match its selected identity and have `BC`, `FC` or `AC`; all rows share date, site and complete gps_id/point. One observed parent is sufficient; do not add its absent mate. |
-| Hiding-photo chick | No omission permitted for new H rows. Enter the explicit positive/negative ID as well as ring, both GPS fields and complete photo fields; Section 7. |
+| Negative-brood family, with blank IDs on parent and chick rows | The confirmed parent records in the database must already identify both social parents unambiguously for one negative brood, with neither unresolved. Each parent actually seen must match its selected identity and have `BC`, `FC`, or `AC`; all rows share date, site, and complete gps_id/point. One observed parent is sufficient; do not add its absent mate. |
+| Hiding-photo chick | No omission permitted for new H rows. Enter the explicit positive/negative ID as well as ring, both GPS fields, and complete photo fields; Section 7. |
 | First chick capture | No resighting exception applies. An age-C status-F CAPTURES row needs the actual positive nest or negative brood ID. |
 
 The software's saved-family lookup is not a location-only guess. Missing,
-pending or ambiguous parent identities cannot supply an omitted ID. Enter the
+pending, or ambiguous parent identities cannot supply an omitted ID. Enter the
 known ID explicitly or refer the unresolved association rather than bypassing
 the ambiguity. Inferred links do not fill the original blank field afterwards.
 A positive-nest parent still carries its required ID; the exception allowing
@@ -634,7 +634,7 @@ both parent and chick IDs to be blank is the negative-family case above.
 
 If an unbanded parent is tending chicks, record it as X-X: at minimum
 `LL = X`, `LR = X`. Add its actual behaviour, age, sex, observer, date, site,
-required ID and shared gps_id/point. X-X records an unbanded bird at this encounter;
+required ID, and shared gps_id/point. X-X records an unbanded bird at this encounter;
 it does not identify that individual across days and cannot by itself supply
 the parent-identity exception above.
 
@@ -645,7 +645,7 @@ the documented override only if the truthful entry remains blocked after
 checking the other fields. An unknown ID needs its own explanation; an absent
 parent cannot supply a missing family link.
 
-Before saving, compare the bird count, shared waypoint and IDs with your
+Before saving, compare the bird count, shared waypoint, and IDs with your
 notebook. If the family link is uncertain, put it in the handover.
 
 </details>
@@ -653,9 +653,9 @@ notebook. If the family link is uncertain, put it in the handover.
 <a id="section-6"></a>
 
 <details>
-<summary><strong>6. Captures, bands, rings, flags and tags</strong></summary>
+<summary><strong>6. Captures, bands, rings, flags, and tags</strong></summary>
 
-## 6. Captures, bands, rings, flags and tags
+## 6. Captures, bands, rings, flags, and tags
 
 ### Record the bird before and after handling
 
@@ -686,7 +686,7 @@ The bird is being examined directly. Do not replace an unreadable mark with
 
 | Field(s) | Requirement | Entry |
 |---|---|---|
-| `date`, `caught`, `species`, `site`, `observer`, `capture_status`, `capture_method`, `field_sex`, `age`, `ring` | Required | Actual capture identity, local date/time and CP metal-ring code. |
+| `date`, `caught`, `species`, `site`, `observer`, `capture_status`, `capture_method`, `field_sex`, `age`, `ring` | Required | Actual capture identity, local date/time, and CP metal-ring code. |
 | `released` | Live release | Actual release time, after capture. Blank for dead recovery. |
 | `nest_id` | Association-dependent | Enter the known positive or negative ID. A first chick capture must have one. For an otherwise valid later chick capture with a blank ID, the snapshot can recover the brood link through unambiguous earlier ring history; event-specific entry checks still apply. Keep the actual ring and both GPS fields. Refer conflicting history rather than guessing. For an unrelated adult capture, leave this blank and enter gps_id/point. Do not use a placeholder. |
 | `gps_id`, `gps_point` | Conditional | Use the exact status/location table in Section 3. Age-C status R or C always need both. |
@@ -698,18 +698,18 @@ The bird is being examined directly. Do not replace an unreadable mark with
 | `observer_upload` | Capture uploader | Registered observer code of the person entering the record. |
 | Photo fields and flags | Event-dependent | Section 7. Tags: Section 8. |
 
-### Measurements, samples and photographs by age
+### Measurements, samples, and photographs by age
 
 Use mm for lengths and g for mass. Follow the team's measurement technique;
 do not substitute a different tarsus or wing method because the units agree.
 
-| Bird | Required measurements/entries in the reviewed inspector | Conditional, optional or blank |
+| Bird | Required measurements/entries in the reviewed inspector | Conditional, optional, or blank |
 |---|---|---|
 | Adult, `age = A` | `tarsus`, `culmen`, `total_head`, `head_white`, `head_black`, `rufous_band`, `wing`, `weight`; `brood_patch` 0/1; at least one moult score; `fat` 1–8; `feather_wear` 0–3; `breast_samp`, `primary_samp`, `mugshot_photo`, `wing_photo` 0/1. | `parents` blank. Chick-photo flags blank/0. Blood/other samples only if taken. Explain a measurement that could not safely be obtained; do not invent it. |
-| Chick, status F or R | `tarsus`, `culmen`, `weight`; sex `U`. Initial F also needs `chick_tent_photo` and `chick_hide_photo` 0/1; use `chick_hide_photo = 0` for this separate-H workflow. | No `total_head`, `head_white`, `head_black`, `rufous_band`, `wing`, `brood_patch`, moult, fat or feather-wear entries. `breast_samp`/`primary_samp` blank or 0; mugshot/wing flags blank. R chick-photo flags may be blank or 0/1. |
-| Older chick, changed combination C | `tarsus`, `culmen`, `weight`; sex `U`; complete before/after marks and both GPS fields. | Additional older-chick measurements, samples and supported photo flags may be entered when obtained; they are not all made mandatory merely by status C. |
+| Chick, status F or R | `tarsus`, `culmen`, `weight`; sex `U`. Initial F also needs `chick_tent_photo` and `chick_hide_photo` 0/1; use `chick_hide_photo = 0` for this separate-H workflow. | No `total_head`, `head_white`, `head_black`, `rufous_band`, `wing`, `brood_patch`, moult, fat, or feather-wear entries. `breast_samp`/`primary_samp` blank or 0; mugshot/wing flags blank. R chick-photo flags may be blank or 0/1. |
+| Older chick, changed combination C | `tarsus`, `culmen`, `weight`; sex `U`; complete before/after marks and both GPS fields. | Additional older-chick measurements, samples, and supported photo flags may be entered when obtained; they are not all made mandatory merely by status C. |
 | Chick recovered dead, status D | `tarsus`, `culmen`, `weight`; sex `U`; actual recovered marks in all four incoming positions. | Age-C restrictions on other measurements/samples still apply. Release leg fields and released time blank; no first-marking photo requirement merely because the bird was recovered. Explain anything that could not truthfully be measured. |
-| Juvenile, `age = J` | `tarsus`, `culmen`, `weight`; sex `U`. | `total_head`, head-band/rufous widths and `brood_patch` blank. Wing may be recorded. `breast_samp`/`primary_samp` blank or 0; chick-photo flags blank/0. |
+| Juvenile, `age = J` | `tarsus`, `culmen`, `weight`; sex `U`. | `total_head`, head-band/rufous widths, and `brood_patch` blank. Wing may be recorded. `breast_samp`/`primary_samp` blank or 0; chick-photo flags blank/0. |
 | Chick or juvenile | No tag entries. | Leave `tag_action`, `tag_type`, `tag_id`, `tag_id_in` blank—not O. |
 
 For blood, use `BQ` (Queens buffer), `BF` (filter paper) or `BE` (EDTA);
@@ -763,7 +763,7 @@ Meeting those cutoffs does not replace the bander's welfare judgement.
 
 Giving a previously banded chick an engraved flag changes its combination:
 use capture status C, preserve the incoming marks and record the actual release
-marks. The juvenile marking scheme uses an engraved UL flag, UR metal and
+marks. The juvenile marking scheme uses an engraved UL flag, UR metal, and
 empty lower positions; do not change age solely to make a layout pass.
 
 ### Why flagging work appears or disappears
@@ -771,7 +771,7 @@ empty lower positions; do not change age solely to make a layout pass.
 The updated snapshot uses the latest qualifying chick encounter on or before
 the PDF's reference date, not simply the largest earlier brood count. The
 task decision and the PDF's **N chicks / N seen** use the same SQL result.
-Direct nest IDs, unambiguous prior ring history and eligible GPS-linked family
+Direct nest IDs, unambiguous prior ring history, and eligible GPS-linked family
 records can supply the brood link. A later capture with a blank nest ID can
 therefore contribute its flag through the same ring's earlier capture.
 
@@ -784,7 +784,7 @@ Two latest chicks with only one flagged, or one latest unflagged chick, still
 leave work to do. This operational reduction does not declare missing siblings
 dead or resolve their individual fate.
 
-Unringed, ambiguous or otherwise unresolved evidence must not falsely close
+Unringed, ambiguous, or otherwise unresolved evidence must not falsely close
 the task. Confirmed-dead chicks are not live targets; their surviving siblings
 remain separate work. If there is no usable latest encounter, the snapshot
 falls back to its capture-history/operational brood count and retains its
@@ -808,7 +808,7 @@ replacement for the team's allocation.
 
 ### Write the image range down at the encounter
 
-For each sequence, record the subject, camera ID and first/last filenames.
+For each sequence, record the subject, camera ID, and first/last filenames.
 For chick photographs, write the individual ring as well. Check the notes
 while you can still match the images to the birds and location.
 
@@ -832,13 +832,13 @@ A capture-form checkbox alone does not record a qualifying hiding photograph.
 | Clutch in scrape / tent | `NESTS`: `nest_photo` / `tent_photo`, plus `cam_id`, `photo_start`, `photo_end`. | EGGS float readings. |
 | Chick handling/tent | `CAPTURES`: `chick_tent_photo = 1`, camera/range. | Hiding-place images. |
 | Adult mugshot / wing | `CAPTURES`: `mugshot_photo` / `wing_photo`, camera/range. | A separate field resighting session. |
-| Chick hiding place | `RESIGHTINGS`: `rclass = H`, explicit positive/negative `nest_id`, individual ring, direct GPS and camera/range. | All CAPTURES photo ranges. |
-| Other photography / video | `RESIGHTINGS`: `rclass = P` / `V`, camera/range and normal event details. | A regular R row without media. |
+| Chick hiding place | `RESIGHTINGS`: `rclass = H`, explicit positive/negative `nest_id`, individual ring, direct GPS, and camera/range. | All CAPTURES photo ranges. |
+| Other photography / video | `RESIGHTINGS`: `rclass = P` / `V`, camera/range, and normal event details. | A regular R row without media. |
 
 ### A chick photographed hiding
 
 Keep enough information to match every photographed chick to its ring, hiding
-place and images. Give each chick a line in your notebook. “Two chicks
+place, and images. Give each chick a line in your notebook. “Two chicks
 photographed” does not identify which two individuals were completed.
 
 If the chick is unbanded when the hiding photograph is taken, it also needs
@@ -855,7 +855,7 @@ the separate H resighting. A tent photograph, if taken, stays on the capture.
 
 Collect the family waypoint with your Garmin GPS, even if the positive nest
 is known. Record the parent(s) and other family members actually resighted
-on that occasion, all with the same date, site and complete gps_id/point. One
+on that occasion, all with the same date, site, and complete gps_id/point. One
 observed parent is sufficient; an absent mate does not need a row. An unbanded
 parent is entered as X-X, not omitted.
 
@@ -871,7 +871,7 @@ parent is entered as X-X, not omitted.
 | `gps_id`, `gps_point` | Required | Both for this hiding-photo encounter, including positive-nest chicks. |
 | `cam_id`, `photo_start`, `photo_end` | Required | Actual camera and complete hiding-image range. End must not precede start. |
 | `behav` | Optional for H | Leave blank if not separately recorded; any entered code must be appropriate for a chick. |
-| Parent resighting | Required except genuine no-parent encounter | Observed age-A parent with `BC`, `FC` or `AC` in the same submission; Section 5. |
+| Parent resighting | Required except genuine no-parent encounter | Observed age-A parent with `BC`, `FC`, or `AC` in the same submission; Section 5. |
 
 Save the chick's capture before submitting the H row, so its ring can be
 checked. Keep the tent range on that capture. In this workflow, set the initial
@@ -891,7 +891,7 @@ Every new age-C H row needs its ID entered explicitly. Use the Parent–Nest
 summary on the To-Do PDF and the chick's saved ring/capture history to check
 the family. A partly read mark or a waypoint alone is not enough to choose
 between families. If the ID cannot be established reliably, preserve the
-photograph, ring and encounter notes and ask Luke Eberhart-Hertel to resolve the link; do not
+photograph, ring, and encounter notes and ask Luke Eberhart-Hertel to resolve the link; do not
 guess or use the ordinary blank-ID exception to submit an H row.
 
 | Family situation | Required link |
@@ -900,7 +900,7 @@ guess or use the ordinary blank-ID exception to submit an H row.
 | An ordinary family resighting qualifies for a blank ID under Section 5 | That exception does not extend to an H row. Enter the H chick's explicit nest/brood ID. |
 | Prior ring/family association is ambiguous | Retain the evidence and ask Luke Eberhart-Hertel to resolve it before entering the H record; do not select a convenient ID. |
 
-Ring, leg observations, gps_id/point and photo fields remain compulsory. A
+Ring, leg observations, gps_id/point, and photo fields remain compulsory. A
 valid H row and completed **Broods to photograph** work are different checks.
 The software retains deterministic ring-history links for older H records
 saved under the previous blank-ID procedure. That is historical compatibility,
@@ -933,7 +933,7 @@ the chick's true age.
 | Negative brood of unknown origin | Days 1–6 after discovery. | Chicks may already be older when found. Discovery is not hatch date; assess age and prioritise with the field lead. |
 | Day 7 after the relevant date | The To-Do task expires. | Expiry is not completion and does not extend the under-seven-day biological aim. |
 
-Put missing photographs, uncertain age and unresolved family links in the
+Put missing photographs, uncertain age, and unresolved family links in the
 handover. Do not use disappearance from the PDF as proof that every chick was
 photographed.
 
@@ -941,7 +941,7 @@ photographed.
 
 Copy the original images to the assigned drive and keep their filenames
 unchanged. Record the drive/folder in the team's media register; there is no
-`harddrive_id` field in the current NESTS, EGGS, CAPTURES or RESIGHTINGS tables.
+`harddrive_id` field in the current NESTS, EGGS, CAPTURES, or RESIGHTINGS tables.
 Do not delete camera originals before the team's backup check.
 
 Check the camera and full image identifiers, including any roll/frame prefix.
@@ -989,10 +989,10 @@ leave it unhandled and recheck its current To-Do instructions later.
 |---|---|
 | Current To-Do PDF | A **Parents to capture** instruction for the intended bird and purpose. A resighting-only note is not a deployment instruction. |
 | Identity and tag status | Reliable bird identity and current tag status. Resolve uncertain identity first unless the current To-Do instruction explicitly allows confirmation at capture. |
-| Nest/brood and wave | Suitable active unit, current processing requirements met and Luke Eberhart-Hertel's wave directions permit deployment. |
+| Nest/brood and wave | Suitable active unit, current processing requirements met, and Luke Eberhart-Hertel's wave directions permit deployment. |
 | Seven-day interval | The applicable clutch-completion gate is open; use the current To-Do instruction, not a count from nest discovery. |
 | Thirty-six-hour interval | The post-parent-capture disturbance gate is open. Pair completion does not waive it. |
-| Bird and conditions | Permits, welfare, weather, condition, handling limits and bander judgement allow the action. |
+| Bird and conditions | Permits, welfare, weather, condition, handling limits, and bander judgement allow the action. |
 | Stock and follow-up | Confirm the assigned tag and current stock; keep an ineligible mate as pending work. |
 
 ### Supporting table — capture timing notes
@@ -1017,7 +1017,7 @@ The project's completion-based incubation interval is 26 days. Where the
 hatch estimate uses that same completion basis, **19 days to hatch corresponds
 to seven days since completion**. The displayed hatch countdown is a useful
 cross-check, not an independent capture permit when laying history or
-completion is unresolved. Hatch signs, confirmed hatch and a known negative
+completion is unresolved. Hatch signs, confirmed hatch, and a known negative
 brood can satisfy the seven-day gate under their existing rules; the separate
 36-hour restriction and all other capture/GEO checks still apply.
 
@@ -1025,9 +1025,9 @@ brood can satisfy the seven-day gate under their existing rules; the separate
 
 Pair completion concerns the reliably associated mate of a currently tagged
 parent with qualifying deployment history at this same nest. A tag at an
-unrelated nest, a retrieval-only record or an uncertain parent identity is not
+unrelated nest, a retrieval-only record, or an uncertain parent identity is not
 enough. The current To-Do decision must still meet the applicable nest/plot,
-association, welfare and timing rules.
+association, welfare, and timing rules.
 
 If the mate is confirmed unbanded, an eligible instruction can read
 `tag X-X M (pair completion)` or its female equivalent, rather than simply
@@ -1056,7 +1056,7 @@ This instruction applies only to eligible positive nests on plots B and C
 whose clutch-completion basis is **after 9 October 2026**. Completion on
 9 October does not qualify; nest initiation or discovery alone does not set
 this cutoff. The separate seven-day and 36-hour gates must also be open.
-Existing tag evidence, death, ambiguous identities and unresolved MM follow-up
+Existing tag evidence, death, ambiguous identities, and unresolved MM follow-up
 continue to restrict the instruction. The known banded parent must have a
 confirmed association; an unknown mate can still require association work.
 
@@ -1097,7 +1097,7 @@ Non-tag marks remain the actual observed bands, not automatically X.
 
 For these adult entries, record `wt_w_tag = 0` or `1` to say whether the
 recorded mass included a tag. For O, use 0. Complete the bird's capture status,
-ring, before/after bands and the other required capture fields as well.
+ring, before/after bands, and the other required capture fields as well.
 `tag_action` and `capture_status` describe different things: removing a tag
 does not automatically mean the band combination was unchanged.
 
@@ -1119,13 +1119,13 @@ Luke Eberhart-Hertel must confirm its physical condition and allocation.
 <a id="section-9"></a>
 
 <details>
-<summary><strong>9. Fate, hatching, failure and notA</strong></summary>
+<summary><strong>9. Fate, hatching, failure, and notA</strong></summary>
 
-## 9. Fate, hatching, failure and notA
+## 9. Fate, hatching, failure, and notA
 
 ### Describe the evidence from this visit
 
-Look at the remaining eggs, chicks and attending birds before deciding the
+Look at the remaining eggs, chicks, and attending birds before deciding the
 state. An empty nest does not by itself distinguish hatch from loss. Keep a
 possible outcome separate from a confirmed one and explain the evidence.
 
@@ -1140,7 +1140,7 @@ possible outcome separate from a confirmed one and explain the evidence.
 | Final inactive-nest closure, marks removed | `notA` | Final visit; conditions below. |
 | Other finding | `O` | Required explanatory comment; not a reset of the history. |
 
-### Hatch, failure or closure?
+### Hatch, failure, or closure?
 
 1. **Are chicks present?** Yes: record H and actual egg/chick counts; enter
    individual birds separately. No: go to 2.
@@ -1187,12 +1187,12 @@ H nest visits. One final notA closure may follow.
 | Normal `notA` | Final NESTS row; `clutch_size = 0`, `hatch_state` blank. |
 | Surviving brood after final H | One notA may directly follow the final H row, with zero eggs and the observed surviving brood count retained. No intervening D row is needed. |
 | Deserted eggs retained | The approved same-submission D → notA sequence may retain the D row's observed clutch count. D is assessed before notA if timestamps are identical; closure cannot precede D. Explain the sequence. |
-| pP, P or D fate still being checked | Add each actual follow-up visit; these records remain open until final notA. Do not manufacture closure because a To-Do task disappears. |
+| pP, P, or D fate still being checked | Add each actual follow-up visit; these records remain open until final notA. Do not manufacture closure because a To-Do task disappears. |
 | Negative brood | No NESTS row and no notA closure. Continue individual brood records. |
 | A new attempt nearby | Assign a new nest ID under the team's convention; do not reopen a closed ID for another nest. |
 
 A closed positive nest can still have a surviving brood needing banding,
-hiding photographs or flagging. Keep its positive ID on linked bird records
+hiding photographs, or flagging. Keep its positive ID on linked bird records
 and record the current family waypoint. A later chick encounter can advance
 the To-Do PDF's Last Visit without changing when hatch was first recorded.
 
@@ -1200,7 +1200,7 @@ the To-Do PDF's Last Visit without changing when hatch was first recorded.
 
 Chicks can hide, so one unsuccessful search or one adult seen alone is not
 proof that a brood has died. Resighting the known parent(s) remains valuable:
-record their identity, where they are and what they are actually doing. The
+record their identity, where they are, and what they are actually doing. The
 database can then distinguish unresolved family work from evidence supporting
 presumed brood loss or a subsequent nesting attempt.
 
@@ -1217,12 +1217,12 @@ prove that every chick died, or replace a positive nest's final notA visit.
 There is no presumed-dead `behav` code to enter. Do not use a dead-recovery
 capture status for an inferred loss.
 
-### Do not confuse association, loss and juvenile-stage resolution
+### Do not confuse association, loss, and juvenile-stage resolution
 
 | Result after refresh | Evidence | Meaning for follow-up |
 |---|---|---|
-| Parent association confirmed | The eligible identity and nest-linked observations in Section 5. | That parent's link no longer needs confirmation. Brood banding, photographs or flagging may still be due. |
-| Brood presumed dead | Route 1, 2 or 3 below, without contrary live evidence. | Further brood-related work, including associated parent capture/resighting tasks and the brood's Parent–Nest summary entry, is suppressed. This is not an observed death or a reason to invent a D capture. |
+| Parent association confirmed | The eligible identity and nest-linked observations in Section 5. | That parent's link no longer needs confirmation. Brood banding, photographs, or flagging may still be due. |
+| Brood presumed dead | Route 1, 2, or 3 below, without contrary live evidence. | Further brood-related work, including associated parent capture/resighting tasks and the brood's Parent–Nest summary entry, is suppressed. This is not an observed death or a reason to invent a D capture. |
 | Brood resolved at the juvenile stage | One reliably origin-linked age-J capture or resighting, including a confirmed age-J dead recovery. | Under Luke Eberhart-Hertel's project rule, siblings are presumed to have reached J too, so chick-stage follow-up stops. This is not proof that every sibling survived. |
 
 None of these results rewrites the observations. A positive nest may still
@@ -1232,8 +1232,8 @@ need its final notA visit; a negative brood never receives NESTS rows.
 
 | What was actually observed | `behav` entry | Use in the checks |
 |---|---|---|
-| Parent brooding, foraging with, or alert with chicks | BC, FC or AC | Positive brood-tending evidence. It does not count as a non-brood observation; enter each encountered chick too. |
-| Incubating, maintaining a nest, or scraping | IN, NM or SC | Confirms a nest association when the identity/link is eligible. It is nesting/restart behaviour, not a non-brood observation. For another attempt, use that nest's own ID. |
+| Parent brooding, foraging with, or alert with chicks | BC, FC, or AC | Positive brood-tending evidence. It does not count as a non-brood observation; enter each encountered chick too. |
+| Incubating, maintaining a nest, or scraping | IN, NM, or SC | Confirms a nest association when the identity/link is eligible. It is nesting/restart behaviour, not a non-brood observation. For another attempt, use that nest's own ID. |
 | Broken-wing display | BW | Can confirm association and can supply one of the qualifying non-brood observation dates when no BC/FC/AC or IN/NM/SC occurs on that row. BW alone cannot meet the brood-loss requirement for either parent. |
 | Foraging alone / with presumed mate / in flock | FA / FM / FF | Counts towards the stronger non-brood evidence when properly identified and explicitly linked to the old brood, without positive brood or nesting/restart behaviour on that row. |
 | Roosting / loafing / alert / fighting | RS / LF / AT / FT | Counts on the same basis as FA/FM/FF. General alert AT is not alert with chicks AC. |
@@ -1258,10 +1258,10 @@ hatching time.
 |---|---|
 | Brood is eligible | A positive nest with hatch evidence, or an unknown-origin negative brood. An egg-stage failure is assessed through nest visits, not this mobile-brood rule. |
 | At least 21 days have elapsed | The PDF's reference date is at least 21 days after that starting date. The observations themselves may have been made earlier within this post-start period. |
-| Both parents reliably established | The male and female each have an unambiguous selected association with the old brood. Merely possible identities, unknown sex and X-X cannot supply this two-parent history. |
+| Both parents reliably established | The male and female each have an unambiguous selected association with the old brood. Merely possible identities, unknown sex, and X-X cannot supply this two-parent history. |
 | Two separate dates for each parent | Each parent has qualifying non-brood observations on at least two different dates, strictly after the starting date and no later than the reference date. The parents need not be seen on the same dates. Repeated rows on one day count as one date for that parent. |
 | Old brood ID recorded explicitly | These qualifying parent rows carry the old positive or negative `nest_id`. A known identity or waypoint alone does not assign a blank-ID row to the old brood for this particular calculation. Never attach an uncertain observation to an ID just to make it count. |
-| More than BW alone | Each parent has at least one qualifying row with FA, FM, FF, RS, LF, AT, FT or OB. BW can contribute another date, but two BW-only dates per parent are insufficient. |
+| More than BW alone | Each parent has at least one qualifying row with FA, FM, FF, RS, LF, AT, FT, or OB. BW can contribute another date, but two BW-only dates per parent are insufficient. |
 | No conflicting behaviour on the counted row | A row with BC/FC/AC or IN/NM/SC is not counted as non-brood evidence, even if it also includes AT or another listed code. |
 | Brood-tending chronology checked | The latest linked BC/FC/AC observation must be earlier than **both** parents' last qualifying non-brood dates. A same-day or later positive observation fails this condition. |
 
@@ -1288,7 +1288,7 @@ attempt does not turn that developmental resolution into presumed death.
 
 | Requirement in the current calculation | Field meaning |
 |---|---|
-| A distinct subsequent attempt | In the current Cass River To-Do implementation, a different positive CR nest first recorded after the old brood's starting date, with an eligible S, F or I visit by the reference date. Revisiting an older or closed nest does not establish a new attempt. |
+| A distinct subsequent attempt | In the current Cass River To-Do implementation, a different positive CR nest first recorded after the old brood's starting date, with an eligible S, F, or I visit by the reference date. Revisiting an older or closed nest does not establish a new attempt. |
 | One strongly established former parent | One adult has an unambiguous selected association with both the old brood and this other nest. This is sufficient for the later-nest route. It is not necessary to observe an absent mate or wait 21 days. |
 | Alternative: two matched former-parent identities | Two distinct former-parent identities, one male and one female, are reliably matched to the same new attempt. A lone tentative identity or two same-sex candidates do not establish this pair route. |
 | Actual parent evidence | The parent-association hierarchy in Section 5 applies. IN/NM/SC are useful direct behavioural observations, but the calculation does not demand one of these three codes when another eligible association route has already established the link. |
@@ -1296,7 +1296,7 @@ attempt does not turn that developmental resolution into presumed death.
 
 The candidate loss date cannot precede the required nest and identity evidence
 for either the old brood or the new attempt. A later confirmation must not be
-used to backdate the result. Proximity alone, a possible identity or a future
+used to backdate the result. Proximity alone, a possible identity, or a future
 observation cannot supply the link. Report a mistaken link to Luke Eberhart-Hertel.
 
 ### Route 3 — no live brood encounter during ages 21–35 days
@@ -1312,12 +1312,12 @@ in Route 1 or renesting evidence in Route 2.
 |---|---|
 | Which age is used? | For a positive nest, count from its recorded hatch evidence, not its egg-stage discovery. For a negative brood, use the existing operational age/discovery-date proxy: this is not a claim that discovery was its true hatch date. Without a usable age anchor, this rule cannot establish presumed loss. |
 | When does the window end? | Day 35 is still within the observation window. The first possible suppression date is day 36. All checks use the PDF's reference date and records available for that date. |
-| What counts as an encounter? | The reliably linked live chick or positive brood-tending evidence described below. Direct nest/brood IDs and approved unambiguous ring-history or family gps_id/point links count. An unidentified adult alone, an ambiguous link or a dead chick recovery alone does not count. |
+| What counts as an encounter? | The reliably linked live chick or positive brood-tending evidence described below. Direct nest/brood IDs and approved unambiguous ring-history or family gps_id/point links count. An unidentified adult alone, an ambiguous link, or a dead chick recovery alone does not count. |
 | What if the brood was seen on day 25? | One qualifying live encounter on any day from 21 through 35 prevents this particular trigger, even at later reference dates. This is a fixed window, not a rolling absence period. Routes 1 and 2 and juvenile-stage resolution still apply independently. |
 | What if chicks are found again after day 35? | Enter the actual encounter. A qualifying live encounter on day 36 or later prevents this presumed-dead result at the next refresh and restores any work still due under the normal task rules. Do not change the observation to fit the earlier expectation. |
 
 Nothing in this calculation proves that the chicks died. Do not enter a dead
-recovery, failure visit, zero brood count or invented unsuccessful search just
+recovery, failure visit, zero brood count, or invented unsuccessful search just
 to obtain the result. Upload genuine observations promptly, and ask for a
 refresh before relying on the dated work plan. A required positive-nest notA
 visit remains separate; negative broods never receive NESTS closure rows.
@@ -1332,14 +1332,14 @@ it automatically to establish survival.
 Before suppressing To-Do work, the database checks for any of the following
 dated **on or after the candidate loss date**, up to the reference date:
 
-- An age-C CAPTURES row with live capture_status F, R or C, reliably linked
+- An age-C CAPTURES row with live capture_status F, R, or C, reliably linked
   to the old brood.
 - An age-C RESIGHTINGS row reliably linked to the old brood.
-- A reliably established former parent's BC, FC or AC resighting explicitly
+- A reliably established former parent's BC, FC, or AC resighting explicitly
   linked to the old brood, directly or through an approved unambiguous link.
 
 Any such record prevents the presumed-dead result at that refresh. Brood work
-can reappear where it still meets its normal age, timing and completion rules.
+can reappear where it still meets its normal age, timing, and completion rules.
 It does not guarantee that every previous To-Do entry returns; for example,
 the hiding-photo display window may already have expired.
 
@@ -1350,8 +1350,8 @@ do not alter its field date to the upload date.
 
 An approved unambiguous inferred link counts too; a blank raw nest_id does not
 mean that the event has no family association. Enter the known ID whenever
-available. Otherwise follow Section 5, retaining the shared date, site and
-gps_id/point. Conflicting explicit IDs, ambiguous parents or uncertain marks
+available. Otherwise follow Section 5, retaining the shared date, site, and
+gps_id/point. Conflicting explicit IDs, ambiguous parents, or uncertain marks
 without a verified known ring cannot supply an inferred association. Do not
 change a truthful date or waypoint to make an event count.
 
@@ -1384,7 +1384,7 @@ entered on the new row.
 
 A reliably origin-linked dead recovery confirmed as age J also resolves
 chick-stage work. It establishes reaching J, not survival. Enter D, the actual
-recovered marks in the incoming fields and blank release fields/time. Keep all
+recovered marks in the incoming fields, and blank release fields/time. Keep all
 known sibling deaths in the record: resolved does not mean every sibling lived.
 An age-C dead recovery does not supply this juvenile-stage evidence.
 
@@ -1398,7 +1398,7 @@ records to obtain either result.
    Yes: record that individual, including a dead recovery if that is what was
    found, and check juvenile-stage resolution after refresh. No: go to 2.
 2. **Have chicks or chick-tending parents been seen?** Yes: record the actual
-   family, each bird separately, with shared date, site and gps_id/point; do
+   family, each bird separately, with shared date, site, and gps_id/point; do
    not call the brood dead. No: go to 3.
 3. **Are the former parents reliably identified?** No: collect mark and actual
    association behaviour using Section 5; unresolved identity cannot supply
@@ -1410,14 +1410,14 @@ records to obtain either result.
 5. **Have both former parents been observed without brood-tending on two
    separate dates each?** No: plan suitable repeat observations, without
    disturbance or invented records. Yes: check all Route 1 conditions,
-   including the 21-day gate, explicit old brood links and BW limitation.
+   including the 21-day gate, explicit old brood links, and BW limitation.
 6. **Has the brood reached day 36 without any qualifying live encounter at
    ages 21–35?** Yes: Route 3 can suppress its work after refresh. Record any
    later live encounter truthfully so eligible work can return. A day-25
    encounter prevents this route; simply seeing an adult alone does not.
 7. **Is the brood absent from a newly refreshed PDF?** Check the reason with
    the designated operator. Resolved parent association, normal completion,
-   expiry, presumed brood loss and juvenile-stage resolution are different
+   expiry, presumed brood loss, and juvenile-stage resolution are different
    reasons for disappearance.
    Missing work or contrary survival evidence still needs a handover.
 
@@ -1434,24 +1434,24 @@ then have the designated operator refresh and review the dated work plan.
 
 ## 10. End-of-day entry and review
 
-### Bring notebook, GPS and media together
+### Bring notebook, GPS, and media together
 
 1. Download and upload the Garmin records first. Check the unit IDs and
    waypoint numbers against your notebook.
 2. Copy original media to the assigned drive. Check each sequence's subject,
-   ring, camera and full first/last filenames.
+   ring, camera, and full first/last filenames.
 3. Enter nest visits before their egg measurements and positive-nest bird
    observations that rely on that history.
 4. Save genuine chick captures before parent-only resighting submissions or
    H rows that need to find those captures. Do not add duplicate chick sightings.
 5. Submit parent and chick resightings from one encounter together. Compare
-   their shared date, site and gps_id/point with any captures from the encounter.
-6. Open **DATA ENTRY ISSUES**, correct mistakes and check again. Use Section 12
+   their shared date, site, and gps_id/point with any captures from the encounter.
+6. Open **DATA ENTRY ISSUES**, correct mistakes, and check again. Use Section 12
    for a valid exception or a message that contradicts the agreed procedure.
-7. Save, check the submitted record and review an updated To-Do PDF. Put
-   incomplete entries, family links and photographs in the team handover.
+7. Save, check the submitted record, and review an updated To-Do PDF. Put
+   incomplete entries, family links, and photographs in the team handover.
 
-The form may prefill today's date, BADO or CR. Check these when entering older
+The form may prefill today's date, BADO, or CR. Check these when entering older
 notes or WRYB records. Hover over column headings for hints, but do not change
 a truthful entry to follow a hint contradicted by the current procedure.
 Different people can enter data simultaneously; agree who is entering each
@@ -1459,7 +1459,7 @@ encounter to avoid duplicate submissions.
 
 ### Read the Nest Map popup
 
-Click a point to see its nest/brood ID, state, parents, hatching status and
+Click a point to see its nest/brood ID, state, parents, hatching status, and
 clutch/brood sizes where available. **Last encounter** counts days back from
 the app's reference date: it uses the latest qualifying brood encounter for a
 brood point, or the latest nest visit for an unhatched nest. Unknown timing is
@@ -1479,7 +1479,7 @@ Parent annotations describe nest association, not tag eligibility. For example,
 `MOCK-F (IN)` means association through confirming IN behaviour; `MOCK-M (2)`
 means two qualifying nonconfirming resightings and, without other proof, needs
 a third or confirming evidence. Definitive capture evidence can instead show
-`TN`, `TB` or `HA`; capture with chicks or GPS-linked chicks is identified
+`TN`, `TB`, or `HA`; capture with chicks or GPS-linked chicks is identified
 separately. `MM, 2` means an MM capture and two qualifying resightings at this
 nest. Competing or uncertain matches are marked ambiguous; do not treat them
 as established parents. A resolved parent's stronger evidence takes precedence
@@ -1507,14 +1507,14 @@ before using a newly downloaded PDF as the current work plan.
 
 | PDF heading | What to do/check |
 |---|---|
-| Parents to capture | Intended bird, purpose and timing notes; Section 8. |
+| Parents to capture | Intended bird, purpose, and timing notes; Section 8. |
 | Parents to resight for nest association | Obtain actual behaviour/identity evidence; do not convert resight-only work into capture. |
 | Nests to process / re-process | Missing floatation or clutch/scrape/tent photographs, subject to hatch signs and the visit plan. |
 | Nests to check for additional eggs | Actual clutch increase or stability. |
-| Nests to check for potential hatch | Remaining eggs, hatch signs and chicks seen—not just the predicted date. |
+| Nests to check for potential hatch | Remaining eggs, hatch signs, and chicks seen—not just the predicted date. |
 | Broods to band | Separate captures and metal-ring identities for chicks handled. |
 | Broods to photograph | Per-chick H-photo progress. Biological deadline before age seven days; display clocks in Section 7. |
-| Broods to recapture for flagging | Current age estimate, identity, measurements and welfare; Section 6. |
+| Broods to recapture for flagging | Current age estimate, identity, measurements, and welfare; Section 6. |
 | Nests requiring a notA closure visit | Final positive-nest closure, not a negative-brood entry. |
 
 For chick work, compare **N chicks / N seen** with the latest qualifying
@@ -1531,14 +1531,14 @@ or substitutes for the current To-Do instructions.
 
 Any Parent capture note containing `tag`, including a conditional
 `resight/tag` instruction, receives a white outline on its map point. The
-outline directs attention to the row's instructions; all identity, association
+outline directs attention to the row's instructions; all identity, association,
 and timing conditions in that row still apply.
 
 ### Look up historical notA nests
 
 Under **Show Views**, `notA_summary` replaces the former View2 tab. It shows
 one row per nest whose latest published visit is notA, with both parents,
-separate pending or ambiguous identity information, the notA visit date and
+separate pending or ambiguous identity information, the notA visit date, and
 any observed hatch date. Its current scope is BADO at Cass River, matching the
 parent engine. A notA nest site can still have a living brood and outstanding
 brood tasks.
@@ -1559,12 +1559,12 @@ snapshot; it does not need reinstalling for each date or build.
 
 If a parent-association row disappears, first check whether its link was
 resolved under Section 5. If brood work disappears, also check normal task
-completion/expiry, presumed loss and juvenile-stage resolution in Section 9.
+completion/expiry, presumed loss, and juvenile-stage resolution in Section 9.
 The fixed day-21-to-35 encounter window can also remove associated parent
 work from day 36; later qualifying live evidence can bring eligible work back
 after refresh. Check the recorded closure reason rather than assuming that
 every missing row means the parent association was resolved.
-The operator can inspect the recorded reason, date and supporting evidence;
+The operator can inspect the recorded reason, date, and supporting evidence;
 absence alone does not tell the fieldworker which rule applied.
 
 A positive nest can remain in the summary or on the map solely because its
@@ -1573,7 +1573,7 @@ instruction to keep trying to band or photograph the resolved brood.
 
 ### Before finishing
 
-Compare notebook counts with saved rows. Check each new ring, negative ID and
+Compare notebook counts with saved rows. Check each new ring, negative ID, and
 family waypoint; then compare the media notes with the copied files. Confirm
 that no form was accidentally saved twice. Missing work needs a clear handover
 even if it has expired from the To-Do display.
@@ -1590,7 +1590,7 @@ even if it has expired from the To-Do display.
 These are the field names used on the forms. A column's presence does not mean
 every event needs a value; use the procedure's requirement table.
 
-### Identity, date and location
+### Identity, date, and location
 
 | Field | Meaning and use |
 |---|---|
@@ -1602,7 +1602,7 @@ every event needs a value; use the procedure's requirement table.
 | `caught`, `released` | Actual capture/release times, CAPTURES only. |
 | `nest_id` | Positive known-nest link or negative unknown-origin brood link. An unrelated adult capture leaves it blank and requires gps_id/point. Family-event blanks must satisfy Sections 5 and 7. |
 | `gps_id`, `gps_point` | Garmin unit and saved waypoint number. Together identify the uploaded point; neither is a coordinate. |
-| `comments` | Evidence, uncertainty, omitted observations and reasons for a justified exception. |
+| `comments` | Evidence, uncertainty, omitted observations, and reasons for a justified exception. |
 
 ### Birds and marks
 
@@ -1614,7 +1614,7 @@ every event needs a value; use the procedure's requirement table.
 | `UL`, `LL`, `UR`, `LR` | Bird's left/right upper/lower leg marks. Observed marks in RESIGHTINGS; release marks in CAPTURES. |
 | `UL_in`, `LL_in`, `UR_in`, `LR_in` | Marks before handling, CAPTURES only. No question marks in any capture leg field. |
 | `rclass` | R regular, P photography, V video, C failed capture, H hiding photograph. |
-| `behav` | Behaviour observed. Multiple applicable tokens use commas; BC, FC or AC trigger the family checks. Do not comma-separate stacked band colours. |
+| `behav` | Behaviour observed. Multiple applicable tokens use commas; BC, FC, or AC trigger the family checks. Do not comma-separate stacked band colours. |
 | `capture_status` | F first marking, R unchanged recapture, C changed combination, D dead recovery. |
 | `capture_method` | HA hand, TB clap-trap on brood, TN clap-trap on nest, SM stationary mistnet, MM mobile mistnet, O other with comment. |
 | `parents` | Attending sex composition for a chick/juvenile capture; does not store parent identities. |
@@ -1631,10 +1631,10 @@ every event needs a value; use the procedure's requirement table.
 | `hatch_state` | Remaining egg counts and N/S/C/CC signs; e.g. 2N1S. |
 | `egg_id` | Egg number 1–4 within the nest, repeated consistently on later measurements. |
 | `float_angle` | Whole degrees, 0–90. |
-| `float_location` | bottom, suspended or surface. |
+| `float_location` | bottom, suspended, or surface. |
 | `float_surface` | Whole mm 0–3 for a surface egg; blank for bottom/suspended. |
 
-### Measurements, media and tags
+### Measurements, media, and tags
 
 | Field(s) | Meaning and use |
 |---|---|
@@ -1671,7 +1671,7 @@ out of RESIGHTINGS to avoid its entry checks.
 ### Check the message against the notebook
 
 Open **DATA ENTRY ISSUES** and read the named row and column. Correct a typo,
-wrong default or omitted observation, then check again. A save-blocking error
+wrong default, or omitted observation, then check again. A save-blocking error
 needs attention before submission; a warning asks for review but does not prove
 the observation is wrong.
 
@@ -1680,22 +1680,22 @@ the observation is wrong.
 | Required field missing | Use the notebook and event-specific table; do not substitute zero for unknown. |
 | GPS absent/not found | Upload GPS first. Check both actual numbers and the encounter date; never select a convenient uploaded point. |
 | Age-C status R or C capture lacks gps_id/point | Enter both fields even with a positive ID. The status F exception does not apply to status R or C captures. |
-| Parent-with-chicks lacks chick row | If chicks were captured, save the genuine age-C CAPTURES rows first with matching date, site and gps_id/point. Otherwise add the actual chick sightings. No invented extra resightings. |
+| Parent-with-chicks lacks chick row | If chicks were captured, save the genuine age-C CAPTURES rows first with matching date, site, and gps_id/point. Otherwise add the actual chick sightings. No invented extra resightings. |
 | Chick resighting lacks parent | Include the tending parent's actual observation in the same submission; an unbanded parent is X-X. If no parent was seen, use the exception below. |
-| Blank ordinary chick ID | Check date/GPS, parent BC, FC or AC and one reliable family association. For blank negative-family parent IDs, both social parents must already be resolved. |
+| Blank ordinary chick ID | Check date/GPS, parent BC, FC, or AC and one reliable family association. For blank negative-family parent IDs, both social parents must already be resolved. |
 | Ambiguous family/parent | Recheck identities and known ID with the field lead. Do not choose the first match or override an unresolved association as though it were established. |
 | H ring missing/not found | Actual CP ring, already saved in current-season CAPTURES. An ordinary sighting's optional ring rule does not apply. |
 | H/Class P or V media incomplete | Camera and both range endpoints. H also needs both GPS fields, including with a positive ID. |
 | Unknown resighting mark rejected | Confirm supported ?, ?R, R?, or UR T? notation. A live inspector may still predate the correction: retain the true reading and refer the mismatch. |
 | Question mark in capture marks | Read the handled bird's actual marks. Do not copy an uncertain resighting into capture fields or replace uncertainty with X. Refer a damaged/unreadable mark. |
 | Bare T | Every tag has a spacer: actual known colour in a capture, or T? in a resighting if unreadable. |
-| Photo range overlaps another event | Check camera, full prefix and sequence ownership. Only the same-session H-sharing rule permits shared ranges. |
+| Photo range overlaps another event | Check camera, full prefix, and sequence ownership. Only the same-session H-sharing rule permits shared ranges. |
 | Status R but marks changed | Check before/after bands; a genuine changed combination uses status C. |
-| Tag-history mismatch | Check ring, old/new tag IDs and prior action. Do not alter an ID to manufacture a history. |
-| Measurement warning | Units, transcription, age/status and the true measurement. Keep a valid unusual value with explanation; review readiness for flagging where relevant. |
-| Nest chronology or egg-visit mismatch | Actual visit sequence, observer and times. Never invent hatch evidence or change a measurement time to make a link pass. |
+| Tag-history mismatch | Check ring, old/new tag IDs, and prior action. Do not alter an ID to manufacture a history. |
+| Measurement warning | Units, transcription, age/status, and the true measurement. Keep a valid unusual value with explanation; review readiness for flagging where relevant. |
+| Nest chronology or egg-visit mismatch | Actual visit sequence, observer, and times. Never invent hatch evidence or change a measurement time to make a link pass. |
 | First F with zero eggs rejected after chicks found inside the nest | Expected safeguard. Recheck the observation; if correct, retain true counts and explain the rare inside-nest discovery in comments. Use the documented override if blocked after checking all other fields. No programmed validator exception is needed. |
-| Further pP, P or D visit rejected | Fate checks remain allowed until final notA under the approved method. Check the actual sequence and refer an older validator's terminal-state message. |
+| Further pP, P, or D visit rejected | Fate checks remain allowed until final notA under the approved method. Check the actual sequence and refer an older validator's terminal-state message. |
 | Validator failed / no meaningful row or variable | Possible inspector failure. Retain the message and ask for technical review; it is not a biological finding. |
 
 ### Chicks seen without a parent
@@ -1712,7 +1712,7 @@ to ON for subsequent ordinary entries. If the nest/brood ID is also unknown,
 explain that separately; the missing parent does not supply a blank-ID link.
 
 An observed unbanded parent is not absent: enter its X-X row. A forgotten
-parent row, incomplete gps_id/point or missing H ring is not the same exceptional
+parent row, incomplete gps_id/point, or missing H ring is not the same exceptional
 situation. The override itself proves neither parentage nor completed To-Do
 work, and does not remove H ring/GPS/media requirements.
 
@@ -1746,8 +1746,8 @@ checks are not live-portal verification; source/version details are in Section 1
 
 Use these tables to check the records needed for an encounter. “Resighting
 details” means `species`, `site`, `observer`, `date`, `rclass`, `age`, `sex`,
-observed leg marks and applicable `behav`. “Capture details” means the required
-identity, status, times, marks and age-specific fields in Section 6. GPS and
+observed leg marks, and applicable `behav`. “Capture details” means the required
+identity, status, times, marks, and age-specific fields in Section 6. GPS and
 family exceptions retain the conditions in Sections 3 and 5.
 
 <details>
@@ -1757,10 +1757,10 @@ family exceptions retain the conditions in Sections 3 and 5.
 |---|---|
 | Circumstance / table / rows | Newly assigned positive ID: `NESTS`, one opening visit. |
 | Required | `species`, `site`, `observer`, `date`, `time_visit`, `nest_id`, `nest_state`, both GPS fields. |
-| Conditional | S has zero clutch; egg/chick counts, attending bird and hatch signs as observed. |
+| Conditional | S has zero clutch; egg/chick counts, attending bird, and hatch signs as observed. |
 | Photographs | `nest_photo`/`tent_photo`, actual camera/range on NESTS. |
-| Do not enter | Negative or placeholder ID, reused discovery tally or invented egg measurements. |
-| Likely To-Do follow-up | Scrape photos, processing, additional eggs or hatch checks. |
+| Do not enter | Negative or placeholder ID, reused discovery tally, or invented egg measurements. |
+| Likely To-Do follow-up | Scrape photos, processing, additional eggs, or hatch checks. |
 
 </details>
 
@@ -1774,7 +1774,7 @@ family exceptions retain the conditions in Sections 3 and 5.
 | Conditional | No eggs remaining means clutch 0, not an invented earlier clutch. Individual birds receive their own capture/resighting events. |
 | Photographs | Actual nest sequence on its visit; chick hiding/handling media remain separate. |
 | Do not enter | Negative ID for this established nest origin; imaginary eggs/egg rows; F/H nest events for an unknown-origin brood found outside the nest. |
-| Likely To-Do follow-up | Banding, H photographs and final notA. The normal zero-egg F safeguard is retained; explain a correct rare observation and use the documented override if needed. |
+| Likely To-Do follow-up | Banding, H photographs, and final notA. The normal zero-egg F safeguard is retained; explain a correct rare observation and use the documented override if needed. |
 
 </details>
 
@@ -1784,16 +1784,16 @@ family exceptions retain the conditions in Sections 3 and 5.
 | Required database events | Entry |
 |---|---|
 | Circumstance / table / rows | New visit to existing ID: `NESTS`, one new row. |
-| Required | Existing `nest_id`, today's visit details/state and actual findings. |
+| Required | Existing `nest_id`, today's visit details/state, and actual findings. |
 | Conditional | Egg/chick counts, hatch/fate evidence; final closure conditions in Section 9. |
 | Photographs | Today's sequence if taken. Direct nest GPS fields stay blank after the opening visit. |
 | Do not enter | Today's findings over an earlier visit; a second F discovery for the same ID. |
-| Likely To-Do follow-up | Processing, clutch/hatch review or closure. |
+| Likely To-Do follow-up | Processing, clutch/hatch review, or closure. |
 
 </details>
 
 <details>
-<summary><strong>Eggs measured, floated or photographed</strong></summary>
+<summary><strong>Eggs measured, floated, or photographed</strong></summary>
 
 | Required database events | Entry |
 |---|---|
@@ -1815,8 +1815,8 @@ family exceptions retain the conditions in Sections 3 and 5.
 | Required | Resighting details; direct GPS where required. |
 | Conditional | Nest/brood link, companion-parent check for age C, supported partial marks. |
 | Photographs | class P or V/H require camera and complete range; H has additional ring/GPS rules. |
-| Do not enter | Capture, samples or tag action for a bird not handled. |
-| Likely To-Do follow-up | Parent association, brood work or tagged-bird observation. |
+| Do not enter | Capture, samples, or tag action for a bird not handled. |
+| Likely To-Do follow-up | Parent association, brood work, or tagged-bird observation. |
 
 </details>
 
@@ -1827,7 +1827,7 @@ family exceptions retain the conditions in Sections 3 and 5.
 |---|---|
 | Circumstance / table / rows | Bird seen unbanded: `RESIGHTINGS`, one row per individual. |
 | Required | Resighting details; at minimum `LL = X`, `LR = X`; actual age/sex/behaviour and location. |
-| Conditional | Parent BC, FC or AC row accompanies chick sightings; explicit ID if needed. |
+| Conditional | Parent BC, FC, or AC row accompanies chick sightings; explicit ID if needed. |
 | Photographs | Actual class-dependent fields. |
 | Do not enter | Omit the parent merely because unbanded; use X for unreadable bands; treat X-X as a globally unique bird. |
 | Likely To-Do follow-up | Parent identity/banding or family-link review. |
@@ -1840,11 +1840,11 @@ family exceptions retain the conditions in Sections 3 and 5.
 | Required database events | Entry |
 |---|---|
 | Circumstance / table / rows | `CAPTURES` for handled birds, `RESIGHTINGS` for sightings; one per individual event. |
-| Required | Event details, shared family date, site and gps_id/point; known positive ID where required. |
+| Required | Event details, shared family date, site, and gps_id/point; known positive ID where required. |
 | Conditional | Eligible later resightings may omit ID only under Section 5; positive parent-with-chicks history must support H/notA. |
 | Photographs | Handling on CAPTURES; hiding on separate H rows. |
 | Do not enter | Several chicks in one row, new negative ID merely because the brood moved, continued H nest visits after final hatch. |
-| Likely To-Do follow-up | Banding, per-chick hiding photographs, flagging and positive-nest closure. |
+| Likely To-Do follow-up | Banding, per-chick hiding photographs, flagging, and positive-nest closure. |
 
 </details>
 
@@ -1858,7 +1858,7 @@ family exceptions retain the conditions in Sections 3 and 5.
 | Conditional | Later blank-ID family resightings only after the confirmed both-parent link in Section 5; no absent-parent row is invented. First chick captures retain the explicit ID. |
 | Photographs | Separate tent/H events; H ring and camera/range mandatory. |
 | Do not enter | NESTS or EGGS row, dropped minus sign, or a placeholder instead of the brood ID. |
-| Likely To-Do follow-up | Parent association, banding, photographs and later flagging; photo display uses discovery days 1–6. |
+| Likely To-Do follow-up | Parent association, banding, photographs, and later flagging; photo display uses discovery days 1–6. |
 
 </details>
 
@@ -1868,11 +1868,11 @@ family exceptions retain the conditions in Sections 3 and 5.
 | Required database events | Entry |
 |---|---|
 | Circumstance / table / rows | `CAPTURES`, one new row per handling event. |
-| Required | Capture details, metal `ring`, appropriate age/status measurements and before/after marks. |
+| Required | Capture details, metal `ring`, appropriate age/status measurements, and before/after marks. |
 | Conditional | Age-C status R or C direct GPS always; F first chick requires real positive/negative ID. Adult `caught_with` chicks requires direct GPS. Tags/samples as taken. |
 | Photographs | Handling flags and actual camera/range; separate H rows for hiding photographs. |
 | Do not enter | Question marks in any leg field; overwrite a prior capture; fictitious duplicate sighting. |
-| Likely To-Do follow-up | Banding, parent/tag work, per-chick photographs or flagging. |
+| Likely To-Do follow-up | Banding, parent/tag work, per-chick photographs, or flagging. |
 
 </details>
 
@@ -1882,11 +1882,11 @@ family exceptions retain the conditions in Sections 3 and 5.
 | Required database events | Entry |
 |---|---|
 | Circumstance / table / rows | One CAPTURES row per handled chick; one RESIGHTINGS row per observed parent. |
-| Required | Save chick captures first. Match `date`, `site`, `gps_id`, `gps_point` across tables; actual parent BC, FC or AC. |
+| Required | Save chick captures first. Match `date`, `site`, `gps_id`, `gps_point` across tables; actual parent BC, FC, or AC. |
 | Conditional | Normal nest/brood and capture fields; if H photographs also taken, separate H rows. |
 | Photographs | Tent sequence on capture, hiding sequence on H. |
 | Do not enter | Additional chick sightings merely to satisfy the parent-side check; fabricated parent. |
-| Likely To-Do follow-up | Family association, chick photographs or flagging. |
+| Likely To-Do follow-up | Family association, chick photographs, or flagging. |
 
 </details>
 
@@ -1924,7 +1924,7 @@ family exceptions retain the conditions in Sections 3 and 5.
 | Required database events | Entry |
 |---|---|
 | Circumstance / table / rows | Separate `RESIGHTINGS` H, one per photographed chick. |
-| Required | Age C, sex U, explicit valid positive/negative `nest_id`, individual `ring`, observed marks, both GPS fields, complete camera/range and encounter details. |
+| Required | Age C, sex U, explicit valid positive/negative `nest_id`, individual `ring`, observed marks, both GPS fields, complete camera/range, and encounter details. |
 | Conditional | Actual parent resighting in same submission, except justified no-parent case. Capture ring saved first. No blank-ID exception for a new H row. |
 | Photographs | Hiding sequence; shared H range only under Section 7's same-session rule. |
 | Do not enter | Hiding evidence only in `chick_hide_photo`; combined handling/H record; duplicate ring as another completed chick. |
@@ -1947,16 +1947,16 @@ family exceptions retain the conditions in Sections 3 and 5.
 </details>
 
 <details>
-<summary><strong>Adult geolocator deployment, retrieval, retention or replacement</strong></summary>
+<summary><strong>Adult geolocator deployment, retrieval, retention, or replacement</strong></summary>
 
 | Required database events | Entry |
 |---|---|
 | Circumstance / table / rows | `CAPTURES`, one per handled adult. |
 | Required | Normal capture details and Section 8's exact O/D/R/S/N before/after cells. |
-| Conditional | Tag history, known spacer colours, `wt_w_tag` and action-specific IDs. Eligibility/timing assessed before capture. |
+| Conditional | Tag history, known spacer colours, `wt_w_tag`, and action-specific IDs. Eligibility/timing assessed before capture. |
 | Photographs | Actual handling sequence if taken. |
 | Do not enter | Tag action on an unhandled sighting; O on a chick; T? on a capture; same-visit mate capture solely to complete a pair. |
-| Likely To-Do follow-up | Luke Eberhart-Hertel's wave/stock directions, mate eligibility and future retrieval. |
+| Likely To-Do follow-up | Luke Eberhart-Hertel's wave/stock directions, mate eligibility, and future retrieval. |
 
 </details>
 
@@ -1967,7 +1967,7 @@ family exceptions retain the conditions in Sections 3 and 5.
 |---|---|
 | Circumstance / table / rows | `RESIGHTINGS`, one per observed adult. |
 | Required | Resighting details and marks actually seen. |
-| Conditional | UR TY, or T? if spacer unreadable; behaviour, family/location and class P or V fields as applicable. |
+| Conditional | UR TY, or T? if spacer unreadable; behaviour, family/location, and class P or V fields as applicable. |
 | Photographs | Class P or V if a corresponding session occurred. |
 | Do not enter | Bare T; guessed tag ID; retrieval inferred from a tag not being seen. |
 | Likely To-Do follow-up | Tagged-bird history, status/identity review where uncertain. |
@@ -1980,11 +1980,11 @@ family exceptions retain the conditions in Sections 3 and 5.
 | Required database events | Entry |
 |---|---|
 | Circumstance / table / rows | One `NESTS` visit, plus individual bird events as encountered. |
-| Required | H state, true remaining-egg/chick counts and visit details. |
+| Required | H state, true remaining-egg/chick counts, and visit details. |
 | Conditional | `hatch_state` for remaining eggs; one final notA later. |
 | Photographs | Actual relevant nest sequence; chick media remain with their own events. |
 | Do not enter | Chicks as eggs; later H nest visits after the final zero-egg hatch visit. |
-| Likely To-Do follow-up | Banding, H photographs and closure while brood work continues. |
+| Likely To-Do follow-up | Banding, H photographs, and closure while brood work continues. |
 
 </details>
 
@@ -1994,8 +1994,8 @@ family exceptions retain the conditions in Sections 3 and 5.
 | Required database events | Entry |
 |---|---|
 | Circumstance / table / rows | `NESTS`, one per actual positive-nest visit. |
-| Required | Existing ID, date/time, evidence and appropriate possible/confirmed state or final notA. |
-| Conditional | Further pP, P or D fate-check visits remain allowed until final notA; counts and D → notA / post-H closure conditions in Section 9. |
+| Required | Existing ID, date/time, evidence, and appropriate possible/confirmed state or final notA. |
+| Conditional | Further pP, P, or D fate-check visits remain allowed until final notA; counts and D → notA / post-H closure conditions in Section 9. |
 | Photographs | Evidence sequence when taken. |
 | Do not enter | Certainty from an empty nest alone; negative-brood closure; reopen notA for another attempt. |
 | Likely To-Do follow-up | Agreed fate review/closure; surviving brood follow-up remains separate. |
@@ -2003,12 +2003,12 @@ family exceptions retain the conditions in Sections 3 and 5.
 </details>
 
 <details>
-<summary><strong>GPS, media and end-of-day handover</strong></summary>
+<summary><strong>GPS, media, and end-of-day handover</strong></summary>
 
 | Required database events | Entry |
 |---|---|
 | Circumstance / table / rows | GPS upload supplies GPS_POINTS/GPS_TRACKS; biological records retain their individual events. |
-| Required | Correct gps_id/point values, actual field dates and media identifiers; save/review records before handing over. |
+| Required | Correct gps_id/point values, actual field dates, and media identifiers; save/review records before handing over. |
 | Conditional | Ask designated operator to refresh published To-Do results; review overrides and unresolved links. |
 | Photographs | Copy originals, verify backups/ranges; storage location in media register. |
 | Do not enter | Manually invent GPS rows/coordinates, duplicate submitted events, or use `nov`/`pk` as a repair. |
@@ -2022,11 +2022,11 @@ family exceptions retain the conditions in Sections 3 and 5.
 | Required database events | Entry |
 |---|---|
 | Circumstance / table / rows | RESIGHTINGS: one row per adult actually observed on each genuine occasion. Another nest also needs its real NESTS visits, not a brood-loss NESTS row. |
-| Required | Normal adult observer/date/site/age/sex, observed leg marks, `rclass` and actual `behav`. Collect the encounter gps_id/point. For Route 1 in Section 9, enter the reliable old brood ID explicitly. |
+| Required | Normal adult observer/date/site/age/sex, observed leg marks, `rclass`, and actual `behav`. Collect the encounter gps_id/point. For Route 1 in Section 9, enter the reliable old brood ID explicitly. |
 | Conditional | At another nest, enter that nest's own positive ID and actual association evidence. Record all chicks actually encountered; use normal family/submission rules when BC/FC/AC applies. Explain OB and uncertain fate in comments. |
 | Photographs | Ordinary R needs no invented photo fields. Use P or V with their required media when such a session occurred. H remains specific to chick hiding photographs. |
-| Do not enter | A fabricated mate/chick, false absence count, made-up IN/AC, duplicate sighting, shifted date or dead-recovery CAPTURES row to force presumed loss. No NESTS rows for a negative brood. |
-| Likely To-Do follow-up | Parent association may resolve independently of brood fate. Qualifying renesting, repeated non-brood evidence or the fixed 21–35-day no-encounter rule may suppress brood and associated parent work. Qualifying live evidence can prevent presumed loss or reopen work. Section 9. |
+| Do not enter | A fabricated mate/chick, false absence count, made-up IN/AC, duplicate sighting, shifted date, or dead-recovery CAPTURES row to force presumed loss. No NESTS rows for a negative brood. |
+| Likely To-Do follow-up | Parent association may resolve independently of brood fate. Qualifying renesting, repeated non-brood evidence, or the fixed 21–35-day no-encounter rule may suppress brood and associated parent work. Qualifying live evidence can prevent presumed loss or reopen work. Section 9. |
 
 </details>
 
@@ -2036,7 +2036,7 @@ family exceptions retain the conditions in Sections 3 and 5.
 | Required database events | Entry |
 |---|---|
 | Circumstance / table / rows | CAPTURES: one row per bird recovered dead or genuinely handled. RESIGHTINGS: one row per juvenile only seen. Never fabricate handling or a sighting. |
-| Required | Normal event fields from Section 6. For D: actual age, ring, all four recovered _in positions, blank release leg fields and blank released time. A juvenile's recovered marks need not include a flag. |
+| Required | Normal event fields from Section 6. For D: actual age, ring, all four recovered _in positions, blank release leg fields, and blank released time. A juvenile's recovered marks need not include a flag. |
 | Conditional | Known origin/brood ID and actual gps_id/point under the location rules. For automatic J resolution, the original brood must be reliably identified from the record/history, without conflicting identities. Preserve any later social brood link rather than rewriting earlier records. |
 | Photographs | Actual photographs only, with their own camera/range metadata when entered. Do not invent photographs or live-release flags. |
 | Do not enter | Question marks in capture leg fields, invented release marks/time, a D row for presumed loss, or J merely to clear a To-Do list. |
@@ -2055,15 +2055,15 @@ family exceptions retain the conditions in Sections 3 and 5.
 
 ### A new two-egg nest and its incubating parent
 
-You find B0203, collect point 214 on Garmin 4, float both eggs and identify
+You find B0203, collect point 214 on Garmin 4, float both eggs, and identify
 the incubating parent.
 
 | Record | Table/rows | Main entries |
 |---|---|---|
 | Discovery | NESTS, 1 | Positive ID B0203; F; actual visit details; clutch 2; GPS 4 / 214. |
-| Egg measurements | EGGS, 2 | B0203, egg 1 and 2, actual measurer/times and each float reading. |
-| Clutch photographs | On the NESTS row | Applicable flags, camera and range. |
-| Parent incubating | RESIGHTINGS, 1 | A, R, IN, actual marks/sex and B0203. |
+| Egg measurements | EGGS, 2 | B0203, egg 1 and 2, actual measurer/times, and each float reading. |
+| Clutch photographs | On the NESTS row | Applicable flags, camera, and range. |
+| Parent incubating | RESIGHTINGS, 1 | A, R, IN, actual marks/sex, and B0203. |
 
 If B0203 began as a known scrape, keep its ID; the earlier S row already holds
 the nest gps_id/point, so today's F leaves those GPS fields blank.
@@ -2087,7 +2087,7 @@ link to B0203, enter both: there is still only one unique family ID.
 
 Two chicks are captured while both parents tend nearby. Save the two chick
 CAPTURES rows first, then enter the two genuine parent RESIGHTINGS rows. All
-four records use the same date, site and gps_id/point.
+four records use the same date, site, and gps_id/point.
 
 The saved captures satisfy the parents' accompanying-chick check. No chick
 RESIGHTINGS rows are needed merely because the chicks were handled. If you
@@ -2097,14 +2097,14 @@ parent-only submission first.
 
 | Bird / event | Table / rows | Main entries |
 |---|---|---|
-| Chick 1 handled | CAPTURES, 1 | Age C; its own ring, actual capture status, marks and required measurements; nest/brood link under Section 6. Save before the parent resightings. |
+| Chick 1 handled | CAPTURES, 1 | Age C; its own ring, actual capture status, marks, and required measurements; nest/brood link under Section 6. Save before the parent resightings. |
 | Chick 2 handled | CAPTURES, 1 | Age C; its own ring and capture details, as for Chick 1. A sibling's record does not cover this chick. |
-| Parent 1 observed tending the chicks | RESIGHTINGS, 1 | Age A; ordinary `rclass = R`; actual BC, FC or AC behaviour, identity and nest/brood link under Section 5. |
+| Parent 1 observed tending the chicks | RESIGHTINGS, 1 | Age A; ordinary `rclass = R`; actual BC, FC, or AC behaviour, identity, and nest/brood link under Section 5. |
 | Parent 2 observed tending the chicks | RESIGHTINGS, 1 | Age A; its own identity and observed behaviour, as for Parent 1. Neither parent gets a CAPTURES row because neither was handled. |
-| Chick 1 photographed hiding, if taken | RESIGHTINGS, 1 additional H row | Age C; `rclass = H`; Chick 1's ring; nest/brood link under Section 7; both GPS fields and this photograph's own `cam_id`, `photo_start` and `photo_end`. Submit with the actual parent observations. |
+| Chick 1 photographed hiding, if taken | RESIGHTINGS, 1 additional H row | Age C; `rclass = H`; Chick 1's ring; nest/brood link under Section 7; both GPS fields and this photograph's own `cam_id`, `photo_start`, and `photo_end`. Submit with the actual parent observations. |
 | Chick 2 photographed hiding, if taken | RESIGHTINGS, 1 additional H row | Age C; `rclass = H`; Chick 2's ring and its own hiding-photo details, as for Chick 1. Submit in the same family resighting submission. |
 
-Use the same date, site and gps_id/point on every row in this encounter, and
+Use the same date, site, and gps_id/point on every row in this encounter, and
 complete the normal required fields for each event. Without hiding photographs,
 there are **four rows**: two captures and two parent resightings. If both chicks
 are photographed hiding, there are **six rows**: the same four plus two H rows.
@@ -2124,20 +2124,20 @@ waypoint. The approved blank-ID resighting route can apply, but only because of 
 
 | Row | Required current evidence | `nest_id` |
 |---|---|---|
-| Observed parent | A; actual BC, FC or AC; reliable selected identity | May be blank under the confirmed negative-family exception. |
-| Chick 1 | C; actual sighting; same date, site and gps_id/point as parent | May be blank under the same exception. |
-| Chick 2 | C; actual sighting; same date, site and gps_id/point as parent | May be blank under the same exception. |
+| Observed parent | A; actual BC, FC, or AC; reliable selected identity | May be blank under the confirmed negative-family exception. |
+| Chick 1 | C; actual sighting; same date, site, and gps_id/point as parent | May be blank under the same exception. |
+| Chick 2 | C; actual sighting; same date, site, and gps_id/point as parent | May be blank under the same exception. |
 | Absent second parent | No observation | No row. Its already resolved history is not a new sighting. |
 
 Enter -C0402 directly if known. The exception does not apply to a new family's
-first chick capture, an unresolved pair or a partly read parent that cannot
+first chick capture, an unresolved pair, or a partly read parent that cannot
 be identified reliably.
 
 ### When an omitted chick ID cannot be inferred
 
 | Difference | Result / correct response |
 |---|---|
-| Parent only AT, not observed with chicks | AT does not supply BC, FC or AC evidence. Keep the true behaviour. |
+| Parent only AT, not observed with chicks | AT does not supply BC, FC, or AC evidence. Keep the true behaviour. |
 | Parent date 24 October, chicks 25 October | Different encounters; do not alter dates to match. |
 | Parent GPS 4 / 216, chick GPS 5 / 216 | Different Garmin units. Check the actual gps_id/point. |
 | Parent IDs B0203 and B0204 at one point | Conflicting links. Resolve before relying on a blank ID. |
@@ -2163,7 +2163,7 @@ X, which would describe an empty position.
 ### Three captured chicks, two hiding photographs
 
 Three distinct rings are recorded in CAPTURES. Later, two chicks are photographed
-hiding. Each receives an H row with its own ring, direct GPS and hiding range,
+hiding. Each receives an H row with its own ring, direct GPS, and hiding range,
 alongside the observed parent row(s).
 
 The updated **Broods to photograph** To-Do progress remains two of three while
@@ -2176,7 +2176,7 @@ six days. Report the missing work; do not infer completion from expiry.
 
 An earlier capture linked a chick ring to its social family. You now photograph
 that chick hiding and resight one known parent at the same waypoint; its mate
-is absent. Enter the actual parent behaviour and the shared date, site and gps_id/point,
+is absent. Enter the actual parent behaviour and the shared date, site, and gps_id/point,
 with the chick's ring and full H photo fields. Check the ring history and
 Parent–Nest summary, then enter the established positive/negative ID explicitly
 on the H row. No absent mate row is needed. If the family cannot be identified
@@ -2187,10 +2187,10 @@ separately after the snapshot refresh.
 ### Unbanded parent versus no parent seen
 
 An unbanded parent tending two banded chicks gets its own age-A RESIGHTINGS
-row, `LL = X`, `LR = X`, observed BC, FC or AC, required ID and shared waypoint.
+row, `LL = X`, `LR = X`, observed BC, FC, or AC, required ID, and shared waypoint.
 The two chicks each get a row as well.
 
-If no adult was seen, enter only the chicks, waypoint and a specific no-parent
+If no adult was seen, enter only the chicks, waypoint, and a specific no-parent
 comment. Use Section 12's justified exception if blocked; do not add an X-X
 adult simply to satisfy the check.
 
@@ -2200,14 +2200,14 @@ A chick is recaptured under the current flagging plan and passes the bander's
 condition/measurement assessment. Its old combination is recorded in the four
 incoming fields; its actual new flag combination goes in the release fields.
 Use `capture_status = C`, not R, and record both GPS fields even with a known
-positive nest. Tarsus, culmen and weight remain required. No tag action is
+positive nest. Tarsus, culmen, and weight remain required. No tag action is
 entered for the chick.
 
 ### Replacing a geolocator
 
 An eligible adult arrives with GEO-017 and leaves with GEO-044. On its single
 CAPTURES row enter `tag_action = N`, `tag_type = GEO`, `tag_id_in = GEO-017`,
-`tag_id = GEO-044`, actual before/after spacer marks and `wt_w_tag` describing
+`tag_id = GEO-044`, actual before/after spacer marks, and `wt_w_tag` describing
 the recorded mass. Complete its ring and normal capture fields.
 
 A later resighting describes what was visible then. It is not another tag
@@ -2296,9 +2296,9 @@ female is observed incubating it.
 
 | Encounter component | Expected event | Key entries |
 |---|---|---|
-| New nest discovery | NESTS, 1 | B0213; F, actual date/time/counts and discovery gps_id/point. |
+| New nest discovery | NESTS, 1 | B0213; F, actual date/time/counts, and discovery gps_id/point. |
 | Female incubating | RESIGHTINGS, 1 | Age A, actual marks/sex, `behav = IN`, `nest_id = B0213`; normal resighting details. |
-| Old brood | No invented event | Do not add a B0212 nest failure, dead chick or absent mate observation. |
+| Old brood | No invented event | Do not add a B0212 nest failure, dead chick, or absent mate observation. |
 
 Once the same female is selected unambiguously for both attempts, the
 later-nest route presumes loss of B0212 without waiting 21 days, once the
@@ -2308,7 +2308,7 @@ suppressed after refresh, but its required notA visit remains.
 If a live chick from B0212 is genuinely encountered on 14 October itself or
 later, record it and its family truthfully. A direct link or an approved
 unambiguous blank-ID link prevents presumed loss at the next refresh. Keep
-the shared date, site and gps_id/point. A nearby nest with unrelated parents
+the shared date, site, and gps_id/point. A nearby nest with unrelated parents
 would not trigger the renesting rule.
 
 ### A former parent is scraping at a new attempt
@@ -2317,9 +2317,9 @@ The same principle applies if the new B0213 attempt is still a scrape.
 
 | Encounter component | Expected event | Key entries |
 |---|---|---|
-| New stationary scrape | NESTS, 1 | B0213, S, actual date/time, zero eggs and the discovery gps_id/point. No invented EGGS rows. |
-| Former parent genuinely scraping | RESIGHTINGS, 1 | Age A, its actual marks/sex, SC and B0213, with the encounter details. |
-| Old brood | No invented event | No fabricated dead chick, failure visit or absent mate. |
+| New stationary scrape | NESTS, 1 | B0213, S, actual date/time, zero eggs, and the discovery gps_id/point. No invented EGGS rows. |
+| Former parent genuinely scraping | RESIGHTINGS, 1 | Age A, its actual marks/sex, SC, and B0213, with the encounter details. |
+| Old brood | No invented event | No fabricated dead chick, failure visit, or absent mate. |
 
 One eligible SC observation can establish that parent's association. Once
 the old and new associations meet Section 9's requirements, the scrape can
@@ -2331,9 +2331,9 @@ One banded chick from B0214 is found dead. A sibling is still alive nearby.
 
 | Bird | Expected event | Key entries |
 |---|---|---|
-| Recovered dead chick | CAPTURES, 1 | Age C, status D, its ring and all four actual recovered marks in the _in fields; release fields/time blank. Record the actual waypoint and known brood link. |
-| Living sibling observed, not handled | RESIGHTINGS, 1 | Age C, observed marks, actual family gps_id/point and the normal linkage details. |
-| Parent(s) actually observed | RESIGHTINGS, one each | Actual BC, FC or AC when tending the living chick, with the same date/site/gps_id/point. No row for an absent parent. |
+| Recovered dead chick | CAPTURES, 1 | Age C, status D, its ring, and all four actual recovered marks in the _in fields; release fields/time blank. Record the actual waypoint and known brood link. |
+| Living sibling observed, not handled | RESIGHTINGS, 1 | Age C, observed marks, actual family gps_id/point, and the normal linkage details. |
+| Parent(s) actually observed | RESIGHTINGS, one each | Actual BC, FC, or AC when tending the living chick, with the same date/site/gps_id/point. No row for an absent parent. |
 
 The dead recovery does not prove survival and does not establish loss of the
 whole brood. The living family evidence keeps the brood work open under the
@@ -2348,7 +2348,7 @@ qualifying live encounters during that window.
 | Reference date / actual encounter | Expected work-plan result after refresh |
 |---|---|
 | 5 November, day 35 | The window is not yet over. This absence rule does not suppress the brood. Other established completion or closure rules may still apply. |
-| 6 November, day 36, still no live encounter | Presumed dead under Route 3. Remove brood work, associated parent tasks and the brood's summary entry. An independently due positive-nest notA visit remains. |
+| 6 November, day 36, still no live encounter | Presumed dead under Route 3. Remove brood work, associated parent tasks, and the brood's summary entry. An independently due positive-nest notA visit remains. |
 | A live chick is genuinely seen on 6 November | Enter the chick and any parent(s) actually observed, using the normal family-link and gps_id/point rules. After refresh, the presumed-dead result no longer applies; outstanding flagging or parent work can return. |
 | Instead, a genuine 26 October encounter is uploaded late | Keep 26 October as the field date: it was day 25. Once included in a refresh, it prevents Route 3 because it falls within the observation window. |
 
@@ -2365,7 +2365,7 @@ later field date, FWAB is genuinely observed as age J.
 
 | Encounter | Expected event | What the record establishes |
 |---|---|---|
-| First chick marking at B0214 | CAPTURES, 1 | Age C, F, CP99001, B0214 and the actual initial marks. |
+| First chick marking at B0214 | CAPTURES, 1 | Age C, F, CP99001, B0214, and the actual initial marks. |
 | Later recapture at B0215 | CAPTURES, 1 | Actual age, status C if the combination changed, CP99001, incoming/release marks including FWAB, and B0215. This records the later social association without erasing the original origin. |
 | FWAB subsequently seen as a juvenile | RESIGHTINGS, 1 | Age J, FWAB in UL, other marks as observed, and normal date/site/observer/location details. The trace uses the earlier flag-to-ring capture and original chick record. |
 
@@ -2374,7 +2374,7 @@ B0215's other chicks merely because CP99001 later joined them. The flag alone
 does not establish age J; the observer must actually assess the bird as J.
 
 If CP99001 is instead recovered dead and confirmed as J, enter one CAPTURES
-row with D, its recovered marks in the incoming fields and no release marks
+row with D, its recovered marks in the incoming fields, and no release marks
 or release time. The reliable origin-linked J record still resolves B0214's
 chick-stage work. Preserve its death and any known sibling deaths: this is
 developmental resolution, not a statement that all siblings survived.
@@ -2395,25 +2395,26 @@ developmental resolution, not a statement that all siblings survived.
 | v2.2 working manual | Separate Cass River/BADO Word/PDF draft; original reference retained. |
 | v2.2 Markdown preview | Contents links and collapsible sections for local review. |
 | v2.3, 26 October 2026 | Earlier full prose redraft, retained under the v2.2 preview filename. |
-| v2.4 review draft, 26 October 2026 | All sections reviewed/redrafted; corrected split-table family entry, capture GPS/status table, blank negative-family IDs, uncertainty notation, H progress/two clocks, egg timing, adult tag cells and pre-capture gates. Added consolidated scenarios/examples/checklists and explicit source-state notes. |
-| v2.4.1, 26 October 2026 | Luke Eberhart-Hertel confirmed pP, P or D fate checks remain open until notA, and the very rare positive-nest discovery with newly hatched chicks inside uses F then H at least one minute later. Keys, procedures, scenarios, examples and checklists updated; remaining validator/task alignment explicitly distinguished. |
-| v2.4.2, 26 October 2026 | Clarified that the normal first-F zero-clutch rejection is intentional. The correct rare observation needs an explanatory comment and documented override if blocked, not a programmed exception. Removed the mistaken validator-gap claim from procedures, scenarios, examples and source notes. |
+| v2.4 review draft, 26 October 2026 | All sections reviewed/redrafted; corrected split-table family entry, capture GPS/status table, blank negative-family IDs, uncertainty notation, H progress/two clocks, egg timing, adult tag cells, and pre-capture gates. Added consolidated scenarios/examples/checklists and explicit source-state notes. |
+| v2.4.1, 26 October 2026 | Luke Eberhart-Hertel confirmed pP, P, or D fate checks remain open until notA, and the very rare positive-nest discovery with newly hatched chicks inside uses F then H at least one minute later. Keys, procedures, scenarios, examples, and checklists updated; remaining validator/task alignment explicitly distinguished. |
+| v2.4.2, 26 October 2026 | Clarified that the normal first-F zero-clutch rejection is intentional. The correct rare observation needs an explanatory comment and documented override if blocked, not a programmed exception. Removed the mistaken validator-gap claim from procedures, scenarios, examples, and source notes. |
 | v2.4.3, 26 October 2026 | Preserved Luke Eberhart-Hertel's direct edits; replaced vague GPS wording with gps_id/point, standardised field house wording and expanded capture/resighting shortcuts. Removed the retired no-nest entry convention throughout; unrelated adult captures use blank nest_id and gps_id/point. Added the known-ring exception for uncertain parent marks and the same-encounter conflicting-ID rule. Full software integration verification remains pending. |
 | v2.4.4, 26 October 2026 | Updated the reviewed protocol metadata to v1.3.14 and explained that one eligible nest-linked SC observation can confirm that parent's association, without requiring chick records or confirming the mate. Distinguished completed bounded checks from the pending full 27 October rehearsal and unverified live installation. |
-| v2.4.5, 26 October 2026 | Added a per-bird event table to the split-table capture/resighting example, with submission order, optional separate hiding-photo rows and four-versus-six row totals. No protocol change. |
-| v2.4.6, 27 October 2026 | Added the authorship/AI disclosure and Luke Eberhart-Hertel's contact address before Contents. Added a local app reading page with collapsible sections, contents navigation and search; no field-method or database-rule change. |
-| v2.4.7, 27 October 2026 | Expanded parent-association behaviour codes, evidence ranking and MM follow-up. Added the two presumed-brood-loss routes, timing/identity/behaviour safeguards, later-nest evidence and reactivation limits, field decision key, event table, worked examples and review checklist. Updated the bounded local rehearsal status; no SQL, validator or live-state change. |
-| v2.4.8, 27 October 2026 | Aligned the manual with Luke Eberhart-Hertel's approved automatic renesting-loss rule, including associated scrapes; same-day and unambiguous inferred live-evidence safeguards; separate whole-brood juvenile-stage resolution, including confirmed J dead recoveries; and truthful chick/juvenile D entries. Added decision-key steps, supporting tables and worked examples. Updated source-state notes to local protocol v1.3.17; live installation remains unverified. |
-| v2.4.9, 28 October 2026 | New H records require an explicit nest/brood ID; older blank-H linkage is compatibility only. Added final-egg timing, two-egg confirmation/no-float proxy/third-egg reset, independent 36-hour gate, latest-encounter flagging counts, later ring-linked captures and GEO pair-completion guidance. Updated protocol/source status; final combined SQL/PDF rehearsal and live deployment remain separate checks. |
-| v2.4.10, 29 October 2026 | Added the fixed inclusive age-21-to-35 live-encounter window, first suppression on day 36, negative-brood age proxy and later-live reactivation. Explained associated parent-task/summary suppression, late-upload correction and independent notA/juvenile resolution; added a dated worked example. |
+| v2.4.5, 26 October 2026 | Added a per-bird event table to the split-table capture/resighting example, with submission order, optional separate hiding-photo rows, and four-versus-six row totals. No protocol change. |
+| v2.4.6, 27 October 2026 | Added the authorship/AI disclosure and Luke Eberhart-Hertel's contact address before Contents. Added a local app reading page with collapsible sections, contents navigation, and search; no field-method or database-rule change. |
+| v2.4.7, 27 October 2026 | Expanded parent-association behaviour codes, evidence ranking, and MM follow-up. Added the two presumed-brood-loss routes, timing/identity/behaviour safeguards, later-nest evidence, and reactivation limits, field decision key, event table, worked examples, and review checklist. Updated the bounded local rehearsal status; no SQL, validator, or live-state change. |
+| v2.4.8, 27 October 2026 | Aligned the manual with Luke Eberhart-Hertel's approved automatic renesting-loss rule, including associated scrapes; same-day and unambiguous inferred live-evidence safeguards; separate whole-brood juvenile-stage resolution, including confirmed J dead recoveries; and truthful chick/juvenile D entries. Added decision-key steps, supporting tables, and worked examples. Updated source-state notes to local protocol v1.3.17; live installation remains unverified. |
+| v2.4.9, 28 October 2026 | New H records require an explicit nest/brood ID; older blank-H linkage is compatibility only. Added final-egg timing, two-egg confirmation/no-float proxy/third-egg reset, independent 36-hour gate, latest-encounter flagging counts, later ring-linked captures, and GEO pair-completion guidance. Updated protocol/source status; final combined SQL/PDF rehearsal and live deployment remain separate checks. |
+| v2.4.10, 29 October 2026 | Added the fixed inclusive age-21-to-35 live-encounter window, first suppression on day 36, negative-brood age proxy, and later-live reactivation. Explained associated parent-task/summary suppression, late-upload correction, and independent notA/juvenile resolution; added a dated worked example. |
 | v2.4.11, 29 October 2026 | Clarified New Zealand-wide scope and labelled site-specific examples; moved the authorship/AI statement after Appendix B with a contents link; clarified geolocator/tag terminology and corrected spelling. No biological rule or SQL change. |
-| v2.4.12, 31 October 2026 | Documented the post-9-October clutch-completion cutoff and conditional B/unknown tagging instruction, same-nest pair-completion follow-up, already-tagged pending-parent protection, consistent pair-completion wording and white map outlines. Added snapshot waiting guidance and the historical notA_summary report. Reconciled source status with local validator protocol v1.3.20 and completed local verification. |
-| v2.4.13, 31 October 2026 | Clarified Luke Eberhart-Hertel's MM chronology decision: eligible pre-MM evidence counts for a reliably identified bird; X-X proof cannot transfer to a later first-marked bird, which needs its own subsequent evidence. Added sex-specific chronology, conflict and same-day-order safeguards. Capture-field hint alignment preserves the existing F/R/C/D validator contract; this is not a live-installation claim. |
-| v2.4.14, 1 November 2026 | Luke Eberhart-Hertel approved linking unambiguous confirming X-X to a unique eligible same-sex/same-nest/same-date status-F first-banding identity, including MM without later sightings. Same-day proof transfers with capture-datetime proof dating and no inferred exact observation time/order. Count all distinct eligible F identities before later-proof/ambiguity filters. Different-day older proof cannot transfer; own valid same-day confirmation can retire an older placeholder. All ambiguity, displacement, timing/tag and unrelated same-day safeguards remain. Supersedes the blanket same-day no-link wording in v2.4.13. |
-| v2.4.15, 1 November 2026 | Expanded the AI-use disclosure with public governance, sanitized prompt-summary, specialist-handoff, validator and synthetic-workflow links. Clarified human review/manual field-server installation, confidentiality exclusions, initial invented-data testing and the distinct later authorized local/field-example troubleshooting scope. No scientific, validator, SQL or app-interaction change. |
-| v2.4.16, 1 November 2026 | Added guidance to open the Field Manual in a separate window if GitHub links do not open within the FIELDWORKER app. No protocol, database or link-handling change. |
-| v2.4.17, 1 November 2026 | Explained the simplified Nest Map popup, reference-date Last encounter display and cached per-parent association evidence. Display-only snapshot metadata does not change association, timing or task rules. |
-| v2.4.18, 1 November 2026 | Added Hatch timing (days) to the Nest Map popup using the existing PDF Est. Hatch formatter, including its flotation safeguards, published task values and brood-age convention. No SQL, schema or task-rule change. |
+| v2.4.12, 31 October 2026 | Documented the post-9-October clutch-completion cutoff and conditional B/unknown tagging instruction, same-nest pair-completion follow-up, already-tagged pending-parent protection, consistent pair-completion wording, and white map outlines. Added snapshot waiting guidance and the historical notA_summary report. Reconciled source status with local validator protocol v1.3.20 and completed local verification. |
+| v2.4.13, 31 October 2026 | Clarified Luke Eberhart-Hertel's MM chronology decision: eligible pre-MM evidence counts for a reliably identified bird; X-X proof cannot transfer to a later first-marked bird, which needs its own subsequent evidence. Added sex-specific chronology, conflict, and same-day-order safeguards. Capture-field hint alignment preserves the existing F/R/C/D validator contract; this is not a live-installation claim. |
+| v2.4.14, 1 November 2026 | Luke Eberhart-Hertel approved linking unambiguous confirming X-X to a unique eligible same-sex/same-nest/same-date status-F first-banding identity, including MM without later sightings. Same-day proof transfers with capture-datetime proof dating and no inferred exact observation time/order. Count all distinct eligible F identities before later-proof/ambiguity filters. Different-day older proof cannot transfer; own valid same-day confirmation can retire an older placeholder. All ambiguity, displacement, timing/tag, and unrelated same-day safeguards remain. Supersedes the blanket same-day no-link wording in v2.4.13. |
+| v2.4.15, 1 November 2026 | Expanded the AI-use disclosure with public governance, sanitized prompt-summary, specialist-handoff, validator, and synthetic-workflow links. Clarified human review/manual field-server installation, confidentiality exclusions, initial invented-data testing, and the distinct later authorized local/field-example troubleshooting scope. No scientific, validator, SQL, or app-interaction change. |
+| v2.4.16, 1 November 2026 | Added guidance to open the Field Manual in a separate window if GitHub links do not open within the FIELDWORKER app. No protocol, database, or link-handling change. |
+| v2.4.17, 1 November 2026 | Explained the simplified Nest Map popup, reference-date Last encounter display, and cached per-parent association evidence. Display-only snapshot metadata does not change association, timing, or task rules. |
+| v2.4.18, 1 November 2026 | Added Hatch timing (days) to the Nest Map popup using the existing PDF Est. Hatch formatter, including its flotation safeguards, published task values, and brood-age convention. No SQL, schema, or task-rule change. |
+| v2.4.19, 2 November 2026 | Applied the Oxford comma consistently to prose lists. No field protocol, validator rule, or task logic changed. |
 
 This app publication copy is separate from Luke Eberhart-Hertel's editable private review
 draft and the retained Word/PDF references; those files have not been
@@ -2424,24 +2425,24 @@ overwritten. Section numbers and contents links are retained for navigation.
 Luke Eberhart-Hertel's latest explicit decisions govern methodology. Field names and available
 values were checked against current SQL and DataEntry forms; the recent
 approved corrections were checked against the reviewed inspectors, local
-protocol mirror, specialist handoffs and mock-test evidence. Older historical
+protocol mirror, specialist handoffs, and mock-test evidence. Older historical
 wording does not override them.
 
 | Source/state | Position at this revision |
 |---|---|
-| Repository source | The source merged through PR #163 includes the conditional tagging instruction, pending tagged-parent protection, historical report and waiting message. The subsequent pair-completion wording correction and this documentation update require their own publication. |
+| Repository source | The source merged through PR #163 includes the conditional tagging instruction, pending tagged-parent protection, historical report, and waiting message. The subsequent pair-completion wording correction and this documentation update require their own publication. |
 | Reviewed local protocol mirror | Local v1.3.20, including registered two-or-three-character uppercase letter/digit observer codes, mandatory explicit IDs for new H rows, family/uncertainty and SC corrections, and truthful chick/juvenile dead-recovery rules. Operational task-note changes do not add save-time validator rules. |
 | External validator protocol | No external YAML synchronisation was performed during this review. Read the tracked local mirror for its current reviewed version. |
 | Local verification | A completed isolated MariaDB 11.8.9 install/refresh and four-page PDF inspection support the recent task changes. The historical report separately passed focused invented-data checks. These are distinct verification scopes. |
 | Approved 1 November same-day linkage | Approved same-day rule; verification scope is recorded separately in the [dated verification record](../../../docs/reconstruction/MM_FOLLOWUP_VERIFICATION_2026-10-31.md#approved-decision-addendum--1-november-2026). No live-deployment claim. Regenerating this manual's HTML is documentation generation only. |
-| Live database, inspectors and Shiny process | This documentation review did not inspect live installation. A source merge or local success does not establish which versions are installed on the field server. |
+| Live database, inspectors, and Shiny process | This documentation review did not inspect live installation. A source merge or local success does not establish which versions are installed on the field server. |
 
 Some older protocol/handoff lists still mention EGGS media columns absent from
-current SQL, retired no-nest instructions, older timing descriptions or superseded family
+current SQL, retired no-nest instructions, older timing descriptions, or superseded family
 rules. Dated handoffs retain that history; their current addenda and this
 manual use the reviewed table definitions and Luke Eberhart-Hertel's explicit decisions.
 
-Luke Eberhart-Hertel resolved both field-method questions on 26 October: pP, P or D visits remain
+Luke Eberhart-Hertel resolved both field-method questions on 26 October: pP, P, or D visits remain
 open to further fate checks until final notA, and newly hatched chicks still
 inside an obvious nest establish a positive origin with F followed immediately
 by H at least one minute later. Chicks found outside a nest with no known
@@ -2455,7 +2456,7 @@ documented override if blocked; the validator must not be programmed to
 accept it automatically. Preserve truthful counts and the F → H sequence.
 
 Earlier invented-data checks covered snapshot upgrades, repeat refreshes,
-reference-date changes and family/identity edge cases. A subsequent authorised
+reference-date changes, and family/identity edge cases. A subsequent authorised
 local replay exercised the selected SQL against a frozen local input and
 produced the 31 October work plan; its required publication/task checks passed
 and all four PDF pages were inspected. Full comparison against older retained
@@ -2482,7 +2483,7 @@ the link. Both cases were retained as controls rather than prompting an
 unnecessary production-source change. Detailed test histories are kept in the
 local audit record, not in field examples.
 
-The detailed source inventory, change coverage and verification record are
+The detailed source inventory, change coverage, and verification record are
 kept separately with this local authoring review. Examples contain no copied
 field records or real coordinates. The historical manual supplies writing and
 visual-style evidence, not current codes or biological authority.
@@ -2491,10 +2492,10 @@ visual-style evidence, not current codes or biological authority.
 
 Keep the actual observation. Record the exact message and refer it to the
 field lead. Use only the justified exception described in Section 12; do not
-change marks, dates, counts or family identity to obtain a pass.
+change marks, dates, counts, or family identity to obtain a pass.
 
 Approval of this Markdown wording is not approval to change schema, install
-inspectors, deploy the app or publish the manual. Those remain separate steps.
+inspectors, deploy the app, or publish the manual. Those remain separate steps.
 
 </details>
 
@@ -2536,14 +2537,14 @@ into evidence that individual chicks were seen.
 
 | Field | Values |
 |---|---|
-| `nest_state` | S scrape; F discovery; I active/incubated; H chicks seen; pP possible predation; pD possible desertion; P confirmed predation; D confirmed desertion; notA final inactive closure; O other with comment. pP, P or D permit further fate checks until notA. Rare inside-nest hatch discovery uses F then H, not an invented egg visit. |
+| `nest_state` | S scrape; F discovery; I active/incubated; H chicks seen; pP possible predation; pD possible desertion; P confirmed predation; D confirmed desertion; notA final inactive closure; O other with comment. pP, P, or D permit further fate checks until notA. Rare inside-nest hatch discovery uses F then H, not an invented egg visit. |
 | `bird_inc` | M male; F female; MF/FM both; U unknown sex; E no bird seen. |
 | `hatch_state` | Egg count plus N no sign, S star, C crack, CC multiple/large cracks; e.g. 2N1S. |
 | `egg_id` | 1, 2, 3, 4 within the nest. |
 | `float_location` | bottom, suspended, surface. |
 | `float_angle`, `float_surface` | Whole degrees 0–90; surface height whole mm 0–3 only when at surface, otherwise blank. |
 
-### Capture, sample and tag values
+### Capture, sample, and tag values
 
 | Field | Values |
 |---|---|
@@ -2594,9 +2595,9 @@ separate `caught_with = M?` convention is not a leg-mark entry.
 
 ### Before leaving the field house
 
-- [ ] Current To-Do PDF, reference date and team allocation checked.
-- [ ] Garmin/camera charged, IDs and local NZ clocks checked.
-- [ ] Notebook, rings/bands/flags, measurement and sample equipment ready.
+- [ ] Current To-Do PDF, reference date, and team allocation checked.
+- [ ] Garmin/camera charged, IDs, and local NZ clocks checked.
+- [ ] Notebook, rings/bands/flags, measurement, and sample equipment ready.
 - [ ] Capture and GEO timing/eligibility checked before planning a trap.
 
 ### Before leaving the encounter
@@ -2604,12 +2605,12 @@ separate `caught_with = M?` convention is not a leg-mark entry.
 - [ ] Each bird and egg measurement has its own notebook line.
 - [ ] Actual nest/brood ID retained; negative minus sign intact.
 - [ ] Garmin waypoint collected where needed; unit ID and point written down.
-- [ ] Family date, site and gps_id/point shared across sightings and captures.
+- [ ] Family date, site, and gps_id/point shared across sightings and captures.
 - [ ] Adult behaviour recorded as observed; AT distinguished from AC and IN/NM/SC linked to the actual nest concerned.
 - [ ] All observed parents recorded; no absent parent invented.
 - [ ] Unbanded tending parent recorded X-X; unreadable resighting marks use ?.
 - [ ] Incoming/release capture marks read directly; no ? in any leg field.
-- [ ] Each photo sequence identifies subject/ring, camera and full endpoints.
+- [ ] Each photo sequence identifies subject/ring, camera, and full endpoints.
 - [ ] Tent and hiding sequences distinct; sample/tag labels checked.
 
 ### Before saving
@@ -2619,7 +2620,7 @@ separate `caught_with = M?` convention is not a leg-mark entry.
 - [ ] First NESTS visit has GPS; later visits do not repeat it.
 - [ ] Rare chicks-inside-nest discovery uses positive ID, F then H at least one minute later, with true counts; outside unknown-origin brood has no NESTS rows.
 - [ ] If the rare correct zero-egg F triggers validation, the observation was rechecked and explained in comments; any override is documented, not a request to weaken the inspector.
-- [ ] Egg numbers/counts, float blanks versus zero and actual times checked.
+- [ ] Egg numbers/counts, float blanks versus zero, and actual times checked.
 - [ ] Genuine chick captures saved before parent-only/H entries that use them.
 - [ ] Parent and chick resightings from one encounter submitted together.
 - [ ] No extra chick sightings invented alongside captures.
@@ -2627,9 +2628,9 @@ separate `caught_with = M?` convention is not a leg-mark entry.
 - [ ] Conflicting family identities referred, not silently selected.
 - [ ] Missing-parent exception has a specific truthful comment, if needed.
 - [ ] Age-C status R or C captures have both GPS fields even with a positive ID.
-- [ ] Every new H row has an explicit valid positive/negative nest_id, ring, leg observations, gps_id/point and camera/range.
+- [ ] Every new H row has an explicit valid positive/negative nest_id, ring, leg observations, gps_id/point, and camera/range.
 - [ ] Class P or V media fields complete; ordinary ring optionality not applied to H.
-- [ ] Tag action, actual old/new IDs and adult-only fields checked.
+- [ ] Tag action, actual old/new IDs, and adult-only fields checked.
 - [ ] Capture status agrees with before/after combination; samples use own codes.
 - [ ] A D recovery has actual incoming marks and blank release fields/time, whether age C or J; no flag or sighting invented.
 - [ ] Unrelated adult captures have blank `nest_id` and gps_id/point; no placeholder IDs entered. Negative IDs appear only in bird tables.
@@ -2640,14 +2641,14 @@ separate `caught_with = M?` convention is not a leg-mark entry.
 - [ ] Saved rows match notebook counts; no duplicate submissions.
 - [ ] Original media copied and backup checked without renaming files.
 - [ ] Updated To-Do PDF checked, including reference date and refresh status.
-- [ ] Missing parent/brood work checked for association resolution, completion, expiry, presumed loss or juvenile-stage resolution—not assumed to mean chicks died.
+- [ ] Missing parent/brood work checked for association resolution, completion, expiry, presumed loss, or juvenile-stage resolution—not assumed to mean chicks died.
 - [ ] Broods sought again during ages 21–35; any later live encounter or late-uploaded window encounter handed over for a new refresh, without changing its field date.
 - [ ] A confirmed origin-linked J record, including D, checked for brood-stage resolution; known sibling deaths retained and positive notA work still checked.
-- [ ] Former parents, separate-date non-brood observations, new nesting attempts and any contrary chick evidence handed over with their correct IDs; Section 9.
+- [ ] Former parents, separate-date non-brood observations, new nesting attempts, and any contrary chick evidence handed over with their correct IDs; Section 9.
 - [ ] Hiding photographs planned before actual age seven days, not discovery age.
 - [ ] Missing photographs checked per ring; expiry not mistaken for completion.
-- [ ] Unresolved family links, validation discrepancies and unfinished work handed over.
-- [ ] pP, P or D fate checks remain in the handover until final notA, even if absent from the To-Do PDF.
+- [ ] Unresolved family links, validation discrepancies, and unfinished work handed over.
+- [ ] pP, P, or D fate checks remain in the handover until final notA, even if absent from the To-Do PDF.
 
 </details>
 
@@ -2658,14 +2659,14 @@ separate `caught_with = M?` convention is not a leg-mark entry.
 
 ## Authorship and use of AI
 
-Luke Eberhart-Hertel developed the field methods, protocols and scientific
+Luke Eberhart-Hertel developed the field methods, protocols, and scientific
 reasoning described in this manual. He also directed the design of the database
 and its data-entry rules, and remains responsible for the methods and final
 decisions.
 
 Under his direction, AI helped turn these methods into a readable manual and
-assisted with writing, checking and testing parts of the supporting software.
-This included the rules that check data entry, the To-Do lists and other
+assisted with writing, checking, and testing parts of the supporting software.
+This included the rules that check data entry, the To-Do lists, and other
 database tools. AI assistance did not replace his scientific judgement or
 responsibility.
 
@@ -2678,10 +2679,10 @@ development process available for inspection on GitHub:
 
 - [Overview of how AI was used](https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/notes/CODEX_USAGE_TRANSPARENCY.md).
 - [Instructions and safety rules given to the AI assistants](https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/AGENTS.md).
-- [Summaries of requests, discussions and decisions](https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/notes/codex_logs/INDEX.md).
+- [Summaries of requests, discussions, and decisions](https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/notes/codex_logs/INDEX.md).
 - [Working notes for the different specialist tasks](https://github.com/ornitho-logics/NZ_FIELDWORKER/tree/main/notes/codex_proposals).
 - [How the data-entry checks were developed and tested](https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/notes/codex_proposals/THREAD3_VALIDATION_ARCHITECTURE.md#mock-data-and-tests), alongside the [checks themselves](https://github.com/ornitho-logics/NZ_FIELDWORKER/tree/main/notes/codex_proposals/validator_sandbox/inspector_lists_by_table).
-- [How the To-Do lists, maps and PDFs were developed](https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/notes/codex_proposals/THREAD4_TODO_MAP_LIST_DEBUG_PLAN.md).
+- [How the To-Do lists, maps, and PDFs were developed](https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/notes/codex_proposals/THREAD4_TODO_MAP_LIST_DEBUG_PLAN.md).
 - [A guide to reproducing the development and testing process](https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/1559b166e77d177fe01e278e1b112d912f032b1a/docs/reconstruction/README.md), with [invented example data](https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/1559b166e77d177fe01e278e1b112d912f032b1a/tools/reconstruction/fixtures.sql).
 
 These resources explain the work and its limitations. They contain reviewed
@@ -2690,7 +2691,7 @@ notes and summaries, rather than every conversation or private working file.
 Security and human oversight were central to the process. Luke Eberhart-Hertel
 reviewed changes and personally installed updates on the field server. AI
 assistants did not independently access or change that server. Private database
-copies, passwords and sensitive field information are not published in these
+copies, passwords, and sensitive field information are not published in these
 transparency resources.
 
 The initial data-entry checks were developed using invented records, including

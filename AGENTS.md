@@ -20,10 +20,10 @@ retains control of PR creation, merge, deployment, and live database changes.
 For reconstruction or transfer to another study, start with
 `docs/reconstruction/README.md` and its machine-readable `workflow.json`.
 The current specification, study-decision template, rule crosswalk, dependency
-lock and isolated synthetic development tools complement the existing handoffs.
+lock, and isolated synthetic development tools complement the existing handoffs.
 Profiles are planning metadata, not app configuration. Historical handoffs do
 not override current approved decisions. This documentation grants no production,
-publication, deployment or data-access authority beyond the human's current task.
+publication, deployment, or data-access authority beyond the human's current task.
 
 This repository is `ornitho-logics/NZ_FIELDWORKER`, a modular R/Shiny application for organizing fieldwork.
 
@@ -330,6 +330,19 @@ Codex should never claim a task is complete if it has not inspected the relevant
 ## Coding style
 
 Codex should first study the style of the relevant script and then match it closely.
+
+### Prose style: Oxford comma
+
+Use the Oxford (serial) comma in lists of three or more items, including before
+the final `and` or `or`. For example: "nests, eggs, and chicks" and "missing,
+pending, or ambiguous". Apply this consistently to documentation, manuals,
+protocol descriptions, inspector/validator messages, app-facing prose, and
+new handoff or decision summaries. Preserve two-item lists without an added
+comma. Keep code syntax, identifiers, regular expressions, verbatim quotations,
+and historical source hashes unchanged; prose editing must not change rules,
+validator severity, or scientific meaning. Update generated HTML and exact
+message expectations when their reviewed source wording changes. This is the
+standing writing convention for future agents and contributions.
 
 Prefer:
 
@@ -1097,11 +1110,11 @@ Version 1.3.11 aligned age-C status-R and status-C captures with the mandatory
 direct GPS pair, including positive nest IDs; positive-nest first captures
 retain their complete-pair optionality. Adults captured with chicks also need
 direct GPS under the `caught_with` condition. An already-saved chick capture
-can satisfy the parent-side resighting check at the same date, site and GPS
+can satisfy the parent-side resighting check at the same date, site, and GPS
 pair, without invented chick resightings. The approved negative-brood blank-ID
 family route uses authoritative selected-parent status: both parents must
 already be resolved, but only the parent(s) actually observed need a current
-resighting row. Missing, pending or ambiguous status does not supply that link.
+resighting row. Missing, pending, or ambiguous status does not supply that link.
 The local changes also accept uncertain lower-leg readings such as `R?` without
 using them as definitive identity evidence. These are local review artifacts,
 not evidence of external protocol synchronisation or live inspector deployment.
@@ -1273,7 +1286,7 @@ Parent association is sex-aware, chronology-aware, and bounded by
 `settings.reference_date`. Any `?` in UL/LL/UR/LR excludes that whole event
 from parent-nest evidence unless a verified known metal ring traces capture
 identity; archive identity cannot supply a previous-season current-nest link.
-Same-encounter family evidence must match date, site and the complete GPS pair
+Same-encounter family evidence must match date, site, and the complete GPS pair
 and must not contain conflicting nonblank nest/brood IDs, including fully
 explicit rows and split-table encounters. Separate encounters may reflect
 brood mixing. Ordinary banded identities use LL/LR; a
@@ -1292,7 +1305,7 @@ resighting and one eligible same-sex, same-nest first-banding (`capture_status
 = 'F'`) capture on the same field date concern the targeted bird. Link that
 day's eligible X-X evidence to its captured identity without requiring later
 sightings; do not invent a resighting time or transfer evidence from earlier
-dates. Multiple first-marked candidates, ambiguity, other sexes/nests and
+dates. Multiple first-marked candidates, ambiguity, other sexes/nests, and
 recaptures do not qualify this exception. Different-day X-X proof still needs
 the later marked bird's own qualifying evidence. Preserve original conflict
 history, later X-X events, reference-date bounds, and the independent timing/tag
@@ -1787,7 +1800,7 @@ When a task crosses boundaries, the active thread should explicitly name the han
 
 The dated Git state below is historical, not an instruction to resume old
 checkout, undo, or publication tasks. These historical notes grant no authority
-to change Git state, code, live state or private manual artifacts. Follow the
+to change Git state, code, live state, or private manual artifacts. Follow the
 user's explicit current-task scope and the controls above.
 
 At the 2026-10-23 documentation recovery pass, the local Git references were:

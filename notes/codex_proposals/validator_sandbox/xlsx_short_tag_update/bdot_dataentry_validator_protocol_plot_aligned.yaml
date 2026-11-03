@@ -1,3 +1,7 @@
+# Repository writing convention: use the Oxford comma in prose lists of three
+# or more items, including descriptions, inspector reasons, and handoffs.
+# 2026-11-02 editorial pass only: retain the scientific version/date below.
+# This local mirror edit does not synchronise the external canonical protocol.
 protocol_id: bdot_2026_2027_dataentry_validator_protocol
 protocol_version: 1.3.20
 generated_on: 2026-10-29
@@ -18,7 +22,7 @@ revision_history:
   - version: 1.3.20
     generated_on: 2026-10-29
     changes:
-      - Allowed registered observer codes of two or three uppercase ASCII letters or digits, including P3, in OBSERVERS and the internal biological observer fields and CAPTURES.observer_upload. Retained registration, active-date, missing-value and uploader-specific checks. RESIGHTINGS_PUBLIC.observer remains a free-text source attribution. No column widening, observer renaming, automatic roster insertion or external YAML synchronization is implied.
+      - Allowed registered observer codes of two or three uppercase ASCII letters or digits, including P3, in OBSERVERS, the internal biological observer fields, and CAPTURES.observer_upload. Retained registration, active-date, missing-value, and uploader-specific checks. RESIGHTINGS_PUBLIC.observer remains a free-text source attribution. No column widening, observer renaming, automatic roster insertion, or external YAML synchronization is implied.
   - version: 1.3.19
     generated_on: 2026-10-28
     changes:

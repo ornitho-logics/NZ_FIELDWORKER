@@ -4,18 +4,18 @@
 
 `DATABASE/notA_summary.SQL` defines the app's replacement for `VIEW_2`. It is
 a separate optional view installer, dependent on `settings`,
-`TODO_REFRESH_STATUS`, `TODO_NEST_CONTEXT_SNAPSHOT` and
+`TODO_REFRESH_STATUS`, `TODO_NEST_CONTEXT_SNAPSHOT`, and
 `TODO_PARENT_STATUS_SNAPSHOT`. Install it after the first successful snapshot;
 it is intentionally absent from the clean `views.SQL` bootstrap and the
 refresh script. Normal atomic publication updates its inputs automatically.
-It adds no table, base-record update or refresh stage. See the repository
+It adds no table, base-record update, or refresh stage. See the repository
 README for installation/rollback and the SQL header for exact identity rules.
 
 The report is one row per latest-published notA nest with both parent sexes.
 It keeps pending/ambiguous observations separate, permits historical dead
 parents, and links later nests only through reliable confirmed same-sex
 identity at both endpoints. It does not infer brood death from notA. Missing,
-stale or unsuccessful latest publication returns no rows. This resolves the
+stale, or unsuccessful latest publication returns no rows. This resolves the
 older undocumented-`VIEW_2` inventory gap below; those dated audits do not
 describe the current source tree or prove live deployment.
 
@@ -34,7 +34,7 @@ a fresh origin/main comparison for release preparation. SC (scraping) is
 independently association-confirming in both ADULT_PARENT_STATUS and the
 supporting ADULT_SCRAPE_RESIGHTING_STATUS helper. It is not a BC/FC/AC
 parent-with-chicks substitute. The earlier inspection provenance below remains
-historical; it does not establish current Git, replay or deployment state.
+historical; it does not establish current Git, replay, or deployment state.
 
 ## Status and scope
 

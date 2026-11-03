@@ -16,14 +16,14 @@ than inventing an observation time. One supersession join handles both linkage
 and retirement; it does not independently re-expand that graph for each.
 
 Different-day older X-X proof is not transferred. Ambiguity, competing captures,
-sex/nest matching, date bounds, later X-X, original MM displacement history and
+sex/nest matching, date bounds, later X-X, original MM displacement history, and
 the established evidence hierarchy remain guarded. Seven-day/36-hour/tag gates,
 juvenile-origin and brood-closure rules, table definitions, validators, external
-YAML and application controls are not changed by this follow-up. The existing
+YAML, and application controls are not changed by this follow-up. The existing
 refresh consumes the authoritative parent result without a second definition.
 
 The manual is v2.4.14; its generated reader, chronology contract, machine-readable
-rules/cases, current-system specification, handoff and agent guidance agree.
+rules/cases, current-system specification, handoff, and agent guidance agree.
 
 ## Executed checks
 
@@ -40,7 +40,7 @@ One fresh isolated no-network MariaDB **11.8.9**, with case-sensitive names
 | Existing capture-field hint guards | 55 |
 | Total | 1,004 |
 
-Zero failures, skips or warnings. Static contract assertions are not separate
+Zero failures, skips, or warnings. Static contract assertions are not separate
 SQL replays. The actual-SQL suite covers both sexes, same-day MM without later
 proof, TN, different-day nontransfer, duplicates, competing F captures (including
 a later ambiguous rival), eligibility, recaptures, another nest/sex, date cutoff,
@@ -57,7 +57,7 @@ The same instance completed source installation and a full **synthetic** refresh
 - No BUILD/PREVIOUS tables remained; source files were unchanged during execution.
 - Existing comment generator returned eight PASS rows and withheld commands
   under unsupported escaping mode; no generated ALTER was executed.
-- Owned server stopped, socket removed and owned volume detached.
+- Owned server stopped, socket removed, and owned volume detached.
 
 These single tiny-fixture wall times are not field-scale or Adminer guarantees;
 DDL validation is not SELECT runtime. No repeated field-scale profiling was used.
@@ -73,7 +73,7 @@ DDL validation is not SELECT runtime. No repeated field-scale profiling was used
 | MM/X-X test source | `4d5e8b34bf6145635dd7aaf8e08465cc52b1ae0a54d34a13bf64b8bec37ce31d` |
 
 Ignored synthetic evidence: `tmp/codex/mm-chronology-2026-10-31/run-ccdd2e49cb/`,
-including report.json, tests.json, stage logs and all thirteen frozen source hashes.
+including report.json, tests.json, stage logs, and all thirteen frozen source hashes.
 The first sandboxed attempt could not create its volume (`Device not configured`)
 and ran no SQL; its failure is preserved separately in run-20c8477934. The approved
 retry outside that sandbox restriction completed the checks above.
@@ -81,11 +81,11 @@ retry outside that sandbox restriction completed the checks above.
 Target-specific local comparison evidence remains private, separate from these
 invented reproducible fixtures; no field records or identities are published here.
 
-## Limits, deployment and rollback
+## Limits, deployment, and rollback
 
 NOT RUN for this source: a fresh full field-dump refresh/PDF render, a live view
-installation, an Adminer rehearsal or package/browser integration. No commit,
-push, PR, merge or deployment was performed. Existing PDFs and earlier field
+installation, an Adminer rehearsal, or package/browser integration. No commit,
+push, PR, merge, or deployment was performed. Existing PDFs and earlier field
 refreshes remain tied to their own older frozen source, not this new hash.
 Old full golden artifacts remain NOT AVAILABLE; no full historical equivalence
 is claimed. The reconstruction reference guard is not weakened or rebaselined.

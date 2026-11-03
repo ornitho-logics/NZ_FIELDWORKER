@@ -2,7 +2,7 @@
 
 This narrow follow-up permits two or three uppercase ASCII letters or digits,
 including `P3`, using `^[A-Z0-9]{2,3}$`. Existing alphabetic codes remain valid;
-lowercase, punctuation and codes outside the length limit remain invalid.
+lowercase, punctuation, and codes outside the length limit remain invalid.
 Numeric-only codes also satisfy this format. Do not rename existing observers
 or rewrite historical records to adopt it.
 
@@ -25,7 +25,7 @@ Back up `inspectors` privately and stop concurrent inspector editing. Select
 `update_observer_code_validators_2026-10-29.SQL` file in one request. It updates
 only the relevant fragments in the five existing hard-role rows rather than
 overwriting whole lists. The database `table_name` must be `OBSERVERS`, `EGGS`,
-`NESTS`, `RESIGHTINGS` or `CAPTURES`; the final word in `comments` must be `hard`
+`NESTS`, `RESIGHTINGS`, or `CAPTURES`; the final word in `comments` must be `hard`
 (case-insensitive, with surrounding whitespace ignored). `_hard.R` is an export
 filename convention, not the database row's table name. Rows ending in `warn`
 or `warning`, and all other rows, are left untouched. Comment labels are not
@@ -66,14 +66,14 @@ inspected session SQL mode; they do not change the global server configuration.
 
 If not already registered, add the approved `P3` code with the correct person
 and actual active dates through the OBSERVERS management form. No person, dates,
-device IDs or other roster details are invented or inserted by these scripts.
+device IDs, or other roster details are invented or inserted by these scripts.
 Use exactly the same code on internal observation/capture forms. Existing
 registration and date checks still apply; this is not a validation bypass.
 
 ## Verification and rollback
 
 The focused `test-observer-codes.R` suite executes the actual parsed format,
-uploader and active-observer validator expressions with invented examples.
+uploader, and active-observer validator expressions with invented examples.
 It also checks the local protocol and installation safeguards. No live database
 or confidential snapshot is needed for these tests.
 
@@ -90,7 +90,7 @@ was shut down afterwards. No live installation or production timing is claimed.
 The first installer incorrectly used export labels as database table names;
 the reported live run safely changed zero rows. The corrected mapping was
 retested using the actual-table-name plus comment-role layout, including
-same-table warning rows containing the same old snippets. Missing, duplicate
+same-table warning rows containing the same old snippets. Missing, duplicate,
 and mislabeled hard rows remain fail-closed; warning code and comments remain
 unchanged. No claim is made that unknown custom live fragments match until
 the corrected installation returns PASS.

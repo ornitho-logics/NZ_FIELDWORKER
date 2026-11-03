@@ -4,7 +4,7 @@
 
 Luke approved readable per-parent association labels and two additive columns
 on the derived parent snapshot. No base-table, inspector, raw-record,
-association-ranking, chronology, capture-timing, tag-eligibility or task-gate
+association-ranking, chronology, capture-timing, tag-eligibility, or task-gate
 change is included. This is candidate source verification, not deployment.
 
 The existing event and identity aggregates now retain display provenance.
@@ -18,7 +18,7 @@ ALTER is needed. Existing pending-detail fields keep their contracts.
 The app reads only the published small parent snapshot after the latest
 refresh succeeds for the current settings date. It does not query expanded
 live associations on map clicks. Missing columns, duplicate keys, mismatched
-reference dates or a different live identity withhold annotations. Counts are
+reference dates, or a different live identity withhold annotations. Counts are
 as of the snapshot and require another successful build to incorporate later
 observations. Existing map identities and marker/category decisions are retained.
 
@@ -47,12 +47,12 @@ observations. Existing map identities and marker/category decisions are retained
   MM/X-X chronology/provenance assertions; 106 identity-confirmation assertions;
   12 selected-death/per-identity-display assertions; 687 task-source contracts;
   108 then-current manual checks; 55 comment-patch safeguards. Zero failures,
-  skips or warnings. SQL fixture retry used the same engine in a fresh owned
+  skips, or warnings. SQL fixture retry used the same engine in a fresh owned
   no-network case-insensitive instance; installation/refresh were not repeated.
 - PASS: 34 independent in-memory popup assertions, including actual Leaflet
   widget construction without browser/tile requests. Checks cover date choice,
   reference date, zero/blank/escaped values, current nest/sex identity, older
-  snapshot dates, duplicate keys, pending candidates, selected proof and old
+  snapshot dates, duplicate keys, pending candidates, selected proof, and old
   snapshots without the new columns. No app configuration or database access.
 - PASS: source unchanged during each SQL run; both owned servers shut down,
   socket files gone, and the owned case-sensitive volume detached.
@@ -77,18 +77,18 @@ or credentials were used. Synthetic equality is not full field equivalence.
 After review/merge, install the updated views, run the updated refresh to a
 successful publication, then deploy/reload the app. Older snapshots continue
 to show plain identities without the new annotations. No inspector update is
-required. Preserve normal backup, quiet-window and stop-on-error controls.
+required. Preserve normal backup, quiet-window, and stop-on-error controls.
 To roll back, restore the prior SQL/R source and rebuild derived snapshots;
 do not recreate the biological base tables or rewrite field records.
 
 ## Later same-day hatch-timing display addition
 
 The map-only Hatch timing (days) addition reuses the existing PDF summary
-formatter, published task values and hatch-prediction metadata. No SQL changed,
+formatter, published task values, and hatch-prediction metadata. No SQL changed,
 so the SQL source hashes and installation evidence above remain applicable.
 The R/map and manual changes postdate the source identities above; they were
 checked separately with 45 invented-data popup assertions (including PDF value
-parity, brood ages, task/date overrides, no-float suppression and explicit
+parity, brood ages, task/date overrides, no-float suppression, and explicit
 flotation exemptions) and 112 manual assertions. All passed, without database,
-app, browser, tile or PDF-render access. No further SQL integration run or field
+app, browser, tile, or PDF-render access. No further SQL integration run or field
 replay was performed for this display-only addition. It needs only an app update.

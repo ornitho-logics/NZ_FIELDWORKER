@@ -1,4 +1,4 @@
-# These checks source function definitions only. No app, database or real
+# These checks source function definitions only. No app, database, or real
 # configuration is loaded; the worker test uses a shell-only fake SQL client.
 progress_functions <- function() {
   env <- new.env(parent = baseenv())

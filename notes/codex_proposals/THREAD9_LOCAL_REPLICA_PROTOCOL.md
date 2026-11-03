@@ -4,7 +4,7 @@
 
 The latest completed authorised full local run used frozen current source,
 MariaDB 11.8.9 and the approved local input for reference date 2026-10-31.
-Installation, refresh, all 19 required runtime publication/task gates and
+Installation, refresh, all 19 required runtime publication/task gates, and
 four-page PDF inspection passed. Earlier stopped runs and failed harness
 checks remain failures in their retained private evidence. Full older golden
 task/H/closure/context artifacts were unavailable; do not claim their exact
@@ -23,7 +23,7 @@ needed solely for this documentation reconciliation.
 Use the current source and selected manifest for future work. The operator
 installs `DATABASE/notA_summary.SQL` once after an initial successful snapshot;
 the view follows subsequent atomic publications automatically. Preserve the
-latest-status gate, stale-date protection, identity uncertainty and distinct
+latest-status gate, stale-date protection, identity uncertainty, and distinct
 verification scopes when adding it to a future replay. Earlier dated recovery
 instructions below retain their history and do not imply current deployment.
 
@@ -43,7 +43,7 @@ evidence below. It inspected the local protocol mirror at v1.3.13 (generated
 record; recheck after any subsequent Thread 3.1 correction. Current
 source agreement and a new isolated invented-data install/refresh/parent/
 To-Do/PDF check remain separate gates. This documentation pass runs no app or
-database and changes no Git state, code, dumps, configuration or manual files.
+database and changes no Git state, code, dumps, configuration, or manual files.
 
 The subsequent approved SC (scraping) clarification advances the reviewed
 mirror to v1.3.14: one eligible nest-linked SC observation can confirm parent
@@ -245,7 +245,7 @@ Current correction fixtures must also cover:
   Archive identity must never import a previous-season nest link; blank-ID
   ring inference needs eligible unambiguous current-season association.
 - Conflicting nonblank positive/negative IDs in one family encounter
-  (same date, site and complete GPS pair) save-block even when every row has an
+  (same date, site, and complete GPS pair) save-block even when every row has an
   explicit ID and when parents/chicks span CAPTURES and RESIGHTINGS. Include
   genuine split-table saved companions. Separate-encounter brood mixing is
   allowed; do not impose a lifetime single-nest constraint.
@@ -255,7 +255,7 @@ Current correction fixtures must also cover:
 - `pP`/`P`/`D` allow fate-review visits until final `notA` without restoring
   failed-nest capture/GEO eligibility. Rare inside-nest first F with zero
   clutch then H at least one minute later retains positive origin, truthful
-  counts and first-only nest GPS. Expect the intentional F-zero rejection
+  counts, and first-only nest GPS. Expect the intentional F-zero rejection
   and verify/comment/documented override if correct; no automatic exception.
 - EGGS has no camera/photo/hard-drive columns; clutch photos belong on NESTS.
 
