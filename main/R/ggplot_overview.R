@@ -2617,6 +2617,10 @@ overview_chick_growth_plot <- function(
     }
   }
 
+  if (!"age_class" %in% names(x)) {
+    x[, age_class := "C"]
+  }
+
   for (column in measure_specs$measure) {
     if (!column %in% names(x)) {
       x[, (column) := NA_real_]
@@ -2626,31 +2630,36 @@ overview_chick_growth_plot <- function(
   x[, `:=`(
     ring = trimws(as.character(ring)),
     nest_id = trimws(as.character(nest_id)),
-    age_days = suppressWarnings(as.numeric(age_days))
+    age_days = suppressWarnings(as.numeric(age_days)),
+    age_class = toupper(trimws(as.character(age_class)))
   )]
+  x[is.na(age_class) | !nzchar(age_class), age_class := "C"]
+  x[age_class == "A", age_days := 365]
 
-  plot_data <- melt(
+  model_data <- melt(
     x,
-    id.vars = c("ring", "nest_id", "age_days"),
+    id.vars = c("ring", "nest_id", "age_days", "age_class"),
     measure.vars = measure_specs$measure,
     variable.name = "measure",
     value.name = "value",
     na.rm = TRUE
   )
-  plot_data[, value := suppressWarnings(as.numeric(as.character(value)))]
-  plot_data <- plot_data[
+  model_data[, value := suppressWarnings(as.numeric(as.character(value)))]
+  model_data <- model_data[
     is.finite(value) &
       is.finite(age_days) &
       age_days >= 0 &
       nzchar(ring) &
-      nzchar(nest_id)
+      (age_class == "A" | nzchar(nest_id))
   ]
 
-  plot_data[, measure := factor(
+  model_data[, measure := factor(
     measure,
     levels = measure_specs$measure,
     labels = measure_specs$ylab
   )]
+
+  plot_data <- model_data[age_class == "C"]
 
   repeat_ids <- plot_data[
     , .N,
@@ -2663,42 +2672,46 @@ overview_chick_growth_plot <- function(
   ]
 
   fit_population_trend <- function(measure_name) {
-    model_data <- copy(plot_data[measure == measure_name])
+    model_subset <- copy(model_data[measure == measure_name])
 
     if (
-      nrow(model_data) < 8L ||
-        uniqueN(model_data$age_days) < 3L
+      nrow(model_subset) < 8L ||
+        uniqueN(model_subset$age_days) < 3L
     ) {
       return(NULL)
     }
 
-    model_data[, individual_re := factor(ring)]
-    model_data[, brood_re := factor(nest_id)]
+    model_subset[, individual_re := factor(ring)]
+    model_subset[, brood_re := factor(
+      ifelse(age_class == "A", "adult_reference", nest_id)
+    )]
 
-    k_age <- min(6L, uniqueN(model_data$age_days))
+    k_age <- min(6L, uniqueN(model_subset$age_days))
     model_terms <- sprintf(
       "s(age_days, k = %d, bs = 'tp')",
       k_age
     )
     excluded_terms <- character()
 
-    if (uniqueN(model_data$individual_re) > 1L) {
+    if (uniqueN(model_subset$individual_re) > 1L) {
       model_terms <- c(model_terms, "s(individual_re, bs = 're')")
       excluded_terms <- c(excluded_terms, "s(individual_re)")
     }
 
-    if (uniqueN(model_data$brood_re) > 1L) {
+    if (uniqueN(model_subset$brood_re) > 1L) {
       model_terms <- c(model_terms, "s(brood_re, bs = 're')")
       excluded_terms <- c(excluded_terms, "s(brood_re)")
     }
 
     fit <- tryCatch(
-      mgcv::gam(
-        stats::as.formula(
-          paste("value ~", paste(model_terms, collapse = " + "))
-        ),
-        data = model_data,
-        method = "REML"
+      suppressWarnings(
+        mgcv::gam(
+          stats::as.formula(
+            paste("value ~", paste(model_terms, collapse = " + "))
+          ),
+          data = model_subset,
+          method = "REML"
+        )
       ),
       error = function(e) NULL
     )
@@ -2709,23 +2722,23 @@ overview_chick_growth_plot <- function(
 
     prediction_data <- data.table(
       age_days = seq(
-        min(model_data$age_days),
-        max(model_data$age_days),
+        min(model_subset$age_days),
+        max(model_subset$age_days),
         length.out = 100L
       )
     )
 
     if ("s(individual_re)" %in% excluded_terms) {
       prediction_data[, individual_re := factor(
-        levels(model_data$individual_re)[1L],
-        levels = levels(model_data$individual_re)
+        levels(model_subset$individual_re)[1L],
+        levels = levels(model_subset$individual_re)
       )]
     }
 
     if ("s(brood_re)" %in% excluded_terms) {
       prediction_data[, brood_re := factor(
-        levels(model_data$brood_re)[1L],
-        levels = levels(model_data$brood_re)
+        levels(model_subset$brood_re)[1L],
+        levels = levels(model_subset$brood_re)
       )]
     }
 
@@ -2747,7 +2760,7 @@ overview_chick_growth_plot <- function(
   }
 
   trend_data <- rbindlist(
-    lapply(levels(plot_data$measure), fit_population_trend),
+    lapply(levels(model_data$measure), fit_population_trend),
     fill = TRUE
   )
 
@@ -2857,6 +2870,9 @@ overview_chick_growth_plot <- function(
     patchwork::plot_annotation(
       caption = paste0(
         "Age-C captures from known nests with recorded hatch dates; ",
+        "age-A measurements are included as adult reference measurements ",
+        "at day 365 for the marginal GAMM trend, but are not plotted as ",
+        "chick observations. ",
         "lines connect repeated measurements only when the same ring was ",
         "recorded. Faint curves and ribbons show marginal GAMM trends and ",
         "95% CIs.",
@@ -2890,32 +2906,82 @@ overview_chick_growth_graph <- function(
         AND n.date IS NOT NULL
         AND n.date <= sr.reference_date
       GROUP BY TRIM(n.nest_id)
+    ),
+    chick_measurements AS (
+      SELECT
+        TRIM(c.ring) AS ring,
+        TRIM(c.nest_id) AS nest_id,
+        h.hatch_date,
+        c.date AS capture_date,
+        DATEDIFF(c.date, h.hatch_date) AS age_days,
+        'C' AS age_class,
+        c.weight,
+        c.culmen,
+        c.tarsus
+      FROM CAPTURES c
+      INNER JOIN hatch_dates h
+        ON TRIM(c.nest_id) = h.nest_id
+      CROSS JOIN sr
+      WHERE UPPER(TRIM(COALESCE(c.age, ''))) = 'C'
+        AND NULLIF(TRIM(c.ring), '') IS NOT NULL
+        AND UPPER(TRIM(c.ring)) NOT IN ('NA', 'N/A', 'NULL', 'X', 'XX', 'M')
+        AND c.date IS NOT NULL
+        AND c.date <= sr.reference_date
+        AND DATEDIFF(c.date, h.hatch_date) >= 0
+        AND (
+          c.weight IS NOT NULL
+          OR c.culmen IS NOT NULL
+          OR c.tarsus IS NOT NULL
+        )
+    ),
+    adult_measurements AS (
+      SELECT
+        TRIM(c.ring) AS ring,
+        NULL AS nest_id,
+        NULL AS hatch_date,
+        c.date AS capture_date,
+        365 AS age_days,
+        'A' AS age_class,
+        c.weight,
+        c.culmen,
+        c.tarsus
+      FROM CAPTURES c
+      CROSS JOIN sr
+      WHERE UPPER(TRIM(COALESCE(c.age, ''))) = 'A'
+        AND NULLIF(TRIM(c.ring), '') IS NOT NULL
+        AND UPPER(TRIM(c.ring)) NOT IN ('NA', 'N/A', 'NULL', 'X', 'XX', 'M')
+        AND c.date IS NOT NULL
+        AND c.date <= sr.reference_date
+        AND (
+          c.weight IS NOT NULL
+          OR c.culmen IS NOT NULL
+          OR c.tarsus IS NOT NULL
+        )
     )
     SELECT
-      TRIM(c.ring) AS ring,
-      TRIM(c.nest_id) AS nest_id,
-      h.hatch_date,
-      c.date AS capture_date,
-      DATEDIFF(c.date, h.hatch_date) AS age_days,
-      c.weight,
-      c.culmen,
-      c.tarsus
-    FROM CAPTURES c
-    INNER JOIN hatch_dates h
-      ON TRIM(c.nest_id) = h.nest_id
-    CROSS JOIN sr
-    WHERE UPPER(TRIM(COALESCE(c.age, ''))) = 'C'
-      AND NULLIF(TRIM(c.ring), '') IS NOT NULL
-      AND UPPER(TRIM(c.ring)) NOT IN ('NA', 'N/A', 'NULL', 'X', 'XX', 'M')
-      AND c.date IS NOT NULL
-      AND c.date <= sr.reference_date
-      AND DATEDIFF(c.date, h.hatch_date) >= 0
-      AND (
-        c.weight IS NOT NULL
-        OR c.culmen IS NOT NULL
-        OR c.tarsus IS NOT NULL
-      )
-    ORDER BY c.date, c.pk
+      ring,
+      nest_id,
+      hatch_date,
+      capture_date,
+      age_days,
+      age_class,
+      weight,
+      culmen,
+      tarsus
+    FROM chick_measurements
+    UNION ALL
+    SELECT
+      ring,
+      nest_id,
+      hatch_date,
+      capture_date,
+      age_days,
+      age_class,
+      weight,
+      culmen,
+      tarsus
+    FROM adult_measurements
+    ORDER BY capture_date, ring
     ",
     params = list(as.character(refdate))
   )

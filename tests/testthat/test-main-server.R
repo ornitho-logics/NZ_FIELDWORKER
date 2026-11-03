@@ -250,9 +250,22 @@ test_that("chick growth plot uses ring-only identity and has three panels", {
       "MOCK_NEST_2", "MOCK_NEST_2"
     ),
     age_days = c(0, 5, 0, 5, 0, 5),
+    age_class = rep("C", 6),
     weight = c(8, 12, 7, 11, 9, 13),
     culmen = c(7, 10, 7.2, 10.2, 7.5, 10.5),
     tarsus = c(19, 22, 19.2, 22.2, 19.5, 22.5)
+  )
+  x <- rbind(
+    x,
+    data.frame(
+      ring = c("MOCK_RING_ADULT_A", "MOCK_RING_ADULT_B"),
+      nest_id = NA_character_,
+      age_days = NA_real_,
+      age_class = "A",
+      weight = c(42, 44),
+      culmen = c(32, 33),
+      tarsus = c(48, 49)
+    )
   )
 
   plot <- app$env$overview_chick_growth_plot(
@@ -284,6 +297,9 @@ test_that("chick growth query is reference-date bounded and ring filtered", {
   expect_match(query$sql, "TRIM(c.ring)", fixed = TRUE)
   expect_match(query$sql, "c.date <= sr.reference_date", fixed = TRUE)
   expect_match(query$sql, "FROM NESTS n", fixed = TRUE)
+  expect_match(query$sql, "'A' AS age_class", fixed = TRUE)
+  expect_match(query$sql, "365 AS age_days", fixed = TRUE)
+  expect_match(query$sql, "UNION ALL", fixed = TRUE)
 })
 
 
