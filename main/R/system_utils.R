@@ -4,7 +4,7 @@
 
 # We need SET SESSION optimizer_switch = 'derived_merge=off' for very complex Views;
 
-DBq <- function(x, params = NULL, derived_merge_off = FALSE) {
+DBq <- function(x, params = NULL, derived_merge_off = FALSE, notify = TRUE) {
   o <- try(
     {
       con <- db_con()
@@ -29,7 +29,7 @@ DBq <- function(x, params = NULL, derived_merge_off = FALSE) {
   if (inherits(o, "try-error")) {
     err <- as.character(attributes(o)$condition)
 
-    if (isRunning()) {
+    if (isTRUE(notify) && isRunning()) {
       showNotification(str_trunc(x, 30), type = "error")
     }
 

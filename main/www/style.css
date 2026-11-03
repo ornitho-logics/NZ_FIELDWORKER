@@ -213,6 +213,61 @@ body {
   margin-right: 0.45rem;
 }
 
+.quick-search-form,
+.quick-search-results {
+  max-width: 48rem;
+  margin: 0 auto;
+}
+
+.quick-search-form input {
+  min-height: 48px;
+  font-size: 1.25rem;
+  text-transform: uppercase;
+}
+
+.quick-search-form .btn {
+  min-height: 48px;
+}
+
+.quick-search-table {
+  width: 100%;
+  margin-top: 1rem;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.quick-search-table th,
+.quick-search-table td {
+  padding: 0.45rem 0.6rem;
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.quick-search-table th {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.quick-search-table tr > :first-child {
+  width: 40%;
+}
+
+.quick-search-table tbody th {
+  font-family: monospace;
+}
+
+.quick-search-table thead th {
+  border-bottom: var(--card-border);
+  font-weight: 700;
+}
+
+.quick-search-table tbody + tbody > tr:first-child > * {
+  padding-top: 0.9rem;
+  border-top: var(--card-border);
+}
+
 .field-download-button {
   align-items: center;
   display: flex;

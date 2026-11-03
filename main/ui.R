@@ -47,6 +47,11 @@ dashboardPage(
     status = "primary",
     sidebarMenu(
       id = "main", # Assigning an id here allows input$main to be set
+      menuItem(
+        "Combo search",
+        tabName = "quick_search",
+        icon = icon("magnifying-glass")
+      ),
       menuItem("Downloads", tabName = "downloads", icon = icon("download")),
       menuItem("Intro", tabName = "intro", icon = icon("circle-info")),
       menuItem("Overview", tabName = "overview", icon = icon("circle-play")),
@@ -60,7 +65,11 @@ dashboardPage(
         tabName = "nest_map",
         icon = icon("broadcast-tower")
       ),
-      menuItem("Field Manual", tabName = "field_manual", icon = icon("book-open")),
+      menuItem(
+        "Field Manual",
+        tabName = "field_manual",
+        icon = icon("book-open")
+      ),
 
       hr(),
 
@@ -370,6 +379,47 @@ dashboardPage(
         )
       ),
 
+      # Quick search tab
+      tabItem(
+        tabName = "quick_search",
+        bs4Dash::box(
+          title = "quick search",
+          width = 12,
+          collapsible = FALSE,
+          tags$form(
+            class = "quick-search-form",
+            onsubmit = paste0(
+              "Shiny.setInputValue('quick_search_request', ",
+              "{combo: document.getElementById('quick_search_combo').value}, ",
+              "{priority: 'event'}); return false;"
+            ),
+            tags$div(
+              class = "form-group shiny-input-container",
+              style = "width: 100%;",
+              tags$input(
+                id = "quick_search_combo",
+                type = "text",
+                class = "form-control",
+                placeholder = "COMBO (LLLR e.g. YYLR)",
+                autocapitalize = "characters",
+                autocorrect = "off",
+                autocomplete = "off",
+                spellcheck = "false",
+                enterkeyhint = "search"
+              )
+            ),
+            tags$button(
+              id = "quick_search_submit",
+              type = "submit",
+              class = "btn btn-primary btn-lg btn-block",
+              icon("magnifying-glass"),
+              "Search"
+            )
+          ),
+          spinner(uiOutput("quick_search_results"))
+        )
+      ),
+
       # GPS tab
       tabItem(
         tabName = "gps",
@@ -419,13 +469,15 @@ dashboardPage(
             tabPanel(
               title = glue("[{i}]"),
               active = FALSE,
-              if (identical(i, "notA_summary")) tags$p(
-                class = "small text-muted",
-                "Historical notA nests and both parents, from the latest successful To-do snapshot. ",
-                "Rebuild after records or the reference date change. A notA nest may still have a live brood. ",
-                "Later nests require a confirmed individual match; pending observations are shown separately. ",
-                "If no rows appear, check that a current snapshot is ready and DATABASE/notA_summary.SQL is installed."
-              ),
+              if (identical(i, "notA_summary")) {
+                tags$p(
+                  class = "small text-muted",
+                  "Historical notA nests and both parents, from the latest successful To-do snapshot. ",
+                  "Rebuild after records or the reference date change. A notA nest may still have a live brood. ",
+                  "Later nests require a confirmed individual match; pending observations are shown separately. ",
+                  "If no rows appear, check that a current snapshot is ready and DATABASE/notA_summary.SQL is installed."
+                )
+              },
               spinner(
                 DTOutput(outputId = glue("{i}_show"))
               )
