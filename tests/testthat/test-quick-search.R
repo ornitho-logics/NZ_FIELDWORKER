@@ -79,6 +79,49 @@ test_that("partner queries use shared capture nests at the selected date", {
 })
 
 
+test_that("nest distance behavior runs in the browser without sending device coordinates", {
+  node <- Sys.which("node")
+  skip_if(!nzchar(node), "Node is not installed.")
+  result <- system2(node, shQuote(app_file("tests", "quick-search-location.js")),
+    stdout = TRUE, stderr = TRUE)
+  expect_null(attr(result, "status"), info = paste(result, collapse = "\n"))
+})
+
+
+test_that("nest coordinate lookup is optional and scoped to the last nest", {
+  env <- quick_search_test_env()
+  refdate <- as.Date("2026-11-03")
+  location <- data.frame(lat = 0, lon = 0.001)
+  queries <- 0L
+  db_get <- function(sql, params) {
+    if (grepl("WITH band_rows AS", sql, fixed = TRUE)) {
+      return(data.frame(nest_id = "MOCK01", site = "CR", species = "BADO"))
+    }
+    if (grepl("JOIN GPS_POINTS", sql, fixed = TRUE)) {
+      queries <<- queries + 1L
+      expect_identical(params, list("MOCK01", "CR", "BADO", "2026-11-03"))
+      return(location)
+    }
+    data.frame()
+  }
+  result <- env$quick_search_fetch("RROR", refdate, db_get)
+  expect_identical(queries, 1L)
+  expect_identical(result$nest_location, list(lat = 0, lon = 0.001))
+  html <- htmltools::renderTags(env$quick_search_results_ui(result))$html
+  expect_match(html, 'data-nest-lat="0"', fixed = TRUE)
+  expect_match(html, 'data-nest-lon="0.001"', fixed = TRUE)
+  expect_match(html, '<th scope="row">your_dist_to_nest</th>', fixed = TRUE)
+  location <- data.frame(lat = 91, lon = 0)
+  expect_null(env$quick_search_fetch("RROR", refdate, db_get)$nest_location)
+  location <- data.frame(error = "synthetic missing GPS table")
+  result <- env$quick_search_fetch("RROR", refdate, db_get)
+  expect_null(result$nest_location)
+  expect_identical(result$last_nest, "MOCK01")
+  expect_no_match(htmltools::renderTags(env$quick_search_results_ui(result))$html,
+    "synthetic missing GPS table", fixed = TRUE)
+})
+
+
 test_that("search runs on the first submission and never while typing", {
   env <- quick_search_test_env()
   calls <- 0L
@@ -153,7 +196,7 @@ test_that("one failed source does not discard matches or expose database errors"
   }
 
   result <- env$quick_search_fetch("RROR", as.Date("2026-11-02"), fake_query)
-  expect_identical(calls, 7L)
+  expect_identical(calls, 8L)
   expect_identical(result$nest_ids, "-A0203, B0102, A0101")
   expect_identical(result$last_nest, "A0101")
   expect_false(result$nest_visit$failed)
@@ -165,7 +208,7 @@ test_that("one failed source does not discard matches or expose database errors"
   expect_false(result$sources$NESTS$failed)
   expect_equal(nrow(result$sources$NESTS$rows), 0L)
   html <- htmltools::renderTags(env$quick_search_results_ui(result))$html
-  expect_match(html, "Latest 50 records", fixed = TRUE)
+  expect_no_match(html, "Latest 50 records", fixed = TRUE)
   expect_no_match(html, "could not be loaded|unavailable|No partner combo found")
   expect_no_match(html, "private", fixed = TRUE)
   expect_no_match(html, "Captures|Latest field resighting|Nests|<details|quick-search-section|quick-search-site|<h3")
@@ -243,10 +286,7 @@ test_that("two-column records hide removed fields and escape retained values", {
   expect_no_match(html, '<th scope="row">date</th>', fixed = TRUE)
   expect_match(html, '<th scope="row">field_sex</th>', fixed = TRUE)
   expect_match(html, '<td>FU</td>', fixed = TRUE)
-  expect_match(html, '<th scope="row">tag_action</th>', fixed = TRUE)
-  expect_match(html, '<td>S</td>', fixed = TRUE)
-  expect_match(html, '<th scope="row">LL_in</th>', fixed = TRUE)
-  expect_match(html, '<th scope="row">UR_in</th>', fixed = TRUE)
+  expect_no_match(html, "gen_sex|UL_in|LL_in|UR_in|LR_in|tag_action|tag_id_in|gps_id|gps_point")
   expect_no_match(html, "Release bands", fixed = TRUE)
   expect_no_match(html, "Species|BADO|Observer|MOCK_OBSERVER|Age|quick-search-site|>CR<")
   expect_match(html, "&lt;script&gt;", fixed = TRUE)
@@ -260,6 +300,7 @@ test_that("two-column records hide removed fields and escape retained values", {
   expect_match(archived_html, '<th scope="row">archive_capture_date</th>', fixed = TRUE)
   expect_no_match(archived_html, '<th scope="row">date</th>', fixed = TRUE)
   expect_no_match(archived_html, '<th scope="row">tag_type</th>', fixed = TRUE)
+  expect_no_match(archived_html, "gen_sex|_in|tag_action|gps_id|gps_point")
 
   row$behav <- "IN, SC, FC"
   row$rclass <- "R"
@@ -282,6 +323,75 @@ test_that("two-column records hide removed fields and escape retained values", {
 })
 
 
+test_that("combined quick-search output shows shared fields and latest capture once", {
+  env <- quick_search_test_env()
+  reference <- as.Date("2026-11-03")
+  result <- env$quick_search_fetch("RROR", reference, function(sql, params) {
+    if (grepl("FROM CAPTURES_ARCHIVE\n", sql, fixed = TRUE)) {
+      return(data.frame(date = "2024-08-01", ring = "MOCKOLD", tag_id = "OLDTAG"))
+    }
+    if (grepl("FROM CAPTURES\n", sql, fixed = TRUE)) {
+      return(data.frame(
+        date = c("2026-11-02", "2026-10-01", "2026-10-01"),
+        ring = "MOCKCURRENT", tag_id = "CURRENTTAG", field_sex = "F"
+      ))
+    }
+    if (grepl("FROM RESIGHTINGS\n", sql, fixed = TRUE)) {
+      return(data.frame(ring = "MOCKSIGHTING"))
+    }
+    data.frame()
+  })
+  html <- htmltools::renderTags(env$quick_search_results_ui(result))$html
+  for (column in c("capture_date", "tag_id", "ring", "field_sex")) {
+    label <- paste0('<th scope="row">', column, '</th>')
+    expect_equal(length(regmatches(html, gregexpr(label, html, fixed = TRUE))[[1L]]), 1L)
+  }
+  expect_match(html, "2026-11-02 (1 day ago)", fixed = TRUE)
+  expect_match(html, "MOCKCURRENT", fixed = TRUE)
+  expect_match(html, "CURRENTTAG", fixed = TRUE)
+  expect_no_match(html, "MOCKOLD|OLDTAG|MOCKSIGHTING|2026-10-01")
+  result$sources$CAPTURES$rows <- data.frame()
+  fallback <- htmltools::renderTags(env$quick_search_results_ui(result))$html
+  expect_match(fallback, "MOCKOLD", fixed = TRUE)
+  expect_match(fallback, "OLDTAG", fixed = TRUE)
+  expect_no_match(fallback, "MOCKSIGHTING")
+})
+
+
+test_that("missing quick-search values keep their fields visible", {
+  env <- quick_search_test_env()
+  reference <- as.Date("2026-11-03")
+  result <- env$quick_search_fetch("RROR", reference, function(sql, params) {
+    if (grepl("FROM CAPTURES_ARCHIVE\n", sql, fixed = TRUE)) {
+      return(data.frame(
+        date = NA_character_, ring = "MOCK001", field_sex = "NA",
+        gen_sex = "", tag_id = "N/A"
+      ))
+    }
+    data.frame()
+  })
+  html <- htmltools::renderTags(env$quick_search_results_ui(result))$html
+  for (column in c(
+    "first_capture", "nest_id", "partner", "last_nest_visit",
+    "last_nest_state", "last_clutch_size", "last_brood_size",
+    "archive_capture_date", "capture_date", "tag_id", "first_seen", "last_seen"
+  )) {
+    expect_match(html, paste0('<th scope="row">', column, '</th>\n',
+      '        <td>—</td>'), fixed = TRUE)
+  }
+  expect_match(html, "MOCK001", fixed = TRUE)
+  expect_match(html, '<td class="quick-search-distance">—</td>', fixed = TRUE)
+  expect_no_match(html, ">NA<|>N/A<|No date|tag_type|capture_status|comments")
+  expect_no_match(html, "gen_sex|UL_in|LL_in|UR_in|LR_in|tag_action|tag_id_in|gps_id|gps_point")
+  capture <- htmltools::renderTags(env$quick_search_record_ui(
+    data.frame(brood_size = 0L, nest_state = "NULL", hatch_state = "   "),
+    "NEST_VISIT", "RROR", reference
+  ))$html
+  expect_match(capture, '<td>0</td>', fixed = TRUE)
+  expect_no_match(capture, ">NULL<")
+})
+
+
 test_that("date ages use the chosen reference date and tolerate unknown dates", {
   env <- quick_search_test_env()
   reference <- as.Date("2026-11-03")
@@ -289,8 +399,8 @@ test_that("date ages use the chosen reference date and tolerate unknown dates", 
   expect_identical(env$quick_search_date_label("2026-11-02", reference), "2026-11-02 (1 day ago)")
   expect_identical(env$quick_search_date_label("2026-11-01", reference), "2026-11-01 (2 days ago)")
   expect_identical(env$quick_search_date_label("2026-11-04", reference), "2026-11-04 (in 1 day)")
-  expect_identical(env$quick_search_date_label(NA_character_, reference), "No date")
-  expect_identical(env$quick_search_date_label(NULL, reference), "No date")
+  expect_identical(env$quick_search_date_label(NA_character_, reference), "—")
+  expect_identical(env$quick_search_date_label(NULL, reference), "—")
 })
 
 
@@ -308,7 +418,7 @@ test_that("a missing last-nest visit does not fall back to an earlier nest", {
     data.frame()
   }
   result <- env$quick_search_fetch("RROR", as.Date("2026-11-03"), db_get)
-  expect_identical(looked_up, "LAST01")
+  expect_identical(looked_up, c("LAST01", "LAST01"))
   expect_false(result$nest_visit$failed)
   expect_equal(nrow(result$nest_visit$rows), 0L)
   html <- htmltools::renderTags(env$quick_search_results_ui(result))$html
@@ -406,8 +516,25 @@ test_that("actual SQL finds shared-nest partners using synthetic MariaDB capture
     hatch_state = "4N", bird_inc = "F", clutch_size = c(4L, rep(0L, 8)),
     brood_size = c(0L, 1L, 2L, 3L, rep(0L, 5))
   )
+  visits$gps_id <- 1L
+  visits$gps_point <- seq_len(nrow(visits))
+  visits$nest_state[c(1L, 5L, 6L, 7L)] <- "S"
+  visits$nest_state[2L] <- "F"
   DBI::dbWriteTable(con, "NESTS", visits, overwrite = TRUE)
+  points <- data.frame(
+    pk = seq_len(10), gps_id = c(rep(1L, 9), 2L),
+    gps_point = c(seq_len(9), 1L),
+    lat = seq_len(10) / 100, lon = seq_len(10) / 100,
+    datetime_ = c(rep("2026-11-01 08:00:00", 9), "2026-10-01 08:00:00")
+  )
+  DBI::dbWriteTable(con, "GPS_POINTS", points, overwrite = TRUE)
   db_get <- function(sql, params) DBI::dbGetQuery(con, sql, params = params)
+  coordinates <- env$quick_search_nest_location_query("UNDATED01", "CR", "BADO", as.Date("2026-11-03"))
+  selected <- db_get(coordinates$sql, coordinates$params)
+  expect_equal(selected$lat, 0.01)
+  expect_equal(selected$lon, 0.01)
+  coordinates <- env$quick_search_nest_location_query("UNDATED01", "CR", "BADO", as.Date("2026-10-31"))
+  expect_equal(nrow(db_get(coordinates$sql, coordinates$params)), 0L)
   nest_query <- env$quick_search_nest_query("RROR", as.Date("2026-11-03"))
   nest_history <- db_get(nest_query$sql, nest_query$params)
   expect_equal(nrow(nest_history), 5L)
@@ -422,6 +549,7 @@ test_that("actual SQL finds shared-nest partners using synthetic MariaDB capture
   expect_false(result$first_capture$failed)
   expect_identical(as.character(result$first_capture$date), "2024-09-01")
   expect_identical(result$last_nest, "UNDATED01")
+  expect_equal(result$nest_location, list(lat = 0.01, lon = 0.01))
   expect_false(result$nest_visit$failed)
   expect_equal(nrow(result$nest_visit$rows), 1L)
   expect_identical(result$nest_visit$rows$nest_state, "H")
@@ -454,7 +582,7 @@ test_that("actual SQL finds shared-nest partners using synthetic MariaDB capture
   archive_html <- htmltools::renderTags(env$quick_search_results_ui(archive_only))$html
   expect_match(archive_html, "2023-08-01", fixed = TRUE)
   expect_match(archive_html, "MOCKARCHONLY", fixed = TRUE)
-  expect_match(archive_html, '<th scope="row">gen_sex</th>', fixed = TRUE)
+  expect_no_match(archive_html, '<th scope="row">gen_sex</th>', fixed = TRUE)
   expect_match(archive_html, "MOCKTAG", fixed = TRUE)
   expect_no_match(archive_html, "No partner|unavailable|could not be loaded|CAPTURES_ARCHIVE|Historical captures")
   expect_no_match(archive_html, "No exact matches.", fixed = TRUE)

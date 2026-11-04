@@ -177,6 +177,7 @@ dashboardPage(
     includeScript("./www/reference_date.js"),
     includeScript("./www/download_feedback.js"),
     includeScript("./www/live_nest_leaflet.js"),
+    includeScript("./www/quick_search_location.js"),
     includeScript("./www/pwa_install.js"),
 
     tabItems(

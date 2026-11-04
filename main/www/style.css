@@ -250,6 +250,10 @@ body {
   font-weight: 500;
 }
 
+.quick-search-table .quick-search-distance-row > * {
+  color: #dc3545;
+}
+
 .quick-search-table tr > :first-child {
   width: 40%;
 }

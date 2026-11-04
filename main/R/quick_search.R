@@ -403,6 +403,24 @@ quick_search_latest_nest_query <- function(nest_id, site, species, refdate) {
 }
 
 
+quick_search_nest_location_query <- function(nest_id, site, species, refdate) {
+  # Match the nest_coordinates ordering in NESTS_LATEST, with explicit scope
+  # and reference date so this also works outside the map's Cass River filter.
+  list(
+    sql = paste(
+      "SELECT g.lat, g.lon FROM NESTS n",
+      "JOIN GPS_POINTS g ON n.gps_id = g.gps_id AND n.gps_point = g.gps_point",
+      "WHERE UPPER(TRIM(n.nest_id)) = ? AND UPPER(TRIM(n.site)) = ?",
+      "AND UPPER(TRIM(n.species)) = ? AND n.date <= CAST(? AS DATE)",
+      "ORDER BY CASE WHEN n.nest_state = 'S' THEN 1",
+      "WHEN n.nest_state = 'F' THEN 2 ELSE 3 END,",
+      "n.date, n.time_visit, n.pk, g.datetime_, g.pk LIMIT 1"
+    ),
+    params = list(nest_id, site, species, as.character(as.Date(refdate)))
+  )
+}
+
+
 quick_search_first_capture_query <- function(
   combo,
   refdate,
@@ -523,6 +541,7 @@ quick_search_fetch <- function(combo, refdate, db_get = quick_search_db_get) {
   }
   last_nest <- NULL
   nest_visit <- NULL
+  nest_location <- NULL
   if (!is.null(nest_ids)) {
     last_nest <- utils::tail(ids, 1L)
     context <- utils::tail(
@@ -548,6 +567,20 @@ quick_search_fetch <- function(combo, refdate, db_get = quick_search_db_get) {
         )
         nest_visit$failed <- is.null(rows) || "error" %in% names(rows)
         if (!nest_visit$failed) nest_visit$rows <- as.data.frame(rows)
+        query <- quick_search_nest_location_query(last_nest, site, species, refdate)
+        location <- tryCatch(
+          db_get(query$sql, params = query$params),
+          error = function(error) NULL
+        )
+        if (!is.null(location) && !"error" %in% names(location) &&
+            nrow(location) && all(c("lat", "lon") %in% names(location))) {
+          lat <- suppressWarnings(as.numeric(location$lat[[1L]]))
+          lon <- suppressWarnings(as.numeric(location$lon[[1L]]))
+          if (is.finite(lat) && abs(lat) <= 90 &&
+              is.finite(lon) && abs(lon) <= 180) {
+            nest_location <- list(lat = lat, lon = lon)
+          }
+        }
       }
     }
   }
@@ -592,6 +625,7 @@ quick_search_fetch <- function(combo, refdate, db_get = quick_search_db_get) {
     nests_failed = nests_failed,
     last_nest = last_nest,
     nest_visit = nest_visit,
+    nest_location = nest_location,
     first_capture = list(
       date = if (first_found) first$first_capture[[1L]] else NULL,
       found = first_found,
@@ -607,7 +641,7 @@ quick_search_value <- function(row, column) {
     return(NULL)
   }
   value <- trimws(as.character(value[[1L]]))
-  if (!nzchar(value) || toupper(value) %in% c("NA", "NULL")) {
+  if (!nzchar(value) || toupper(value) %in% c("NA", "N/A", "NULL")) {
     return(NULL)
   }
   value
@@ -617,7 +651,7 @@ quick_search_value <- function(row, column) {
 quick_search_date_label <- function(date, refdate) {
   date <- suppressWarnings(as.Date(as.character(date), format = "%Y-%m-%d"))
   if (length(date) != 1L || is.na(date)) {
-    return("No date")
+    return("—")
   }
 
   days <- as.integer(as.Date(refdate) - date)
@@ -632,11 +666,11 @@ quick_search_date_label <- function(date, refdate) {
 }
 
 
-quick_search_record_ui <- function(row, source, combo, refdate) {
+quick_search_record_ui <- function(row, source, combo, refdate, exclude_columns = character()) {
   value <- function(column) quick_search_value(row, column)
   field <- function(column, text = value(column)) {
     if (is.null(text)) {
-      return(NULL)
+      text <- "—"
     }
     label <- if (column == "date") {
       switch(
@@ -661,7 +695,10 @@ quick_search_record_ui <- function(row, source, combo, refdate) {
   }
   if (source == "NESTS") {
     partners <- trimws(as.character(row$partner))
-    partners <- partners[!is.na(partners) & nzchar(partners)]
+    partners <- partners[
+      !is.na(partners) & nzchar(partners) &
+        !toupper(partners) %in% c("NA", "N/A", "NULL")
+    ]
     partners <- unique(gsub("-", "", partners, fixed = TRUE))
     return(htmltools::tags$tbody(
       class = "quick-search-record",
@@ -672,21 +709,9 @@ quick_search_record_ui <- function(row, source, combo, refdate) {
     ))
   }
   columns <- if (source == "CAPTURES") {
-    c(
-      "ring",
-      "field_sex",
-      "UL_in",
-      "LL_in",
-      "UR_in",
-      "LR_in",
-      "tag_id",
-      "tag_action",
-      "tag_id_in",
-      "gps_id",
-      "gps_point"
-    )
+    c("ring", "field_sex", "tag_id")
   } else if (source == "CAPTURES_ARCHIVE") {
-    c("ring", "field_sex", "gen_sex", "tag_id")
+    c("ring", "field_sex", "tag_id")
   } else if (source == "NEST_VISIT") {
     c(
       "time_visit",
@@ -710,16 +735,17 @@ quick_search_record_ui <- function(row, source, combo, refdate) {
         ),
         field("last_seen", quick_search_date_label(value("last_seen"), refdate))
       )
-    } else if (source != "CAPTURES_ARCHIVE" || !is.null(value("date"))) {
+    } else {
       field("date", quick_search_date_label(value("date"), refdate))
     },
-    lapply(columns, field)
+    lapply(setdiff(columns, exclude_columns), field)
   )
 }
 
 
 quick_search_results_ui <- function(result) {
   tags <- htmltools::tags
+  nest_ids <- quick_search_value(list(nest_id = result$nest_ids), "nest_id")
   has_first_capture <- isTRUE(result$first_capture$found) &&
     length(result$first_capture$date) == 1L &&
     !is.na(result$first_capture$date)
@@ -732,37 +758,49 @@ quick_search_results_ui <- function(result) {
   )) ||
     !is.null(result$nest_ids) ||
     has_first_capture
-  records <- lapply(names(result$sources), function(source) {
+  # Combine shared bird details once, preferring current captures, then archive
+  # captures, and finally resightings. Each query already sorts newest first.
+  summary <- data.frame(date = NA_character_)
+  captures <- result$sources$CAPTURES
+  if (!is.null(captures) && !captures$failed && nrow(captures$rows)) {
+    summary <- captures$rows[1L, , drop = FALSE]
+  }
+  shared_columns <- c("ring", "field_sex", "tag_id")
+  for (column in shared_columns) {
+    summary[[column]] <- NA_character_
+    for (source in c("CAPTURES", "CAPTURES_ARCHIVE", "RESIGHTINGS")) {
+      found <- result$sources[[source]]
+      if (is.null(found) || found$failed) next
+      for (i in seq_len(nrow(found$rows))) {
+        value <- quick_search_value(found$rows[i, , drop = FALSE], column)
+        if (!is.null(value)) {
+          summary[[column]] <- value
+          break
+        }
+      }
+      if (!is.na(summary[[column]])) break
+    }
+  }
+  records <- lapply(c("CAPTURES_ARCHIVE", "CAPTURES", "RESIGHTINGS"), function(source) {
     found <- result$sources[[source]]
-    n <- nrow(found$rows)
-    if (found$failed) {
-      return(NULL)
+    row <- if (source == "CAPTURES") {
+      summary
+    } else if (!is.null(found) && !found$failed && nrow(found$rows)) {
+      found$rows[1L, , drop = FALSE]
+    } else {
+      data.frame()
     }
-    if (!n) {
-      return(NULL)
-    }
-    if (source == "NESTS") {
-      return(NULL)
-    }
-    lapply(seq_len(n), function(i) {
-      quick_search_record_ui(
-        found$rows[i, , drop = FALSE],
-        source,
-        result$combo,
-        result$refdate
-      )
-    })
+    quick_search_record_ui(
+      row, source, result$combo, result$refdate,
+      exclude_columns = if (source == "CAPTURES") character() else shared_columns
+    )
   })
   limits <- lapply(names(result$sources), function(source) {
     found <- result$sources[[source]]
-    if (!found$failed && found$more) {
+    if (source == "NESTS" && !found$failed && found$more) {
       tags$p(
         class = "small text-muted",
-        if (source == "NESTS") {
-          "First 50 partners"
-        } else {
-          "Latest 50 records"
-        }
+        "First 50 partners"
       )
     }
   })
@@ -784,48 +822,58 @@ quick_search_results_ui <- function(result) {
           tags$th(scope = "col", "column"),
           tags$th(scope = "col", "value")
         )),
-        if (has_first_capture) {
-          tags$tbody(
-            class = "quick-search-record",
-            tags$tr(
-              tags$th(scope = "row", "first_capture"),
-              tags$td(quick_search_date_label(
+        tags$tbody(
+          class = "quick-search-record",
+          tags$tr(
+            tags$th(scope = "row", "first_capture"),
+            tags$td(
+              if (has_first_capture) quick_search_date_label(
                 result$first_capture$date,
                 result$refdate
-              ))
+              ) else "—"
             )
           )
-        },
-        if (!is.null(result$nest_ids)) {
-          tags$tbody(
-            class = "quick-search-record",
-            tags$tr(tags$th(scope = "row", "nest_id"), tags$td(result$nest_ids))
+        ),
+        tags$tbody(
+          class = "quick-search-record",
+          tags$tr(
+            tags$th(scope = "row", "nest_id"),
+            tags$td(if (is.null(nest_ids)) "—" else nest_ids)
           )
-        },
-        if (
-          !is.null(result$sources$NESTS) &&
-            !result$sources$NESTS$failed &&
-            nrow(result$sources$NESTS$rows)
-        ) {
-          quick_search_record_ui(
-            result$sources$NESTS$rows,
-            "NESTS",
-            result$combo,
-            result$refdate
+        ),
+        quick_search_record_ui(
+          if (
+            !is.null(result$sources$NESTS) &&
+              !result$sources$NESTS$failed &&
+              nrow(result$sources$NESTS$rows)
+          ) result$sources$NESTS$rows else data.frame(),
+          "NESTS",
+          result$combo,
+          result$refdate
+        ),
+        tags$tbody(
+          class = "quick-search-record",
+          tags$tr(
+            class = "quick-search-distance-row",
+            tags$th(scope = "row", "your_dist_to_nest"),
+            tags$td(
+              class = "quick-search-distance",
+              `data-nest-lat` = result$nest_location$lat,
+              `data-nest-lon` = result$nest_location$lon,
+              "—"
+            )
           )
-        },
-        if (
-          !is.null(result$nest_visit) &&
-            !result$nest_visit$failed &&
-            nrow(result$nest_visit$rows)
-        ) {
-          quick_search_record_ui(
-            result$nest_visit$rows,
-            "NEST_VISIT",
-            result$combo,
-            result$refdate
-          )
-        },
+        ),
+        quick_search_record_ui(
+          if (
+            !is.null(result$nest_visit) &&
+              !result$nest_visit$failed &&
+              nrow(result$nest_visit$rows)
+          ) result$nest_visit$rows else data.frame(),
+          "NEST_VISIT",
+          result$combo,
+          result$refdate
+        ),
         records
       )
     }
