@@ -1,4 +1,4 @@
-quick_search_normalize_combo <- function(combo) {
+field_resightings_normalize_combo <- function(combo) {
   if (length(combo) != 1L || is.na(combo)) {
     stop("Use four colour letters, e.g. RROR.")
   }
@@ -12,22 +12,170 @@ quick_search_normalize_combo <- function(combo) {
 }
 
 
-quick_search_server <- function(input, output, refdate) {
-  result <- shiny::eventReactive(input$quick_search_request, {
+field_resightings_behaviours <- function() {
+  c(
+    "FA — Foraging alone" = "FA",
+    "FM — Foraging with mate" = "FM",
+    "FF — Foraging in flock" = "FF",
+    "FC — Foraging with chicks" = "FC",
+    "IN — Incubating" = "IN",
+    "BC — Brooding chicks" = "BC",
+    "AC — Alert with chicks" = "AC",
+    "BW — Broken-wing display" = "BW",
+    "NM — Nest maintenance" = "NM",
+    "SC — Scraping" = "SC",
+    "CO — Courtship" = "CO",
+    "PR — Preening" = "PR",
+    "RS — Roosting" = "RS",
+    "LF — Loafing" = "LF",
+    "AT — Alert" = "AT",
+    "FT — Fighting" = "FT",
+    "OB — Other behaviour" = "OB"
+  )
+}
+
+
+field_resightings_save_resighting <- function(combo, behaviours, location = NULL,
+    db_write = DBx, now = Sys.time(), browser_id = NULL) {
+  combo <- field_resightings_normalize_combo(combo)
+  # Nested input arrays from Shiny arrive as lists of scalar strings.
+  if (is.list(behaviours) && is.null(names(behaviours)) &&
+      all(vapply(behaviours, function(value) {
+        is.character(value) && length(value) == 1L && !is.na(value)
+      }, logical(1)))) {
+    behaviours <- unlist(behaviours, use.names = FALSE)
+  }
+  if (!is.character(behaviours) || !length(behaviours) ||
+      anyNA(behaviours) || !all(behaviours %in% field_resightings_behaviours())) {
+    stop("Choose a behaviour from the list.", call. = FALSE)
+  }
+  behaviours <- unique(behaviours)
+  lat <- lon <- accuracy <- NA_real_
+  number <- function(value) {
+    if (!is.numeric(value) || length(value) != 1L || !is.finite(value)) {
+      return(NA_real_)
+    }
+    as.numeric(value)
+  }
+  if (is.list(location)) {
+    timestamp <- number(location$timestamp)
+    age <- as.numeric(now) * 1000 - timestamp
+    latitude <- number(location$latitude)
+    longitude <- number(location$longitude)
+    if (!is.na(age) && age >= -5000 && age <= 30000 &&
+        !is.na(latitude) && abs(latitude) <= 90 &&
+        !is.na(longitude) && abs(longitude) <= 180) {
+      lat <- latitude
+      lon <- longitude
+      error <- number(location$accuracy)
+      if (!is.na(error) && error >= 0) accuracy <- error
+    }
+  }
+  if (is.na(lat) || is.na(lon)) {
+    stop("GPS unavailable.", call. = FALSE)
+  }
+  if (!is.character(browser_id) || length(browser_id) != 1L || is.na(browser_id) ||
+      !grepl("^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        browser_id, ignore.case = TRUE)) {
+    stop("Browser ID unavailable.", call. = FALSE)
+  }
+  timestamp_ms <- round(timestamp)
+  gps_timestamp <- paste0(
+    format(as.POSIXct(timestamp_ms %/% 1000, origin = "1970-01-01", tz = "UTC"),
+      "%Y-%m-%d %H:%M:%S", tz = "UTC"),
+    sprintf(".%03d", as.integer(timestamp_ms %% 1000))
+  )
+  # The search input supplies canonical left/right colour pairs, not observed
+  # upper-leg positions. Leave those positions unknown rather than invent marks.
+  isTRUE(db_write(
+    paste(
+      "INSERT INTO RESIGHTINGS_field",
+      "(UL, LL, UR, LR, latitude, longitude, location_error, gps_timestamp, behav, browser_id)",
+      "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    ),
+    params = list(
+      NA_character_, substr(combo, 1L, 2L), NA_character_, substr(combo, 3L, 4L),
+      lat, lon, accuracy, gps_timestamp, paste(behaviours, collapse = ", "),
+      tolower(browser_id)
+    )
+  ))
+}
+
+
+field_resightings_has_matches <- function(result) {
+  any(vapply(result$sources, function(found) {
+    !found$failed && nrow(found$rows) > 0L
+  }, logical(1))) || !is.null(result$nest_ids) || isTRUE(result$first_capture$found)
+}
+
+
+field_resightings_server <- function(input, output, refdate,
+    session = shiny::getDefaultReactiveDomain()) {
+  search_number <- 0L
+  saved_token <- NULL
+  result <- shiny::eventReactive(input$field_resightings_request, {
+    search_number <<- search_number + 1L
     combo <- tryCatch(
-      quick_search_normalize_combo(input$quick_search_request$combo),
+      field_resightings_normalize_combo(input$field_resightings_request$combo),
       error = function(error) NULL
     )
     if (is.null(combo)) {
       return(list(message = "Not found"))
     }
 
-    quick_search_fetch(combo, refdate())
+    found <- field_resightings_fetch(combo, refdate())
+    found$save_token <- as.character(search_number)
+    found
   })
 
-  output$quick_search_results <- shiny::renderUI({
+  shiny::observeEvent(input$field_resightings_save_request, {
+    request <- input$field_resightings_save_request
+    found <- result()
+    reply <- function(message, saved = FALSE) {
+      session$sendCustomMessage("field_resightings_save_result", list(
+        token = request$token, message = message, saved = saved
+      ))
+    }
+    if (!is.null(found$message) || !field_resightings_has_matches(found) ||
+        !identical(request$token, found$save_token) ||
+        !identical(as.Date(found$refdate), as.Date(refdate()))) {
+      reply("Search again before saving.")
+      return()
+    }
+    entered_combo <- tryCatch(
+      field_resightings_normalize_combo(request$combo), error = function(error) NULL
+    )
+    if (!identical(entered_combo, found$combo)) {
+      reply("Search this combo first.")
+      return()
+    }
+    if (identical(saved_token, found$save_token)) {
+      reply("Saved", saved = TRUE)
+      return()
+    }
+    saved <- tryCatch(
+      field_resightings_save_resighting(found$combo, request$behaviours, request$location,
+        browser_id = request$browser_id),
+      error = function(error) {
+        reply(if (conditionMessage(error) %in% c("Choose a behaviour from the list.",
+            "GPS unavailable.", "Browser ID unavailable.")) {
+          conditionMessage(error)
+        } else "Couldn’t save. Try again.")
+        NULL
+      }
+    )
+    if (is.null(saved)) return()
+    if (saved) {
+      saved_token <<- found$save_token
+      reply("Saved", saved = TRUE)
+    } else {
+      reply("Couldn’t save. Try again.")
+    }
+  }, ignoreInit = TRUE)
+
+  output$field_resightings_results <- shiny::renderUI({
     tags <- htmltools::tags
-    if (is.null(input$quick_search_request)) {
+    if (is.null(input$field_resightings_request)) {
       return(NULL)
     }
 
@@ -43,14 +191,14 @@ quick_search_server <- function(input, output, refdate) {
       ))
     }
 
-    quick_search_results_ui(found)
+    field_resightings_results_ui(found)
   })
 
   invisible(result)
 }
 
 
-quick_search_combo_sql <- function(suffix = "") {
+field_resightings_combo_sql <- function(suffix = "") {
   # Match USED_COMBOS_DETAIL's classic and tag/spacer representation rules.
   # The caller supplies uppercased, trimmed band fields with blanks as NULL.
   ul <- paste0("UL", suffix)
@@ -131,8 +279,8 @@ quick_search_combo_sql <- function(suffix = "") {
 }
 
 
-quick_search_queries <- function(combo, refdate) {
-  combo <- quick_search_normalize_combo(combo)
+field_resightings_queries <- function(combo, refdate) {
+  combo <- field_resightings_normalize_combo(combo)
   refdate <- as.Date(refdate)
   if (length(refdate) != 1L || is.na(refdate)) {
     stop("Set a reference date.")
@@ -203,12 +351,12 @@ quick_search_queries <- function(combo, refdate) {
       table,
       "\n  WHERE date <= CAST(? AS DATE) OR date IS NULL\n",
       "), search_marks AS (\n  SELECT search_rows.*,\n    ",
-      quick_search_combo_sql(),
+      field_resightings_combo_sql(),
       " AS release_combo",
       if (incoming) {
         paste0(
           ",\n    ",
-          quick_search_combo_sql("_in"),
+          field_resightings_combo_sql("_in"),
           " AS incoming_combo"
         )
       } else {
@@ -241,13 +389,13 @@ quick_search_queries <- function(combo, refdate) {
   })
 
   queries <- stats::setNames(queries, names(sources))
-  queries$NESTS <- quick_search_partner_query(combo, refdate)
+  queries$NESTS <- field_resightings_partner_query(combo, refdate)
   queries
 }
 
 
-quick_search_partner_query <- function(combo, refdate, focal_nests = NULL) {
-  combo <- quick_search_normalize_combo(combo)
+field_resightings_partner_query <- function(combo, refdate, focal_nests = NULL) {
+  combo <- field_resightings_normalize_combo(combo)
   # Shared-nest capture records supply this quick lookup independently of the
   # task-association pipeline. Keep nest IDs scoped to their site and species.
   bands <- c("UL", "LL", "UR", "LR", "UL_in", "LL_in", "UR_in", "LR_in")
@@ -304,9 +452,9 @@ quick_search_partner_query <- function(combo, refdate, focal_nests = NULL) {
     "  WHERE (date <= CAST(? AS DATE) OR date IS NULL) AND UPPER(TRIM(age)) = 'A'\n",
     "), capture_marks AS (\n",
     "  SELECT capture_rows.*, ",
-    quick_search_combo_sql(),
+    field_resightings_combo_sql(),
     " AS release_combo,\n",
-    quick_search_combo_sql("_in"),
+    field_resightings_combo_sql("_in"),
     " AS incoming_combo FROM capture_rows\n",
     "), marked AS (\n",
     "  SELECT capture_marks.*, CASE\n",
@@ -347,8 +495,8 @@ quick_search_partner_query <- function(combo, refdate, focal_nests = NULL) {
 }
 
 
-quick_search_nest_query <- function(combo, refdate) {
-  combo <- quick_search_normalize_combo(combo)
+field_resightings_nest_query <- function(combo, refdate) {
+  combo <- field_resightings_normalize_combo(combo)
   source_sql <- function(table, suffix = "") {
     bands <- c("UL", "LL", "UR", "LR")
     paste0(
@@ -378,7 +526,7 @@ quick_search_nest_query <- function(combo, refdate) {
       "\n)\n",
       "SELECT nest_id, site, species, MIN(date) AS first_seen FROM band_rows\n",
       "WHERE ",
-      quick_search_combo_sql(),
+      field_resightings_combo_sql(),
       " = ?\n",
       "  AND nest_id NOT IN ('NA', 'N/A', 'NULL', 'NO_NEST')\n",
       "GROUP BY nest_id, site, species\nORDER BY MIN(date) IS NULL, MIN(date), nest_id, site, species"
@@ -388,7 +536,7 @@ quick_search_nest_query <- function(combo, refdate) {
 }
 
 
-quick_search_latest_nest_query <- function(nest_id, site, species, refdate) {
+field_resightings_latest_nest_query <- function(nest_id, site, species, refdate) {
   list(
     sql = paste(
       "SELECT date, time_visit, nest_state, hatch_state, bird_inc, clutch_size, brood_size",
@@ -403,7 +551,7 @@ quick_search_latest_nest_query <- function(nest_id, site, species, refdate) {
 }
 
 
-quick_search_nest_location_query <- function(nest_id, site, species, refdate) {
+field_resightings_nest_location_query <- function(nest_id, site, species, refdate) {
   # Match the nest_coordinates ordering in NESTS_LATEST, with explicit scope
   # and reference date so this also works outside the map's Cass River filter.
   list(
@@ -421,12 +569,12 @@ quick_search_nest_location_query <- function(nest_id, site, species, refdate) {
 }
 
 
-quick_search_first_capture_query <- function(
+field_resightings_first_capture_query <- function(
   combo,
   refdate,
   tables = c("CAPTURES", "CAPTURES_ARCHIVE")
 ) {
-  combo <- quick_search_normalize_combo(combo)
+  combo <- field_resightings_normalize_combo(combo)
   tables <- match.arg(
     tables,
     c("CAPTURES", "CAPTURES_ARCHIVE"),
@@ -464,9 +612,9 @@ quick_search_first_capture_query <- function(
       ),
       "\n), first_capture_marks AS (\n",
       "SELECT date, ring_key, ",
-      quick_search_combo_sql(),
+      field_resightings_combo_sql(),
       " AS release_combo,\n",
-      quick_search_combo_sql("_in"),
+      field_resightings_combo_sql("_in"),
       " AS incoming_combo FROM first_capture_rows\n",
       "), matched_rings AS (\n",
       "SELECT DISTINCT ring_key FROM first_capture_marks\n",
@@ -483,25 +631,25 @@ quick_search_first_capture_query <- function(
 }
 
 
-quick_search_db_get <- function(sql, params = NULL) {
+field_resightings_db_get <- function(sql, params = NULL) {
   # Missing optional sources are handled by the combined search result UI.
   # Avoid DBq's SQL-prefix toast before that handling can run.
   DBq(sql, params = params, notify = FALSE)
 }
 
 
-quick_search_fetch <- function(combo, refdate, db_get = quick_search_db_get) {
-  queries <- quick_search_queries(combo, refdate)
+field_resightings_fetch <- function(combo, refdate, db_get = field_resightings_db_get) {
+  queries <- field_resightings_queries(combo, refdate)
   # Use all matching current-season nest links, including resightings, as
   # anchors when the focal bird has no capture at a particular nest.
-  nest_query <- quick_search_nest_query(combo, refdate)
+  nest_query <- field_resightings_nest_query(combo, refdate)
   nests <- tryCatch(
     db_get(nest_query$sql, params = nest_query$params),
     error = function(error) NULL
   )
   nests_failed <- is.null(nests) || "error" %in% names(nests)
   if (!nests_failed && nrow(nests)) {
-    queries$NESTS <- quick_search_partner_query(combo, refdate, focal_nests = nests)
+    queries$NESTS <- field_resightings_partner_query(combo, refdate, focal_nests = nests)
   }
   sources <- lapply(names(queries), function(source) {
     query <- queries[[source]]
@@ -548,14 +696,14 @@ quick_search_fetch <- function(combo, refdate, db_get = quick_search_db_get) {
       as.data.frame(nests[nests$nest_id == last_nest, ]),
       1L
     )
-    site <- quick_search_value(context, "site")
-    species <- quick_search_value(context, "species")
+    site <- field_resightings_value(context, "site")
+    species <- field_resightings_value(context, "species")
     nest_visit <- list(rows = data.frame(), failed = FALSE)
     if (!startsWith(last_nest, "-")) {
       if (is.null(site) || is.null(species)) {
         nest_visit$failed <- TRUE
       } else {
-        query <- quick_search_latest_nest_query(
+        query <- field_resightings_latest_nest_query(
           last_nest,
           site,
           species,
@@ -567,7 +715,7 @@ quick_search_fetch <- function(combo, refdate, db_get = quick_search_db_get) {
         )
         nest_visit$failed <- is.null(rows) || "error" %in% names(rows)
         if (!nest_visit$failed) nest_visit$rows <- as.data.frame(rows)
-        query <- quick_search_nest_location_query(last_nest, site, species, refdate)
+        query <- field_resightings_nest_location_query(last_nest, site, species, refdate)
         location <- tryCatch(
           db_get(query$sql, params = query$params),
           error = function(error) NULL
@@ -585,7 +733,7 @@ quick_search_fetch <- function(combo, refdate, db_get = quick_search_db_get) {
     }
   }
 
-  query <- quick_search_first_capture_query(combo, refdate)
+  query <- field_resightings_first_capture_query(combo, refdate)
   first <- tryCatch(
     db_get(query$sql, params = query$params),
     error = function(error) NULL
@@ -600,7 +748,7 @@ quick_search_fetch <- function(combo, refdate, db_get = quick_search_db_get) {
     )
   ]
   if (first_failed && length(available_tables) == 1L) {
-    query <- quick_search_first_capture_query(
+    query <- field_resightings_first_capture_query(
       combo,
       refdate,
       tables = available_tables
@@ -618,7 +766,7 @@ quick_search_fetch <- function(combo, refdate, db_get = quick_search_db_get) {
     first$n[[1L]] > 0
 
   list(
-    combo = quick_search_normalize_combo(combo),
+    combo = field_resightings_normalize_combo(combo),
     refdate = as.Date(refdate),
     sources = stats::setNames(sources, names(queries)),
     nest_ids = nest_ids,
@@ -635,7 +783,7 @@ quick_search_fetch <- function(combo, refdate, db_get = quick_search_db_get) {
 }
 
 
-quick_search_value <- function(row, column) {
+field_resightings_value <- function(row, column) {
   value <- row[[column]]
   if (is.null(value) || !length(value) || is.na(value[[1L]])) {
     return(NULL)
@@ -648,7 +796,7 @@ quick_search_value <- function(row, column) {
 }
 
 
-quick_search_date_label <- function(date, refdate) {
+field_resightings_date_label <- function(date, refdate, time = NULL) {
   date <- suppressWarnings(as.Date(as.character(date), format = "%Y-%m-%d"))
   if (length(date) != 1L || is.na(date)) {
     return("—")
@@ -662,12 +810,28 @@ quick_search_date_label <- function(date, refdate) {
     paste(days, unit, "ago")
   }
 
-  paste0(format(date, "%Y-%m-%d"), " (", relative, ")")
+  clock <- NULL
+  if (length(time) == 1L && !is.na(time)) {
+    if (inherits(time, "difftime")) {
+      seconds <- as.numeric(time, units = "secs")
+      if (is.finite(seconds) && seconds >= 0 && seconds < 86400) {
+        clock <- sprintf("%02d:%02d", as.integer(seconds %/% 3600),
+          as.integer(seconds %/% 60 %% 60))
+      }
+    } else {
+      time <- trimws(as.character(time))
+      if (grepl("^([01][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9](\\.[0-9]+)?)?$", time)) {
+        clock <- substr(time, 1L, 5L)
+      }
+    }
+  }
+  paste0(format(date, "%Y-%m-%d"), if (!is.null(clock)) paste0(" ", clock),
+    " (", relative, ")")
 }
 
 
-quick_search_record_ui <- function(row, source, combo, refdate, exclude_columns = character()) {
-  value <- function(column) quick_search_value(row, column)
+field_resightings_record_ui <- function(row, source, combo, refdate, exclude_columns = character()) {
+  value <- function(column) field_resightings_value(row, column)
   field <- function(column, text = value(column)) {
     if (is.null(text)) {
       text <- "—"
@@ -676,7 +840,7 @@ quick_search_record_ui <- function(row, source, combo, refdate, exclude_columns 
       switch(
         source,
         CAPTURES = "capture_date",
-        CAPTURES_ARCHIVE = "archive_capture_date",
+        CAPTURES_ARCHIVE = "last season capt.",
         NEST_VISIT = "last_nest_visit",
         column
       )
@@ -689,7 +853,7 @@ quick_search_record_ui <- function(row, source, combo, refdate, exclude_columns 
       column
     }
     htmltools::tags$tr(
-      htmltools::tags$th(scope = "row", label),
+      htmltools::tags$th(scope = "row", gsub("_", " ", label, fixed = TRUE)),
       htmltools::tags$td(text)
     )
   }
@@ -701,7 +865,7 @@ quick_search_record_ui <- function(row, source, combo, refdate, exclude_columns 
     ]
     partners <- unique(gsub("-", "", partners, fixed = TRUE))
     return(htmltools::tags$tbody(
-      class = "quick-search-record",
+      class = "field-resightings-record",
       field(
         "partner",
         if (length(partners)) paste(partners, collapse = ", ") else NULL
@@ -714,7 +878,6 @@ quick_search_record_ui <- function(row, source, combo, refdate, exclude_columns 
     c("ring", "field_sex", "tag_id")
   } else if (source == "NEST_VISIT") {
     c(
-      "time_visit",
       "nest_state",
       "hatch_state",
       "bird_inc",
@@ -726,38 +889,38 @@ quick_search_record_ui <- function(row, source, combo, refdate, exclude_columns 
   }
 
   htmltools::tags$tbody(
-    class = "quick-search-record",
+    class = "field-resightings-record",
     if (source == "RESIGHTINGS") {
       htmltools::tagList(
         field(
           "first_seen",
-          quick_search_date_label(value("first_seen"), refdate)
+          field_resightings_date_label(value("first_seen"), refdate)
         ),
-        field("last_seen", quick_search_date_label(value("last_seen"), refdate))
+        field("last_seen", field_resightings_date_label(value("last_seen"), refdate))
       )
     } else {
-      field("date", quick_search_date_label(value("date"), refdate))
+      field("date", field_resightings_date_label(value("date"), refdate,
+        time = if (source == "NEST_VISIT") row$time_visit else NULL))
     },
     lapply(setdiff(columns, exclude_columns), field)
   )
 }
 
 
-quick_search_results_ui <- function(result) {
+field_resightings_results_ui <- function(result) {
   tags <- htmltools::tags
-  nest_ids <- quick_search_value(list(nest_id = result$nest_ids), "nest_id")
+  behaviour_groups <- list(
+    Feeding = c("FA", "FM", "FF", "FC"),
+    Mating = c("CO", "FT"),
+    `Nest/chicks` = c("IN", "BC", "AC", "BW", "NM", "SC"),
+    Chilling = c("RS", "PR", "LF"),
+    Other = c("AT", "OB")
+  )
+  nest_ids <- field_resightings_value(list(nest_id = result$nest_ids), "nest_id")
   has_first_capture <- isTRUE(result$first_capture$found) &&
     length(result$first_capture$date) == 1L &&
     !is.na(result$first_capture$date)
-  has_matches <- any(vapply(
-    result$sources,
-    function(found) {
-      !found$failed && nrow(found$rows) > 0L
-    },
-    logical(1)
-  )) ||
-    !is.null(result$nest_ids) ||
-    has_first_capture
+  has_matches <- field_resightings_has_matches(result)
   # Combine shared bird details once, preferring current captures, then archive
   # captures, and finally resightings. Each query already sorts newest first.
   summary <- data.frame(date = NA_character_)
@@ -772,7 +935,7 @@ quick_search_results_ui <- function(result) {
       found <- result$sources[[source]]
       if (is.null(found) || found$failed) next
       for (i in seq_len(nrow(found$rows))) {
-        value <- quick_search_value(found$rows[i, , drop = FALSE], column)
+        value <- field_resightings_value(found$rows[i, , drop = FALSE], column)
         if (!is.null(value)) {
           summary[[column]] <- value
           break
@@ -790,7 +953,7 @@ quick_search_results_ui <- function(result) {
     } else {
       data.frame()
     }
-    quick_search_record_ui(
+    field_resightings_record_ui(
       row, source, result$combo, result$refdate,
       exclude_columns = if (source == "CAPTURES") character() else shared_columns
     )
@@ -806,7 +969,7 @@ quick_search_results_ui <- function(result) {
   })
 
   tags$div(
-    class = "quick-search-results",
+    class = "field-resightings-results",
     `aria-live` = "polite",
     if (!has_matches) {
       tags$p(
@@ -817,17 +980,17 @@ quick_search_results_ui <- function(result) {
     limits,
     if (has_matches) {
       tags$table(
-        class = "quick-search-table",
+        class = "field-resightings-table",
         tags$thead(tags$tr(
           tags$th(scope = "col", "column"),
           tags$th(scope = "col", "value")
         )),
         tags$tbody(
-          class = "quick-search-record",
+          class = "field-resightings-record",
           tags$tr(
-            tags$th(scope = "row", "first_capture"),
+            tags$th(scope = "row", "first capture"),
             tags$td(
-              if (has_first_capture) quick_search_date_label(
+              if (has_first_capture) field_resightings_date_label(
                 result$first_capture$date,
                 result$refdate
               ) else "—"
@@ -835,13 +998,13 @@ quick_search_results_ui <- function(result) {
           )
         ),
         tags$tbody(
-          class = "quick-search-record",
+          class = "field-resightings-record",
           tags$tr(
-            tags$th(scope = "row", "nest_id"),
+            tags$th(scope = "row", "nest id"),
             tags$td(if (is.null(nest_ids)) "—" else nest_ids)
           )
         ),
-        quick_search_record_ui(
+        field_resightings_record_ui(
           if (
             !is.null(result$sources$NESTS) &&
               !result$sources$NESTS$failed &&
@@ -852,19 +1015,19 @@ quick_search_results_ui <- function(result) {
           result$refdate
         ),
         tags$tbody(
-          class = "quick-search-record",
+          class = "field-resightings-record",
           tags$tr(
-            class = "quick-search-distance-row",
-            tags$th(scope = "row", "your_dist_to_nest"),
+            class = "field-resightings-distance-row",
+            tags$th(scope = "row", "your dist to nest"),
             tags$td(
-              class = "quick-search-distance",
+              class = "field-resightings-distance",
               `data-nest-lat` = result$nest_location$lat,
               `data-nest-lon` = result$nest_location$lon,
               "—"
             )
           )
         ),
-        quick_search_record_ui(
+        field_resightings_record_ui(
           if (
             !is.null(result$nest_visit) &&
               !result$nest_visit$failed &&
@@ -875,6 +1038,59 @@ quick_search_results_ui <- function(result) {
           result$refdate
         ),
         records
+      )
+    },
+    if (has_matches && !is.null(result$save_token)) {
+      tags$form(
+        class = "field-resightings-save-form mt-3",
+        `data-search-token` = result$save_token,
+        `data-combo` = result$combo,
+        tags$fieldset(
+          class = "field-resightings-behaviours",
+          tags$legend("Behaviour"),
+          tags$button(
+            type = "button", class = "btn btn-outline-primary field-resightings-behaviour-open",
+            `aria-haspopup` = "dialog", `aria-controls` = "field_resightings_behaviour_sheet",
+            htmltools::HTML("Choose behaviour<strong>s</strong>")
+          ),
+          tags$div(class = "field-resightings-behaviour-selected"),
+          tags$dialog(
+            id = "field_resightings_behaviour_sheet", class = "field-resightings-behaviour-sheet",
+            `aria-labelledby` = "field_resightings_behaviour_title",
+            tags$div(class = "field-resightings-behaviour-header",
+              tags$h3(id = "field_resightings_behaviour_title", "Behaviour")),
+            tags$div(
+              class = "field-resightings-behaviour-options",
+              lapply(names(behaviour_groups), function(group) {
+                choices <- field_resightings_behaviours()
+                choices <- choices[match(behaviour_groups[[group]], choices)]
+                tags$section(
+                  tags$h4(group),
+                  tags$div(
+                    class = "field-resightings-behaviour-grid",
+                    lapply(names(choices), function(label) {
+                      tags$label(
+                        class = "field-resightings-behaviour",
+                        tags$input(type = "checkbox", name = "field_resightings_behav",
+                          value = unname(choices[[label]]), `data-label` = label),
+                        tags$span(label)
+                      )
+                    })
+                  )
+                )
+              })
+            ),
+            tags$div(class = "field-resightings-behaviour-footer",
+              tags$button(type = "button",
+                class = "btn btn-primary btn-lg btn-block field-resightings-behaviour-done", "Done"))
+          )
+        ),
+        tags$button(
+          type = "submit", class = "btn btn-primary btn-lg btn-block",
+          "Save resighting"
+        ),
+        tags$div(class = "field-resightings-save-status mt-2", role = "status",
+          `aria-live` = "polite")
       )
     }
   )

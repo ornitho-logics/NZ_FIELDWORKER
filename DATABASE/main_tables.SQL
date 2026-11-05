@@ -199,6 +199,26 @@ CREATE TABLE `RESIGHTINGS` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
 
+-- Phone observations saved from Field Resightings.
+CREATE TABLE `RESIGHTINGS_field` (
+  `UL` varchar(10) DEFAULT NULL COMMENT 'Observed marks on the left tibia; use the same band codes and flag format as RESIGHTINGS. List the upper band first when more than one band is present.',
+  `LL` varchar(10) DEFAULT NULL COMMENT 'Observed marks on the left tarsus; use the same band codes as RESIGHTINGS. List the upper band first when more than one band is present.',
+  `UR` varchar(10) DEFAULT NULL COMMENT 'Observed marks on the right tibia; use the same band codes, geolocator spacer codes, and flag format as RESIGHTINGS. List the upper band first when more than one band is present.',
+  `LR` varchar(10) DEFAULT NULL COMMENT 'Observed marks on the right tarsus; use the same band codes as RESIGHTINGS. List the upper band first when more than one band is present.',
+  `browser_id` char(36) DEFAULT NULL COMMENT 'Random UUID remembered by this browser for this app; identifies a browser installation, not a named observer',
+  `latitude` double DEFAULT NULL COMMENT 'Latitude of the phone in WGS84 decimal degrees at the observation; NULL when location is unavailable',
+  `longitude` double DEFAULT NULL COMMENT 'Longitude of the phone in WGS84 decimal degrees at the observation; NULL when location is unavailable',
+  `location_error` double DEFAULT NULL COMMENT 'Horizontal accuracy radius in metres at 95 percent confidence, reported by the phone as GeolocationCoordinates.accuracy; NULL when unavailable',
+  `gps_timestamp` datetime(3) DEFAULT NULL COMMENT 'Time the phone obtained the GPS fix, stored in UTC with millisecond precision; derived from GeolocationPosition.timestamp; NULL when unavailable',
+  `behav` text DEFAULT NULL COMMENT 'Behaviour codes, separated by a comma: <br> <b>IN</b> = incubating <br> <b>CO</b> = courtship <br> <b>PR</b> = preening <br> <b>BW</b> = broken-wing display <br> <b>BC</b> = brooding chicks <br> <b>AC</b> = alert with chicks <br> <b>NM</b> = nest maintenance <br> <b>SC</b> = scraping <br> <b>FC</b> = foraging with chicks <br> <b>FA</b> = foraging alone <br> <b>FM</b> = foraging with presumed mate <br> <b>FF</b> = foraging in flock <br> <b>RS</b> = roosting <br> <b>LF</b> = loafing <br> <b>AT</b> = alert <br> <b>FT</b> = fighting <br> <b>OB</b> = other behaviour',
+  `pk` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`pk`),
+  KEY `combo` (`UL`,`LL`,`UR`,`LR`),
+  KEY `browser_id` (`browser_id`),
+  KEY `gps_timestamp` (`gps_timestamp`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
 CREATE TABLE `RESIGHTINGS_PUBLIC` (
   `species` char(4) DEFAULT NULL COMMENT '4-letter species code: <br> <b>BADO</b> (Banded Dotterel) <br> <b>WRYB</b> (Wrybill) <br> <b>SNZD</b> (Southern New Zealand Dotterel) <br> <b>BFDO</b> (Black-fronted Dotterel)',
   `observer` varchar(255) DEFAULT NULL COMMENT 'Name or initials of the observer as provided by the original source',

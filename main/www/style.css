@@ -213,31 +213,31 @@ body {
   margin-right: 0.45rem;
 }
 
-.quick-search-form,
-.quick-search-results {
+.field-resightings-form,
+.field-resightings-results {
   max-width: 48rem;
   margin: 0 auto;
 }
 
-.quick-search-form input {
+.field-resightings-form input {
   min-height: 48px;
   font-size: 1.25rem;
   text-transform: uppercase;
 }
 
-.quick-search-form .btn {
+.field-resightings-form .btn {
   min-height: 48px;
 }
 
-.quick-search-table {
+.field-resightings-table {
   width: 100%;
   margin-top: 1rem;
   border-collapse: collapse;
   table-layout: fixed;
 }
 
-.quick-search-table th,
-.quick-search-table td {
+.field-resightings-table th,
+.field-resightings-table td {
   padding: 0.45rem 0.6rem;
   text-align: left;
   vertical-align: top;
@@ -245,31 +245,183 @@ body {
   white-space: pre-wrap;
 }
 
-.quick-search-table th {
+.field-resightings-table th {
   color: var(--text-muted);
   font-weight: 500;
 }
 
-.quick-search-table .quick-search-distance-row > * {
+.field-resightings-table .field-resightings-distance-row > * {
   color: #dc3545;
 }
 
-.quick-search-table tr > :first-child {
+.field-resightings-table tr > :first-child {
   width: 40%;
 }
 
-.quick-search-table tbody th {
+.field-resightings-table tbody th {
   font-family: monospace;
 }
 
-.quick-search-table thead th {
+.field-resightings-table thead th {
   border-bottom: var(--card-border);
   font-weight: 700;
 }
 
-.quick-search-table tbody + tbody > tr:first-child > * {
+.field-resightings-table tbody + tbody > tr:first-child > * {
   padding-top: 0.9rem;
   border-top: var(--card-border);
+}
+
+.field-resightings-behaviours {
+  margin-bottom: 1rem;
+}
+
+.field-resightings-behaviours legend {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.field-resightings-behaviour-sheet {
+  inset: auto 0 0;
+  width: 100%;
+  max-width: 640px;
+  max-height: 85vh;
+  margin: 0 auto;
+  padding: 0;
+  border: 0;
+  border-radius: 1rem 1rem 0 0;
+  color: var(--text-strong);
+  background: var(--card-bg, #fff);
+}
+
+.field-resightings-behaviour-sheet[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.field-resightings-behaviour-sheet::backdrop {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+body:has(.field-resightings-behaviour-sheet[open]) {
+  overflow: hidden;
+}
+
+.field-resightings-behaviour-header,
+.field-resightings-behaviour-footer {
+  flex: 0 0 auto;
+  padding: 1rem;
+}
+
+.field-resightings-behaviour-header h3 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.field-resightings-behaviour-options {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 1rem;
+}
+
+.field-resightings-behaviour-options section + section {
+  margin-top: 1rem;
+}
+
+.field-resightings-behaviour-options h4 {
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+}
+
+.field-resightings-behaviour-footer {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+.field-resightings-behaviour-selected {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.field-resightings-behaviour-selected:empty {
+  display: none;
+}
+
+.field-resightings-behaviour-chip {
+  min-height: 44px;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid #2f6fa3;
+  border-radius: 1.5rem;
+  color: #174e78;
+  background: #e8f1fa;
+}
+
+.field-resightings-behaviour-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.field-resightings-behaviour {
+  position: relative;
+  margin: 0;
+  cursor: pointer;
+}
+
+.field-resightings-behaviour input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.field-resightings-behaviour > span {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 100%;
+  min-height: 48px;
+  padding: 0.6rem;
+  border: 2px solid #b6c2ce;
+  border-radius: 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 400;
+}
+
+.field-resightings-behaviour > span::before {
+  content: "";
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 1.2rem;
+  height: 1.2rem;
+  border: 1px solid #6b7c8c;
+  border-radius: 0.2rem;
+}
+
+.field-resightings-behaviour input:checked + span {
+  color: #174e78;
+  background: #e8f1fa;
+  border-color: #2f6fa3;
+}
+
+.field-resightings-behaviour input:checked + span::before {
+  content: "\2713";
+  color: #fff;
+  background: #2f6fa3;
+  border-color: #2f6fa3;
+}
+
+.field-resightings-behaviour input:focus-visible + span {
+  outline: 3px solid #2f6fa3;
+  outline-offset: 2px;
+}
+
+@media (max-width: 380px) {
+  .field-resightings-behaviour-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .field-download-button {

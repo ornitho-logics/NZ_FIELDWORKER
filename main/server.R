@@ -55,7 +55,7 @@ function(input, output, session) {
     refdate
   })
 
-  quick_search_server(input, output, active_refdate)
+  field_resightings_server(input, output, active_refdate)
 
   overview_plot_date_limits <- reactive({
     overview_date_limits(active_refdate())

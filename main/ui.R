@@ -48,8 +48,8 @@ dashboardPage(
     sidebarMenu(
       id = "main", # Assigning an id here allows input$main to be set
       menuItem(
-        "Combo search",
-        tabName = "quick_search",
+        "Field Resightings",
+        tabName = "field_resightings",
         icon = icon("magnifying-glass")
       ),
       menuItem("Downloads", tabName = "downloads", icon = icon("download")),
@@ -177,7 +177,7 @@ dashboardPage(
     includeScript("./www/reference_date.js"),
     includeScript("./www/download_feedback.js"),
     includeScript("./www/live_nest_leaflet.js"),
-    includeScript("./www/quick_search_location.js"),
+    includeScript("./www/field_resightings_location.js"),
     includeScript("./www/pwa_install.js"),
 
     tabItems(
@@ -380,28 +380,28 @@ dashboardPage(
         )
       ),
 
-      # Quick search tab
+      # Field Resightings tab
       tabItem(
-        tabName = "quick_search",
+        tabName = "field_resightings",
         bs4Dash::box(
-          title = "quick search",
+          title = "Field Resightings",
           width = 12,
           collapsible = FALSE,
           tags$form(
-            class = "quick-search-form",
+            class = "field-resightings-form",
             onsubmit = paste0(
-              "Shiny.setInputValue('quick_search_request', ",
-              "{combo: document.getElementById('quick_search_combo').value}, ",
+              "Shiny.setInputValue('field_resightings_request', ",
+              "{combo: document.getElementById('field_resightings_combo').value}, ",
               "{priority: 'event'}); return false;"
             ),
             tags$div(
               class = "form-group shiny-input-container",
               style = "width: 100%;",
               tags$input(
-                id = "quick_search_combo",
+                id = "field_resightings_combo",
                 type = "text",
                 class = "form-control",
-                placeholder = "COMBO (LLLR e.g. YYLR)",
+                placeholder = "COMBO (LLLR e.g. OYRL)",
                 autocapitalize = "characters",
                 autocorrect = "off",
                 autocomplete = "off",
@@ -410,14 +410,14 @@ dashboardPage(
               )
             ),
             tags$button(
-              id = "quick_search_submit",
+              id = "field_resightings_submit",
               type = "submit",
               class = "btn btn-primary btn-lg btn-block",
               icon("magnifying-glass"),
               "Search"
             )
           ),
-          spinner(uiOutput("quick_search_results"))
+          spinner(uiOutput("field_resightings_results"))
         )
       ),
 

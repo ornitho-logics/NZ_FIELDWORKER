@@ -76,6 +76,9 @@ window.liveNestLeafletGpsControl = function(el, x) {
 
   var locateButton = null;
   var followButton = null;
+  var active = true;
+  var locateGeneration = 0;
+  var watchGeneration = 0;
   var state = {
     accuracyCircle: null,
     following: false,
@@ -85,6 +88,10 @@ window.liveNestLeafletGpsControl = function(el, x) {
 
   function hasGeolocation() {
     return typeof navigator !== "undefined" && !!navigator.geolocation;
+  }
+
+  function isVisible() {
+    return active && !document.hidden && el.getClientRects().length > 0;
   }
 
   function locationOptions(watching) {
@@ -212,6 +219,7 @@ window.liveNestLeafletGpsControl = function(el, x) {
   }
 
   function locateOnce() {
+    if (!isVisible()) return;
     if (!hasGeolocation()) {
       setError("GPS is unavailable in this browser.");
       return;
@@ -219,18 +227,23 @@ window.liveNestLeafletGpsControl = function(el, x) {
 
     clearError();
     setBusy(locateButton, true);
+    var request = ++locateGeneration;
 
     navigator.geolocation.getCurrentPosition(
       function(position) {
+        if (request !== locateGeneration || !isVisible()) return;
         setBusy(locateButton, false);
         drawPosition(position, true);
       },
-      handleGpsError,
+      function(error) {
+        if (request === locateGeneration && isVisible()) handleGpsError(error);
+      },
       locationOptions(false)
     );
   }
 
   function startFollow() {
+    if (!isVisible()) return;
     if (!hasGeolocation()) {
       setError("GPS is unavailable in this browser.");
       return;
@@ -239,18 +252,23 @@ window.liveNestLeafletGpsControl = function(el, x) {
     clearError();
     setBusy(followButton, true);
     setFollowActive(true);
+    var request = ++watchGeneration;
 
     state.watchId = navigator.geolocation.watchPosition(
       function(position) {
+        if (request !== watchGeneration || !isVisible()) return;
         setBusy(followButton, false);
         drawPosition(position, true);
       },
-      handleGpsError,
+      function(error) {
+        if (request === watchGeneration && isVisible()) handleGpsError(error);
+      },
       locationOptions(true)
     );
   }
 
   function stopFollow() {
+    watchGeneration += 1;
     if (state.watchId !== null) {
       navigator.geolocation.clearWatch(state.watchId);
     }
@@ -261,8 +279,21 @@ window.liveNestLeafletGpsControl = function(el, x) {
   }
 
   function cleanup() {
+    active = false;
+    locateGeneration += 1;
     stopFollow();
     window.removeEventListener("beforeunload", cleanup);
+    window.removeEventListener("pagehide", pauseGps);
+    document.removeEventListener("visibilitychange", pauseGps);
+    if (window.jQuery) window.jQuery(document).off("hidden.bs.tab", pauseGps);
+  }
+
+  function pauseGps(event) {
+    if ((event && event.type === "pagehide") || !isVisible()) {
+      locateGeneration += 1;
+      stopFollow();
+      setBusy(locateButton, false);
+    }
   }
 
   function toggleFollow() {
@@ -339,6 +370,9 @@ window.liveNestLeafletGpsControl = function(el, x) {
   map._liveNestGpsControl.addTo(map);
   map.on("unload", cleanup);
   window.addEventListener("beforeunload", cleanup);
+  window.addEventListener("pagehide", pauseGps);
+  document.addEventListener("visibilitychange", pauseGps);
+  if (window.jQuery) window.jQuery(document).on("hidden.bs.tab", pauseGps);
 };
 
 window.liveNestLeafletRender = function(el, x) {
