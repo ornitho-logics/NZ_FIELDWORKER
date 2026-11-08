@@ -1,0 +1,92 @@
+{
+  "format_version": 1,
+  "archive_date": "2026-11-08",
+  "source_commit": "9574508481a15c5455e94b85259f5da346ca0e6e",
+  "source_directory": "notes/codex_proposals/validator_sandbox/inspector_lists_by_table",
+  "purpose": "Immutable reviewed repository inspector restoration set; not an exact backup of deleted live rows.",
+  "archive": {
+    "file": "inspectors.tar.gz",
+    "sha256": "51fbc9453e20d90db30edb6bccd1acf1cae7bebcd331dd605c70a01ec244b92c",
+    "bytes": 82689
+  },
+  "members": [
+    {
+      "path": "notes/codex_proposals/validator_sandbox/inspector_lists_by_table/CAPTURES_hard.R",
+      "bytes": 139472,
+      "git_blob": "88ba4f9ca9f7c695a2d0e0505ff838b54f901760",
+      "sha256": "ac4275042b11e23293940df50ca603a91edcc20b2ae78e33b33ad423a8a604be"
+    },
+    {
+      "path": "notes/codex_proposals/validator_sandbox/inspector_lists_by_table/CAPTURES_warning.R",
+      "bytes": 53244,
+      "git_blob": "fa25323f838ecc836d369d5081aaec3cff048953",
+      "sha256": "e217b7568027c9cbaebc5d673ce3584d1b58923d56e6e8ff8cd03508a9065580"
+    },
+    {
+      "path": "notes/codex_proposals/validator_sandbox/inspector_lists_by_table/EGGS_hard.R",
+      "bytes": 26671,
+      "git_blob": "e77d91d3a65cbf929fc89fb2e5768f31e80920fc",
+      "sha256": "8cfe158d50d1f16c6504bb532f18cd2a0f1f7639264a9512f455ae8251e68d1b"
+    },
+    {
+      "path": "notes/codex_proposals/validator_sandbox/inspector_lists_by_table/EGGS_warning.R",
+      "bytes": 17818,
+      "git_blob": "c562b12fb02bf1ae9e84cceb19d6cfc1dc5e5317",
+      "sha256": "0d341f20f4ad78e546cb5cecce331cfd33ebfba9f9b1f88f925f14a64d43ecb1"
+    },
+    {
+      "path": "notes/codex_proposals/validator_sandbox/inspector_lists_by_table/FILE_INDEX.txt",
+      "bytes": 224,
+      "git_blob": "83fcc5cecc96d00bcdd29ac786ba38338b738b0c",
+      "sha256": "1efbca50fe10043af06df5b7a2fa9d5da04ed72dacac41b1f3a06c81046fd9dc"
+    },
+    {
+      "path": "notes/codex_proposals/validator_sandbox/inspector_lists_by_table/NESTS_hard.R",
+      "bytes": 86396,
+      "git_blob": "083145905714197dbc062b71921eba9acee607b3",
+      "sha256": "3f5c06b4a7b43b2c7ac9a9480e199ebf1e2deb2965d144653b9d44c6dee62492"
+    },
+    {
+      "path": "notes/codex_proposals/validator_sandbox/inspector_lists_by_table/NESTS_warning.R",
+      "bytes": 55837,
+      "git_blob": "8f06aae352dd6c5f3519324c838288e790a84a7a",
+      "sha256": "8c4d5c64e74e6a95434af1ecbd2fac667520ed974bc68b0d45866f209695897a"
+    },
+    {
+      "path": "notes/codex_proposals/validator_sandbox/inspector_lists_by_table/OBSERVERS_hard.R",
+      "bytes": 8503,
+      "git_blob": "12ef72e6e40a9d924c47a229137161d92d30052a",
+      "sha256": "ca771a021f96115de88926a9145f4d50a8ff673b7783503ab887a2658d846854"
+    },
+    {
+      "path": "notes/codex_proposals/validator_sandbox/inspector_lists_by_table/OBSERVERS_warning.R",
+      "bytes": 7,
+      "git_blob": "7916aaaecc149fb2db3d4f02f3e939509fed2da6",
+      "sha256": "4cfb26dd63ec9f01679ef8293c4e03d94907354c95ada1dc92c2dee155e5a74b"
+    },
+    {
+      "path": "notes/codex_proposals/validator_sandbox/inspector_lists_by_table/RESIGHTINGS_PUBLIC_hard.R",
+      "bytes": 22852,
+      "git_blob": "300402fa484113aa94e8f3af752aebe3fc1aeff4",
+      "sha256": "8b0f8d33028dc5f5b577868127f5ee46b4f6029b8696ade175e508b6c7bc0768"
+    },
+    {
+      "path": "notes/codex_proposals/validator_sandbox/inspector_lists_by_table/RESIGHTINGS_PUBLIC_warning.R",
+      "bytes": 12720,
+      "git_blob": "97e30ed099b27ac5c757332992c50977707bc2a7",
+      "sha256": "b2a927d0c05dc2cd4b5889f3fab58c0bb0f785a1c4a863e7511baa0cef895dbe"
+    },
+    {
+      "path": "notes/codex_proposals/validator_sandbox/inspector_lists_by_table/RESIGHTINGS_hard.R",
+      "bytes": 136505,
+      "git_blob": "38eec293c9d6a7a49404c1f1aa33a674d1d97aba",
+      "sha256": "4e86731247f2bdd27daf8f4e4092958058fd4f16df8990b7fd4b32c8b1727646"
+    },
+    {
+      "path": "notes/codex_proposals/validator_sandbox/inspector_lists_by_table/RESIGHTINGS_warning.R",
+      "bytes": 66023,
+      "git_blob": "4bd331c9083ba070465e2fb1f0dac511e0852fa8",
+      "sha256": "5acaf408de408b495cc7c886989a23feac7080695fca3122b3e7529c4368afad"
+    }
+  ]
+}
