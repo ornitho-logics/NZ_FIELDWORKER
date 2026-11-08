@@ -2,7 +2,7 @@
 # socket. The separately opted-in DDL check requires an empty owned instance;
 # no field records, app, or real configuration are loaded.
 nota_summary_source <- function() {
-  paste(readLines(app_file("DATABASE", "notA_summary.SQL")), collapse = "\n")
+  paste(readLines(app_file("docs", "notA-summary-archive", "2026-11-08", "notA_summary.SQL")), collapse = "\n")
 }
 
 nota_summary_fixture_sql <- function(state = "succeeded", reference = "2030-12-01",
@@ -110,7 +110,7 @@ test_that("notA summary reads only published bounded sources", {
   expect_match(body, "later.first_found_date > original.first_found_date", fixed = TRUE)
 })
 
-test_that("the app replaces View2 and watches published summary inputs", {
+test_that("the archived notA report is not registered or polled by the app", {
   expressions <- as.list(parse(app_file("main", "global.R")))
   env <- new.env(parent = baseenv())
   for (name in c("dbtabs_show_views", "dbtabs_show_view_sources")) {
@@ -121,11 +121,10 @@ test_that("the app replaces View2 and watches published summary inputs", {
     expect_length(assignment, 1L)
     eval(assignment[[1L]], env)
   }
-  expect_contains(env$dbtabs_show_views, "notA_summary")
+  expect_false("notA_summary" %in% env$dbtabs_show_views)
   expect_false("VIEW_2" %in% env$dbtabs_show_views)
-  expect_setequal(env$dbtabs_show_view_sources$notA_summary,
-    c("settings", "TODO_REFRESH_STATUS", "TODO_NEST_CONTEXT_SNAPSHOT",
-      "TODO_PARENT_STATUS_SNAPSHOT"))
+  expect_false("notA_summary" %in% names(env$dbtabs_show_view_sources))
+  expect_false(file.exists(app_file("DATABASE", "notA_summary.SQL")))
 })
 
 test_that("actual notA SQL preserves parent uncertainty and safe later links", {

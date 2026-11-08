@@ -54,7 +54,6 @@ dashboardPage(
       ),
       menuItem("Downloads", tabName = "downloads", icon = icon("download")),
       menuItem("Intro", tabName = "intro", icon = icon("circle-info")),
-      menuItem("Overview", tabName = "overview", icon = icon("circle-play")),
       menuItem("GPS", tabName = "gps", icon = icon("location-arrow")),
       menuItem("Enter Data", tabName = "enter_data", icon = icon("edit")),
       menuItem("Show tables", tabName = "show_tables", icon = icon("table")),
@@ -64,11 +63,6 @@ dashboardPage(
         "Nest Map",
         tabName = "nest_map",
         icon = icon("broadcast-tower")
-      ),
-      menuItem(
-        "Field Manual",
-        tabName = "field_manual",
-        icon = icon("book-open")
       ),
 
       hr(),
@@ -270,116 +264,6 @@ dashboardPage(
         )
       ),
 
-      # Overview tab
-      tabItem(
-        tabName = "overview",
-        bs4Dash::box(
-          title = "Current quotas for manipulations (Cass and elsewhere in NZ).",
-          width = 12,
-          collapsible = TRUE,
-          collapsed = FALSE,
-          height = "40vh",
-          style = "overflow: hidden;",
-          spinner(
-            plotOutput(
-              "overview_quota_show",
-              height = "32vh"
-            )
-          )
-        ),
-        bs4Dash::box(
-          title = "Cass: lay date phenology",
-          width = 12,
-          collapsible = TRUE,
-          collapsed = FALSE,
-          height = "50vh",
-          style = "overflow: hidden;",
-          spinner(
-            plotOutput(
-              "overview_lay_date_show"
-            )
-          )
-        ),
-        bs4Dash::box(
-          title = "Cass: Hatching Forecast",
-          width = 12,
-          collapsible = TRUE,
-          collapsed = FALSE,
-          height = "50vh",
-          style = "overflow: hidden;",
-          spinner(
-            plotOutput(
-              "overview_hatching_forecast_show"
-            )
-          )
-        ),
-        bs4Dash::box(
-          title = "Cass: Seasonal progression in nest discovery",
-          width = 12,
-          collapsible = TRUE,
-          collapsed = FALSE,
-          height = "50vh",
-          style = "overflow: hidden;",
-          spinner(
-            plotOutput(
-              "overview_nests_show"
-            )
-          )
-        ),
-        bs4Dash::box(
-          title = "Cass: Seasonal progression in unique band combinations encountered (resighted or captured)",
-          width = 12,
-          collapsible = TRUE,
-          collapsed = FALSE,
-          height = "50vh",
-          style = "overflow: hidden;",
-          spinner(
-            plotOutput(
-              "overview_cr_combos_show"
-            )
-          )
-        ),
-        bs4Dash::box(
-          title = "Cass: Seasonal progression in geolocator deployments",
-          width = 12,
-          collapsible = TRUE,
-          collapsed = FALSE,
-          height = "50vh",
-          style = "overflow: hidden;",
-          spinner(
-            plotOutput(
-              "overview_geolocator_show"
-            )
-          )
-        ),
-        bs4Dash::box(
-          title = "Cass: Chick growth trends",
-          width = 12,
-          collapsible = TRUE,
-          collapsed = FALSE,
-          height = "55vh",
-          style = "overflow: hidden;",
-          spinner(
-            plotOutput(
-              "overview_chick_growth_show",
-              height = "47vh"
-            )
-          )
-        ),
-        bs4Dash::box(
-          title = "Cass: Resighting histories of geolocator-tagged birds",
-          width = 12,
-          collapsible = TRUE,
-          collapsed = FALSE,
-          spinner(
-            plotOutput(
-              "overview_tagged_resightings_show",
-              height = "105vh"
-            )
-          )
-        )
-      ),
-
       # Field Resightings tab
       tabItem(
         tabName = "field_resightings",
@@ -470,15 +354,6 @@ dashboardPage(
             tabPanel(
               title = glue("[{i}]"),
               active = FALSE,
-              if (identical(i, "notA_summary")) {
-                tags$p(
-                  class = "small text-muted",
-                  "Historical notA nests and both parents, from the latest successful To-do snapshot. ",
-                  "Rebuild after records or the reference date change. A notA nest may still have a live brood. ",
-                  "Later nests require a confirmed individual match; pending observations are shown separately. ",
-                  "If no rows appear, check that a current snapshot is ready and DATABASE/notA_summary.SQL is installed."
-                )
-              },
               spinner(
                 DTOutput(outputId = glue("{i}_show"))
               )
@@ -503,30 +378,6 @@ dashboardPage(
                 height = "calc(99vh - 1px)"
               )
             )
-          )
-        )
-      ),
-
-      # Static, database-independent manual; styles and search stay in its frame.
-      tabItem(
-        tabName = "field_manual",
-        tags$p(
-          class = "small text-muted mb-2",
-          tags$a(
-            href = "field-manual/core-guide.html",
-            target = "_blank",
-            rel = "noopener",
-            "Open Field Manual in a separate window"
-          )
-        ),
-        tags$iframe(
-          id = "field_manual_reader",
-          title = "BADO Field Manual — Core Team Field Guide and Full Protocol Manual",
-          src = "field-manual/core-guide.html",
-          loading = "lazy",
-          style = paste0(
-            "width:100%;height:calc(100vh - 145px);min-height:600px;",
-            "border:0;border-radius:0.85rem;background:white;"
           )
         )
       )

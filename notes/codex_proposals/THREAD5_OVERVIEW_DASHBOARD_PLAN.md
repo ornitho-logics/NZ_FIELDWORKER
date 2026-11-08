@@ -1,5 +1,15 @@
 # Thread 5 Overview Dashboard: Current-State Design and Maintenance Protocol
 
+## Withdrawal and archive — 8 November 2026
+
+At Luke's request, the eight-panel Overview dashboard and separate OVERVIEW
+table entry are removed from the app, with chart outputs/reactives/polling
+removed as well. The [checksummed archive](../../docs/overview-archive/2026-11-08/README.md)
+preserves the complete helper and original UI/server/global/test/SQL context.
+Earlier active-path and maintenance descriptions below are historical, not
+instructions to republish the dashboard. No live database view is dropped;
+other Show Views outputs, To-do logic, data entry, and maps are unchanged.
+
 ## Protocol status
 
 This is the current Thread 5 maintenance memo after static inspection on
