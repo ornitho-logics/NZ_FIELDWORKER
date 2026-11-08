@@ -10,6 +10,18 @@ approve or deploy the protected validator WIP.
 
 ## Audit status
 
+### 2026-11-08 temporary validation pause and preserved originals
+
+Luke requested a temporary pause, not retirement or deletion of the approved
+rules. The [pause/restoration guide](../../docs/validation/README.md) records
+the empty-list save failure, tested zero-issue replacement, narrow manual SQL,
+and immutable checksummed archive of the twelve reviewed inspector exports.
+Those original exports remain unchanged. The archive is repository source,
+not an exact export of deleted live rows. The operator reported successful
+manual installation; private receipts and field records are not published.
+No agent accessed the field database. Merging this change neither deploys a
+pause nor re-enables checks; restoration remains a separate human decision.
+
 ### 2026-10-31 documentation reconciliation
 
 The reviewed tracked validator protocol remains v1.3.20, generated
