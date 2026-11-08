@@ -4,6 +4,15 @@ Start here without relying on chat history. This package describes the existing
 reference system and a controlled route to a new study. It does not change the
 running app, its forms, scientific rules, or deployment.
 
+On 8 November 2026 the full and core manuals were withdrawn from the app and
+preserved, unchanged, in a checksummed [manual archive](../field-manual-archive/2026-11-08/README.md).
+The reconstruction rule crosswalk still uses their section anchors as retained
+reference. The [Overview dashboard](../overview-archive/2026-11-08/README.md) and
+[notA summary](../notA-summary-archive/2026-11-08/README.md) are archived as well;
+the default bootstrap no longer installs the withdrawn optional report. Do not
+recreate removed panels, republish archives, or reactivate withdrawn reports
+without a separate human instruction.
+
 ## Read order
 
 1. Repository `AGENTS.md`: permissions and confidentiality.

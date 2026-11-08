@@ -1,5 +1,11 @@
 # CURRENT system reference contract
 
+8 November 2026 publication addendum: both manuals, the Overview dashboard,
+and the notA summary are withdrawn from the app and preserved in checksummed
+archives. The separate OVERVIEW table entry is hidden as well. Earlier dated
+publication descriptions are historical and do not authorize rebuilding the
+removed panels or reinstalling the withdrawn optional report by default.
+
 Reviewed against source on 2026-11-01. This reconstruction package's CURRENT
 reference documents existing behaviour, not live installation or change authority.
 Approved-decision addendum, 1 November 2026: the same-day X-X/first-banding
@@ -22,7 +28,7 @@ source changes.
 - [Thread 4](../../notes/codex_proposals/THREAD4_TODO_MAP_LIST_DEBUG_PLAN.md) and
   [Thread 9](../../notes/codex_proposals/THREAD9_LOCAL_REPLICA_PROTOCOL.md) retain
   dated history beneath current addenda. Older recovery states are not instructions.
-- The [manual](../../main/www/field-manual/manual.md) explains procedures. Approved
+- The [archived manual](../field-manual-archive/2026-11-08/readers/manual.md) records procedures. Approved
   human scientific decisions govern intended behaviour; source determines what
   the selected implementation actually does. A disagreement blocks adaptation
   until reconciled, rather than allowing code to override the human decision.
@@ -33,17 +39,20 @@ source changes.
 
 ### Field instructions and entry records
 
-The Field Manual panel opens the [Core Team Field Guide](../../main/www/field-manual/core-guide.md),
-with a switch to the [Full Protocol Manual](../../main/www/field-manual/manual.md).
-The latter retains the complete procedures, controlled values, exceptions, and
-authorship/AI disclosure. Keep these published sources aligned; the short guide
-is not a separate biological specification. Rebuild all static language versions
-with `main/tools/render_field_manual.R`, preserving the full manual's existing
-`index.html` URL and section anchors. Superseded review drafts and the relocation
-checklist are not reconstruction prerequisites and have been removed from the
-current tree; Git history retains them.
+On 8 November 2026 Luke withdrew both manuals from the app. There is no Field
+Manual panel, iframe, or reader asset under the app's public directory. The
+[Core Team Field Guide](../field-manual-archive/2026-11-08/readers/core-guide.md),
+[Full Protocol Manual](../field-manual-archive/2026-11-08/readers/manual.md),
+their translations, rendered pages, styles, search code, and renderer are
+preserved unchanged in a checksummed [archive](../field-manual-archive/2026-11-08/README.md).
+The full manual retains the procedures, controlled values, exceptions, and
+authorship/AI disclosure as historical reference, not an active app publication.
+Do not automatically republish these files when reconstructing the app.
+The archive guide describes a separate, human-reviewed restoration procedure.
+Superseded review drafts and the relocation checklist remain excluded from
+reconstruction prerequisites; Git history retains them.
 
-The manual reader also has standard German translations in `core-guide-de.md`
+The archived reader also has standard German translations in `core-guide-de.md`
 and `manual-de.md`, rendered to `core-guide-de.html` and `index-de.html`.
 English remains the reference language. The English/Deutsch switch retains
 manual kind and stable section anchors, and the core/full switch retains the
@@ -293,14 +302,22 @@ Views install bounded helpers; the separate refresh builds indexed replacement
 snapshots and promotes them together. `TODO_LIST` is the task contract; changing
 source/reference date or downloading a PDF does not itself publish a new snapshot.
 [App guards](../../main/R/system_utils.R) check date/latest refresh state.
-[notA_summary](../../DATABASE/notA_summary.SQL) installs after the first successful
-refresh, reads published nest/parent snapshots, and returns no rows for stale or
+The withdrawn [notA_summary definition](../notA-summary-archive/2026-11-08/notA_summary.SQL)
+is retained for historical reference, not installed by the default reconstruction
+bootstrap or registered in the app. Its original design installs after the
+first successful refresh, reads published nest/parent snapshots, and returns no rows for stale or
 incomplete latest status. It reports historical terminal nest visits, confirmed
 parents separately from pending details, and conservative later-nest identity links.
 Later links require the same resolved identity/sex and a strictly later first-found
 date: ring/flag or a fully supported classic lower key, never X-X/shared chick marks.
 It neither declares brood death nor imports handwritten links. Repository inspection
 and prior local replay establish no production schema, inspector, or running-app version.
+
+The [Overview archive](../overview-archive/2026-11-08/README.md) retains the eight
+plot implementations and original shared wiring context. The active app no
+longer loads that helper or registers Overview chart outputs/reactives. The
+SQL OVERVIEW definition remains in views.SQL; no live database view was
+dropped by the app withdrawal.
 
 ## Approved follow-up to the reconstruction review
 

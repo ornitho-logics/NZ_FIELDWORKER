@@ -7,11 +7,14 @@ thread8_display_env <- function() {
   env$DBq <- env$db_get <- function(...) stop("Database access forbidden in display tests")
   for (name in c(
     "display_nest_ids.R", "leaflet_nest_latest.R", "pdf_todo.R",
-    "pdf_todo_map.R", "ggplot_overview.R"
+    "pdf_todo_map.R"
   )) {
     path <- testthat::test_path("..", "..", "main", "R", name)
     sys.source(path, envir = env)
   }
+  # Historical plot regression only: the running app does not load this archive.
+  sys.source(testthat::test_path("..", "..", "docs", "overview-archive",
+                               "2026-11-08", "ggplot_overview.R"), envir = env)
   env
 }
 
@@ -74,7 +77,7 @@ test_that("PDF nest summary excludes non-links while retaining known parents", {
   expect_true(all(summary$Female == "MOCK-F"))
 })
 
-test_that("Overview lay-date counts do not count historical non-links as nests", {
+test_that("archived Overview lay-date counts do not count historical non-links as nests", {
   env <- thread8_display_env()
   bins <- env$overview_lay_date_bins(data.table::data.table(
     nest_id = thread8_display_ids, datetime = as.Date("2026-10-20")

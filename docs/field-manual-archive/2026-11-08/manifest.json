@@ -1,0 +1,104 @@
+{
+  "format_version": 1,
+  "archive_date": "2026-11-08",
+  "source_commit": "d8d20fb56c3d57a77256063de127cc6f613f2372",
+  "status": "Withdrawn from the app; preserved reference, not a live publication or deployment claim.",
+  "members": [
+    {
+      "original_path": "main/tools/render_field_manual.R",
+      "git_blob": "e7528678caed01c18c4691d79f3b87f9959a69cf",
+      "bytes": 8702,
+      "archived_path": "docs/field-manual-archive/2026-11-08/render_field_manual.R",
+      "sha256": "4822ec595e6f49fe7a48b289e50da426387e255e652a9876f42c5a077503a954",
+      "md5": "ea26794c565e96658bb9b19bd8472084"
+    },
+    {
+      "original_path": "main/www/field-manual/README.md",
+      "git_blob": "67ea635025453385ac35dc8107c968f9101ea955",
+      "bytes": 5430,
+      "archived_path": "docs/field-manual-archive/2026-11-08/readers/README.md",
+      "sha256": "97e52048c4a5e5e6db2c442684ba367fc5d98504958795ebeac856b3cabb9962",
+      "md5": "25909d399832f92eac84dcfef1033750"
+    },
+    {
+      "original_path": "main/www/field-manual/core-guide-de.html",
+      "git_blob": "8d71ba3d738fe77283029bfc5f64fadc85049bc3",
+      "bytes": 32980,
+      "archived_path": "docs/field-manual-archive/2026-11-08/readers/core-guide-de.html",
+      "sha256": "4d6360b2c4b1e7c7561e69741c2a9df1a665113843cc6928807caa7b2bfb902e",
+      "md5": "b898f7d3cbf6bbbef9673e50f1156096"
+    },
+    {
+      "original_path": "main/www/field-manual/core-guide-de.md",
+      "git_blob": "d7e08c603374a645cff23e34108d158a2689638e",
+      "bytes": 15373,
+      "archived_path": "docs/field-manual-archive/2026-11-08/readers/core-guide-de.md",
+      "sha256": "c256cd4dbf15972d02d6b7dc2f087b03ac27a6d213b315e6e0a96eba2152b035",
+      "md5": "716f78152f297d62083579f4d4e08adc"
+    },
+    {
+      "original_path": "main/www/field-manual/core-guide.html",
+      "git_blob": "8344971e8c306f0f134412ae4e0af8892bb49ff0",
+      "bytes": 30159,
+      "archived_path": "docs/field-manual-archive/2026-11-08/readers/core-guide.html",
+      "sha256": "85bdedeec99377849fcc478f05d5ad5acf6d1cc0c1fa1e0564e1f86fe2273ef8",
+      "md5": "1dd61ec87484caa8b69be62b7f5a0aad"
+    },
+    {
+      "original_path": "main/www/field-manual/core-guide.md",
+      "git_blob": "8300be5d93959080e3146f20bfd089cbe436b949",
+      "bytes": 12773,
+      "archived_path": "docs/field-manual-archive/2026-11-08/readers/core-guide.md",
+      "sha256": "6449ada7b680ab28636d96672f21764ff43c55fc9a6bbd233a37e2d97ed9fa47",
+      "md5": "9defd4aa587832c9447b862e39ef16aa"
+    },
+    {
+      "original_path": "main/www/field-manual/index-de.html",
+      "git_blob": "0ac54cda5bed235578928df5fb28650ab546c094",
+      "bytes": 277684,
+      "archived_path": "docs/field-manual-archive/2026-11-08/readers/index-de.html",
+      "sha256": "b69f575a2a489ac5ea22b5353384133e978f935bfde7eada8f3bb04c0f7c7547",
+      "md5": "219bcb61cc39c1daab47f9053727efc4"
+    },
+    {
+      "original_path": "main/www/field-manual/index.html",
+      "git_blob": "2bd949ea7d4981901228a782db732440e4522a20",
+      "bytes": 238491,
+      "archived_path": "docs/field-manual-archive/2026-11-08/readers/index.html",
+      "sha256": "e9849cff849b2cc25e9800a24409f17777a229572ba0f79ffbf52e847116cba2",
+      "md5": "fe866a40ce7b912377ac6f3f0e53c633"
+    },
+    {
+      "original_path": "main/www/field-manual/manual-de.md",
+      "git_blob": "a8405468ebd701cf942038168f981ccf04f366b8",
+      "bytes": 220679,
+      "archived_path": "docs/field-manual-archive/2026-11-08/readers/manual-de.md",
+      "sha256": "daae22493a95fe1f58a9bd817f1b4a5c78b4d2c2532695f811717392cf74b5a3",
+      "md5": "0587ad1b0d132246eb806c4921b58322"
+    },
+    {
+      "original_path": "main/www/field-manual/manual.css",
+      "git_blob": "40d6c64b4946c246b324f5594d62404cdeda4790",
+      "bytes": 5342,
+      "archived_path": "docs/field-manual-archive/2026-11-08/readers/manual.css",
+      "sha256": "5fe542b7398493c2df2971606903d82ea2f9017caa4787474b80b6a626d894f1",
+      "md5": "c253deeef301000e7097be35133067b5"
+    },
+    {
+      "original_path": "main/www/field-manual/manual.js",
+      "git_blob": "3b0796585fc37c9baa7b5fa8f444a5b4e3bd2186",
+      "bytes": 8207,
+      "archived_path": "docs/field-manual-archive/2026-11-08/readers/manual.js",
+      "sha256": "3471a864ab6216e2f282358404ab3080d1f199aa17c0cf7b204f9ae8681f8389",
+      "md5": "16872f9a35611c84c1a738413542d3b1"
+    },
+    {
+      "original_path": "main/www/field-manual/manual.md",
+      "git_blob": "4b3b42007546ead65f9d73ee8adbfdf5c6f2b550",
+      "bytes": 181846,
+      "archived_path": "docs/field-manual-archive/2026-11-08/readers/manual.md",
+      "sha256": "053d2f0f59b851bdad668a33099e57d24a9bb995a9e6ead3b7348036c12db17b",
+      "md5": "d46b0def8f3dcea6a4e23517ad8d428f"
+    }
+  ]
+}

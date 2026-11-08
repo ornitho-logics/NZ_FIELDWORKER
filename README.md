@@ -15,16 +15,13 @@ records to help teams decide what to do next.
 * **Follow nests and broods on the map.** Explore their latest available
   locations and click a point for parents, association evidence, hatch timing,
   and the time since the last encounter.
-* **Review the bigger picture.** The Overview dashboard and summary views
-  bring together field progress, nest histories, and parent associations,
-  including historical nests that are no longer active.
+* **Review tabular summaries.** Show Views provides To-do data, available
+  band combinations, nest records, capture history, and hatching estimates.
 * **Enter and check observations.** Dedicated forms support field records.
   Data-entry validators flag missing or inconsistent information and explain
   what needs attention before saving, with warnings for items needing review.
 * **Link GPS records.** Upload waypoints and tracks and connect locations to
   the corresponding field observations.
-* **Consult the Field Manual.** Browse or search the app's guide to field
-  procedures, data entry, and interpreting the reports.
 
 Reports use the app's selected reference date. After entering new records,
 **Build To-do snapshot** updates the daily task plan; downloading the PDF alone
@@ -79,13 +76,12 @@ shiny::runApp("./main", launch.browser = TRUE)
 
 ### Further reading
 
-* [Core Team Field Guide](main/www/field-manual/core-guide.md): short daily-use
-  instructions, with links to the [Full Protocol Manual](main/www/field-manual/manual.md)
-  for complete requirements, exceptions, and examples. Both are available from
-  the app's Field Manual panel, with the short guide opening first.
-  Both versions offer an English/Deutsch language switch.
+* Archived references: the [field manuals](docs/field-manual-archive/2026-11-08/README.md),
+  [Overview dashboard](docs/overview-archive/2026-11-08/README.md), and
+  [notA summary](docs/notA-summary-archive/2026-11-08/README.md) are preserved
+  outside the active app, with source history and checksums.
 * [Database scripts and installation notes](DATABASE/): technical SQL details
-  for database maintainers, including the optional historical nest summary.
+  for database maintainers.
 * [Reconstruction guide](docs/reconstruction/README.md): setup, verification
   and a step-by-step agent recipe for adapting the project to another study.
 * [Developer guide](notes/codex_proposals/THREAD1_REPOSITORY_MAP.md): repository

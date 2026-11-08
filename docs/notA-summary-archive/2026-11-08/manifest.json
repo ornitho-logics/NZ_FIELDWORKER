@@ -1,0 +1,16 @@
+{
+  "format_version": 1,
+  "archive_date": "2026-11-08",
+  "source_commit": "19bfc7ff7cfac2d3796e14d7dae7e2ef8afb02c4",
+  "status": "Withdrawn from app and default reconstruction installation; no live view dropped.",
+  "members": [
+    {
+      "original_path": "DATABASE/notA_summary.SQL",
+      "archived_path": "docs/notA-summary-archive/2026-11-08/notA_summary.SQL",
+      "git_blob": "11fe4087fa3c025444afc6ee88c9abc10819f3f8",
+      "bytes": 8241,
+      "sha256": "d6fa6a5109b4d379683e8e8fca4296e802b42781a05a714ed669851098cadb2d",
+      "md5": "3a6ff2c6233139dfb9c4855200076928"
+    }
+  ]
+}

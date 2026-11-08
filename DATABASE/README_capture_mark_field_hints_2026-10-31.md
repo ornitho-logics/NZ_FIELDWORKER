@@ -1,7 +1,7 @@
 # CAPTURES incoming and release mark field hints
 
 This comment-only update aligns the eight leg-field descriptions with the
-[current manual](../main/www/field-manual/manual.md#section-6) and the tracked
+[archived manual](../docs/field-manual-archive/2026-11-08/readers/manual.md#section-6) and the tracked
 [CAPTURES hard inspector](../notes/codex_proposals/validator_sandbox/inspector_lists_by_table/CAPTURES_hard.R),
 especially its capture-mark and dead-recovery checks. It changes no validator,
 input value, field type, default, requiredness, or application interaction.

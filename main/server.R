@@ -57,21 +57,6 @@ function(input, output, session) {
 
   field_resightings_server(input, output, active_refdate)
 
-  overview_plot_date_limits <- reactive({
-    overview_date_limits(active_refdate())
-  })
-
-  overview_chick_growth_data_version <- reactivePoll(
-    5000,
-    session = session,
-    checkFunc = function() {
-      dbtable_is_updated(c("CAPTURES", "NESTS"))
-    },
-    valueFunc = function() {
-      Sys.time()
-    }
-  )
-
   observeEvent(
     reference_date(),
     {
@@ -374,103 +359,6 @@ function(input, output, session) {
       )
     )
   })
-
-  output$overview_nests_show <- renderPlot(
-    {
-      try_else(
-        overview_nests_graph(
-          active_refdate(),
-          overview_plot_date_limits()
-        ),
-        fallback_ggplot,
-        fail = 'overview_nests_graph() failed!'
-      )
-    }
-  )
-
-  output$overview_geolocator_show <- renderPlot(
-    {
-      try_else(
-        overview_geolocator_graph(
-          active_refdate(),
-          overview_plot_date_limits()
-        ),
-        fallback_ggplot,
-        fail = 'overview_geolocator_graph() failed!'
-      )
-    }
-  )
-
-  output$overview_tagged_resightings_show <- renderPlot(
-    {
-      try_else(
-        overview_tagged_resightings_graph(
-          active_refdate(),
-          overview_plot_date_limits()
-        ),
-        fallback_ggplot,
-        fail = 'overview_tagged_resightings_graph() failed!'
-      )
-    }
-  )
-
-  output$overview_cr_combos_show <- renderPlot(
-    {
-      try_else(
-        overview_band_combos_graph(
-          active_refdate(),
-          overview_plot_date_limits()
-        ),
-        fallback_ggplot,
-        fail = 'overview_band_combos_graph() failed!'
-      )
-    }
-  )
-
-  output$overview_lay_date_show <- renderPlot(
-    {
-      try_else(
-        overview_lay_date_graph(
-          active_refdate(),
-          overview_plot_date_limits()
-        ),
-        fallback_ggplot,
-        fail = 'overview_lay_date_graph() failed!'
-      )
-    }
-  )
-
-  output$overview_hatching_forecast_show <- renderPlot(
-    {
-      try_else(
-        overview_hatching_forecast_graph(active_refdate()),
-        fallback_ggplot,
-        fail = 'overview_hatching_forecast_graph() failed!'
-      )
-    }
-  )
-
-  output$overview_chick_growth_show <- renderPlot(
-    {
-      overview_chick_growth_data_version()
-
-      try_else(
-        overview_chick_growth_graph(active_refdate()),
-        fallback_ggplot,
-        fail = 'overview_chick_growth_graph() failed!'
-      )
-    }
-  )
-
-  output$overview_quota_show <- renderPlot(
-    {
-      try_else(
-        overview_quota_graph(active_refdate()),
-        fallback_ggplot,
-        fail = 'overview_quota_graph() failed!'
-      )
-    }
-  )
 
   output$new_data <- renderUI({
     entry_classes <- fifelse(

@@ -3,6 +3,18 @@
 This is a tracked field-manual orientation and template record. It does not
 modify the retained reference manual or any application source.
 
+## App withdrawal and preserved archive — 8 November 2026
+
+Luke requested removal of the core guide and full manual from the app, not
+destruction of their content. Both English and German sources, four rendered
+pages, shared assets, reader README, and renderer are preserved byte-for-byte
+in the [dated archive](../../docs/field-manual-archive/2026-11-08/README.md),
+with checksums and original paths. The sidebar item, tab, iframe, and public
+reader files are removed. Reconstruction references resolve to the archive;
+no scientific rules, SQL, or data-entry behavior change. Earlier publication
+and authoring instructions below are historical, not instructions to recreate
+the panel. Live deployment and any future republication remain human-controlled.
+
 ## App publication addendum — 3 November 2026
 
 ### Standard German reader follow-up

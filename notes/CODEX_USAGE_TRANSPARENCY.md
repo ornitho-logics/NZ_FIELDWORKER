@@ -1,5 +1,16 @@
 # Codex use and task handoff transparency
 
+8 November 2026 publication update: at Luke Eberhart-Hertel's request, the core
+guide and full manual were withdrawn from the app. Their English/German
+sources, rendered readers, shared assets, and renderer remain unchanged in a
+[checksummed archive](../docs/field-manual-archive/2026-11-08/README.md), including
+the authorship and AI-use disclosures. Reconstruction resources remain intact.
+This records a source change, not agent deployment to the field server.
+The same withdrawal also archives the eight-panel Overview dashboard and
+notA summary; current app registrations and chart polling are removed, while
+preserved source and reconstruction references remain available. No live
+database view or biological record is deleted by these source changes.
+
 Current reconstruction addendum: 2026-11-01. Earlier publication chronology below
 retains its dates and does not define current deployed state.
 

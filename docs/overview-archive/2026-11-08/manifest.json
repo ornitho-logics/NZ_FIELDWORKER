@@ -1,0 +1,75 @@
+{
+  "format_version": 1,
+  "archive_date": "2026-11-08",
+  "source_commit": "19bfc7ff7cfac2d3796e14d7dae7e2ef8afb02c4",
+  "archive": {
+    "file": "overview-source.tar.gz",
+    "bytes": 89283,
+    "sha256": "2eb2b88353452fa9d16300de5979eab96988fc9b1753f6333369555170bdec8f",
+    "md5": "3174c68ce775ee6ebf4c102b218153f5"
+  },
+  "helper": {
+    "path": "main/R/ggplot_overview.R",
+    "git_blob": "27dd01915deb3e53b150e9d34b65a3562de022f4",
+    "bytes": 83864,
+    "sha256": "05765e3c26c5783c5b319101c23023ab5877771c56efd32109fa8c16af382300",
+    "archived_path": "docs/overview-archive/2026-11-08/ggplot_overview.R",
+    "md5": "15597209ffdd4350128af71fe0953bcb"
+  },
+  "members": [
+    {
+      "path": "DATABASE/views.SQL",
+      "git_blob": "f9d48eb0c83de36e7c9f51f2b45e1837b812672d",
+      "bytes": 295966,
+      "sha256": "94096adc5ad485e2850581c3d270de9a02df9ea629158fd943bf9c12cc1d0bb4"
+    },
+    {
+      "path": "main/R/ggplot_overview.R",
+      "git_blob": "27dd01915deb3e53b150e9d34b65a3562de022f4",
+      "bytes": 83864,
+      "sha256": "05765e3c26c5783c5b319101c23023ab5877771c56efd32109fa8c16af382300"
+    },
+    {
+      "path": "main/global.R",
+      "git_blob": "e0e40cc7c490c626c107278ed047c025db13e9a9",
+      "bytes": 9962,
+      "sha256": "f93bf5361552310ce4616920e79bff668196bd29ffd4aaafef4d9a19760675dc"
+    },
+    {
+      "path": "main/server.R",
+      "git_blob": "fcf96693e780cee8e30831d242bb6aa372ba8dad",
+      "bytes": 19718,
+      "sha256": "112122d6fb175201d37ac47cdc69b262e1a0287467ff0f2ce21e89ade6b3e30f"
+    },
+    {
+      "path": "main/ui.R",
+      "git_blob": "7504e6d47a3f2e552ba42871e28bae0a505073f8",
+      "bytes": 15876,
+      "sha256": "e140cb8796893dce39f294560c7260192e1efe13630905ae9c99c830b26d3611"
+    },
+    {
+      "path": "tests/testthat/test-app-wiring.R",
+      "git_blob": "b90e76161140e0459d4db2ef660ea8774a77debd",
+      "bytes": 14533,
+      "sha256": "c51b5cdfb0133f9aa8d3517b9ca69c7cd7d997e822786eb6f6538954be803525"
+    },
+    {
+      "path": "tests/testthat/test-main-server.R",
+      "git_blob": "b4c1bf0322fb65ed308801e776050e03073f7876",
+      "bytes": 24179,
+      "sha256": "ad9dad2af4dea2007ed96cf00f388d2aa955d3b37f3a46e89f73d33250335e3e"
+    },
+    {
+      "path": "tests/testthat/test-thread8-display-nest-links-2026-10-26.R",
+      "git_blob": "64deb3b142bc9b6a845e11dd56a01554d890c7eb",
+      "bytes": 7237,
+      "sha256": "c79c5fbcc9a72cbfe23b28f71532ebbec2c4c9ed7aedf12d07917d1b6aaafd95"
+    },
+    {
+      "path": "main/www/help/intro.html",
+      "git_blob": "e22212abbefe8a2ee4af542d892955628d3dd30b",
+      "bytes": 6772,
+      "sha256": "d8d7af9f436dac1bc2bddf93e2e9254655d13c7add25b19e42def7c1e9f7ff40"
+    }
+  ]
+}

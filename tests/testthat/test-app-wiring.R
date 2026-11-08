@@ -105,84 +105,13 @@ test_that("main app UI and entrypoint load", {
   expect_match(html, 'data-value="enter_data"', fixed = TRUE)
   expect_match(html, 'data-value="nest_map"', fixed = TRUE)
   expect_match(html, 'id="nest_map_show"', fixed = TRUE)
-  expect_match(html, 'id="overview_nests_show"', fixed = TRUE)
-  expect_match(html, 'id="overview_geolocator_show"', fixed = TRUE)
-  expect_match(html, 'id="overview_tagged_resightings_show"', fixed = TRUE)
-  expect_match(
-    html,
-    paste0(
-      'id="overview_tagged_resightings_show" ',
-      'style="width:100%;height:105vh;"'
-    ),
-    fixed = TRUE
-  )
-  expect_match(html, 'id="overview_cr_combos_show"', fixed = TRUE)
-  expect_match(html, 'id="overview_lay_date_show"', fixed = TRUE)
-  expect_match(html, 'id="overview_hatching_forecast_show"', fixed = TRUE)
-  expect_match(html, 'id="overview_chick_growth_show"', fixed = TRUE)
-  expect_match(html, 'id="overview_quota_show"', fixed = TRUE)
-  overview_titles <- c(
-    "Current quotas for manipulations (Cass and elsewhere in NZ).",
-    "Cass: lay date phenology",
-    "Cass: Hatching Forecast",
-    "Cass: Seasonal progression in nest discovery",
-    "Cass: Seasonal progression in unique band combinations encountered (resighted or captured)",
-    "Cass: Seasonal progression in geolocator deployments",
-    "Cass: Chick growth trends",
-    "Cass: Resighting histories of geolocator-tagged birds"
-  )
-  overview_title_positions <- vapply(
-    overview_titles,
-    function(title) regexpr(title, html, fixed = TRUE)[[1L]],
-    integer(1)
-  )
-  expect_true(all(overview_title_positions > 0L))
-  expect_true(all(diff(overview_title_positions) > 0L))
-  expect_true(is.function(app$env$overview_nests_graph))
-  expect_true(is.function(app$env$overview_tagged_resightings_graph))
-  expect_true(is.function(app$env$overview_hatching_forecast_graph))
-  expect_true(is.function(app$env$overview_limp_status))
-
-  for (output_id in c(
-    "overview_nests_show",
-    "overview_geolocator_show",
-    "overview_tagged_resightings_show",
-    "overview_cr_combos_show",
-    "overview_lay_date_show",
-    "overview_hatching_forecast_show",
-    "overview_chick_growth_show",
-    "overview_quota_show"
-  )) {
-    expect_equal(
-      htmltools::tagQuery(app$ui)$
-        find(glue::glue("#{output_id}"))$
-        closest(".shiny-spinner-output-container")$
-        length(),
-      1
-    )
-  }
-
-  expect_contains(app$env$dbtabs_show_views, "OVERVIEW")
-  expect_contains(app$env$dbtabs_show_views, "notA_summary")
+  expect_false(grepl('data-value="overview"|id="overview_', html))
+  expect_false(any(c("OVERVIEW", "notA_summary") %in% app$env$dbtabs_show_views))
+  expect_false(any(c("OVERVIEW", "notA_summary") %in% names(app$env$dbtabs_show_view_sources)))
+  expect_false(exists("overview_nests_graph", envir = app$env, inherits = FALSE))
   expect_false("VIEW_2" %in% app$env$dbtabs_show_views)
-  expect_setequal(
-    app$env$dbtabs_show_view_sources[["notA_summary"]],
-    c("settings", "TODO_REFRESH_STATUS", "TODO_NEST_CONTEXT_SNAPSHOT",
-      "TODO_PARENT_STATUS_SNAPSHOT")
-  )
-  expect_match(html, "A notA nest may still have a live brood.", fixed = TRUE)
   expect_false("VIEW_1" %in% app$env$dbtabs_show_views)
   expect_false("VIEW_1" %in% names(app$env$dbtabs_show_view_sources))
-  expect_setequal(
-    app$env$dbtabs_show_view_sources[["OVERVIEW"]],
-    c(
-      "settings",
-      "CAPTURES",
-      "NESTS",
-      "EGGS",
-      "RESIGHTINGS"
-    )
-  )
   expect_true("RESIGHTINGS" %in% app$env$dbtabs_show_view_sources[["NESTS_LATEST"]])
   expect_identical(
     app$env$dbtabs_show_view_sources[["BROODS_LATEST"]],

@@ -1,3 +1,11 @@
+# Explicit test-only historical helper load; the active app never loads archives.
+load_archived_overview_app <- function() {
+  app <- load_main_app()
+  sys.source(app_file("docs", "overview-archive", "2026-11-08", "ggplot_overview.R"),
+             envir = app$env)
+  app
+}
+
 test_that("main server initializes and updates the reference date", {
   app <- load_main_app()
   today <- as.Date(Sys.time(), tz = app$env$preferred_timezone)
@@ -12,21 +20,6 @@ test_that("main server initializes and updates the reference date", {
   saved <- new.env(parent = emptyenv())
   saved$date <- as.Date(NA)
   saved$notices <- character()
-  overview_calls <- new.env(parent = emptyenv())
-
-  overview_plot_stub <- function(name) {
-    force(name)
-    overview_calls[[name]] <- as.Date(character())
-
-    function(refdate, date_limits = NULL) {
-      overview_calls[[name]] <- c(
-        overview_calls[[name]],
-        as.Date(refdate)
-      )
-      ggplot2::ggplot()
-    }
-  }
-
   app$env$get_reference_date <- function() today
   app$env$dbtable_is_updated <- function(...) "unchanged"
   app$env$set_reference_date <- function(refdate) {
@@ -39,46 +32,11 @@ test_that("main server initializes and updates the reference date", {
   app$env$ErrToast <- function(...) NULL
   app$env$TABLE_show <- function(...) shiny::renderText("")
   app$env$later <- function(callback, delay = 0) callback()
-  app$env$overview_date_limits <- function(refdate) {
-    c(as.Date(refdate) - 30, as.Date(refdate))
-  }
-  app$env$overview_nests_graph <- overview_plot_stub("nests")
-  app$env$overview_geolocator_graph <- overview_plot_stub("geolocator")
-  app$env$overview_tagged_resightings_graph <- overview_plot_stub(
-    "tagged_resightings"
-  )
-  app$env$overview_band_combos_graph <- overview_plot_stub("band_combos")
-  app$env$overview_lay_date_graph <- overview_plot_stub("lay_date")
-  app$env$overview_hatching_forecast_graph <- overview_plot_stub(
-    "hatching_forecast"
-  )
-  app$env$overview_chick_growth_graph <- overview_plot_stub(
-    "chick_growth"
-  )
-  app$env$overview_quota_graph <- overview_plot_stub("quota")
-
   shiny::testServer(app$server, {
     session$flushReact()
 
-    output$overview_nests_show
-    output$overview_geolocator_show
-    output$overview_tagged_resightings_show
-    output$overview_cr_combos_show
-    output$overview_lay_date_show
-    output$overview_hatching_forecast_show
-    output$overview_chick_growth_show
-    output$overview_quota_show
-
     expect_identical(as.Date(reference_date()), today)
     expect_identical(as.Date(active_refdate()), today)
-    expect_identical(overview_calls$nests, today)
-    expect_identical(overview_calls$geolocator, today)
-    expect_identical(overview_calls$tagged_resightings, today)
-    expect_identical(overview_calls$band_combos, today)
-    expect_identical(overview_calls$lay_date, today)
-    expect_identical(overview_calls$hatching_forecast, today)
-    expect_identical(overview_calls$chick_growth, today)
-    expect_identical(overview_calls$quota, today)
     expect_match(output$ref_date_text$html, as.character(today), fixed = TRUE)
     expect_match(output$open_gps$html, "../gpxui/", fixed = TRUE)
     expect_match(output$open_db$html, "db_ui/field_db.php", fixed = TRUE)
@@ -95,20 +53,6 @@ test_that("main server initializes and updates the reference date", {
 
     expect_identical(saved$date, next_date)
     expect_identical(as.Date(reference_date()), next_date)
-    expect_identical(tail(overview_calls$nests, 1), next_date)
-    expect_identical(tail(overview_calls$geolocator, 1), next_date)
-    expect_identical(
-      tail(overview_calls$tagged_resightings, 1),
-      next_date
-    )
-    expect_identical(tail(overview_calls$band_combos, 1), next_date)
-    expect_identical(tail(overview_calls$lay_date, 1), next_date)
-    expect_identical(
-      tail(overview_calls$hatching_forecast, 1),
-      next_date
-    )
-    expect_identical(tail(overview_calls$chick_growth, 1), next_date)
-    expect_identical(tail(overview_calls$quota, 1), next_date)
     expect_true(any(grepl(
       as.character(next_date),
       saved$notices,
@@ -119,7 +63,7 @@ test_that("main server initializes and updates the reference date", {
 
 
 test_that("overview graph helpers use aligned reference-date queries", {
-  app <- load_main_app()
+  app <- load_archived_overview_app()
   refdate <- as.Date("2026-07-21")
   queries <- list()
 
@@ -239,7 +183,7 @@ test_that("overview graph helpers use aligned reference-date queries", {
 
 
 test_that("chick growth plot uses ring-only identity and has three panels", {
-  app <- load_main_app()
+  app <- load_archived_overview_app()
   x <- data.frame(
     ring = c(
       "MOCK_RING_A", "MOCK_RING_A", "MOCK_RING_B", "MOCK_RING_B",
@@ -282,7 +226,7 @@ test_that("chick growth plot uses ring-only identity and has three panels", {
 
 
 test_that("chick growth query is reference-date bounded and ring filtered", {
-  app <- load_main_app()
+  app <- load_archived_overview_app()
   refdate <- as.Date("2026-07-21")
   query <- NULL
 
@@ -308,7 +252,7 @@ test_that("chick growth query is reference-date bounded and ring filtered", {
 
 
 test_that("band-combo overview reconciles adult identities and exposes safe diagnostics", {
-  app <- load_main_app()
+  app <- load_archived_overview_app()
 
   captures <- data.frame(
     pk = 1:4,
@@ -475,7 +419,7 @@ test_that("band-combo overview reconciles adult identities and exposes safe diag
 
 
 test_that("pair tally does not fall back to the obsolete heuristic", {
-  app <- load_main_app()
+  app <- load_archived_overview_app()
   calls <- 0L
 
   app$env$db_get <- function(sql, params) {
@@ -500,7 +444,7 @@ test_that("pair tally does not fall back to the obsolete heuristic", {
 
 
 test_that("pair protocol helper is separate from sex-only panels", {
-  app <- load_main_app()
+  app <- load_archived_overview_app()
   refdate <- as.Date("2026-07-21")
 
   app$env$db_get <- function(sql, params) {
@@ -544,7 +488,7 @@ test_that("pair protocol helper is separate from sex-only panels", {
 
 
 test_that("lay-date bins tally geolocators by associated nest", {
-  app <- load_main_app()
+  app <- load_archived_overview_app()
   x <- data.frame(
     nest_id = c("MOCK_NEST_1", "MOCK_NEST_1", "MOCK_NEST_2", "MOCK_NEST_3"),
     datetime = as.Date(c(
@@ -593,7 +537,7 @@ test_that("lay-date bins tally geolocators by associated nest", {
 
 
 test_that("hatching forecast uses one-day bins, three-day labels, and marks reference date", {
-  app <- load_main_app()
+  app <- load_archived_overview_app()
   refdate <- as.Date("2026-09-01")
   x <- data.frame(
     nest_id = c("MOCK_NEST_1", "MOCK_NEST_2", "MOCK_NEST_3"),
@@ -642,7 +586,7 @@ test_that("hatching forecast uses one-day bins, three-day labels, and marks refe
 
 
 test_that("overview limp status distinguishes comment evidence", {
-  app <- load_main_app()
+  app <- load_archived_overview_app()
   comments <- c(
     "walking normally",
     "slight hesitation while walking",
@@ -775,7 +719,7 @@ test_that("overview limp status distinguishes comment evidence", {
 
 
 test_that("overview cumulative ribbons contain no diagonal segments", {
-  app <- load_main_app()
+  app <- load_archived_overview_app()
   x <- data.table::data.table(
     plot_date = as.Date(c("2026-08-01", "2026-08-03", "2026-08-07")),
     cumulative_n = c(1L, 3L, 4L)

@@ -5,6 +5,12 @@ original reconciliation below is historical; its implementation-gap statements
 must not be read as a current inventory of repository SQL. No local source
 review establishes deployment or live inspector state.
 
+8 November 2026 publication addendum: Luke withdrew both manuals from the app.
+The complete English/German source and rendered material remain unchanged in
+the [checksummed archive](../../docs/field-manual-archive/2026-11-08/README.md).
+Earlier app-publication paths below describe history; reconstruction and
+protocol reference must use the archive, not recreate the removed panel.
+
 ## Current entry and publication contract — 31 October 2026
 
 The reviewed local validator protocol is v1.3.20. Since v1.3.19, every new

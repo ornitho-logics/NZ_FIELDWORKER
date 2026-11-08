@@ -1,18 +1,24 @@
 # These checks never load main/global.R, server.R or database configuration.
 manual_root <- normalizePath(testthat::test_path("..", ".."), mustWork = TRUE)
-manual_file <- function(...) file.path(manual_root, "main", "www", "field-manual", ...)
+manual_archive <- file.path(manual_root, "docs", "field-manual-archive", "2026-11-08")
+manual_file <- function(...) file.path(manual_archive, "readers", ...)
+manual_renderer <- file.path(manual_archive, "render_field_manual.R")
 
-test_that("Field Manual is wired directly below Nest Map with a static reader", {
+test_that("manuals are archived outside the app and have no app navigation or reader", {
   ui <- paste(readLines(file.path(manual_root, "main", "ui.R")), collapse = "\n")
-  expect_match(ui, 'menuItem\\(\\s*"Field Manual",\\s*tabName\\s*=\\s*"field_manual"', perl = TRUE)
-  expect_lt(regexpr('"Nest Map"', ui)[1], regexpr('"Field Manual"', ui)[1])
-  expect_match(ui, 'id = "field_manual_reader"', fixed = TRUE)
-  expect_match(ui, 'src = "field-manual/core-guide.html"', fixed = TRUE)
-  expect_match(ui, 'href = "field-manual/core-guide.html"', fixed = TRUE)
-  expect_match(ui, 'title = "BADO Field Manual', fixed = TRUE)
+  expect_false(grepl("field_manual|field-manual|Field Manual", ui))
+  expect_silent(parse(file.path(manual_root, "main", "ui.R")))
+  expect_length(list.files(file.path(manual_root, "main", "www", "field-manual"),
+                          recursive = TRUE, all.files = TRUE), 0L)
+  expect_false(file.exists(file.path(manual_root, "main", "tools", "render_field_manual.R")))
+  expect_true(file.exists(manual_renderer))
+  for (name in c("manual.md", "manual-de.md", "core-guide.md", "core-guide-de.md",
+                 "index.html", "index-de.html", "core-guide.html", "core-guide-de.html")) {
+    expect_true(file.exists(manual_file(name)))
+  }
 })
 
-test_that("app manual preserves disclosure, sections, and expected event table", {
+test_that("archived manual preserves disclosure, sections, and expected event table", {
   md <- paste(readLines(manual_file("manual.md"), encoding = "UTF-8"), collapse = "\n")
   html <- paste(readLines(manual_file("index.html"), encoding = "UTF-8"), collapse = "\n")
   expect_gt(regexpr("## Authorship and use of AI", md)[1], regexpr("## Appendix B.", md, fixed = TRUE)[1])
@@ -143,7 +149,7 @@ test_that("static reader rebuild is deterministic and needs no database", {
   dir.create(file.path(folder, "main", "tools"), recursive = TRUE)
   dir.create(file.path(folder, "main", "www", "field-manual"), recursive = TRUE)
   script <- file.path(folder, "main", "tools", "render_field_manual.R")
-  file.copy(file.path(manual_root, "main", "tools", "render_field_manual.R"), script)
+  file.copy(manual_renderer, script)
   target <- file.path(folder, "main", "www", "field-manual")
   for (name in c("manual.md", "core-guide.md", "manual-de.md", "core-guide-de.md", "manual.css", "manual.js")) file.copy(manual_file(name), target)
   output <- system2(file.path(R.home("bin"), "Rscript"), c("--vanilla", shQuote(script)), stdout = TRUE, stderr = TRUE)
@@ -210,7 +216,7 @@ test_that("a stale German translation stops the build before any HTML publicatio
   target <- file.path(folder, "main", "www", "field-manual")
   dir.create(target, recursive = TRUE)
   script <- file.path(folder, "main", "tools", "render_field_manual.R")
-  file.copy(file.path(manual_root, "main", "tools", "render_field_manual.R"), script)
+  file.copy(manual_renderer, script)
   for (name in c("manual.md", "core-guide.md", "manual-de.md", "core-guide-de.md", "manual.css", "manual.js",
                  "index.html", "core-guide.html", "index-de.html", "core-guide-de.html")) file.copy(manual_file(name), target)
   pages <- file.path(target, c("index.html", "core-guide.html", "index-de.html", "core-guide-de.html"))
@@ -245,7 +251,7 @@ test_that("both manual readers expose navigation, scoped search, and publication
   }
 })
 
-test_that("the published guide retains critical rules and links to complete HTML procedures", {
+test_that("the archived guide retains critical rules and links to complete HTML procedures", {
   guide <- paste(readLines(manual_file("core-guide.md"), encoding = "UTF-8"), collapse = "\n")
   full <- paste(readLines(manual_file("manual.md"), encoding = "UTF-8"), collapse = "\n")
   html <- paste(readLines(manual_file("core-guide.html"), encoding = "UTF-8"), collapse = "\n")
@@ -281,6 +287,26 @@ test_that("the published guide retains critical rules and links to complete HTML
     expect_true(file.exists(file.path(manual_root, "docs", "reconstruction", path)))
   }
   expect_true(file.exists(file.path(manual_root, "tools", "reconstruction", "fixtures.sql")))
+})
+
+test_that("manual archive members match the preserved manifest and reconstruction reference", {
+  skip_if_not_installed("jsonlite")
+  manifest <- jsonlite::read_json(file.path(manual_archive, "manifest.json"))
+  expect_length(manifest$members, 12L)
+  for (member in manifest$members) {
+    path <- file.path(manual_root, member$archived_path)
+    expect_true(file.exists(path))
+    expect_equal(unname(file.info(path)$size), member$bytes)
+    expect_identical(unname(tools::md5sum(path)), member$md5)
+    expect_false(file.exists(file.path(manual_root, member$original_path)))
+  }
+  rules <- jsonlite::read_json(file.path(manual_root, "docs", "reconstruction", "rules.json"))
+  expect_identical(normalizePath(file.path(manual_root, rules$manual)),
+                   normalizePath(manual_file("manual.md")))
+  md <- paste(readLines(manual_file("manual.md"), encoding = "UTF-8"), collapse = "\n")
+  for (rule in rules$rules) {
+    expect_match(md, paste0('id="', rule$manual_anchor, '"'), fixed = TRUE)
+  }
 })
 
 test_that("MM guidance distinguishes identifiable birds from unbanded chronology", {
