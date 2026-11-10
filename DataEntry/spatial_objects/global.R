@@ -1,6 +1,7 @@
 #' shiny::runApp("./DataEntry/spatial_objects", launch.browser = TRUE)
 
 require(DataEntry)
+require(stringr)
 
 table_name <- "spatial_objects"
 group <- "nz_fieldworker"

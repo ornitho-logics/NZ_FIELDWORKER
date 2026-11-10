@@ -1,6 +1,7 @@
 #' shiny::runApp("./DataEntry/inspectors", launch.browser = TRUE )
 
 require(DataEntry)
+require(stringr)
 
 table_name <- "inspectors"
 id_column <- "table_name"
