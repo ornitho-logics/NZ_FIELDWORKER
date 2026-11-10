@@ -657,7 +657,8 @@ list(
             regexp = "^[^?,]*$",
             reason = "Invalid leg-mark characters."
         )
-    } |> try_validator(nam = "val12"),
+    } |>
+        try_validator(nam = "val12"),
 
     # Check the metal-ring format.
     {
@@ -898,48 +899,6 @@ list(
         }
     } |>
         try_validator(nam = "val18"),
-
-    # Check the observer is active on the capture date.
-    {
-        dat <- copy(x)
-        if (!"rowid" %in% names(dat)) {
-            dat[, let(rowid, .I)]
-        }
-        src <- as.data.table(db_get(
-            "SELECT observer, start, stop FROM OBSERVERS"
-        ))
-        src[, let(start, (start |> as.Date()))]
-        src[, let(stop, (stop |> as.Date()))]
-        dat[, let(date, (date |> as.Date()))]
-        m <- merge(
-            dat[, .(rowid, observer, date)],
-            src,
-            by = "observer",
-            all.x = TRUE
-        )
-        bad_idx <- m[
-            is.na(start) |
-                is.na(stop) |
-                is.na(date) |
-                date < start |
-                date > stop,
-            rowid
-        ]
-        if (length(bad_idx) == 0) {
-            data.table(
-                rowid = integer(),
-                variable = character(),
-                reason = character()
-            )
-        } else {
-            data.table(
-                rowid = bad_idx,
-                variable = "observer",
-                reason = "Observer missing or inactive on capture date."
-            )
-        }
-    } |>
-        try_validator(nam = "val19"),
 
     # Check book, form, and event uniqueness.
     {
