@@ -1,6 +1,7 @@
 #' shiny::runApp("./DataEntry/RESIGHTINGS", launch.browser = TRUE)
 
 require(DataEntry)
+require(data.table)
 require(stringr)
 
 

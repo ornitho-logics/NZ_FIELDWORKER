@@ -1,6 +1,7 @@
 #' shiny::runApp("./DataEntry/NESTS", launch.browser = TRUE)
 
 require(DataEntry)
+require(data.table)
 require(stringr)
 
 

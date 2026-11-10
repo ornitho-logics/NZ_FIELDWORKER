@@ -1,6 +1,7 @@
 #' shiny::runApp("./DataEntry/EGGS", launch.browser = TRUE)
 
 require(DataEntry)
+require(data.table)
 require(stringr)
 
 table_name <- "EGGS"

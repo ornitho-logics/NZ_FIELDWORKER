@@ -1,6 +1,7 @@
 #' shiny::runApp("./DataEntry/OBSERVERS", launch.browser = TRUE )
 
 require(DataEntry)
+require(data.table)
 require(stringr)
 
 table_name <- "OBSERVERS"
