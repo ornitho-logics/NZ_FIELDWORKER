@@ -56,6 +56,8 @@ function(input, output, session) {
   })
 
   field_resightings_server(input, output, active_refdate)
+  data_issues_server(input, output, session)
+  phenology_server(input, output, session, active_refdate)
 
   observeEvent(
     reference_date(),

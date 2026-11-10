@@ -3,13 +3,17 @@ withdrawal_root <- normalizePath(testthat::test_path("..", ".."), mustWork = TRU
 withdrawal_file <- function(...) file.path(withdrawal_root, ...)
 withdrawal_text <- function(...) paste(readLines(withdrawal_file(...), encoding = "UTF-8"), collapse = "\n")
 
-test_that("Overview and notA report are absent from active app wiring", {
+test_that("only Overview phenology is restored and other withdrawn reports stay absent", {
   ui <- withdrawal_text("main", "ui.R")
   server <- withdrawal_text("main", "server.R")
   expect_silent(parse(withdrawal_file("main", "ui.R")))
   expect_silent(parse(withdrawal_file("main", "server.R")))
   expect_silent(parse(withdrawal_file("main", "global.R")))
-  expect_false(grepl("overview_|field_manual|field-manual|notA_summary", ui))
+  expect_false(grepl("field_manual|field-manual|notA_summary", ui))
+  plots <- regmatches(ui, gregexpr('overview_[a-z_]+_show', ui))[[1]]
+  expect_identical(plots, "overview_lay_date_show")
+  expect_match(ui, 'tabName = "overview"', fixed = TRUE)
+  expect_match(server, "phenology_server(input, output, session, active_refdate)", fixed = TRUE)
   expect_false(grepl("overview_", server))
   expect_false(file.exists(withdrawal_file("main", "R", "ggplot_overview.R")))
   expect_false(file.exists(withdrawal_file("DATABASE", "notA_summary.SQL")))

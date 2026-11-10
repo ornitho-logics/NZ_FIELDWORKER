@@ -54,9 +54,11 @@ dashboardPage(
       ),
       menuItem("Downloads", tabName = "downloads", icon = icon("download")),
       menuItem("Intro", tabName = "intro", icon = icon("circle-info")),
+      menuItem("Overview", tabName = "overview", icon = icon("circle-play")),
       menuItem("GPS", tabName = "gps", icon = icon("location-arrow")),
       menuItem("Enter Data", tabName = "enter_data", icon = icon("edit")),
       menuItem("Show tables", tabName = "show_tables", icon = icon("table")),
+      menuItem("Data issues", tabName = "data_issues", icon = icon("bomb")),
       menuItem("Show Views", tabName = "show_views", icon = icon("eye")),
       menuItem("Database", tabName = "database", icon = icon("database")),
       menuItem(
@@ -264,6 +266,16 @@ dashboardPage(
         )
       ),
 
+      tabItem(
+        tabName = "overview",
+        bs4Dash::box(
+          title = "Cass River phenology",
+          width = 12,
+          collapsible = FALSE,
+          spinner(plotOutput("overview_lay_date_show", height = "85vh"))
+        )
+      ),
+
       # Field Resightings tab
       tabItem(
         tabName = "field_resightings",
@@ -342,6 +354,17 @@ dashboardPage(
               )
             )
           })
+        )
+      ),
+
+      tabItem(
+        tabName = "data_issues",
+        bs4Dash::box(
+          title = "Data issues",
+          width = 12,
+          collapsible = FALSE,
+          tags$p(textOutput("data_issues_status")),
+          spinner(DTOutput("data_issues_table"))
         )
       ),
 
