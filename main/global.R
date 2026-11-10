@@ -65,6 +65,7 @@ dbtabs_show_tables <- c(
   "NESTS",
   "EGGS",
   "RESIGHTINGS",
+  "RESIGHTINGS_field",
   "RESIGHTINGS_PUBLIC",
   "GPS_POINTS",
   "settings",
