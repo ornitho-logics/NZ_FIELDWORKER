@@ -27,8 +27,7 @@ snapshot; a future reviewed version should have its own source and date.
 
 This archive is outside `main/www`, so Shiny does not expose it as an app
 resource. GitHub copies remain deliberately available for inspection and
-reconstruction. Withdrawal from the app does not revoke existing permissions
-or change the [authorship and rights notice](../../../COPYRIGHT.md).
+reconstruction.
 
 ## What changed and what did not
 
