@@ -22,6 +22,12 @@ records to help teams decide what to do next.
   what needs attention before saving, with warnings for items needing review.
 * **Link GPS records.** Upload waypoints and tracks and connect locations to
   the corresponding field observations.
+* **Read field procedures.** Open the short Core Team Field Guide or the Full
+  Protocol Manual, with English/Deutsch switching, search, and a separate-window
+  reader.
+* **Review the season.** Overview combines the current phenology panel with
+  restored summaries of quotas, lay dates, hatching, nest discovery, band
+  combinations, geolocator deployments, chick growth, and resighting histories.
 
 Reports use the app's selected reference date. After entering new records,
 **Build To-do snapshot** updates the daily task plan; downloading the PDF alone
@@ -76,13 +82,20 @@ shiny::runApp("./main", launch.browser = TRUE)
 
 ### Further reading
 
-* Archived references: the [field manuals](docs/field-manual-archive/2026-11-08/README.md),
-  [Overview dashboard](docs/overview-archive/2026-11-08/README.md), and
-  [notA summary](docs/notA-summary-archive/2026-11-08/README.md) are preserved
-  outside the active app, with source history and checksums.
+* [Core Team Field Guide](main/www/field-manual/core-guide.md) and
+  [Full Protocol Manual](main/www/field-manual/manual.md): the app's field
+  procedures, with links between the short and full readers.
+* [Manual and Overview restoration](docs/APP_FEATURE_RESTORATION_2026-11-12.md):
+  current publication scope, preserved collaborator features, and deployment
+  checks. The dated source archives remain available for provenance.
+* [notA_summary installation](DATABASE/notA_summary.SQL): a small, separate
+  view installer for the historical nest/parent report under Show Views. Install
+  after the first successful To-do snapshot; subsequent builds update it.
+* [Validator reference and selective editing](docs/validation/SELECTIVE_VALIDATION.md):
+  GitHub-only documentation for maintainers, not additional app controls.
 * [Database scripts and installation notes](DATABASE/): technical SQL details
   for database maintainers.
-* [Reconstruction guide](docs/reconstruction/README.md): setup, verification
+* [Reconstruction guide](docs/reconstruction/README.md): setup, verification,
   and a step-by-step agent recipe for adapting the project to another study.
 * [Developer guide](notes/codex_proposals/THREAD1_REPOSITORY_MAP.md): repository
   map and links to the specialist handoffs.

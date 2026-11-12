@@ -1,0 +1,539 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="manual-source-md5" content="716f78152f297d62083579f4d4e08adc"><meta name="manual-reference-md5" content="9defd4aa587832c9447b862e39ef16aa"><title>BADO Field Manual 2026 — Kurzleitfaden fürs Kernteam</title><style>/* Scoped by the reader iframe; does not change dashboard styling. */
+:root { color-scheme: light; --ink: #23343d; --accent: #315e70; --line: #d8e1e5; }
+* { box-sizing: border-box; }
+html { scroll-padding-top: calc(var(--reader-tools-height, 180px) + 12px); }
+body { margin: 0; background: #f4f7f8; color: var(--ink); font: 17px/1.6 Calibri, Arial, sans-serif; }
+main { max-width: 1080px; margin: 0 auto; padding: 18px 38px 70px; background: #fff; }
+h1, h2, h3, summary { font-family: Arial, sans-serif; color: #203c49; line-height: 1.35; }
+h1 { font-size: 2rem; margin: 22px 0 12px; }
+h2 { font-size: 1.4rem; margin-top: 28px; }
+h3 { font-size: 1.1rem; margin-top: 26px; }
+p, ul, ol { margin: 12px 0; }
+li { margin: 5px 0; }
+a { color: var(--accent); text-underline-offset: 3px; }
+a:hover { color: #193f50; }
+button, input { font: inherit; }
+button, .contents-button { border: 1px solid #aebfc7; border-radius: 5px; background: #fff; color: #254958; padding: 7px 11px; cursor: pointer; }
+button:hover, .contents-button:hover { background: #eaf1f4; }
+button:focus-visible, input:focus-visible, a:focus-visible, summary:focus-visible, .table-scroll:focus-visible { outline: 3px solid #367a98; outline-offset: 3px; }
+.reader-tools { position: sticky; top: 0; z-index: 5; border-bottom: 1px solid var(--line); background: #eef4f6; }
+.reader-switch { max-width: 1080px; margin: auto; padding: 10px 20px 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.reader-switch a { border: 1px solid #aebfc7; border-radius: 5px; padding: 7px 11px; background: white; text-decoration: none; }
+.reader-switch a[aria-current="page"] { background: #254958; color: white; font-weight: bold; }
+.language-switch { max-width: 1080px; margin: auto; padding: 7px 20px 0; display: flex; flex-wrap: wrap; gap: 14px; font-size: .9rem; }
+.language-switch a[aria-current="page"] { font-weight: bold; text-decoration-thickness: 2px; }
+.translation-note { border-left: 4px solid #78949f; background: #f5f8f9; padding: 9px 13px; font-size: .9rem; }
+.reader-tools-inner { max-width: 1080px; margin: auto; padding: 12px 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 9px; }
+.contents-button { text-decoration: none; }
+.reader-tools label { font-size: .9rem; }
+#manual-search { flex: 1; min-width: 180px; width: 240px; border: 1px solid #9db1bb; padding: 7px 10px; border-radius: 5px; background: #fff; }
+.reader-hint { font-size: .9rem; color: #526773; }
+#manual-search-status:empty { display: none; }
+#manual-search-results { border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 5px; padding: 12px 18px; margin: 16px 0; max-height: 350px; overflow-y: auto; }
+#manual-search-results ol { padding-left: 24px; }
+#manual-search-results li { padding: 5px 0; }
+.result-context { display: block; font-size: .85rem; color: #526773; }
+mark { background: #fff0ab; color: inherit; padding: 0 1px; }
+#manual-contents { background: #f5f8f9; border: 1px solid var(--line); border-radius: 6px; padding: 12px 22px; margin: 24px 0; }
+#manual-contents h2 { margin-top: 0; }
+#manual-contents ul { columns: 2; column-gap: 30px; padding-left: 22px; }
+#manual-contents li { break-inside: avoid; }
+details { border-top: 1px solid var(--line); padding: 14px 0; }
+details details { margin: 10px 0 0 14px; }
+summary { cursor: pointer; font-size: 1.1rem; padding: 4px 0; }
+summary:hover { color: #176281; }
+article > details[open] > h2 { font-size: 1.2rem; margin-top: 16px; }
+.table-scroll { overflow-x: auto; margin: 18px 0 24px; }
+table { border-collapse: collapse; table-layout: fixed; width: 100%; font-size: .93rem; }
+td, th { border: 1px solid #cbd6dc; padding: 10px 12px; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+th { background: #eaf0f3; color: #213e4b; }
+tr:nth-child(even) td { background: #fafcfd; }
+code { font: .9em ui-monospace, SFMono-Regular, Consolas, monospace; overflow-wrap: anywhere; }
+pre { white-space: pre-wrap; padding: 16px; background: #f4f7f8; border: 1px solid var(--line); font-size: .9rem; }
+pre code { overflow-wrap: anywhere; }
+.skip-link { position: absolute; left: 12px; top: -100px; z-index: 10; padding: 10px; background: #fff; }
+.skip-link:focus { top: 8px; }
+[hidden] { display: none !important; }
+@media (max-width: 620px) {
+  main { padding: 14px 16px 50px; }
+  body { font-size: 16px; }
+  .reader-tools-inner { padding: 10px 12px; gap: 7px; }
+  .reader-switch { padding: 10px 12px 0; font-size: .9rem; }
+  .language-switch { padding: 7px 12px 0; }
+  .reader-tools label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  #manual-search { min-width: 120px; width: 140px; }
+  button, .contents-button { font-size: .9rem; }
+  #manual-contents ul { columns: 1; }
+  table { min-width: 550px; font-size: .9rem; }
+  table[data-columns="2"] { min-width: 0; }
+  td, th { padding: 8px; }
+}
+@page { size: A4; margin: 18mm; }
+@media print {
+  body, main { background: #fff; padding: 0; margin: 0; max-width: none; font-size: 11pt; }
+  .reader-tools, .reader-hint, #manual-search-status, #manual-search-results, .skip-link { display: none !important; }
+  h2, h3, summary { break-after: avoid; }
+  tr { break-inside: avoid; }
+  .table-scroll { overflow: visible; }
+  table { min-width: 0; font-size: 9pt; }
+  a { color: inherit; }
+  mark { background: none; }
+}</style></head><body><a class="skip-link" href="#manual-content">Zum Handbuch springen</a><header class="reader-tools" aria-label="Handbuchsteuerung"><nav class="reader-switch" aria-label="Handbuch auswählen"><a href="core-guide-de.html" aria-current="page">Kurzleitfaden fürs Kernteam</a><a href="index-de.html">Vollständiges Protokollhandbuch</a></nav><nav class="language-switch" aria-label="Sprache"><a data-language-link href="core-guide.html" lang="en" hreflang="en-NZ">English</a><a data-language-link href="core-guide-de.html" lang="de" hreflang="de" aria-current="page">Deutsch</a></nav><div class="reader-tools-inner"><a class="contents-button" href="#manual-contents">Inhalt</a><label for="manual-search">Kurzleitfaden durchsuchen</label><input id="manual-search" type="search" placeholder="z. B. Versteckfoto" aria-controls="manual-search-results" aria-describedby="manual-search-help" autocomplete="off"><button id="manual-clear" type="button">Leeren</button><button id="manual-print" type="button">Drucken</button></div></header><main><p class="translation-note">Deutsche Übersetzung: Bei Unklarheiten gilt das englische Original. Bitte die Übersetzung im Team gegenlesen.</p><p id="manual-search-help" class="reader-hint">Die Suche gilt für diesen Kurzleitfaden. Alle Anforderungen und Ausnahmen stehen im vollständigen Protokollhandbuch. <a href="core-guide-de.md" download>Markdown herunterladen</a> · <a href="core-guide-de.html" target="_blank" rel="noopener">Handbuch in einem separaten Fenster öffnen</a></p><p id="manual-search-status" role="status" aria-live="polite"></p><section id="manual-search-results" aria-label="Suchergebnisse" hidden></section><noscript><p>Suche und Druckschaltfläche benötigen JavaScript. Beide Handbücher bleiben lesbar; zum Drucken die Browserfunktion verwenden und geschlossene Abschnitte über ihre Überschrift öffnen.</p></noscript><article id="manual-content" tabindex="-1"><!-- English-source-md5: 9defd4aa587832c9447b862e39ef16aa -->
+<h1>Banded Dotterel / Pohowera — Kurzleitfaden für das Kernteam</h1>
+<p><strong>Kurzleitfaden für das Kernteam · Ausgabe 2 · 3. November 2026</strong></p>
+<p>Für erfahrene Teammitglieder, die nach den genehmigten Erlaubnissen,
+der praktischen Einweisung, und den Vorgaben für ihren Studienort arbeiten.
+Dieser Leitfaden fasst das <a href="index-de.html">vollständige Protokollhandbuch</a>
+zusammen. Die vollständigen Anforderungen und Ausnahmen stehen in den
+verlinkten Verfahren. Bei Unklarheiten die tatsächliche Beobachtung
+wahrheitsgetreu festhalten und das betreffende Verfahren nachlesen oder
+Luke Eberhart-Hertel fragen.</p>
+<nav id="manual-contents" aria-label="Handbuchinhalt"><h2>Inhalt</h2>
+<ul>
+<li><a href="#core-section-1">1. Vor dem Aufbruch</a></li>
+<li><a href="#core-section-2">2. Den tatsächlichen Vorgang dokumentieren</a></li>
+<li><a href="#core-section-3">3. Familienbeobachtungen richtig verknüpfen</a></li>
+<li><a href="#core-section-4">4. Nestbesuche und Eier</a></li>
+<li><a href="#core-section-5">5. Handling, Markierung, und Fotos</a></li>
+<li><a href="#core-section-6">6. Fang- und Geolocator-Beschränkungen</a></li>
+<li><a href="#core-section-7">7. Nachkontrollen und Tagesabschluss</a></li>
+</ul></nav>
+<a id="core-section-1"></a>
+<h2>1. Vor dem Aufbruch</h2>
+<ul>
+<li>Das <strong>Referenzdatum</strong> des To-Do-PDFs, die Teamzuteilung, und die offenen
+Arbeiten vom Vortag prüfen. Eine fehlende Aufgabe beweist nicht, dass sie
+erledigt ist.</li>
+<li>Fangbeschränkungen vor der Fangplanung prüfen. Die zugeteilten Metallringe,
+Farbringe, und Flaggen mitnehmen; Garmin-/Kamera-IDs, Akkus, und die
+neuseeländische Uhrzeit kontrollieren.</li>
+<li><code>BADO</code> und den genehmigten Gebietscode verwenden. Die Cass-River-Vorgaben
+für Nest-IDs, Markierungen, und Geolocatoren gelten nicht automatisch anderswo.</li>
+</ul>
+<a id="core-section-2"></a>
+<h2>2. Den tatsächlichen Vorgang dokumentieren</h2>
+<div class="table-scroll" tabindex="0" role="region" aria-label="Begleittabelle; bei Bedarf seitlich scrollen"><table>
+<thead>
+<tr>
+<th>Was ist passiert?</th>
+<th>Eintrag</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Nest oder Nestmulde besucht</td>
+<td>Eine <code>NESTS</code>-Zeile pro tatsächlichem Besuch.</td>
+</tr>
+<tr>
+<td>Eier vermessen</td>
+<td>Eine <code>EGGS</code>-Zeile pro vermessenem Ei.</td>
+</tr>
+<tr>
+<td>Vogel gehandhabt</td>
+<td>Eine <code>CAPTURES</code>-Zeile pro Vogel und Handling-Vorgang.</td>
+</tr>
+<tr>
+<td>Vogel beobachtet</td>
+<td>Eine <code>RESIGHTINGS</code>-Zeile pro Vogel und Beobachtung.</td>
+</tr>
+<tr>
+<td>Küken im Versteck fotografiert</td>
+<td>Eine eigene <code>RESIGHTINGS</code>-Zeile pro Küken mit <code>rclass = H</code>, zusätzlich zu einem etwaigen Fangdatensatz.</td>
+</tr>
+</tbody>
+</table></div>
+<p>Keine Sichtung erfinden, nur weil ein Vogel gefangen wurde. Eine echte
+Beobachtung vor dem Handling darf separat eingetragen werden. Auch
+Geschwister mit demselben Farbring benötigen eigene Datensätze.</p>
+<p><strong>Kommentare ergänzen Ereignisse; sie ersetzen sie nicht.</strong> Der To-Do-Algorithmus
+liest Freitextkommentare nicht als Ersatz für die erforderlichen
+Ereignisdatensätze. Eine ausschließlich im Kommentar eingetragene Beobachtung
+wird deshalb als Nachweis für die entsprechende Aufgabenentscheidung
+übergangen. Fehlende Ereignisse können Elternzuordnungen offen lassen oder
+den Arbeitsplan unvollständig oder irreführend machen.</p>
+<p>Die Identität eines Vogels in <code>NESTS.comments</code> ist beispielsweise keine
+Wiederbeobachtung. Der Nestbesuch gehört in <code>NESTS</code>; der beobachtete Vogel
+gehört separat in <code>RESIGHTINGS</code>, mit seinen tatsächlichen Markierungen,
+Geschlecht, Verhalten, Nest-ID, und den weiteren erforderlichen Angaben.
+<code>behav = IN</code> nur verwenden, wenn der Vogel tatsächlich inkubiert hat.
+<code>bird_inc</code> hält Anwesenheit/Geschlecht fest, nicht die individuelle Identität,
+und ersetzt die Wiederbeobachtung ebenfalls nicht. Das gilt für jeden Vorgang
+mit vorgeschriebenem eigenem Datensatz: in das richtige Formular eintragen,
+nicht nur in den Kommentar einer anderen Zeile.</p>
+<p><strong>Die richtige ID behalten.</strong> Die positive ID eines bekannten Nests bleibt
+bei seiner mobilen Brut. Eine negative ID bedeutet, dass Nest/Ursprung nie
+gefunden wurden: Minuszeichen beibehalten und nur in Vogeltabellen verwenden,
+nie in <code>NESTS</code> oder <code>EGGS</code>. Unsichere Identität rechtfertigt keine erfundene
+negative ID. Eindeutig nestunabhängige Altvogelfänge haben eine leere <code>nest_id</code>
+und beide GPS-Felder; niemals <code>NO_NEST</code> eintragen.</p>
+<p><strong>Leere Felder haben eine Bedeutung.</strong> Null ist eine beobachtete Anzahl oder
+ein zutreffendes „Nein“, nicht „unbekannt“. <code>X</code> bedeutet ein beobachtetes leeres
+Ringsegment; <code>?</code> bedeutet bei Wiederbeobachtungen unleserliche Markierungen,
+nicht ein leeres Segment. In den Beinmarkierungsfeldern von Fängen darf kein
+<code>?</code> stehen.</p>
+<p><a href="index-de.html#section-2">Datensatz- und ID-Regeln</a></p>
+<a id="core-section-3"></a>
+<h2>3. Familienbeobachtungen richtig verknüpfen</h2>
+<p>Bei der Begegnung einen Wegpunkt aufnehmen und <strong>beide</strong> Werte notieren:
+<code>gps_id</code> und <code>gps_point</code>. Eltern- und Kükeneinträge derselben Familienbegegnung
+müssen bei Datum, Gebiet, und gemeinsamem GPS-Paar übereinstimmen. Bei einer
+späteren Begegnung an einem anderen Ort einen neuen Wegpunkt aufnehmen.</p>
+<ul>
+<li>Erster Nestbesuch: GPS eintragen. Spätere Besuche am ortsfesten Nest: beide
+GPS-Felder leer lassen.</li>
+<li>Vogeleinträge mit negativer ID, jede neue H-Fotozeile, und Wiederfänge der
+Altersklasse C mit Status R oder C benötigen beide GPS-Felder, auch bei
+bekannter positiver ID.</li>
+<li>Altvogelfänge mit Küken benötigen das GPS-Paar und den tatsächlichen
+<code>caught_with</code>-Eintrag. Erste Kükeneinfänge benötigen die tatsächliche
+positive oder negative ID.</li>
+<li>Andere Vorgänge an positiven Nestern haben genaue GPS-/Leerfeld-Ausnahmen:
+die <a href="index-de.html#section-3">GPS-Anforderungen</a> beachten, statt pauschal jedes
+Feld auszufüllen.</li>
+</ul>
+<p>Jeden tatsächlich beobachteten Elternvogel eintragen, auch einen unberingten
+als <strong>X-X</strong> (<code>LL = X</code>, <code>LR = X</code>). Keinen abwesenden Partner erfinden. Das
+tatsächlich beobachtete Verhalten verwenden: <strong>AT ist nicht AC</strong>. <code>BC</code>, <code>FC</code>,
+und <code>AC</code> beschreiben Kükenbetreuung; <code>IN</code>, <code>NM</code>, <code>SC</code>, und <code>BW</code> können ebenfalls
+eine Nestzuordnung bestätigen, aber BW allein belegt keine beobachteten
+Küken. Anderes geeignetes Verhalten benötigt drei passende Beobachtungen,
+um die Zuordnung dieses Individuums zu belegen. Eine Beobachtung niemals
+aufteilen oder doppelt eintragen, um drei zu erreichen. Geeignete
+nestbezogene TN-, TB-, oder HA-Fänge können die Zuordnung direkt belegen;
+die tatsächliche Methode und den Kontext eintragen, statt einen stärkeren
+Code auszuwählen.</p>
+<p>Ein MM-Fang allein beweist keine Elternschaft. Bei einem zuverlässig
+identifizierten Vogel können frühere geeignete Nachweise mitzählen; X-X ist
+über mehrere Tage keine eindeutige individuelle Identität. Nach der
+genehmigten Annahme zum gezielten Fang kann ein einzelner geeigneter
+Erstberingungsfang bestätigende X-X-Nachweise vom selben Tag, Geschlecht,
+und Nest übernehmen. Konkurrierende Identitäten oder geänderte Nestzuordnungen
+zur Prüfung weitergeben, statt zu raten.</p>
+<p><strong>Reihenfolge beim Speichern:</strong> zuerst GPS hochladen. Wenn Küken gehandhabt
+wurden, ihre tatsächlichen Fänge vor den davon abhängigen Elternsichtungen
+oder H-Zeilen speichern. Eltern- und Kükensichtungen derselben Begegnung
+gemeinsam abschicken. Ein früherer Elternfang ersetzt nicht die begleitende
+Elternbeobachtung für neue Kükensichtungen. Wenn tatsächlich kein Elternvogel
+beobachtet wurde, Kükenbeobachtungen, Wegpunkt, und eine konkrete Erklärung
+behalten; das Ausnahmeverfahren befolgen, statt einen Elternvogel zu erfinden.</p>
+<p><a href="index-de.html#section-5">Familien-, Elternzuordnungs-, und Ausnahmeverfahren</a></p>
+<a id="core-section-4"></a>
+<h2>4. Nestbesuche und Eier</h2>
+<ul>
+<li>Ein Vogel am Nest benötigt einen eigenen Wiederbeobachtungsdatensatz;
+seine Identität allein im Nestkommentar liefert keinen To-Do-Zuordnungsnachweis.</li>
+<li>Neue leere Nestmulde: <code>S</code>, null Eier. Neues Nest mit Eiern: <code>F</code>. Bei weiteren
+Besuchen dieselbe ID behalten und tatsächliche Anzahlen, Zeiten, und Nachweise
+eintragen.</li>
+<li>Seltener Erstfund frisch geschlüpfter Küken <strong>innerhalb eines eindeutig
+erkennbaren Nests</strong>: positive ID, F und mindestens eine Minute später H,
+wahrheitsgetreue Anzahlen, und eine Erklärung. Küken außerhalb eines nie
+gefundenen Nests erhalten eine negative Brut-ID, keine erfundenen Nestbesuche.
+Bei blockierender Prüfung das Verfahren für den seltenen Erstfund nachlesen.</li>
+<li><code>clutch_size</code> bedeutet verbliebene Eier; <code>brood_size</code> bedeutet beobachtete
+Küken. <code>hatch_state</code> beschreibt die Eier: N kein Anzeichen, S Stern, C Riss,
+CC mehrere/große Risse. H nicht wieder zu I machen, weil ein Ei übrig ist.</li>
+<li>Nur geeignete Eier vermessen; <strong>keinen Schwimmtest an Eiern mit Stern oder
+beginnendem Schlupf durchführen</strong>. Tatsächliche Messzeiten behalten. Die
+Schwimmtest-Felder untergetauchter Eier nicht wie Oberflächenmessungen ausfüllen.</li>
+<li>Das erste H mit null verbliebenen Eiern und vorhandenen Küken ist der letzte
+Schlupfbesuch. Spätere Begegnungen mit der mobilen Brut gehören in
+Vogeltabellen. Der abschließende <code>notA</code>-Besuch bleibt separat.</li>
+<li>Wenn später einzeln beringte Küken ein bekanntes vollständiges Gelege
+vollständig abdecken, kann das To-Do null verbleibende Eier ableiten und
+einen <code>notA nest-check</code> anfordern. Das erfindet weder einen Nestbesuch noch
+schließt es das Nest. Die tatsächlichen Anzahlen jedes Besuchs beibehalten;
+die vorsichtige Ableitung erfordert derzeit ein vollständiges Gelege mit
+mindestens 3 Eiern und verlässliche Zuordnungen der ursprünglichen Küken.</li>
+</ul>
+<p><a href="index-de.html#section-4">Nest- und Eierverfahren</a> ·
+<a href="index-de.html#section-9">Schicksal und Abschluss</a></p>
+<a id="core-section-5"></a>
+<h2>5. Handling, Markierung, und Fotos</h2>
+<p>Metallring und tatsächliche Eingangsmarkierungen vor jeder Änderung ablesen.
+Die tatsächlichen Freilassungsmarkierungen separat eintragen: <strong>F</strong> erste
+Markierung, <strong>R</strong> unveränderter Wiederfang, <strong>C</strong> geänderte Kombination,
+<strong>D</strong> Totfund. Bei D die gefundenen Markierungen in die Eingangsfelder setzen;
+Freilassungsmarkierungen und Freilassungszeit bleiben leer. Keine Freilassung
+erfinden. Die alters-/statusabhängigen Messungen, Proben, und zutreffenden
+Kennzeichnungen nach den <a href="index-de.html#section-6">Fanganforderungen</a> ausfüllen.</p>
+<p>Dem Flagging-To-Do und der Wohlfahrtsbeurteilung folgen: Nachkontrollen beginnen
+ab Tag 21, aber <strong>unter 22 g oder 27 mm Tarsus keine Flagge anbringen</strong>. Die
+Grenzen ersetzen nicht das Urteil der beringenden Person. Eine Flagge bei einem
+bereits beringten Küken ändert seine Kombination: Status C. Nur das zugeteilte
+Markierungsschema verwenden.</p>
+<p><strong>Versteckfoto:</strong> möglichst vor dem tatsächlichen Alter von sieben Tagen.
+Jedes fotografierte Küken benötigt eine eigene Wiederbeobachtung mit Alter C,
+Geschlecht U, Klasse H, ausdrücklich gültiger positiver/negativer ID,
+bekanntem Metallring, tatsächlichen Beinablesungen, beiden GPS-Feldern,
+Kamera-ID, und vollständigem erstem/letztem Fotodateinamen. Erforderliche
+Beringungsdatensätze zuerst speichern. Tatsächliche Beobachtungen anwesender
+Elternvögel mit der Eingabe abgeben.</p>
+<p>Ein Zeltfoto gehört zum Fang; ein Versteckfoto zu H. Weder das Foto-Kennzeichen
+im Fang noch die Zeltsequenz ersetzt den H-Datensatz. Originaldateinamen
+behalten und Individuen über ihren Metallring unterscheiden. Dass die
+Fotoaufgabe an Tag sieben ausläuft, bedeutet <strong>nicht</strong>, dass sie erledigt ist;
+bei negativen Bruten ist das Alter seit Entdeckung nicht unbedingt das
+biologische Alter.</p>
+<p><a href="index-de.html#section-7">Fotos und Medien</a></p>
+<a id="core-section-6"></a>
+<h2>6. Fang- und Geolocator-Beschränkungen</h2>
+<p><strong>Auch bei Paarvervollständigung gelten sowohl die Sieben-Tage- als auch die
+36-Stunden-Beschränkung.</strong> Die Sieben-Tage-Rechnung folgt den Nachweisen zum
+Legetag des letzten Eis, nicht der Entdeckung oder dem Tag, an dem das
+vollständige Gelege bestätigt wurde. Die 36-Stunden-Beschränkung folgt dem
+maßgeblichen Altvogelfang. Das datierte PDF rechnet mit 08:00 am Referenztag;
+es ist kein Live-Countdown. Das vollständige Zeitverfahren und die
+Wohlfahrtsbeurteilung beachten.</p>
+<ul>
+<li>Eine reine Wiederbeobachtungszeile erlaubt keinen Fang und keine Tag-Anbringung.</li>
+<li>„Band“ bedeutet nicht „tag“. Bei einem bereits getaggten möglichen
+Elternvogel muss die Zuordnung geprüft werden, nicht ein weiterer Tag
+angebracht werden.</li>
+<li>Bedingte Tagging-Hinweise wörtlich nehmen: „tag any, but only if one is
+confirmed X-X“ verlangt die Bestätigung des unberingten Vogels und seiner
+Zuordnung. Ein bereits beringter unbekannter Partner erfüllt diese Bedingung
+für die erste Anbringung nicht.</li>
+<li>Die aktuelle Cass-River-Regel 2026 für die späte Welle gilt für geeignete
+positive B/C-Nester mit Gelegevervollständigung <strong>nach dem 9. Oktober</strong>.
+Entscheidend ist die Gelegevervollständigung, nicht das Datum des Nestbeginns.
+Nur die genehmigte Gebietszuteilung und Paarvervollständigung am selben Nest
+anwenden.</li>
+</ul>
+<p>Tatsächliche Tag-Aktion beim Altvogel, alte/neue Tag-IDs, und Spacer-Angaben
+eintragen. Bei Küken/Jungvögeln bleiben die Tag-Felder leer. Vor einem Fang
+oder einer außergewöhnlichen Anbringung/Entnahme die vollständigen
+<a href="index-de.html#section-8">Geolocator- und Zeitvorgaben</a> nachlesen.</p>
+<a id="core-section-7"></a>
+<h2>7. Nachkontrollen und Tagesabschluss</h2>
+<p>Ein leeres Nest beweist weder Schlupf noch Prädation. Tatsächliche Nachweise
+und Unsicherheit eintragen. Vereinbarte Schicksalskontrollen bis zum
+abschließenden <code>notA</code> fortsetzen, auch wenn eine Aufgabe verschwindet.
+Ein geschlossenes Nest kann weiterhin lebende Küken haben; negative Bruten
+erhalten niemals <code>NESTS</code>-Abschlusszeilen.</p>
+<p>Bruten <strong>im Alter von 21–35 Tagen einschließlich</strong> wieder suchen. Wenn in
+diesem festen Fenster keine geeignete Lebendbegegnung vorliegt, kann dies
+ab Tag 36 die Brut- und zugehörigen Elternaufgaben unterdrücken. Eine Begegnung
+an Tag 25 verhindert diesen bestimmten Auslöser; eine spätere Lebendbegegnung
+kann nach der Aktualisierung noch fällige Arbeit zurückbringen. Erneutes
+Nisten und wiederholte Elternbeobachtungen ohne Küken haben eigene, strengere
+Nachweisregeln. <strong>Vermutet tot ist eine Planungsannahme</strong>, kein beobachteter Tod
+und kein Grund für einen D-Fangdatensatz. Ein zuverlässig ursprungsverknüpfter
+J-Datensatz beendet nach der Projektregel die Kükenaufgaben; er beweist nicht,
+dass jedes Geschwister überlebt hat.</p>
+<p>Vor dem Tagesabschluss:</p>
+<ul>
+<li>Prüfen, dass keine Vogelbeobachtung, kein Fang, oder anderer vorgeschriebener
+Vorgang ausschließlich im Kommentar steht. Den passenden Datensatz mit
+wahrheitsgetreuen Angaben speichern; kein Duplikat anlegen, wenn er bereits
+vorhanden ist.</li>
+<li>Gespeicherte Zeilen mit den Notizen vergleichen, einschließlich vorbefüllter
+Daten, Beobachtercodes, IDs, GPS-Paare, und Individuenzahlen. Doppelte
+Übermittlungen vermeiden.</li>
+<li>Originalmedien kopieren, Sicherung prüfen, und vollständige Dateinamen behalten.</li>
+<li><strong>DATA ENTRY ISSUES</strong> prüfen. Fehler korrigieren; berechtigte Ausnahmen
+erklären und das Reparaturverfahren befolgen. Wahrheitsgetreue Nachweise nie
+ändern, nur damit eine Prüfung bestanden wird.</li>
+<li>Das aktualisierte, richtig datierte To-Do-PDF prüfen. Fehlende Fotos,
+offene Verknüpfungen, widersprechende Lebendnachweise, und offene
+Schicksalskontrollen an die nächste Schicht weitergeben.</li>
+</ul>
+<p><a href="index-de.html#section-9">Brutnachkontrolle</a> ·
+<a href="index-de.html#section-10">Eingabe und Prüfung</a> ·
+<a href="index-de.html#section-12">Validator-Reparatur</a></p>
+<hr />
+<p>Methoden und Entscheidungen bleiben in der Verantwortung von
+<strong>Luke Eberhart-Hertel</strong>. Das vollständige Handbuch enthält die vollständigen
+<a href="index-de.html#authorship">Angaben zu Urheberschaft, KI-Nutzung, Datenschutz, und Sicherheit</a>.</p>
+</article></main><script>(function() {
+  "use strict";
+
+  var article = document.getElementById("manual-content");
+  var input = document.getElementById("manual-search");
+  var results = document.getElementById("manual-search-results");
+  var status = document.getElementById("manual-search-status");
+  var sections = Array.from(article.querySelectorAll("details"));
+  var timer;
+  var german = document.documentElement.lang === "de";
+
+  // Carry stable section IDs across languages, not generated search-passage IDs.
+  var languageLinks = Array.from(document.querySelectorAll("[data-language-link]"));
+  languageLinks.forEach(function(link) { link.dataset.languagePage = link.getAttribute("href"); });
+  function updateLanguageLinks() {
+    var id = fragmentId(location.hash);
+    var hash = /^(?:section-[0-9]+|core-section-[0-9]+|appendix-[ab]|authorship)$/.test(id) ? "#" + id : "";
+    languageLinks.forEach(function(link) { link.setAttribute("href", link.dataset.languagePage + hash); });
+  }
+
+  // Wrapped mobile controls must not cover a contents/search destination.
+  if (typeof ResizeObserver !== "undefined") {
+    new ResizeObserver(function(entries) {
+      document.documentElement.style.setProperty("--reader-tools-height", entries[0].target.offsetHeight + "px");
+    }).observe(document.querySelector(".reader-tools"));
+  }
+
+  function fragmentId(hash) {
+    try { return decodeURIComponent(hash.slice(1)); }
+    catch (error) { return ""; }
+  }
+
+  article.querySelectorAll("table").forEach(function(table) {
+    table.dataset.columns = table.rows[0].cells.length;
+  });
+
+  function reveal(target, focus) {
+    if (!target) return;
+    var node = target;
+    while (node && node !== article) {
+      if (node.tagName === "DETAILS") node.open = true;
+      node = node.parentElement;
+    }
+    if (target.nextElementSibling && target.nextElementSibling.tagName === "DETAILS") {
+      target.nextElementSibling.open = true;
+      target = target.nextElementSibling.querySelector("summary");
+    }
+    target.scrollIntoView({block: "start"});
+    if (focus) {
+      if (!target.hasAttribute("tabindex")) target.setAttribute("tabindex", "-1");
+      target.focus({preventScroll: true});
+    }
+  }
+
+  document.addEventListener("click", function(event) {
+    var link = event.target.closest("a[href^='#']");
+    if (!link) return;
+    var target = document.getElementById(fragmentId(link.hash));
+    if (!target) return;
+    event.preventDefault();
+    history.replaceState(null, "", link.hash);
+    updateLanguageLinks();
+    reveal(target, true);
+  });
+  window.addEventListener("hashchange", function() {
+    updateLanguageLinks();
+    reveal(document.getElementById(fragmentId(location.hash)), false);
+  });
+  if (location.hash) reveal(document.getElementById(fragmentId(location.hash)), false);
+  updateLanguageLinks();
+
+  var expand = document.getElementById("manual-expand");
+  var collapse = document.getElementById("manual-collapse");
+  if (expand) expand.onclick = function() { sections.forEach(function(section) { section.open = true; }); };
+  if (collapse) collapse.onclick = function() { sections.forEach(function(section) { section.open = false; }); };
+  document.getElementById("manual-print").onclick = function() { window.print(); };
+
+  function normal(text) { return text.replace(/\s+/g, " ").trim().toLowerCase(); }
+  // Index passages, not duplicate container text. No server request or analytics.
+  var passages = Array.from(article.querySelectorAll("h1,h2,h3,summary,p,li,tr,pre"))
+    .filter(function(node) {
+      return !node.closest("#manual-contents") &&
+        !(node.tagName === "P" && node.closest("li,td,th")) &&
+        !(node.tagName === "LI" && node.querySelector("li"));
+    }).map(function(node, index) {
+      var text = node.textContent.replace(/\s+/g, " ").trim();
+      if (!node.id) node.id = "manual-passage-" + index;
+      var parent = node.closest("details");
+      var heading = node;
+      while (heading.parentElement && heading.parentElement !== article) heading = heading.parentElement;
+      while (heading && heading.tagName !== "H2") heading = heading.previousElementSibling;
+      var context = parent ? parent.querySelector("summary").textContent.trim() :
+        heading ? heading.textContent.trim() : german ? "Einleitung und Urheberschaft" : "Introduction and authorship";
+      return {node: node, text: text, lower: normal(text), context: context};
+    });
+
+  function removeHighlights() {
+    article.querySelectorAll("mark[data-search]").forEach(function(mark) {
+      var parent = mark.parentNode;
+      mark.replaceWith(document.createTextNode(mark.textContent));
+      parent.normalize();
+    });
+  }
+
+  function highlight(node, terms) {
+    var walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+    var texts = [];
+    while (walker.nextNode()) texts.push(walker.currentNode);
+    texts.forEach(function(text) {
+      var value = text.nodeValue;
+      var lower = value.toLowerCase();
+      var fragment = document.createDocumentFragment();
+      var offset = 0;
+      while (offset < value.length) {
+        var start = -1;
+        var length = 0;
+        terms.forEach(function(term) {
+          var found = lower.indexOf(term, offset);
+          if (found !== -1 && (start === -1 || found < start)) {
+            start = found;
+            length = term.length;
+          }
+        });
+        if (start === -1) { fragment.append(value.slice(offset)); break; }
+        fragment.append(value.slice(offset, start));
+        var mark = document.createElement("mark");
+        mark.dataset.search = "true";
+        mark.textContent = value.slice(start, start + length);
+        fragment.append(mark);
+        offset = start + length;
+      }
+      text.replaceWith(fragment);
+    });
+  }
+
+  function search() {
+    clearTimeout(timer);
+    removeHighlights();
+    results.replaceChildren();
+    var query = normal(input.value);
+    results.hidden = !query;
+    status.textContent = "";
+    if (!query) return;
+    var terms = Array.from(new Set(query.split(" ")));
+    var matches = passages.filter(function(passage) {
+      return terms.every(function(term) { return passage.lower.includes(term); });
+    });
+    status.textContent = matches.length ? matches.length + (german ? " passende Textstellen" : " matching passages") +
+      (matches.length > 80 ? (german ? " (die ersten 80 werden angezeigt)." : " (first 80 shown).") : ".") :
+      (german ? "Keine passenden Textstellen. Weniger Suchwörter oder einen Feldnamen wie nest_id versuchen." :
+        "No matching passages. Try fewer words or a field name such as nest_id.");
+    var list = document.createElement("ol");
+    matches.slice(0, 80).forEach(function(passage) {
+      var item = document.createElement("li");
+      var link = document.createElement("a");
+      var first = passage.lower.indexOf(terms[0]);
+      var start = Math.max(0, first - 55);
+      link.href = "#" + passage.node.id;
+      link.textContent = (start ? "…" : "") + passage.text.slice(start, start + 200) +
+        (passage.text.length > start + 200 ? "…" : "");
+      var context = document.createElement("span");
+      context.className = "result-context";
+      context.textContent = passage.context;
+      item.append(link, context);
+      list.append(item);
+      highlight(passage.node, terms);
+    });
+    results.append(list);
+  }
+
+  input.addEventListener("input", function() { clearTimeout(timer); timer = setTimeout(search, 160); });
+  input.addEventListener("keydown", function(event) {
+    if (event.key === "Enter") {
+      search();
+      var first = results.querySelector("a");
+      if (first) first.click();
+    }
+    if (event.key === "Escape") { input.value = ""; search(); }
+  });
+  document.getElementById("manual-clear").onclick = function() {
+    input.value = ""; search(); input.focus();
+  };
+  var beforePrint = [];
+  window.addEventListener("beforeprint", function() {
+    beforePrint = sections.map(function(section) { return section.open; });
+    sections.forEach(function(section) { section.open = true; });
+  });
+  window.addEventListener("afterprint", function() {
+    sections.forEach(function(section, index) { section.open = beforePrint[index]; });
+  });
+})();</script></body></html>

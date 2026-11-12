@@ -1,5 +1,16 @@
 # Codex use and task handoff transparency
 
+12 November 2026 publication update: Luke requested restoration of the core/full
+English/German manuals and eight Overview panels, retaining Mihai's newer
+phenology panel, Data issues tab, and validator wiring. The restored source
+matches the dated archives; the archives and authorship/AI disclosures remain.
+The copyright notice was removed separately and is not reintroduced.
+The notA summary is also restored from its unchanged source archive. Validator
+selection guidance and catalogs are GitHub documentation only; no app controls
+or live inspector changes are introduced. See the
+[restoration record](../docs/APP_FEATURE_RESTORATION_2026-11-12.md) for checks and
+limits. No field data, server configuration, or live database was accessed.
+
 8 November 2026 publication update: at Luke Eberhart-Hertel's request, the core
 guide and full manual were withdrawn from the app. Their English/German
 sources, rendered readers, shared assets, and renderer remain unchanged in a

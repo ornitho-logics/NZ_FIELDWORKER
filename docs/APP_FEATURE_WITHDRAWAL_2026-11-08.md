@@ -1,5 +1,11 @@
 # App-feature withdrawal and archive verification
 
+**Superseded in part on 12 November 2026:** the manuals and eight Overview
+panels and notA summary are restored by a separate reviewed source change,
+retaining Mihai's newer phenology panel. This document records
+the original withdrawal; its removal instructions are not current deployment
+instructions. Use the [restoration record](APP_FEATURE_RESTORATION_2026-11-12.md).
+
 Luke requested withdrawal of the core/full manuals, all Overview panels, and
 the notA summary from the app, while preserving the work safely. This source
 change does not deploy the app or drop any live database object.

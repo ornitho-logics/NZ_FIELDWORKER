@@ -78,11 +78,19 @@ dbtabs_show_views <- c(
   "AVAILABLE_COMBOS",
   "NESTS_LATEST",
   "CAPTURES_ARCHIVE",
-  "EGGS_HATCH_PREDICTION"
+  "EGGS_HATCH_PREDICTION",
+  "notA_summary"
 )
 
 # watch list for View updates
 dbtabs_show_view_sources <- list(
+  notA_summary = c(
+    "settings",
+    "TODO_REFRESH_STATUS",
+    "TODO_NEST_CONTEXT_SNAPSHOT",
+    "TODO_PARENT_STATUS_SNAPSHOT"
+  ),
+
   TODO_LIST = c(
     "settings",
     "NESTS",

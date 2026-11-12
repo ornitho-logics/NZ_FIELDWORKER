@@ -1,5 +1,19 @@
 # Thread 5 Overview Dashboard: Current-State Design and Maintenance Protocol
 
+## Current restoration — 12 November 2026
+
+Luke requested restoration of the eight archived panels alongside Mihai's
+newer Cass River phenology panel. `main/R/ggplot_overview.R` is restored
+unchanged. The old lay-date chart now uses `overview_lay_date_history_show`;
+Mihai's `phenology_server()` retains `overview_lay_date_show`. There are nine
+distinct plot outputs. Restored charts use the current reference date, shared
+date limits where applicable, growth polling, and their original fallbacks.
+The restored renderers require the Overview tab before evaluating graph calls.
+Data issues, Field Resightings, and current validator source are unchanged.
+The notA summary is separately restored; the raw OVERVIEW table entry remains
+hidden. The dated withdrawal below is historical. See the
+[restoration record](../../docs/APP_FEATURE_RESTORATION_2026-11-12.md).
+
 ## Withdrawal and archive — 8 November 2026
 
 At Luke's request, the eight-panel Overview dashboard and separate OVERVIEW

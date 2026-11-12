@@ -1,5 +1,13 @@
 # Archived notA summary — 8 November 2026
 
+**Current publication — 12 November 2026:** Luke requested restoration of
+`notA_summary`. The installer is copied unchanged to
+[`DATABASE/notA_summary.SQL`](../../../DATABASE/notA_summary.SQL), and its app
+registration, help, and snapshot watch list are restored. The default reference
+reconstruction again installs it after snapshot publication. This archive and
+its manifest remain dated provenance; withdrawal instructions below are
+historical. See the [restoration record](../../APP_FEATURE_RESTORATION_2026-11-12.md).
+
 Luke requested removal of `notA_summary` from the app. Its Show Views tab,
 explanatory text, and source watch list are removed. The unchanged
 [SQL definition](notA_summary.SQL) and [provenance manifest](manifest.json)

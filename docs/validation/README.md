@@ -1,5 +1,19 @@
 # Temporarily pausing data-entry validation
 
+## Current documentation-only selection request — 12 November 2026
+
+Luke requested documentation so Mihai can choose which checks to reinstate
+against feedback, without automatically restoring all old validators. Read
+[selective validation](SELECTIVE_VALIDATION.md), the
+[current catalog](VALIDATOR_CATALOG.md), and the
+[original archived groups](ARCHIVED_VALIDATOR_CATALOG.md) first. These are
+GitHub documents, not app controls. No check is activated or changed by this PR.
+Newer file-first DataEntry uses Mihai's local
+`DataEntry/TABLE/inspector.R` before DB definitions, while the older package
+used DB-only inspectors. The old pause and guarded restore below apply only to
+their reviewed DB state; neither source publication nor an old pause receipt
+establishes the currently deployed behavior. No live restore is performed here.
+
 The reviewed validators are preserved, not retired. A temporary validation
 pause is an operator decision, not a change to the scientific protocol.
 Merging this documentation does not install anything, change the live pause,
