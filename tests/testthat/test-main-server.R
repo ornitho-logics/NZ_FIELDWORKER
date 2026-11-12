@@ -1,11 +1,3 @@
-# Explicit test-only historical helper load; the active app never loads archives.
-load_archived_overview_app <- function() {
-  app <- load_main_app()
-  sys.source(app_file("docs", "overview-archive", "2026-11-08", "ggplot_overview.R"),
-             envir = app$env)
-  app
-}
-
 test_that("main server initializes and updates the reference date", {
   app <- load_main_app()
   today <- as.Date(Sys.time(), tz = app$env$preferred_timezone)
@@ -63,7 +55,7 @@ test_that("main server initializes and updates the reference date", {
 
 
 test_that("overview graph helpers use aligned reference-date queries", {
-  app <- load_archived_overview_app()
+  app <- load_main_app()
   refdate <- as.Date("2026-07-21")
   queries <- list()
 
@@ -183,7 +175,7 @@ test_that("overview graph helpers use aligned reference-date queries", {
 
 
 test_that("chick growth plot uses ring-only identity and has three panels", {
-  app <- load_archived_overview_app()
+  app <- load_main_app()
   x <- data.frame(
     ring = c(
       "MOCK_RING_A", "MOCK_RING_A", "MOCK_RING_B", "MOCK_RING_B",
@@ -226,7 +218,7 @@ test_that("chick growth plot uses ring-only identity and has three panels", {
 
 
 test_that("chick growth query is reference-date bounded and ring filtered", {
-  app <- load_archived_overview_app()
+  app <- load_main_app()
   refdate <- as.Date("2026-07-21")
   query <- NULL
 
@@ -252,7 +244,7 @@ test_that("chick growth query is reference-date bounded and ring filtered", {
 
 
 test_that("band-combo overview reconciles adult identities and exposes safe diagnostics", {
-  app <- load_archived_overview_app()
+  app <- load_main_app()
 
   captures <- data.frame(
     pk = 1:4,
@@ -419,7 +411,7 @@ test_that("band-combo overview reconciles adult identities and exposes safe diag
 
 
 test_that("pair tally does not fall back to the obsolete heuristic", {
-  app <- load_archived_overview_app()
+  app <- load_main_app()
   calls <- 0L
 
   app$env$db_get <- function(sql, params) {
@@ -444,7 +436,7 @@ test_that("pair tally does not fall back to the obsolete heuristic", {
 
 
 test_that("pair protocol helper is separate from sex-only panels", {
-  app <- load_archived_overview_app()
+  app <- load_main_app()
   refdate <- as.Date("2026-07-21")
 
   app$env$db_get <- function(sql, params) {
@@ -488,7 +480,7 @@ test_that("pair protocol helper is separate from sex-only panels", {
 
 
 test_that("lay-date bins tally geolocators by associated nest", {
-  app <- load_archived_overview_app()
+  app <- load_main_app()
   x <- data.frame(
     nest_id = c("MOCK_NEST_1", "MOCK_NEST_1", "MOCK_NEST_2", "MOCK_NEST_3"),
     datetime = as.Date(c(
@@ -537,7 +529,7 @@ test_that("lay-date bins tally geolocators by associated nest", {
 
 
 test_that("hatching forecast uses one-day bins, three-day labels, and marks reference date", {
-  app <- load_archived_overview_app()
+  app <- load_main_app()
   refdate <- as.Date("2026-09-01")
   x <- data.frame(
     nest_id = c("MOCK_NEST_1", "MOCK_NEST_2", "MOCK_NEST_3"),
@@ -586,7 +578,7 @@ test_that("hatching forecast uses one-day bins, three-day labels, and marks refe
 
 
 test_that("overview limp status distinguishes comment evidence", {
-  app <- load_archived_overview_app()
+  app <- load_main_app()
   comments <- c(
     "walking normally",
     "slight hesitation while walking",
@@ -719,7 +711,7 @@ test_that("overview limp status distinguishes comment evidence", {
 
 
 test_that("overview cumulative ribbons contain no diagonal segments", {
-  app <- load_archived_overview_app()
+  app <- load_main_app()
   x <- data.table::data.table(
     plot_date = as.Date(c("2026-08-01", "2026-08-03", "2026-08-07")),
     cumulative_n = c(1L, 3L, 4L)

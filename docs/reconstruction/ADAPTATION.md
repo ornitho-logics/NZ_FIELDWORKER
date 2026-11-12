@@ -78,10 +78,10 @@ changing only a polygon value is not a general CRS/layout adaptation.
 Task labels and notes are interfaces: the PDF map tests notes for `tag`.
 Replacing wording can change highlights without changing SQL selection.
 Review [the template](../../main/templates/todo_pdf.qmd), legends, and the
-[archived manual reference](../field-manual-archive/2026-11-08/readers/manual.md)
-after semantics agree. The reference was withdrawn from the app on 8 November
-2026; adapting it does not authorize republishing it. Any new study manual
-requires separate human review and publication approval.
+[manual reference](../../main/www/field-manual/manual.md)
+after semantics agree. App publication was restored at Luke's request on
+12 November 2026. Any new study manual still requires separate human review
+and publication approval.
 Use the [dependency guide](../../docs/reconstruction/DEPENDENCIES.md) for load order.
 
 ## Hard-coded repairs are excluded from generic policy

@@ -1,5 +1,12 @@
 # Archived Overview dashboard — 8 November 2026
 
+**Current publication — 12 November 2026:** Luke requested restoration of all
+eight panels alongside Mihai's newer phenology panel. The helper is restored
+unchanged to `main/R/ggplot_overview.R`; the current UI/server wiring preserves
+both implementations under distinct output IDs. This archive remains a dated
+snapshot. The removal instructions below are historical, not current deployment
+instructions. See the [restoration record](../../APP_FEATURE_RESTORATION_2026-11-12.md).
+
 Luke requested withdrawal of all eight Overview panels from the app, with safe
 preservation rather than destruction. The Overview sidebar/tab, its eight plot
 outputs, chart-only reactives, and growth-data polling are removed. The separate

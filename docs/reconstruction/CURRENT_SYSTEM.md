@@ -1,10 +1,11 @@
 # CURRENT system reference contract
 
-8 November 2026 publication addendum: both manuals, the Overview dashboard,
-and the notA summary are withdrawn from the app and preserved in checksummed
-archives. The separate OVERVIEW table entry is hidden as well. Earlier dated
-publication descriptions are historical and do not authorize rebuilding the
-removed panels or reinstalling the withdrawn optional report by default.
+12 November 2026 publication addendum: both manuals and the eight archived
+Overview panels are restored in source, alongside Mihai's newer phenology
+panel. All nine panels have distinct output IDs. The notA summary is restored;
+the separate OVERVIEW table entry remains hidden. Dated archives remain intact. Earlier
+withdrawal descriptions are historical; source publication is not deployment.
+See [the restoration record](../APP_FEATURE_RESTORATION_2026-11-12.md).
 
 Reviewed against source on 2026-11-01. This reconstruction package's CURRENT
 reference documents existing behaviour, not live installation or change authority.
@@ -28,7 +29,7 @@ source changes.
 - [Thread 4](../../notes/codex_proposals/THREAD4_TODO_MAP_LIST_DEBUG_PLAN.md) and
   [Thread 9](../../notes/codex_proposals/THREAD9_LOCAL_REPLICA_PROTOCOL.md) retain
   dated history beneath current addenda. Older recovery states are not instructions.
-- The [archived manual](../field-manual-archive/2026-11-08/readers/manual.md) records procedures. Approved
+- The [manual](../../main/www/field-manual/manual.md) records procedures. Approved
   human scientific decisions govern intended behaviour; source determines what
   the selected implementation actually does. A disagreement blocks adaptation
   until reconciled, rather than allowing code to override the human decision.
@@ -39,20 +40,19 @@ source changes.
 
 ### Field instructions and entry records
 
-On 8 November 2026 Luke withdrew both manuals from the app. There is no Field
-Manual panel, iframe, or reader asset under the app's public directory. The
-[Core Team Field Guide](../field-manual-archive/2026-11-08/readers/core-guide.md),
-[Full Protocol Manual](../field-manual-archive/2026-11-08/readers/manual.md),
-their translations, rendered pages, styles, search code, and renderer are
-preserved unchanged in a checksummed [archive](../field-manual-archive/2026-11-08/README.md).
+On 12 November 2026 Luke requested restoration of the Field Manual panel,
+iframe, separate-window link, and public reader assets. The panel opens the
+[Core Team Field Guide](../../main/www/field-manual/core-guide.md), with a link to
+the [Full Protocol Manual](../../main/www/field-manual/manual.md). Their English
+and German sources, rendered pages, shared assets, and renderer are restored
+unchanged from the checksummed [archive](../field-manual-archive/2026-11-08/README.md).
 The full manual retains the procedures, controlled values, exceptions, and
-authorship/AI disclosure as historical reference, not an active app publication.
-Do not automatically republish these files when reconstructing the app.
-The archive guide describes a separate, human-reviewed restoration procedure.
+authorship/AI disclosure. This is source restoration, not proof that the live
+app or inspectors match the manual; new-study publication still needs review.
 Superseded review drafts and the relocation checklist remain excluded from
 reconstruction prerequisites; Git history retains them.
 
-The archived reader also has standard German translations in `core-guide-de.md`
+The reader also has standard German translations in `core-guide-de.md`
 and `manual-de.md`, rendered to `core-guide-de.html` and `index-de.html`.
 English remains the reference language. The English/Deutsch switch retains
 manual kind and stable section anchors, and the core/full switch retains the
@@ -302,9 +302,9 @@ Views install bounded helpers; the separate refresh builds indexed replacement
 snapshots and promotes them together. `TODO_LIST` is the task contract; changing
 source/reference date or downloading a PDF does not itself publish a new snapshot.
 [App guards](../../main/R/system_utils.R) check date/latest refresh state.
-The withdrawn [notA_summary definition](../notA-summary-archive/2026-11-08/notA_summary.SQL)
-is retained for historical reference, not installed by the default reconstruction
-bootstrap or registered in the app. Its original design installs after the
+The restored [notA_summary definition](../../DATABASE/notA_summary.SQL)
+is again registered in the app and installed by the reference reconstruction
+bootstrap after snapshot publication. It installs after the
 first successful refresh, reads published nest/parent snapshots, and returns no rows for stale or
 incomplete latest status. It reports historical terminal nest visits, confirmed
 parents separately from pending details, and conservative later-nest identity links.
@@ -314,10 +314,14 @@ It neither declares brood death nor imports handwritten links. Repository inspec
 and prior local replay establish no production schema, inspector, or running-app version.
 
 The [Overview archive](../overview-archive/2026-11-08/README.md) retains the eight
-plot implementations and original shared wiring context. The active app no
-longer loads that helper or registers Overview chart outputs/reactives. The
-SQL OVERVIEW definition remains in views.SQL; no live database view was
-dropped by the app withdrawal.
+original plot implementations and shared wiring context. The active helper is
+again `main/R/ggplot_overview.R`, with date-limit/growth reactives and eight
+renderers in `main/server.R`. Mihai's `phenology_server()` still owns
+`overview_lay_date_show`; the restored chart uses
+`overview_lay_date_history_show`. The new phenology and Data issues helpers,
+their server calls, and current DataEntry wiring are preserved. The SQL
+OVERVIEW definition remains in views.SQL, and its table entry stays hidden;
+no SQL import or biological-record change is part of this restoration.
 
 ## Approved follow-up to the reconstruction review
 

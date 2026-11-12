@@ -226,11 +226,19 @@ def main():
         run("semantic_fixtures", ["Rscript", "--vanilla", str(TOOLS / "checks.R"), str(ROOT), str(socket), str(output / "focused-results.json"), str(owner)], env=env)
         record("semantic_fixtures")
         active_check = "reference_transition"
-        # The notA report is archived, not a default app/reconstruction feature.
+        install("historical_view", ROOT / "DATABASE/notA_summary.SQL")
+        history = query("SELECT male_later_confirmed_nests LIKE '%C9904%', COALESCE(female_later_confirmed_nests,'') NOT LIKE '%C9904%' FROM notA_summary WHERE nest_id='C9903';")
+        if history != ["1\t1"]:
+            raise RuntimeError("Historical synthetic confirmed-identity link gate failed")
+        view_definition = query("SHOW CREATE VIEW notA_summary;")
         query("UPDATE settings SET value='2026-11-03' WHERE variable='reference_date';")
+        if query("SELECT COUNT(*) FROM notA_summary;") != ["0"]:
+            raise RuntimeError("Historical report did not hide stale snapshot")
         install("refresh_next_date", ROOT / "DATABASE/refresh_todo_list_snapshot.SQL", SCHEMA)
         publication()
-        record("reference_transition", detail="Current task snapshot republishes at the next date; withdrawn historical report is not installed")
+        if query("SHOW CREATE VIEW notA_summary;") != view_definition or query("SELECT COUNT(*)>0 FROM notA_summary;") != ["1"]:
+            raise RuntimeError("Historical view did not follow normal publication without reinstall")
+        record("reference_transition")
         record("study_decisions", detail="Reference-description scope only; no target-study transfer approval")
         if args.render:
             active_check = "report_render"

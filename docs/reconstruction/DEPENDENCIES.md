@@ -21,7 +21,7 @@ The order below describes prerequisites, not permission to execute source script
 | 6 | [predict_hatching.SQL](../../DATABASE/predict_hatching.SQL) | Creates/seeds the calibration support table before hatch/view consumers. |
 | 7 | [views.SQL](../../DATABASE/views.SQL) | Install the whole ordered helper/identity/compatibility/snapshot-boundary graph. |
 | 8 | [refresh_todo_list_snapshot.SQL](../../DATABASE/refresh_todo_list_snapshot.SQL) | Build indexed contexts, parent/closure/task snapshots, and publish them together. |
-| — | [Archived notA_summary.SQL](../notA-summary-archive/2026-11-08/notA_summary.SQL) | Withdrawn optional report, not a default installation step. Separate human approval is required to restore it. |
+| After first successful refresh | [notA_summary.SQL](../../DATABASE/notA_summary.SQL) | Restored report for Show Views; install once after both published snapshot tables exist. Later successful refreshes update its results without reinstalling it. |
 | 10 | R consumers and PDF resources | Consume a successful current snapshot; do not replace refresh with a PDF download. |
 
 Steps 3/4 can be prepared independently, but both must precede their consumers.

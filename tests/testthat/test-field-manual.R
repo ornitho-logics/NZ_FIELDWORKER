@@ -1,16 +1,18 @@
 # These checks never load main/global.R, server.R or database configuration.
 manual_root <- normalizePath(testthat::test_path("..", ".."), mustWork = TRUE)
 manual_archive <- file.path(manual_root, "docs", "field-manual-archive", "2026-11-08")
-manual_file <- function(...) file.path(manual_archive, "readers", ...)
-manual_renderer <- file.path(manual_archive, "render_field_manual.R")
+manual_file <- function(...) file.path(manual_root, "main", "www", "field-manual", ...)
+manual_renderer <- file.path(manual_root, "main", "tools", "render_field_manual.R")
 
-test_that("manuals are archived outside the app and have no app navigation or reader", {
+test_that("both manuals are published through one app panel and separate-window link", {
   ui <- paste(readLines(file.path(manual_root, "main", "ui.R")), collapse = "\n")
-  expect_false(grepl("field_manual|field-manual|Field Manual", ui))
+  expect_match(ui, 'tabName = "field_manual"', fixed = TRUE)
+  expect_match(ui, 'src = "field-manual/core-guide.html"', fixed = TRUE)
+  expect_match(ui, 'href = "field-manual/core-guide.html"', fixed = TRUE)
+  expect_match(ui, "Open Field Manual in a separate window", fixed = TRUE)
+  expect_match(ui, 'target = "_blank"', fixed = TRUE)
   expect_silent(parse(file.path(manual_root, "main", "ui.R")))
-  expect_length(list.files(file.path(manual_root, "main", "www", "field-manual"),
-                          recursive = TRUE, all.files = TRUE), 0L)
-  expect_false(file.exists(file.path(manual_root, "main", "tools", "render_field_manual.R")))
+  expect_length(list.files(file.path(manual_root, "main", "www", "field-manual")), 11L)
   expect_true(file.exists(manual_renderer))
   for (name in c("manual.md", "manual-de.md", "core-guide.md", "core-guide-de.md",
                  "index.html", "index-de.html", "core-guide.html", "core-guide-de.html")) {
@@ -18,7 +20,7 @@ test_that("manuals are archived outside the app and have no app navigation or re
   }
 })
 
-test_that("archived manual preserves disclosure, sections, and expected event table", {
+test_that("restored manual preserves disclosure, sections, and expected event table", {
   md <- paste(readLines(manual_file("manual.md"), encoding = "UTF-8"), collapse = "\n")
   html <- paste(readLines(manual_file("index.html"), encoding = "UTF-8"), collapse = "\n")
   expect_gt(regexpr("## Authorship and use of AI", md)[1], regexpr("## Appendix B.", md, fixed = TRUE)[1])
@@ -251,7 +253,7 @@ test_that("both manual readers expose navigation, scoped search, and publication
   }
 })
 
-test_that("the archived guide retains critical rules and links to complete HTML procedures", {
+test_that("the core guide retains critical rules and links to complete HTML procedures", {
   guide <- paste(readLines(manual_file("core-guide.md"), encoding = "UTF-8"), collapse = "\n")
   full <- paste(readLines(manual_file("manual.md"), encoding = "UTF-8"), collapse = "\n")
   html <- paste(readLines(manual_file("core-guide.html"), encoding = "UTF-8"), collapse = "\n")
@@ -298,7 +300,9 @@ test_that("manual archive members match the preserved manifest and reconstructio
     expect_true(file.exists(path))
     expect_equal(unname(file.info(path)$size), member$bytes)
     expect_identical(unname(tools::md5sum(path)), member$md5)
-    expect_false(file.exists(file.path(manual_root, member$original_path)))
+    restored <- file.path(manual_root, member$original_path)
+    expect_true(file.exists(restored))
+    expect_identical(unname(tools::md5sum(restored)), member$md5)
   }
   rules <- jsonlite::read_json(file.path(manual_root, "docs", "reconstruction", "rules.json"))
   expect_identical(normalizePath(file.path(manual_root, rules$manual)),

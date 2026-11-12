@@ -1,5 +1,12 @@
 # Archived field manuals — 8 November 2026
 
+**Current publication — 12 November 2026:** Luke requested restoration of both
+manuals to the app. The active sources and readers are again under
+`main/www/field-manual/`, and the renderer is under `main/tools/`. This dated
+archive and its checksums remain unchanged. The withdrawal/deployment notes
+below record the earlier event, not instructions to remove the restored files.
+See the [restoration record](../../APP_FEATURE_RESTORATION_2026-11-12.md).
+
 At Luke Eberhart-Hertel's request, the Field Manual panel and both manuals
 were withdrawn from the app. This archive preserves the full reference and
 core guide in English and German, without changing their content, attribution,

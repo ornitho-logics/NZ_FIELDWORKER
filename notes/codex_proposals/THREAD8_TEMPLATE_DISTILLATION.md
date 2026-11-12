@@ -1,5 +1,17 @@
 # Thread 8 — retained field-manual template distillation
 
+## Current restoration — 12 November 2026
+
+Luke requested restoration of the Field Manual panel, core/full readers,
+English/German switch, separate-window link, and renderer. All twelve source
+assets are copied unchanged from the checksummed 8 November archive to their
+original paths. Maintain the active `main/www/field-manual/` sources and
+`main/tools/render_field_manual.R`; the archive remains dated provenance, not
+a second editing source. Existing scientific instructions and AI-use disclosures
+are retained; current live validation/deployment is not certified by restoring
+the text. The withdrawal below is historical. See the
+[restoration record](../../docs/APP_FEATURE_RESTORATION_2026-11-12.md).
+
 This is a tracked field-manual orientation and template record. It does not
 modify the retained reference manual or any application source.
 
