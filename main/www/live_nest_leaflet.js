@@ -70,12 +70,36 @@ window.liveNestLeafletGpsControl = function(el, x) {
   var map = this;
   var leaflet = window.L;
 
-  if (!leaflet || !map || map._liveNestGpsControl) {
+  if (!leaflet || !map) {
     return;
+  }
+
+  // Page memory only: retain the trail across Shiny map redraws, never reloads.
+  var trails = window.liveNestGpsTrails || (window.liveNestGpsTrails = {});
+  var trailKey = el.id || "nest_map_show";
+  var trail = trails[trailKey] || (trails[trailKey] = {
+    segments: [],
+    lastFix: null,
+    pointCount: 0,
+    breakPending: true,
+    visible: true,
+    resumeFollowing: false
+  });
+
+  if (map._liveNestGpsControl) {
+    map.removeControl(map._liveNestGpsControl);
   }
 
   var locateButton = null;
   var followButton = null;
+  var trailButton = null;
+  var trailLine = leaflet.polyline(trail.segments, {
+    color: "#0f766e",
+    opacity: 0.8,
+    weight: 3,
+    interactive: false
+  });
+  if (trail.visible) trailLine.addTo(map);
   var active = true;
   var locateGeneration = 0;
   var watchGeneration = 0;
@@ -136,6 +160,69 @@ window.liveNestLeafletGpsControl = function(el, x) {
     followButton.title = active ?
       "Stop following GPS position" :
       "Follow GPS position";
+  }
+
+  function updateTrailButton() {
+    leaflet.DomUtil[trail.visible ? "addClass" : "removeClass"](
+      trailButton, "live-gps-active"
+    );
+    trailButton.setAttribute("aria-pressed", trail.visible ? "true" : "false");
+    trailButton.title = trail.visible ? "Hide GPS trail" : "Show GPS trail";
+    trailButton.setAttribute("aria-label", trailButton.title);
+  }
+
+  function toggleTrail() {
+    trail.visible = !trail.visible;
+    if (trail.visible) {
+      trailLine.addTo(map);
+    } else {
+      map.removeLayer(trailLine);
+    }
+    updateTrailButton();
+  }
+
+  function clearTrail() {
+    trail.segments = [];
+    trail.lastFix = null;
+    trail.pointCount = 0;
+    trail.breakPending = true;
+    trailLine.setLatLngs([]);
+  }
+
+  function appendTrail(position) {
+    var coords = position.coords;
+    var timestamp = position.timestamp;
+    if (!Number.isFinite(coords.latitude) || !Number.isFinite(coords.longitude) ||
+        Math.abs(coords.latitude) > 90 || Math.abs(coords.longitude) > 180 ||
+        !Number.isFinite(coords.accuracy) || coords.accuracy < 0 ||
+        coords.accuracy > 50 || !Number.isFinite(timestamp)) return;
+
+    var point = leaflet.latLng(coords.latitude, coords.longitude);
+    var previous = trail.lastFix;
+    if (previous && timestamp <= previous.timestamp) return;
+
+    var newSegment = trail.breakPending || !previous;
+    if (previous && !newSegment) {
+      var seconds = (timestamp - previous.timestamp) / 1000;
+      var distance = point.distanceTo(previous.point);
+      // Break after signal gaps or implausible jumps; ignore small GPS jitter.
+      newSegment = seconds > 120 || distance / seconds > 15;
+      if (!newSegment && distance < Math.max(5, coords.accuracy / 2)) return;
+    }
+
+    if (newSegment) trail.segments.push([]);
+    trail.segments[trail.segments.length - 1].push(point);
+    trail.lastFix = {point: point, timestamp: timestamp};
+    trail.breakPending = false;
+    trail.pointCount += 1;
+
+    // Bound memory during long field sessions, retaining the newest positions.
+    while (trail.pointCount > 12000) {
+      trail.segments[0].shift();
+      trail.pointCount -= 1;
+      if (!trail.segments[0].length) trail.segments.shift();
+    }
+    trailLine.setLatLngs(trail.segments);
   }
 
   function positionPopup(position) {
@@ -258,6 +345,7 @@ window.liveNestLeafletGpsControl = function(el, x) {
       function(position) {
         if (request !== watchGeneration || !isVisible()) return;
         setBusy(followButton, false);
+        appendTrail(position);
         drawPosition(position, true);
       },
       function(error) {
@@ -268,6 +356,7 @@ window.liveNestLeafletGpsControl = function(el, x) {
   }
 
   function stopFollow() {
+    trail.breakPending = true;
     watchGeneration += 1;
     if (state.watchId !== null) {
       navigator.geolocation.clearWatch(state.watchId);
@@ -279,13 +368,21 @@ window.liveNestLeafletGpsControl = function(el, x) {
   }
 
   function cleanup() {
+    var breakPending = trail.breakPending;
+    trail.resumeFollowing = state.following && isVisible();
     active = false;
     locateGeneration += 1;
     stopFollow();
+    if (trail.resumeFollowing) trail.breakPending = breakPending;
     window.removeEventListener("beforeunload", cleanup);
     window.removeEventListener("pagehide", pauseGps);
     document.removeEventListener("visibilitychange", pauseGps);
     if (window.jQuery) window.jQuery(document).off("hidden.bs.tab", pauseGps);
+    map.off("unload", cleanup);
+    [trailLine, state.marker, state.accuracyCircle].forEach(function(layer) {
+      if (layer && map.hasLayer(layer)) map.removeLayer(layer);
+    });
+    map._liveNestGpsControl = null;
   }
 
   function pauseGps(event) {
@@ -343,6 +440,10 @@ window.liveNestLeafletGpsControl = function(el, x) {
         "live-gps-follow",
         "Follow GPS position"
       );
+      trailButton = makeButton(container, "live-gps-trail", "Hide GPS trail");
+      var clearButton = makeButton(container, "live-gps-clear", "Clear GPS trail");
+      clearButton.removeAttribute("aria-pressed");
+      updateTrailButton();
 
       leaflet.DomEvent.disableClickPropagation(container);
       leaflet.DomEvent.disableScrollPropagation(container);
@@ -351,11 +452,17 @@ window.liveNestLeafletGpsControl = function(el, x) {
         .on(locateButton, "click", leaflet.DomEvent.stop)
         .on(locateButton, "click", locateOnce)
         .on(followButton, "click", leaflet.DomEvent.stop)
-        .on(followButton, "click", toggleFollow);
+        .on(followButton, "click", toggleFollow)
+        .on(trailButton, "click", leaflet.DomEvent.stop)
+        .on(trailButton, "click", toggleTrail)
+        .on(clearButton, "click", leaflet.DomEvent.stop)
+        .on(clearButton, "click", clearTrail);
 
       if (!hasGeolocation()) {
         setError("GPS is unavailable in this browser.");
-        leaflet.DomUtil.addClass(container, "live-gps-unavailable");
+        [locateButton, followButton].forEach(function(button) {
+          leaflet.DomUtil.addClass(button, "live-gps-unavailable");
+        });
       }
 
       return container;
@@ -373,6 +480,8 @@ window.liveNestLeafletGpsControl = function(el, x) {
   window.addEventListener("pagehide", pauseGps);
   document.addEventListener("visibilitychange", pauseGps);
   if (window.jQuery) window.jQuery(document).on("hidden.bs.tab", pauseGps);
+  if (trail.resumeFollowing && isVisible()) startFollow();
+  trail.resumeFollowing = false;
 };
 
 window.liveNestLeafletRender = function(el, x) {

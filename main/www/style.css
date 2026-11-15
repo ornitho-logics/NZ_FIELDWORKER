@@ -741,7 +741,7 @@ body:has(.field-resightings-behaviour-sheet[open]) {
   color: #b42318;
 }
 
-#nest_map_show .live-gps-control.live-gps-unavailable a {
+#nest_map_show .live-gps-control a.live-gps-unavailable {
   cursor: not-allowed;
   opacity: 0.55;
 }
@@ -788,6 +788,31 @@ body:has(.field-resightings-behaviour-sheet[open]) {
 
 #nest_map_show .live-gps-busy .live-gps-icon {
   animation: live-gps-pulse 0.9s ease-in-out infinite;
+}
+
+#nest_map_show .live-gps-trail .live-gps-icon::before {
+  border: 2px solid currentColor;
+  border-radius: 3px 9px 3px 9px;
+  content: "";
+  inset: 3px 1px;
+  position: absolute;
+  transform: rotate(-35deg);
+}
+
+#nest_map_show .live-gps-clear .live-gps-icon::before,
+#nest_map_show .live-gps-clear .live-gps-icon::after {
+  background: currentColor;
+  content: "";
+  height: 2px;
+  left: 1px;
+  position: absolute;
+  top: 8px;
+  transform: rotate(45deg);
+  width: 16px;
+}
+
+#nest_map_show .live-gps-clear .live-gps-icon::after {
+  transform: rotate(-45deg);
 }
 
 #nest_map_show .live-gps-marker {
