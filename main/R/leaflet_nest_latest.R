@@ -470,7 +470,7 @@ live_nest_leaflet <- function(
 
   state_cols <- n[
     !is.na(map_category) & nzchar(map_category),
-    .(col = marker_col[1]),
+    .(col = marker_col[1], count = .N),
     by = map_category
   ]
   state_cols[, state_order := match(map_category, names(nest_state_cols))]
@@ -533,7 +533,7 @@ live_nest_leaflet <- function(
       tags$div(
         class = "nest-legend-items",
         Map(
-          function(label, col) {
+          function(label, col, count) {
             tags$label(
               class = "nest-legend-item",
               tags$input(
@@ -548,12 +548,13 @@ live_nest_leaflet <- function(
               ),
               tags$span(
                 class = "nest-legend-label",
-                as.character(label)
+                paste0(label, " (", count, ")")
               )
             )
           },
           state_cols$map_category,
-          state_cols$col
+          state_cols$col,
+          state_cols$count
         )
       )
     )
