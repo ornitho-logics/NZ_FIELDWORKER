@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="en-NZ"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="manual-source-md5" content="9defd4aa587832c9447b862e39ef16aa"><meta name="manual-reference-md5" content="9defd4aa587832c9447b862e39ef16aa"><title>BADO Field Manual 2026 — Core Team Field Guide</title><style>/* Scoped by the reader iframe; does not change dashboard styling. */
+:root { color-scheme: light; --ink: #23343d; --accent: #315e70; --line: #d8e1e5; }
+* { box-sizing: border-box; }
+html { scroll-padding-top: calc(var(--reader-tools-height, 180px) + 12px); }
+body { margin: 0; background: #f4f7f8; color: var(--ink); font: 17px/1.6 Calibri, Arial, sans-serif; }
+main { max-width: 1080px; margin: 0 auto; padding: 18px 38px 70px; background: #fff; }
+h1, h2, h3, summary { font-family: Arial, sans-serif; color: #203c49; line-height: 1.35; }
+h1 { font-size: 2rem; margin: 22px 0 12px; }
+h2 { font-size: 1.4rem; margin-top: 28px; }
+h3 { font-size: 1.1rem; margin-top: 26px; }
+p, ul, ol { margin: 12px 0; }
+li { margin: 5px 0; }
+a { color: var(--accent); text-underline-offset: 3px; }
+a:hover { color: #193f50; }
+button, input { font: inherit; }
+button, .contents-button { border: 1px solid #aebfc7; border-radius: 5px; background: #fff; color: #254958; padding: 7px 11px; cursor: pointer; }
+button:hover, .contents-button:hover { background: #eaf1f4; }
+button:focus-visible, input:focus-visible, a:focus-visible, summary:focus-visible, .table-scroll:focus-visible { outline: 3px solid #367a98; outline-offset: 3px; }
+.reader-tools { position: sticky; top: 0; z-index: 5; border-bottom: 1px solid var(--line); background: #eef4f6; }
+.reader-switch { max-width: 1080px; margin: auto; padding: 10px 20px 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.reader-switch a { border: 1px solid #aebfc7; border-radius: 5px; padding: 7px 11px; background: white; text-decoration: none; }
+.reader-switch a[aria-current="page"] { background: #254958; color: white; font-weight: bold; }
+.language-switch { max-width: 1080px; margin: auto; padding: 7px 20px 0; display: flex; flex-wrap: wrap; gap: 14px; font-size: .9rem; }
+.language-switch a[aria-current="page"] { font-weight: bold; text-decoration-thickness: 2px; }
+.translation-note { border-left: 4px solid #78949f; background: #f5f8f9; padding: 9px 13px; font-size: .9rem; }
+.reader-tools-inner { max-width: 1080px; margin: auto; padding: 12px 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 9px; }
+.contents-button { text-decoration: none; }
+.reader-tools label { font-size: .9rem; }
+#manual-search { flex: 1; min-width: 180px; width: 240px; border: 1px solid #9db1bb; padding: 7px 10px; border-radius: 5px; background: #fff; }
+.reader-hint { font-size: .9rem; color: #526773; }
+#manual-search-status:empty { display: none; }
+#manual-search-results { border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 5px; padding: 12px 18px; margin: 16px 0; max-height: 350px; overflow-y: auto; }
+#manual-search-results ol { padding-left: 24px; }
+#manual-search-results li { padding: 5px 0; }
+.result-context { display: block; font-size: .85rem; color: #526773; }
+mark { background: #fff0ab; color: inherit; padding: 0 1px; }
+#manual-contents { background: #f5f8f9; border: 1px solid var(--line); border-radius: 6px; padding: 12px 22px; margin: 24px 0; }
+#manual-contents h2 { margin-top: 0; }
+#manual-contents ul { columns: 2; column-gap: 30px; padding-left: 22px; }
+#manual-contents li { break-inside: avoid; }
+details { border-top: 1px solid var(--line); padding: 14px 0; }
+details details { margin: 10px 0 0 14px; }
+summary { cursor: pointer; font-size: 1.1rem; padding: 4px 0; }
+summary:hover { color: #176281; }
+article > details[open] > h2 { font-size: 1.2rem; margin-top: 16px; }
+.table-scroll { overflow-x: auto; margin: 18px 0 24px; }
+table { border-collapse: collapse; table-layout: fixed; width: 100%; font-size: .93rem; }
+td, th { border: 1px solid #cbd6dc; padding: 10px 12px; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+th { background: #eaf0f3; color: #213e4b; }
+tr:nth-child(even) td { background: #fafcfd; }
+code { font: .9em ui-monospace, SFMono-Regular, Consolas, monospace; overflow-wrap: anywhere; }
+pre { white-space: pre-wrap; padding: 16px; background: #f4f7f8; border: 1px solid var(--line); font-size: .9rem; }
+pre code { overflow-wrap: anywhere; }
+.skip-link { position: absolute; left: 12px; top: -100px; z-index: 10; padding: 10px; background: #fff; }
+.skip-link:focus { top: 8px; }
+[hidden] { display: none !important; }
+@media (max-width: 620px) {
+  main { padding: 14px 16px 50px; }
+  body { font-size: 16px; }
+  .reader-tools-inner { padding: 10px 12px; gap: 7px; }
+  .reader-switch { padding: 10px 12px 0; font-size: .9rem; }
+  .language-switch { padding: 7px 12px 0; }
+  .reader-tools label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  #manual-search { min-width: 120px; width: 140px; }
+  button, .contents-button { font-size: .9rem; }
+  #manual-contents ul { columns: 1; }
+  table { min-width: 550px; font-size: .9rem; }
+  table[data-columns="2"] { min-width: 0; }
+  td, th { padding: 8px; }
+}
+@page { size: A4; margin: 18mm; }
+@media print {
+  body, main { background: #fff; padding: 0; margin: 0; max-width: none; font-size: 11pt; }
+  .reader-tools, .reader-hint, #manual-search-status, #manual-search-results, .skip-link { display: none !important; }
+  h2, h3, summary { break-after: avoid; }
+  tr { break-inside: avoid; }
+  .table-scroll { overflow: visible; }
+  table { min-width: 0; font-size: 9pt; }
+  a { color: inherit; }
+  mark { background: none; }
+}</style></head><body><a class="skip-link" href="#manual-content">Skip to manual</a><header class="reader-tools" aria-label="Manual controls"><nav class="reader-switch" aria-label="Choose a manual"><a href="core-guide.html" aria-current="page">Core Team Field Guide</a><a href="index.html">Full Protocol Manual</a></nav><nav class="language-switch" aria-label="Language"><a data-language-link href="core-guide.html" lang="en" hreflang="en-NZ" aria-current="page">English</a><a data-language-link href="core-guide-de.html" lang="de" hreflang="de">Deutsch</a></nav><div class="reader-tools-inner"><a class="contents-button" href="#manual-contents">Contents</a><label for="manual-search">Search this guide</label><input id="manual-search" type="search" placeholder="e.g. hiding photographs" aria-controls="manual-search-results" aria-describedby="manual-search-help" autocomplete="off"><button id="manual-clear" type="button">Clear</button><button id="manual-print" type="button">Print</button></div></header><main><p id="manual-search-help" class="reader-hint">Search applies to this short guide. Switch to the Full Protocol Manual for all requirements and exceptions. <a href="core-guide.md" download>Download Markdown</a> · <a href="core-guide.html" target="_blank" rel="noopener">Open Field Manual in a separate window</a></p><p id="manual-search-status" role="status" aria-live="polite"></p><section id="manual-search-results" aria-label="Search results" hidden></section><noscript><p>Search and print controls need JavaScript. Both manuals remain readable; use your browser to print, and open any collapsed section using its heading.</p></noscript><article id="manual-content" tabindex="-1"><h1>Banded Dotterel / Pohowera — Core Team Field Guide</h1>
+<p><strong>Core Team Field Guide · Edition 2 · 3 November 2026</strong></p>
+<p>For experienced team members working under the approved permits, training, and
+site instructions. This guide summarises the <a href="index.html">Full Protocol Manual</a>.
+For complete requirements and exceptions, follow the linked procedures. If an
+entry or situation is unclear, keep the
+record truthful and consult the linked procedure or Luke Eberhart-Hertel.</p>
+<nav id="manual-contents" aria-label="Manual contents"><h2>Contents</h2>
+<ul>
+<li><a href="#core-section-1">1. Before leaving</a></li>
+<li><a href="#core-section-2">2. Record the encounter, not the expected result</a></li>
+<li><a href="#core-section-3">3. Keep family records linked</a></li>
+<li><a href="#core-section-4">4. Nest visits and eggs</a></li>
+<li><a href="#core-section-5">5. Handling, marking, and photographs</a></li>
+<li><a href="#core-section-6">6. Capture and geolocator restrictions</a></li>
+<li><a href="#core-section-7">7. Follow-up and end-of-day checks</a></li>
+</ul></nav>
+<a id="core-section-1"></a>
+<h2>1. Before leaving</h2>
+<ul>
+<li>Check the To-Do PDF's <strong>reference date</strong>, team allocation, and unfinished work
+from the previous day. A missing task does not prove completion.</li>
+<li>Check capture restrictions before planning a trap. Carry the allocated
+rings, bands, and flags; check Garmin/camera IDs, batteries, and NZ clocks.</li>
+<li>Use <code>BADO</code> and your approved site code. Cass River nest-ID, marking, and
+geolocator instructions are not automatically applicable at another site.</li>
+</ul>
+<a id="core-section-2"></a>
+<h2>2. Record the encounter, not the expected result</h2>
+<div class="table-scroll" tabindex="0" role="region" aria-label="Supporting table; scroll sideways if needed"><table>
+<thead>
+<tr>
+<th>What happened?</th>
+<th>Record</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Nest or scrape visited</td>
+<td>One <code>NESTS</code> row per actual visit.</td>
+</tr>
+<tr>
+<td>Eggs measured</td>
+<td>One <code>EGGS</code> row per egg measured.</td>
+</tr>
+<tr>
+<td>Bird handled</td>
+<td>One <code>CAPTURES</code> row per bird per handling event.</td>
+</tr>
+<tr>
+<td>Bird observed</td>
+<td>One <code>RESIGHTINGS</code> row per bird per observation.</td>
+</tr>
+<tr>
+<td>Chick photographed hiding</td>
+<td>A separate <code>RESIGHTINGS</code> row per chick, <code>rclass = H</code>, in addition to any handling record.</td>
+</tr>
+</tbody>
+</table></div>
+<p>Do not invent a sighting because a bird was captured. A genuine observation
+before handling may be recorded separately. Siblings with the same colour band
+still need separate records.</p>
+<p><strong>Comments supplement events; they do not replace them.</strong> The To-Do algorithm
+does not read free-text comments as substitutes for the required event records.
+An observation entered only in comments will therefore be overlooked as evidence
+for the corresponding task decision. Missing event records can leave parent
+associations unresolved or make the work plan incomplete or misleading.</p>
+<p>For example, writing a bird's identity in <code>NESTS.comments</code> is not a resighting.
+Keep the nest visit in <code>NESTS</code> and enter the observed bird separately in
+<code>RESIGHTINGS</code>, with its actual marks, sex, behaviour, nest ID, and other required
+observation details. Use <code>behav = IN</code> only if it was actually incubating.
+<code>bird_inc</code> records attendance/sex, not individual identity, and does not replace
+the resighting either. The same principle applies to any event with its own
+required record: enter it in the correct form, not only in another row's comments.</p>
+<p><strong>Keep the correct ID.</strong> A known nest's positive ID stays with its mobile brood.
+A negative ID means the nest/origin was never found: retain the minus sign and
+use it only in bird tables, never <code>NESTS</code> or <code>EGGS</code>. Uncertain identity does not
+justify inventing a negative ID. Clearly unrelated adult captures use a blank
+<code>nest_id</code> and both GPS fields; never enter <code>NO_NEST</code>.</p>
+<p><strong>Keep blanks meaningful.</strong> Zero is an observed count or an applicable “no,” not
+unknown. <code>X</code> means an observed empty band position; <code>?</code> means unreadable marks
+in resightings, not an empty position. Capture leg fields must not contain <code>?</code>.</p>
+<p><a href="index.html#section-2">Record and ID rules</a></p>
+<a id="core-section-3"></a>
+<h2>3. Keep family records linked</h2>
+<p>Collect a waypoint at the encounter and write down <strong>both</strong> <code>gps_id</code> and
+<code>gps_point</code>. Parent and chick records from that family encounter must agree on
+the date, site, and shared GPS pair. Use a new waypoint when the family is
+encountered later elsewhere.</p>
+<ul>
+<li>First nest visit: enter GPS. Later stationary nest visits: leave both GPS
+fields blank.</li>
+<li>Negative-ID bird records, every new H-photo row, and age-C recaptures with
+status R or C require both GPS fields, even when a positive ID is known.</li>
+<li>Adult captures with chicks require the GPS pair and the actual <code>caught_with</code>
+entry. First chick captures require the actual positive or negative ID.</li>
+<li>Other positive-nest events have specific GPS/blank-field exceptions: use the
+<a href="index.html#section-3">GPS requirements</a>, not a blanket rule to fill every field.</li>
+</ul>
+<p>Record each parent actually observed, including an unbanded parent as <strong>X-X</strong>
+(<code>LL = X</code>, <code>LR = X</code>). Do not invent an absent mate. Use the behaviour seen:
+<strong>AT is not AC</strong>. <code>BC</code>, <code>FC</code>, and <code>AC</code> describe chick-tending; <code>IN</code>, <code>NM</code>, <code>SC</code>,
+and <code>BW</code> can also confirm a nest link, but BW alone does not establish chicks seen.
+Other eligible behaviour needs three matching observations to establish the
+individual's link. Never split or duplicate one observation to reach three.
+Qualifying nest-linked TN, TB, or HA captures can establish association directly;
+record the real method and context, not a code chosen to strengthen the result.</p>
+<p>MM capture alone does not prove parentage. Earlier eligible evidence can count
+for a reliably identified bird; X-X is not a unique identity across dates.
+A unique eligible first-banding capture can inherit same-day, same-sex,
+same-nest confirming X-X evidence under the approved targeting assumption.
+Refer competing identities or changed nest links rather than guessing.</p>
+<p><strong>Submission order:</strong> upload GPS first. If chicks were handled, save their
+genuine captures before parent-only resightings or H rows that rely on them.
+Submit parent and chick resightings from one encounter together. A prior parent
+capture does not replace the accompanying-parent requirement for new chick
+resightings. For a genuine no-parent encounter, keep the chick observations,
+waypoint, and specific explanation; follow the exception procedure rather than
+fabricating a parent.</p>
+<p><a href="index.html#section-5">Family, parent-association, and exception procedures</a></p>
+<a id="core-section-4"></a>
+<h2>4. Nest visits and eggs</h2>
+<ul>
+<li>A bird observed at the nest needs its own resighting record; its identity
+in the nest-visit comments alone will not supply To-Do association evidence.</li>
+<li>New empty scrape: <code>S</code>, zero clutch. New nest with eggs: <code>F</code>. Keep the same ID
+for subsequent visits and record actual counts, times, and evidence.</li>
+<li>Rare first discovery of newly hatched chicks <strong>inside an obvious nest</strong>:
+positive ID, F then H at least one minute later, truthful counts, and an
+explanation. Chicks outside a never-found nest use a negative brood ID, not
+invented nest visits. Consult the rare-discovery procedure if validation blocks.</li>
+<li><code>clutch_size</code> means eggs remaining; <code>brood_size</code> means chicks observed.
+<code>hatch_state</code> describes the eggs: N no sign, S star, C crack, CC multiple/large
+cracks. Do not return H to I because an egg remains.</li>
+<li>Measure only appropriate eggs; <strong>do not float starred or pipping eggs</strong>.
+Keep actual measurement times. Floating fields for submerged eggs must not
+be filled as though they were surface measurements.</li>
+<li>The first H with no eggs remaining and chicks present is the final hatch
+visit. Later mobile-brood encounters go in bird tables. Final <code>notA</code> closure
+remains separate.</li>
+<li>If later individually banded chicks fully account for a known complete
+clutch, the To-Do may infer zero remaining eggs and request a <code>notA nest-check</code>.
+This does not invent a nest visit or close the nest. Keep every visit's
+actual counts; the conservative inference currently requires a complete
+clutch of at least 3 eggs and trustworthy original-chick links.</li>
+</ul>
+<p><a href="index.html#section-4">Nest and egg procedure</a> ·
+<a href="index.html#section-9">Fate and closure</a></p>
+<a id="core-section-5"></a>
+<h2>5. Handling, marking, and photographs</h2>
+<p>Read the ring and actual incoming marks before making changes. Record actual
+release marks separately: <strong>F</strong> first marking, <strong>R</strong> unchanged recapture,
+<strong>C</strong> changed combination, <strong>D</strong> dead recovery. D uses the recovered incoming
+marks, with release marks and release time blank. Do not manufacture a release.
+Complete the age/status-specific measurements, samples, and applicable flags
+in the <a href="index.html#section-6">capture requirements</a>.</p>
+<p>Follow the flagging To-Do and welfare assessment: follow-up begins from day 21,
+but <strong>do not flag below 22 g or 27 mm tarsus</strong>. Those thresholds do not replace
+the bander's judgement. Flagging an already banded chick changes its combination:
+status C. Use only the allocated marking scheme.</p>
+<p><strong>Hiding photograph:</strong> aim before actual age seven days. Each photographed
+chick needs its own age-C, sex-U, class-H resighting with an explicit valid
+positive/negative ID, known metal ring, actual leg observations, both GPS fields,
+camera ID, and full photo endpoints. Save necessary banding records first.
+Keep real attending-parent observations with the submission.</p>
+<p>A tent photograph belongs to the capture; a hiding photograph belongs to H.
+Do not substitute the capture photo flag or tent sequence for the H record.
+Keep original filenames and distinguish individuals by metal ring. The photo
+task expiring on day seven does <strong>not</strong> mean it was completed; negative-brood
+discovery age is not necessarily biological age.</p>
+<p><a href="index.html#section-7">Photographs and media</a></p>
+<a id="core-section-6"></a>
+<h2>6. Capture and geolocator restrictions</h2>
+<p><strong>Both the seven-day and 36-hour restrictions still apply to pair completion.</strong>
+The seven-day calculation follows final-egg laying evidence, not discovery or
+the date completion was confirmed. The 36-hour restriction follows relevant
+adult capture. The dated PDF assumes 08:00 on its reference date; it is not a
+live countdown. Follow the full timing procedure and welfare assessment.</p>
+<ul>
+<li>A resighting-only row is not permission to capture or deploy a tag.</li>
+<li>“Band” does not mean “tag.” An already-tagged possible parent needs its
+association checked, not another tag.</li>
+<li>Follow conditional tagging notes literally: “tag any, but only if one is
+confirmed X-X” requires confirmation of the unbanded bird and its association.
+An already-banded unknown mate does not satisfy that initial-deployment condition.</li>
+<li>The current 2026 Cass River late-wave rule uses eligible B/C positive nests
+with clutch completion <strong>after 9 October</strong>, not initiation. Apply only the
+approved site allocation and same-nest pair-completion rules.</li>
+</ul>
+<p>Record actual adult tag action, before/after tag IDs, and spacer information.
+Chick/juvenile tag fields stay blank. Consult the complete
+<a href="index.html#section-8">geolocator and timing instructions</a>
+before capture or any exceptional deployment/retrieval.</p>
+<a id="core-section-7"></a>
+<h2>7. Follow-up and end-of-day checks</h2>
+<p>An empty nest is not proof of hatch or predation. Record observed evidence and
+uncertainty. Continue agreed fate checks through final <code>notA</code>, even if a task
+disappears. A closed nest can still have a surviving brood; negative broods
+never receive <code>NESTS</code> closure rows.</p>
+<p>Seek broods during <strong>ages 21–35 inclusive</strong>. From day 36, no qualifying live
+encounter in that fixed window can suppress brood and associated parent work.
+A day-25 encounter prevents this particular trigger; a later live encounter
+can restore work still due after refresh. Renesting and repeated non-brood
+parent observations have separate, stricter evidence rules. <strong>Presumed dead is
+a planning inference</strong>, not an observed death or a reason to enter a D capture.
+A reliably origin-linked J record resolves chick-stage work under the project
+rule; it does not prove every sibling survived.</p>
+<p>Before finishing:</p>
+<ul>
+<li>Check that no bird observation, capture, or other required event is recorded
+only in comments. Save the appropriate event record with truthful details;
+do not add a duplicate if it is already recorded.</li>
+<li>Check saved rows against notes, including prefilled dates, observer codes,
+IDs, GPS pairs, and individual counts. Avoid duplicate submissions.</li>
+<li>Copy original media, verify the backup, and retain full filenames.</li>
+<li>Review <strong>DATA ENTRY ISSUES</strong>. Correct mistakes; explain legitimate exceptions
+and follow the repair procedure. Never alter truthful evidence to pass a check.</li>
+<li>Review the refreshed, correctly dated To-Do PDF. Hand over missing photos,
+unresolved links, contrary live evidence, and unfinished fate checks.</li>
+</ul>
+<p><a href="index.html#section-9">Brood follow-up</a> ·
+<a href="index.html#section-10">Entry and review</a> ·
+<a href="index.html#section-12">Validator repair</a></p>
+<hr />
+<p>Methods and decisions remain the responsibility of <strong>Luke Eberhart-Hertel</strong>.
+The detailed manual retains the full
+<a href="index.html#authorship">authorship, AI-use, privacy, and security disclosure</a>.</p>
+</article></main><script>(function() {
+  "use strict";
+
+  var article = document.getElementById("manual-content");
+  var input = document.getElementById("manual-search");
+  var results = document.getElementById("manual-search-results");
+  var status = document.getElementById("manual-search-status");
+  var sections = Array.from(article.querySelectorAll("details"));
+  var timer;
+  var german = document.documentElement.lang === "de";
+
+  // Carry stable section IDs across languages, not generated search-passage IDs.
+  var languageLinks = Array.from(document.querySelectorAll("[data-language-link]"));
+  languageLinks.forEach(function(link) { link.dataset.languagePage = link.getAttribute("href"); });
+  function updateLanguageLinks() {
+    var id = fragmentId(location.hash);
+    var hash = /^(?:section-[0-9]+|core-section-[0-9]+|appendix-[ab]|authorship)$/.test(id) ? "#" + id : "";
+    languageLinks.forEach(function(link) { link.setAttribute("href", link.dataset.languagePage + hash); });
+  }
+
+  // Wrapped mobile controls must not cover a contents/search destination.
+  if (typeof ResizeObserver !== "undefined") {
+    new ResizeObserver(function(entries) {
+      document.documentElement.style.setProperty("--reader-tools-height", entries[0].target.offsetHeight + "px");
+    }).observe(document.querySelector(".reader-tools"));
+  }
+
+  function fragmentId(hash) {
+    try { return decodeURIComponent(hash.slice(1)); }
+    catch (error) { return ""; }
+  }
+
+  article.querySelectorAll("table").forEach(function(table) {
+    table.dataset.columns = table.rows[0].cells.length;
+  });
+
+  function reveal(target, focus) {
+    if (!target) return;
+    var node = target;
+    while (node && node !== article) {
+      if (node.tagName === "DETAILS") node.open = true;
+      node = node.parentElement;
+    }
+    if (target.nextElementSibling && target.nextElementSibling.tagName === "DETAILS") {
+      target.nextElementSibling.open = true;
+      target = target.nextElementSibling.querySelector("summary");
+    }
+    target.scrollIntoView({block: "start"});
+    if (focus) {
+      if (!target.hasAttribute("tabindex")) target.setAttribute("tabindex", "-1");
+      target.focus({preventScroll: true});
+    }
+  }
+
+  document.addEventListener("click", function(event) {
+    var link = event.target.closest("a[href^='#']");
+    if (!link) return;
+    var target = document.getElementById(fragmentId(link.hash));
+    if (!target) return;
+    event.preventDefault();
+    history.replaceState(null, "", link.hash);
+    updateLanguageLinks();
+    reveal(target, true);
+  });
+  window.addEventListener("hashchange", function() {
+    updateLanguageLinks();
+    reveal(document.getElementById(fragmentId(location.hash)), false);
+  });
+  if (location.hash) reveal(document.getElementById(fragmentId(location.hash)), false);
+  updateLanguageLinks();
+
+  var expand = document.getElementById("manual-expand");
+  var collapse = document.getElementById("manual-collapse");
+  if (expand) expand.onclick = function() { sections.forEach(function(section) { section.open = true; }); };
+  if (collapse) collapse.onclick = function() { sections.forEach(function(section) { section.open = false; }); };
+  document.getElementById("manual-print").onclick = function() { window.print(); };
+
+  function normal(text) { return text.replace(/\s+/g, " ").trim().toLowerCase(); }
+  // Index passages, not duplicate container text. No server request or analytics.
+  var passages = Array.from(article.querySelectorAll("h1,h2,h3,summary,p,li,tr,pre"))
+    .filter(function(node) {
+      return !node.closest("#manual-contents") &&
+        !(node.tagName === "P" && node.closest("li,td,th")) &&
+        !(node.tagName === "LI" && node.querySelector("li"));
+    }).map(function(node, index) {
+      var text = node.textContent.replace(/\s+/g, " ").trim();
+      if (!node.id) node.id = "manual-passage-" + index;
+      var parent = node.closest("details");
+      var heading = node;
+      while (heading.parentElement && heading.parentElement !== article) heading = heading.parentElement;
+      while (heading && heading.tagName !== "H2") heading = heading.previousElementSibling;
+      var context = parent ? parent.querySelector("summary").textContent.trim() :
+        heading ? heading.textContent.trim() : german ? "Einleitung und Urheberschaft" : "Introduction and authorship";
+      return {node: node, text: text, lower: normal(text), context: context};
+    });
+
+  function removeHighlights() {
+    article.querySelectorAll("mark[data-search]").forEach(function(mark) {
+      var parent = mark.parentNode;
+      mark.replaceWith(document.createTextNode(mark.textContent));
+      parent.normalize();
+    });
+  }
+
+  function highlight(node, terms) {
+    var walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+    var texts = [];
+    while (walker.nextNode()) texts.push(walker.currentNode);
+    texts.forEach(function(text) {
+      var value = text.nodeValue;
+      var lower = value.toLowerCase();
+      var fragment = document.createDocumentFragment();
+      var offset = 0;
+      while (offset < value.length) {
+        var start = -1;
+        var length = 0;
+        terms.forEach(function(term) {
+          var found = lower.indexOf(term, offset);
+          if (found !== -1 && (start === -1 || found < start)) {
+            start = found;
+            length = term.length;
+          }
+        });
+        if (start === -1) { fragment.append(value.slice(offset)); break; }
+        fragment.append(value.slice(offset, start));
+        var mark = document.createElement("mark");
+        mark.dataset.search = "true";
+        mark.textContent = value.slice(start, start + length);
+        fragment.append(mark);
+        offset = start + length;
+      }
+      text.replaceWith(fragment);
+    });
+  }
+
+  function search() {
+    clearTimeout(timer);
+    removeHighlights();
+    results.replaceChildren();
+    var query = normal(input.value);
+    results.hidden = !query;
+    status.textContent = "";
+    if (!query) return;
+    var terms = Array.from(new Set(query.split(" ")));
+    var matches = passages.filter(function(passage) {
+      return terms.every(function(term) { return passage.lower.includes(term); });
+    });
+    status.textContent = matches.length ? matches.length + (german ? " passende Textstellen" : " matching passages") +
+      (matches.length > 80 ? (german ? " (die ersten 80 werden angezeigt)." : " (first 80 shown).") : ".") :
+      (german ? "Keine passenden Textstellen. Weniger Suchwörter oder einen Feldnamen wie nest_id versuchen." :
+        "No matching passages. Try fewer words or a field name such as nest_id.");
+    var list = document.createElement("ol");
+    matches.slice(0, 80).forEach(function(passage) {
+      var item = document.createElement("li");
+      var link = document.createElement("a");
+      var first = passage.lower.indexOf(terms[0]);
+      var start = Math.max(0, first - 55);
+      link.href = "#" + passage.node.id;
+      link.textContent = (start ? "…" : "") + passage.text.slice(start, start + 200) +
+        (passage.text.length > start + 200 ? "…" : "");
+      var context = document.createElement("span");
+      context.className = "result-context";
+      context.textContent = passage.context;
+      item.append(link, context);
+      list.append(item);
+      highlight(passage.node, terms);
+    });
+    results.append(list);
+  }
+
+  input.addEventListener("input", function() { clearTimeout(timer); timer = setTimeout(search, 160); });
+  input.addEventListener("keydown", function(event) {
+    if (event.key === "Enter") {
+      search();
+      var first = results.querySelector("a");
+      if (first) first.click();
+    }
+    if (event.key === "Escape") { input.value = ""; search(); }
+  });
+  document.getElementById("manual-clear").onclick = function() {
+    input.value = ""; search(); input.focus();
+  };
+  var beforePrint = [];
+  window.addEventListener("beforeprint", function() {
+    beforePrint = sections.map(function(section) { return section.open; });
+    sections.forEach(function(section) { section.open = true; });
+  });
+  window.addEventListener("afterprint", function() {
+    sections.forEach(function(section, index) { section.open = beforePrint[index]; });
+  });
+})();</script></body></html>

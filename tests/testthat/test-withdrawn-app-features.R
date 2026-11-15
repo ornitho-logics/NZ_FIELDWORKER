@@ -3,19 +3,34 @@ withdrawal_root <- normalizePath(testthat::test_path("..", ".."), mustWork = TRU
 withdrawal_file <- function(...) file.path(withdrawal_root, ...)
 withdrawal_text <- function(...) paste(readLines(withdrawal_file(...), encoding = "UTF-8"), collapse = "\n")
 
-test_that("only Overview phenology is restored and other withdrawn reports stay absent", {
+test_that("Luke Overview and Phenology coexist while notA reports stay absent", {
   ui <- withdrawal_text("main", "ui.R")
   server <- withdrawal_text("main", "server.R")
   expect_silent(parse(withdrawal_file("main", "ui.R")))
   expect_silent(parse(withdrawal_file("main", "server.R")))
   expect_silent(parse(withdrawal_file("main", "global.R")))
-  expect_false(grepl("field_manual|field-manual|notA_summary", ui))
+  expect_false(grepl("notA_summary", ui))
+  expect_match(ui, 'tabName = "field_manual"', fixed = TRUE)
   plots <- regmatches(ui, gregexpr('overview_[a-z_]+_show', ui))[[1]]
-  expect_identical(plots, "overview_lay_date_show")
+  expect_setequal(plots, c(
+    "overview_quota_show", "overview_lay_date_show", "overview_hatching_forecast_show",
+    "overview_nests_show", "overview_cr_combos_show", "overview_geolocator_show",
+    "overview_chick_growth_show", "overview_tagged_resightings_show"
+  ))
+  expect_length(plots, 8L)
+  for (id in plots) {
+    expect_match(server, paste0("output$", id, " <- renderPlot("), fixed = TRUE)
+  }
+  expect_match(ui, 'tabName = "phenology"', fixed = TRUE)
+  expect_match(ui, 'plotOutput("phenology_show"', fixed = TRUE)
+  expect_match(withdrawal_text("main", "R", "phenology.R"),
+    'output$phenology_show <- renderPlot', fixed = TRUE)
+  expect_false(grepl("overview_lay_date_show", withdrawal_text("main", "R", "phenology.R")))
   expect_match(ui, 'tabName = "overview"', fixed = TRUE)
   expect_match(server, "phenology_server(input, output, session, active_refdate)", fixed = TRUE)
-  expect_false(grepl("overview_", server))
-  expect_false(file.exists(withdrawal_file("main", "R", "ggplot_overview.R")))
+  expect_match(server, 'dbtable_is_updated(c("CAPTURES", "NESTS"))', fixed = TRUE)
+  expect_match(server, "overview_chick_growth_data_version()", fixed = TRUE)
+  expect_true(file.exists(withdrawal_file("main", "R", "ggplot_overview.R")))
   expect_false(file.exists(withdrawal_file("DATABASE", "notA_summary.SQL")))
   for (tab in c("downloads", "enter_data", "show_views", "nest_map", "field_resightings")) {
     expect_match(ui, paste0('tabName = "', tab, '"'), fixed = TRUE)
@@ -30,8 +45,10 @@ test_that("only Overview phenology is restored and other withdrawn reports stay 
     eval(found[[1L]], env)
   }
   expect_setequal(env$dbtabs_show_views,
-    c("TODO_LIST", "AVAILABLE_COMBOS", "NESTS_LATEST", "CAPTURES_ARCHIVE", "EGGS_HATCH_PREDICTION"))
-  expect_false(any(c("OVERVIEW", "notA_summary") %in% names(env$dbtabs_show_view_sources)))
+    c("TODO_LIST", "AVAILABLE_COMBOS", "NESTS_LATEST", "CAPTURES_ARCHIVE", "EGGS_HATCH_PREDICTION", "OVERVIEW"))
+  expect_false("notA_summary" %in% names(env$dbtabs_show_view_sources))
+  expect_setequal(env$dbtabs_show_view_sources$OVERVIEW,
+    c("settings", "CAPTURES", "NESTS", "EGGS", "RESIGHTINGS"))
   expect_contains(env$dbtabs_entry, c("CAPTURES", "NESTS", "EGGS", "RESIGHTINGS", "OBSERVERS"))
 })
 
@@ -45,6 +62,8 @@ test_that("Overview and notA source archives remain intact", {
   helper <- withdrawal_file(overview$helper$archived_path)
   expect_identical(unname(tools::md5sum(helper)), overview$helper$md5)
   expect_equal(unname(file.info(helper)$size), overview$helper$bytes)
+  expect_identical(unname(tools::md5sum(withdrawal_file("main", "R", "ggplot_overview.R"))),
+    overview$helper$md5)
   env <- new.env(parent = baseenv())
   env$DBq <- env$db_get <- function(...) stop("Database access is forbidden in archive checks")
   expect_silent(sys.source(helper, envir = env))

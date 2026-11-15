@@ -50,7 +50,7 @@ test_that("phenology queries only eligible Cass River estimates", {
 })
 
 
-test_that("only opening Overview or changing its reference date reruns phenology", {
+test_that("only opening Phenology or changing its reference date reruns phenology", {
   env <- phenology_test_env()
   calls <- list()
   env$phenology_data <- function(date) {
@@ -65,14 +65,14 @@ test_that("only opening Overview or changing its reference date reruns phenology
   }
   shiny::testServer(wrapper, {
     session$setInputs(main = "intro")
-    expect_error(output$overview_lay_date_show, class = "shiny.silent.error")
+    expect_error(output$phenology_show, class = "shiny.silent.error")
     expect_length(calls, 0)
-    session$setInputs(main = "overview")
-    expect_true(is.list(output$overview_lay_date_show))
+    session$setInputs(main = "phenology")
+    expect_true(is.list(output$phenology_show))
     expect_equal(tail(calls, 1)[[1]], as.Date("2026-11-10"))
     date(as.Date("2026-11-11"))
     session$flushReact()
-    expect_true(is.list(output$overview_lay_date_show))
+    expect_true(is.list(output$phenology_show))
     expect_equal(tail(calls, 1)[[1]], as.Date("2026-11-11"))
   })
 })

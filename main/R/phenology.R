@@ -133,8 +133,8 @@ geo_data <- function(date = get_reference_date()) {
 
 
 phenology_server <- function(input, output, session, refdate) {
-  output$overview_lay_date_show <- renderPlot({
-    req(identical(input$main, "overview"))
+  output$phenology_show <- renderPlot({
+    req(identical(input$main, "phenology"))
     day <- refdate()
     try_else(
       day |> phenology_data() |> phenology_plot(date = day, deployments = geo_data(day)),
