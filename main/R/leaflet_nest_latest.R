@@ -480,7 +480,7 @@ live_nest_leaflet <- function(
   m <- m |>
     addCircleMarkers(
       data = n,
-      group = "Nests",
+      group = ~paste0("Nest state: ", map_category),
       lng = ~lon,
       lat = ~lat,
       label = ~label_text,
@@ -506,7 +506,6 @@ live_nest_leaflet <- function(
       fillOpacity = 0.8,
       options = pathOptions(className = "nest-circle-marker")
     )
-  overlay_groups <- c(overlay_groups, "Nests")
 
   if (nrow(n) == 1) {
     m <- m |>
@@ -535,8 +534,14 @@ live_nest_leaflet <- function(
         class = "nest-legend-items",
         Map(
           function(label, col) {
-            tags$div(
+            tags$label(
               class = "nest-legend-item",
+              tags$input(
+                type = "checkbox",
+                class = "nest-legend-toggle",
+                checked = "checked",
+                `data-nest-group` = paste0("Nest state: ", label)
+              ),
               tags$span(
                 class = "nest-legend-swatch",
                 style = css(background = col)

@@ -880,9 +880,22 @@ body:has(.field-resightings-behaviour-sheet[open]) {
 
 #nest_map_show .nest-legend-item {
   align-items: center;
+  cursor: pointer;
   display: flex;
+  font-weight: 400;
   gap: 8px;
   line-height: 1.2;
+  margin: 0;
+  min-height: 32px;
+}
+
+#nest_map_show .nest-legend-toggle {
+  accent-color: #00815f;
+  cursor: pointer;
+  flex: 0 0 auto;
+  height: 18px;
+  margin: 0;
+  width: 18px;
 }
 
 #nest_map_show .nest-legend-swatch {

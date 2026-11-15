@@ -177,6 +177,12 @@ test_that("live map preparation reconciles nests, broods, and failed closures", 
   expect_match(legend_text, "brood", fixed = TRUE)
   expect_match(legend_text, "#1aa9fc", fixed = TRUE)
   expect_no_match(legend_text, ">H<", fixed = TRUE)
+  expect_match(legend_text, 'type="checkbox"', fixed = TRUE)
+  expect_match(legend_text, 'data-nest-group="Nest state: brood"', fixed = TRUE)
+  expect_identical(
+    as.character(marker_call$args[[5]]),
+    paste0("Nest state: ", mapped[!is.na(lat) & !is.na(lon)]$map_category)
+  )
 
   warning_map <- live_map(
     mapped,

@@ -170,3 +170,46 @@ function trailFix(seconds, latitude = 0.001, accuracy = 7.5) {
   assert.equal(b.line().points[0].length, 12000, "Long walks retain a bounded trail");
 }
 console.log("Map GPS lifecycle and trail checks passed.");
+
+// Legend display choices use only local Leaflet groups, without a Shiny request.
+{
+  const window = {L: {DomEvent: {
+    disableClickPropagation() {}, disableScrollPropagation() {}
+  }}};
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, "../main/www/live_nest_leaflet.js"), "utf8"),
+    {window});
+  function render(groups) {
+    const layers = Object.fromEntries(groups.map(group => [group, {group}]));
+    const visible = new Set(Object.values(layers));
+    const checkboxes = groups.map(group => ({getAttribute: () => group}));
+    const legend = {querySelectorAll: () => checkboxes};
+    const el = {id: "nest_map_show", querySelector: () => legend};
+    const map = {
+      layerManager: {getLayerGroup: group => layers[group]},
+      hasLayer: layer => visible.has(layer),
+      addLayer: layer => visible.add(layer),
+      removeLayer: layer => visible.delete(layer)
+    };
+    window.liveNestLeafletLegendControl.call(map, el);
+    return {checkboxes, visible, layers};
+  }
+  const groups = ["Nest state: I", "Nest state: brood"];
+  const first = render(groups);
+  assert.equal(first.visible.size, 2, "Both categories start visible");
+  first.checkboxes[0].checked = false;
+  first.checkboxes[0].onchange();
+  assert.equal(first.visible.has(first.layers[groups[0]]), false);
+  assert.equal(first.visible.has(first.layers[groups[1]]), true,
+    "Hiding a nest state leaves the brood group visible");
+  const redraw = render(groups);
+  assert.equal(redraw.checkboxes[0].checked, false, "Redraws remember hidden categories");
+  assert.equal(redraw.visible.has(redraw.layers[groups[0]]), false);
+  redraw.checkboxes[0].checked = true;
+  redraw.checkboxes[0].onchange();
+  assert.equal(redraw.visible.size, 2, "Checking the state restores its group");
+  render(["Nest state: brood"]);
+  assert.equal(render(groups).checkboxes[0].checked, true,
+    "Choices survive a category temporarily disappearing from the map");
+  window.liveNestLeafletLegendControl.call({}, {querySelector: () => null});
+  console.log("Nest legend visibility checks passed.");
+}

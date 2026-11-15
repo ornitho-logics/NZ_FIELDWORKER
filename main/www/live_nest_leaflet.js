@@ -66,6 +66,40 @@ window.liveNestLeafletMobileSizing = function(el, x) {
   window.addEventListener("resize", applyNestMobileSizing);
 };
 
+window.liveNestLeafletLegendControl = function(el, x) {
+  var map = this;
+  var legend = el.querySelector(".nest-legend");
+  if (!legend || !window.L || !map.layerManager) return;
+
+  // Remember display choices for this page, including across Shiny redraws.
+  var maps = window.liveNestLegendVisibility || (window.liveNestLegendVisibility = {});
+  var key = el.id || "nest_map_show";
+  var visibility = maps[key] || (maps[key] = Object.create(null));
+
+  window.L.DomEvent.disableClickPropagation(legend);
+  window.L.DomEvent.disableScrollPropagation(legend);
+
+  legend.querySelectorAll(".nest-legend-toggle").forEach(function(checkbox) {
+    var group = checkbox.getAttribute("data-nest-group");
+    checkbox.checked = visibility[group] !== false;
+
+    function applyVisibility() {
+      visibility[group] = checkbox.checked;
+      var layer = map.layerManager.getLayerGroup(group, false);
+      if (!layer) return;
+      if (checkbox.checked) {
+        if (!map.hasLayer(layer)) map.addLayer(layer);
+      } else {
+        map.removeLayer(layer);
+      }
+    }
+
+    // onRender can run again on the same map element; replace the old handler.
+    checkbox.onchange = applyVisibility;
+    applyVisibility();
+  });
+};
+
 window.liveNestLeafletGpsControl = function(el, x) {
   var map = this;
   var leaflet = window.L;
@@ -486,5 +520,6 @@ window.liveNestLeafletGpsControl = function(el, x) {
 
 window.liveNestLeafletRender = function(el, x) {
   window.liveNestLeafletMobileSizing.call(this, el, x);
+  window.liveNestLeafletLegendControl.call(this, el, x);
   window.liveNestLeafletGpsControl.call(this, el, x);
 };
