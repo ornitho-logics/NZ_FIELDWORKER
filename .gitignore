@@ -27,7 +27,3 @@
 .DS_Store
 .positai
 ADMIN (link)
-
-# Keep any remaining local notes private.
-!/notes/
-/notes/*
