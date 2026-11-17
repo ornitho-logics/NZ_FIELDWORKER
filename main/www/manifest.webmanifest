@@ -1,7 +1,8 @@
 {
   "name": "NZ Fieldworker",
   "short_name": "Fieldworker",
-  "description": "Fieldworker (Cass 2026)",
+  "description": "Fieldwork maps, observations, and downloads.",
+  "lang": "en-NZ",
   "id": "./",
   "start_url": "./",
   "scope": "./",

@@ -20,8 +20,7 @@ dashboardPage(
     color = "#f8fafc"
   ),
 
-  # The sidebar version label is resolved per Shiny session. Keep the browser
-  # title stable so a process-start value cannot make the app look stale.
+  # Build identity comes from the deployment stamp, never the public Git ref.
   title = "FIELDWORKER",
 
   header = dashboardHeader(
@@ -169,6 +168,7 @@ dashboardPage(
   body = dashboardBody(
     tags$head(
       tags$link(rel = "manifest", href = "manifest.webmanifest"),
+      tags$meta(name = "fieldworker-build", content = git_version$build_id),
       tags$meta(name = "theme-color", content = "#2f6fa3"),
       tags$meta(name = "mobile-web-app-capable", content = "yes"),
       tags$meta(name = "apple-mobile-web-app-capable", content = "yes"),
@@ -182,6 +182,24 @@ dashboardPage(
     includeScript("./www/field_resightings_location.js"),
     includeScript("./www/pwa_install.js"),
 
+    tags$section(
+      id = "pwa_update_notice", class = "pwa-update", hidden = TRUE,
+      `aria-label` = "App update",
+      tags$div(
+        class = "pwa-update-copy",
+        tags$strong("A new version of Fieldworker is ready"),
+        tags$p(id = "pwa_update_detail", role = "status", `aria-live` = "polite",
+          "Save your work, then reload when you are ready.")
+      ),
+      tags$div(
+        class = "pwa-update-actions",
+        tags$button(id = "pwa_update", type = "button", class = "btn btn-primary",
+          "Update and reload"),
+        tags$button(id = "pwa_update_later", type = "button", class = "btn btn-outline-secondary",
+          "Later")
+      )
+    ),
+
     tabItems(
       # Download tab
       tabItem(
@@ -191,12 +209,27 @@ dashboardPage(
           width = 11,
           collapsible = FALSE,
 
-          tags$button(
-            id = "install_mobile",
-            type = "button",
-            class = "btn btn-success btn-lg btn-block mb-3",
-            icon("mobile-alt"),
-            "Install app on this device"
+          tags$section(
+            class = "pwa-panel", `aria-label` = "Install Fieldworker",
+            tags$div(class = "pwa-panel-icon", `aria-hidden` = "true", icon("mobile-screen-button")),
+            tags$div(
+              class = "pwa-panel-content",
+              tags$h3("Fieldworker, one tap away"),
+              tags$p("Add Fieldworker to your home screen for quick access to maps, observations, and downloads."),
+              tags$button(
+                id = "install_mobile", type = "button", class = "btn btn-primary", hidden = TRUE,
+                tags$span(id = "install_mobile_label", "Install Fieldworker")
+              ),
+              tags$p(id = "install_help", class = "pwa-install-help", role = "status", `aria-live` = "polite",
+                "In Chrome, open the menu and choose Install app or Add to home screen."),
+              tags$p(class = "pwa-network-note", "Live pages and downloads need a connection."),
+              tags$div(
+                class = "pwa-update-check",
+                tags$button(id = "pwa_check_updates", type = "button",
+                  class = "btn btn-link", "Check for updates"),
+                tags$span(id = "pwa_update_status", role = "status", `aria-live` = "polite")
+              )
+            )
           ),
           tags$p(
             class = "small text-muted mb-2",

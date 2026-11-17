@@ -74,6 +74,34 @@ how to set the database credentials.
 shiny::runApp("./main", launch.browser = TRUE)
 ```
 
+### Preparing an installed-app update
+
+Before packaging a release, run from its clean source checkout:
+
+```sh
+python3 main/tools/prepare_pwa.py
+python3 main/tools/prepare_pwa.py --check
+```
+
+Include the generated `main/www/build.json` in the deployed app even though it
+is Git-ignored. Deploy it with the matching app files, then restart or drain the
+Shiny workers through the normal deployment process. Each process snapshots its
+build at startup; the sidebar never polls GitHub for a version. For development
+only, `--allow-dirty` stamps modified app sources explicitly.
+
+Keep the manifest URL, `id`, `scope`, and deployment path stable so installed
+apps update in place. The app checks for updates on launch, on return to the
+foreground, and with **Check for updates** in Downloads. Users choose **Update
+and reload** or **Later**; another open window accepting an update does not
+reload this window. Reload restores the active tab where possible, not unsaved
+forms or server-only session state.
+
+Only the connection-needed page is stored in the service-worker cache. Live
+pages, data, downloads, scripts, and styles use the network and normal HTTP
+caching. At the HTTPS serving layer, ensure `build.json`, `service-worker.js`,
+and `manifest.webmanifest` can be freshly fetched/revalidated. Installation
+metadata such as Android launcher icons follows Chrome's own update schedule.
+
 ### Further reading
 
 * Archived references: the [field manuals](docs/field-manual-archive/2026-11-08/README.md),

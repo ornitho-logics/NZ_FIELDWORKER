@@ -1,14 +1,10 @@
 test_that("main server initializes and updates the reference date", {
   app <- load_main_app()
   today <- as.Date(Sys.time(), tz = app$env$preferred_timezone)
-  app$env$resolve_git_version <- function(...) {
-    list(
-      id = "67c8485",
-      source = "remote:origin/main",
-      local = FALSE,
-      dirty = FALSE
-    )
-  }
+  app$env$git_version <- list(
+    id = "67c8485", build_id = strrep("a", 64),
+    source = "deployment:build.json", local = FALSE, dirty = FALSE
+  )
   saved <- new.env(parent = emptyenv())
   saved$date <- as.Date(NA)
   saved$notices <- character()

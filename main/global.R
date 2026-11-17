@@ -212,59 +212,6 @@ git_output <- function(app_dir, args) {
 }
 
 
-git_ref_matches_app <- function(app_dir, ref) {
-  status <- tryCatch(
-    suppressWarnings(
-      system2(
-        "git",
-        c("-C", shQuote(app_dir), "diff", "--quiet", ref, "--", "."),
-        stdout = FALSE,
-        stderr = FALSE
-      )
-    ),
-    error = function(error) 1L
-  )
-
-  identical(as.integer(status), 0L)
-}
-
-
-parse_git_ls_remote <- function(output) {
-  if (length(output) == 0L || !nzchar(trimws(output[[1L]]))) {
-    return(NULL)
-  }
-
-  fields <- strsplit(trimws(output[[1L]]), "[[:space:]]+")[[1L]]
-  normalize_git_id(fields[[1L]])
-}
-
-
-git_remote_main_id <- function(timeout = 5L) {
-  output <- tryCatch(
-    suppressWarnings(
-      system2(
-        "git",
-        c(
-          "ls-remote",
-          "https://github.com/ornitho-logics/NZ_FIELDWORKER.git",
-          "refs/heads/main"
-        ),
-        stdout = TRUE,
-        stderr = FALSE,
-        timeout = timeout
-      )
-    ),
-    error = function(error) character()
-  )
-
-  if (!is.null(attr(output, "status")) && attr(output, "status") != 0L) {
-    return(NULL)
-  }
-
-  parse_git_ls_remote(output)
-}
-
-
 git_commit_time <- function(app_dir, ref) {
   output <- git_output(
     app_dir,
@@ -295,18 +242,6 @@ git_worktree_dirty <- function(app_dir) {
 }
 
 
-git_branch_name <- function(app_dir) {
-  branch <- git_output(
-    app_dir,
-    c("rev-parse", "--abbrev-ref", "HEAD")
-  )
-  if (length(branch) == 0L || !nzchar(trimws(branch[[1L]]))) {
-    return(NULL)
-  }
-  trimws(branch[[1L]])
-}
-
-
 git_local_preview_enabled <- function() {
   value <- tolower(trimws(
     Sys.getenv("FIELDWORKER_LOCAL_PREVIEW", unset = "")
@@ -316,106 +251,43 @@ git_local_preview_enabled <- function() {
 }
 
 
-resolve_git_version <- function(
-  app_dir = getwd(),
-  local_preview = NULL
-) {
-  app_dir <- normalizePath(app_dir, mustWork = FALSE)
-
-  if (is.null(local_preview)) {
-    local_preview <- git_local_preview_enabled()
-  }
-
-  # FIELDWORKER_GIT_ID was used by an older deployment and can survive a
-  # checkout update in a long-lived Shiny process. It is deliberately not a
-  # production fallback: a stale identifier is worse than an explicit
-  # "unknown" label. CI/deployment identifiers below are only used when they
-  # are provided by a trusted build environment.
-  environment_names <- c(
-    "GITHUB_SHA",
-    "SOURCE_VERSION",
-    "RENDER_GIT_COMMIT"
+read_pwa_build = function(app_dir = getwd()) {
+  path = file.path(app_dir, "www", "build.json")
+  if (!file.exists(path)) return(NULL)
+  build = tryCatch(
+    jsonlite::read_json(path),
+    error = function(error) NULL
   )
-
-  # Deployment variables are useful when the app is copied without its Git
-  # metadata.  When a checkout is available, however, a stale variable must
-  # not mask the commit that actually supplies the app files.  This can happen
-  # when a long-lived Shiny process retains an old FIELDWORKER_GIT_ID after a
-  # checkout has been updated.
-  local_head <- git_local_head_id(app_dir)
-  branch <- git_branch_name(app_dir)
-  dirty <- !is.null(local_head) && git_worktree_dirty(app_dir)
-
-  # Local traceability is opt-in. It must never be inferred from the branch or
-  # dirty state because production may run from a copied checkout or a
-  # deployment branch. The local PDF harness can set FIELDWORKER_LOCAL_PREVIEW
-  # when it intentionally wants a local-<commit> identifier.
-  if (isTRUE(local_preview) && !is.null(local_head)) {
-    return(list(
-      id = local_head,
-      source = "git:HEAD-working-tree",
-      commit_time = git_commit_time(app_dir, "HEAD"),
-      local = TRUE,
-      dirty = dirty
-    ))
+  if (!is.list(build) || !is.character(build$id) || length(build$id) != 1L ||
+      is.na(build$id) || !grepl("^[a-f0-9]{64}$", build$id)) {
+    return(NULL)
   }
+  build
+}
 
-  # Production always asks the public repository for the current main ref
-  # first. This makes a merged main commit visible without restarting a
-  # process merely to refresh a value captured at startup.
-  remote_main_id <- git_remote_main_id()
 
-  if (!is.null(remote_main_id)) {
-    return(list(
-      id = remote_main_id,
-      source = "remote:origin/main",
-      commit_time = NULL,
-      local = FALSE,
-      dirty = FALSE
-    ))
-  }
-
-  # Trusted build-system metadata is useful for deployments that do not carry
-  # a Git checkout and cannot reach GitHub. The legacy FIELDWORKER_GIT_ID is
-  # intentionally excluded because it is known to become stale.
-  for (name in environment_names) {
-    id <- normalize_git_id(Sys.getenv(name, unset = NA_character_))
-
-    if (!is.null(id) &&
-        (is.null(local_head) || git_ref_matches_app(app_dir, id))) {
-      return(list(
-        id = id,
-        source = paste0("env:", name),
-        commit_time = git_commit_time(app_dir, id),
-        local = FALSE,
-        dirty = FALSE
-      ))
+resolve_git_version = function(app_dir = getwd(), local_preview = NULL) {
+  if (is.null(local_preview)) local_preview = git_local_preview_enabled()
+  if (isTRUE(local_preview)) {
+    id = git_local_head_id(app_dir)
+    if (!is.null(id)) {
+      return(list(id = id, source = "git:HEAD-working-tree",
+        commit_time = git_commit_time(app_dir, "HEAD"), local = TRUE,
+        dirty = git_worktree_dirty(app_dir), build_id = "unknown"))
     }
   }
 
-  # A clean main checkout remains a truthful offline fallback. Never expose a
-  # feature-branch or dirty HEAD as the production version: that was the cause
-  # of the misleading local-34cc549 label.
-  if (!is.null(local_head) &&
-      !isTRUE(dirty) &&
-      !is.null(branch) &&
-      branch %in% c("main", "master", "HEAD")) {
-    return(list(
-      id = local_head,
-      source = "git:HEAD",
-      commit_time = git_commit_time(app_dir, "HEAD"),
-      local = FALSE,
-      dirty = FALSE
-    ))
+  # Snapshot deployment metadata once at process startup. A later static-file
+  # update must not relabel an R process that still runs the previous release.
+  build = read_pwa_build(app_dir)
+  if (!is.null(build)) {
+    revision = normalize_git_id(build$revision)
+    return(list(id = if (is.null(revision)) "unknown" else revision,
+      source = "deployment:build.json", commit_time = NULL, local = FALSE,
+      dirty = isTRUE(build$dirty), build_id = build$id))
   }
-
-  list(
-    id = "unknown",
-    source = "unavailable",
-    commit_time = NULL,
-    local = FALSE,
-    dirty = FALSE
-  )
+  list(id = "unknown", source = "unavailable", commit_time = NULL,
+    local = FALSE, dirty = FALSE, build_id = "unknown")
 }
 
 
@@ -454,7 +326,11 @@ git_version_label_text <- function(version) {
     return(paste0("local-", commit_id))
   }
 
-  commit_id
+  if (!is.null(version$build_id) &&
+      !identical(version$build_id, "unknown")) {
+    return(paste("Build", substr(version$build_id, 1L, 12L)))
+  }
+  "Build unknown"
 }
 
 
@@ -463,8 +339,8 @@ git_id <- git_version$id
 git_commit_url <- git_commit_url_for_version(git_version)
 
 message(
-  "FIELDWORKER commit: ",
-  git_id,
+  "FIELDWORKER build: ",
+  git_version$build_id,
   " (",
   git_version$source,
   ")"

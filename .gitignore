@@ -27,3 +27,6 @@
 .DS_Store
 .positai
 ADMIN (link)
+
+# Generated release metadata; package this file with the deployed app.
+/main/www/build.json
