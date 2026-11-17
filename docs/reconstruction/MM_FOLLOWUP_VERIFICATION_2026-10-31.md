@@ -59,7 +59,7 @@ preserved; no Git staging, commit, push, or PR was performed.
   detached. No existing server, field config, field data, or package library used.
 
 Accepted ignored evidence:
-`.ai/local/mm-chronology-2026-10-31/run-52bcb11f94/`, including report.json,
+`ai/local/mm-chronology-2026-10-31/run-52bcb11f94/`, including report.json,
 tests.json, tests.log and per-install stage logs. Generated evidence is private,
 not a clean-clone prerequisite or a substitute for tracked reproducible cases.
 

@@ -44,7 +44,7 @@ immutable evidence must not be presented as verification of those later edits.
   was used. Original and reviewed evidence are separate immutable artifacts.
 
 The final local evidence is under ignored
-`.ai/local/reconstruction-405195fa60/`: source-manifest.json, report.json,
+`ai/local/reconstruction-405195fa60/`: source-manifest.json, report.json,
 focused-results.json, stage logs, page images, and reviewed-report.json. These
 generated artifacts are not a clean-clone prerequisite; the tracked fixtures
 and tools regenerate them. The source manifest includes the actual executed

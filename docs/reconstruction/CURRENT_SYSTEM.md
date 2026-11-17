@@ -25,8 +25,8 @@ source changes.
   [views](../../DATABASE/views.SQL), [refresh](../../DATABASE/refresh_todo_list_snapshot.SQL),
   [table DDL](../../DATABASE/main_tables.SQL), inspector exports, and R consumers.
 - Reconcile source/document disagreements explicitly; prose cannot change biology.
-- [Thread 4](../../.ai/codex_proposals/THREAD4_TODO_MAP_LIST_DEBUG_PLAN.md) and
-  [Thread 9](../../.ai/codex_proposals/THREAD9_LOCAL_REPLICA_PROTOCOL.md) retain
+- [Thread 4](../../ai/codex_proposals/THREAD4_TODO_MAP_LIST_DEBUG_PLAN.md) and
+  [Thread 9](../../ai/codex_proposals/THREAD9_LOCAL_REPLICA_PROTOCOL.md) retain
   dated history beneath current addenda. Older recovery states are not instructions.
 - The [archived manual](../field-manual-archive/2026-11-08/readers/manual.md) records procedures. Approved
   human scientific decisions govern intended behaviour; source determines what

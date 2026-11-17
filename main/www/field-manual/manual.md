@@ -2731,12 +2731,12 @@ again.
 For anyone interested in how this work was done, the project makes its
 development process available for inspection on GitHub:
 
-- [Overview of how AI was used](https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/.ai/CODEX_USAGE_TRANSPARENCY.md).
+- [Overview of how AI was used](https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/ai/CODEX_USAGE_TRANSPARENCY.md).
 - [Instructions and safety rules given to the AI assistants](https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/AGENTS.md).
-- [Summaries of requests, discussions, and decisions](https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/.ai/codex_logs/INDEX.md).
-- [Working notes for the different specialist tasks](https://github.com/ornitho-logics/NZ_FIELDWORKER/tree/main/.ai/codex_proposals).
-- [How the data-entry checks were developed and tested](https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/.ai/codex_proposals/THREAD3_VALIDATION_ARCHITECTURE.md#mock-data-and-tests), alongside the [checks themselves](https://github.com/ornitho-logics/NZ_FIELDWORKER/tree/main/.ai/codex_proposals/validator_sandbox/inspector_lists_by_table).
-- [How the To-Do lists, maps, and PDFs were developed](https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/.ai/codex_proposals/THREAD4_TODO_MAP_LIST_DEBUG_PLAN.md).
+- [Summaries of requests, discussions, and decisions](https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/ai/codex_logs/INDEX.md).
+- [Working notes for the different specialist tasks](https://github.com/ornitho-logics/NZ_FIELDWORKER/tree/main/ai/codex_proposals).
+- [How the data-entry checks were developed and tested](https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/ai/codex_proposals/THREAD3_VALIDATION_ARCHITECTURE.md#mock-data-and-tests), alongside the [checks themselves](https://github.com/ornitho-logics/NZ_FIELDWORKER/tree/main/ai/codex_proposals/validator_sandbox/inspector_lists_by_table).
+- [How the To-Do lists, maps, and PDFs were developed](https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/ai/codex_proposals/THREAD4_TODO_MAP_LIST_DEBUG_PLAN.md).
 - [A guide to reproducing the development and testing process](https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/1559b166e77d177fe01e278e1b112d912f032b1a/docs/reconstruction/README.md), with [invented example data](https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/1559b166e77d177fe01e278e1b112d912f032b1a/tools/reconstruction/fixtures.sql).
 
 These resources explain the work and its limitations. They contain reviewed

@@ -2,12 +2,13 @@
 
 ## Consolidated AI workspace
 
-The full instructions live in `.ai/AGENTS.md`; the root `AGENTS.md` points
+The full instructions live in `ai/AGENTS.md`; the root `AGENTS.md` points
 here so agents discover them automatically. Reviewed AI documents remain
-tracked under `.ai/`. Personal additions belong in ignored `.ai/local/` or
-the existing ignored proposal folders. `.gitignore.MV` supplies additional
-personal rules only when activated in this checkout's local Git configuration.
-Its rules do not remove existing shared files from version control.
+tracked under `ai/` for all project contributors, including those who do not
+use AI. Drafts, temporary output, and tooling state belong in ignored
+`ai/local/` or the existing ignored proposal folders. `.gitignore.MV` supplies
+optional checkout-local ignore rules; it does not make this a personal workspace
+or remove existing shared files from version control.
 
 ## Tracking and authority of this file
 
@@ -65,14 +66,14 @@ The project currently includes:
 * `gpxui/`: GPS waypoint/track upload interface using the external `gpxui` package;
 * `DATABASE/`: current SQL source-of-truth folder for base tables, support tables, views, functions, reset logic, hatching prediction support, and the latest safe local mock-data dump used for local tests;
 * `tests/testthat/`: repo-visible tests for app wiring and server/data-entry behavior;
-* `.ai/codex_proposals/`: tracked Thread 1-9 handoffs and tracked inspector
+* `ai/codex_proposals/`: tracked Thread 1-9 handoffs and tracked inspector
   lists, alongside ignored field-manual drafts, private reports,
   previews, mock artifacts, and generated outputs;
-* `.ai/codex_logs/`: tracked sanitized prompt/decision summaries; raw prompt
+* `ai/codex_logs/`: tracked sanitized prompt/decision summaries; raw prompt
   transcripts and attachments remain local and ignored;
-* `.ai/CODEX_USAGE_TRANSPARENCY.md`: public record of Codex roles, controls,
+* `ai/CODEX_USAGE_TRANSPARENCY.md`: public record of Codex roles, controls,
   tracked artifacts, and deliberate confidentiality exclusions;
-* `.ai/local/`: ignored local scratch area if used.
+* `ai/local/`: ignored local scratch area if used.
 
 The immediate development goals are:
 
@@ -125,28 +126,28 @@ live database changes remain human-controlled unless separately authorized.
 Codex may create scratch files only in ignored directories such as:
 
 ```text
-.ai/codex_proposals/
-.ai/codex_logs/
-.ai/local/
+ai/codex_proposals/
+ai/codex_logs/
+ai/local/
 ```
 
 The following reviewed documents are tracked and are not scratch locations:
 
 ```text
-.ai/codex_proposals/THREAD1_REPOSITORY_MAP.md
-.ai/codex_proposals/THREAD2_SCHEMA_REVIEW.md
-.ai/codex_proposals/THREAD3_VALIDATION_ARCHITECTURE.md
-.ai/codex_proposals/THREAD4_TODO_MAP_LIST_DEBUG_PLAN.md
-.ai/codex_proposals/THREAD5_OVERVIEW_DASHBOARD_PLAN.md
-.ai/codex_proposals/THREAD6_COMBO_LIST_PROTOCOL.md
-.ai/codex_proposals/THREAD7_GEOLOCATOR_ROLLOUT_HANDOFF.md
-.ai/codex_proposals/THREAD8_H_EVENT_RECONCILIATION.md
-.ai/codex_proposals/THREAD8_TEMPLATE_DISTILLATION.md
-.ai/codex_proposals/THREAD9_LOCAL_REPLICA_PROTOCOL.md
-.ai/codex_proposals/validator_sandbox/inspector_lists_by_table/
-.ai/codex_logs/INDEX.md
-.ai/codex_logs/THREAD1_PROMPT_LOG.md through THREAD9_PROMPT_LOG.md
-.ai/CODEX_USAGE_TRANSPARENCY.md
+ai/codex_proposals/THREAD1_REPOSITORY_MAP.md
+ai/codex_proposals/THREAD2_SCHEMA_REVIEW.md
+ai/codex_proposals/THREAD3_VALIDATION_ARCHITECTURE.md
+ai/codex_proposals/THREAD4_TODO_MAP_LIST_DEBUG_PLAN.md
+ai/codex_proposals/THREAD5_OVERVIEW_DASHBOARD_PLAN.md
+ai/codex_proposals/THREAD6_COMBO_LIST_PROTOCOL.md
+ai/codex_proposals/THREAD7_GEOLOCATOR_ROLLOUT_HANDOFF.md
+ai/codex_proposals/THREAD8_H_EVENT_RECONCILIATION.md
+ai/codex_proposals/THREAD8_TEMPLATE_DISTILLATION.md
+ai/codex_proposals/THREAD9_LOCAL_REPLICA_PROTOCOL.md
+ai/codex_proposals/validator_sandbox/inspector_lists_by_table/
+ai/codex_logs/INDEX.md
+ai/codex_logs/THREAD1_PROMPT_LOG.md through THREAD9_PROMPT_LOG.md
+ai/CODEX_USAGE_TRANSPARENCY.md
 ```
 
 Before creating any other scratch/proposal file, Codex must confirm that the
@@ -250,9 +251,9 @@ Prompt and response logging is useful, but risky. By default:
 Preferred pattern:
 
 ```text
-.ai/codex_logs/        # tracked sanitized summaries; raw logs stay elsewhere
-.ai/codex_proposals/   # tracked handoffs plus ignored working artifacts
-.ai/local/               # ignored scratch files
+ai/codex_logs/        # tracked sanitized summaries; raw logs stay elsewhere
+ai/codex_proposals/   # tracked handoffs plus ignored working artifacts
+ai/local/               # ignored scratch files
 ```
 
 Before any commit or push, Codex must check:
@@ -1055,7 +1056,7 @@ External canonical working protocol path (separate synchronization authority):
 Current reviewed local protocol mirror:
 
 ```text
-.ai/codex_proposals/validator_sandbox/xlsx_short_tag_update/bdot_dataentry_validator_protocol_plot_aligned.yaml
+ai/codex_proposals/validator_sandbox/xlsx_short_tag_update/bdot_dataentry_validator_protocol_plot_aligned.yaml
 ```
 
 Current tracked mirror identity, reconciled 2026-10-31:
@@ -1454,7 +1455,7 @@ Responsibilities:
 * inspect `DATABASE/*.SQL`, `main/*.R`, `main/R/*.R`, `main/templates/`, `main/www/help/*.html`, `main/www/*.js`, and `tests/testthat/*.R`;
 * identify deleted, renamed, stale, or obsolete paths from earlier repo maps;
 * update the tracked repository handoff at
-  `.ai/codex_proposals/THREAD1_REPOSITORY_MAP.md` when explicitly requested.
+  `ai/codex_proposals/THREAD1_REPOSITORY_MAP.md` when explicitly requested.
 
 Restrictions:
 
@@ -1595,7 +1596,7 @@ Expected output:
 * rollback notes and side-effect warnings.
 
 The detailed current contract is tracked in
-`.ai/codex_proposals/THREAD4_TODO_MAP_LIST_DEBUG_PLAN.md`.
+`ai/codex_proposals/THREAD4_TODO_MAP_LIST_DEBUG_PLAN.md`.
 
 ### Thread 5 — Overview dashboard specialist
 
@@ -1625,7 +1626,7 @@ Potential work includes:
 * expandable/collapsible dashboard boxes.
 
 The detailed current panel contracts and known risks are tracked in
-`.ai/codex_proposals/THREAD5_OVERVIEW_DASHBOARD_PLAN.md`.
+`ai/codex_proposals/THREAD5_OVERVIEW_DASHBOARD_PLAN.md`.
 
 Restrictions:
 
@@ -1686,7 +1687,7 @@ Expected output:
 * cross-thread handoffs and rollback guidance.
 
 The detailed current contract is tracked in
-`.ai/codex_proposals/THREAD6_COMBO_LIST_PROTOCOL.md`.
+`ai/codex_proposals/THREAD6_COMBO_LIST_PROTOCOL.md`.
 
 ### Thread 7 — Seasonal geolocator rollout specialist
 
@@ -1715,8 +1716,8 @@ Restrictions:
 * do not treat a dated report or local snapshot as current live state.
 
 The tracked public method is
-`.ai/codex_proposals/THREAD7_GEOLOCATOR_ROLLOUT_HANDOFF.md`; its sanitized
-decision chronology is `.ai/codex_logs/THREAD7_PROMPT_LOG.md`. Dated reports,
+`ai/codex_proposals/THREAD7_GEOLOCATOR_ROLLOUT_HANDOFF.md`; its sanitized
+decision chronology is `ai/codex_logs/THREAD7_PROMPT_LOG.md`. Dated reports,
 candidate rankings, overrides, and inventory states remain ignored/private.
 
 ### Thread 8 — Field-manual specialist
@@ -1744,7 +1745,7 @@ Restrictions:
   behavior.
 
 The H-event reconciliation and template distillation are tracked under
-`.ai/codex_proposals/`. Working manual DOCX/PDF files and their artifact
+`ai/codex_proposals/`. Working manual DOCX/PDF files and their artifact
 metadata remain private and ignored until the user explicitly approves
 publication. A private render is documentation evidence only, never deployment
 evidence.
@@ -1778,8 +1779,8 @@ Restrictions:
   dump contents.
 
 The tracked protocol and sanitized prompt log are at
-`.ai/codex_proposals/THREAD9_LOCAL_REPLICA_PROTOCOL.md` and
-`.ai/codex_logs/THREAD9_PROMPT_LOG.md`.
+`ai/codex_proposals/THREAD9_LOCAL_REPLICA_PROTOCOL.md` and
+`ai/codex_logs/THREAD9_PROMPT_LOG.md`.
 
 ## Cross-thread handoff rules
 
@@ -1833,7 +1834,7 @@ that separation; Thread 4 owns whether the resulting tasks and PDF are correct.
 Recommended restart/read order is:
 
 1. `AGENTS.md` and the current Git status/revision;
-2. `.ai/codex_proposals/THREAD1_REPOSITORY_MAP.md`;
+2. `ai/codex_proposals/THREAD1_REPOSITORY_MAP.md`;
 3. the owning specialist handoff: Thread 2 for schema, Thread 3.1 for
    validators, Thread 4 for TODO/PDF/map, Thread 5 for Overview, Thread 6 for
    combos, Thread 7 for GEO rollout, Thread 8 for the field manual, or Thread 9

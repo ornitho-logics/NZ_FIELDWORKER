@@ -3,9 +3,9 @@ library(data.table)
 
 photo_overlap_root <- normalizePath(file.path(testthat::test_path(), "..", ".."))
 photo_overlap_paths <- c(
-    CAPTURES = file.path(photo_overlap_root, ".ai", "codex_proposals", "validator_sandbox", "inspector_lists_by_table", "CAPTURES_hard.R"),
-    NESTS = file.path(photo_overlap_root, ".ai", "codex_proposals", "validator_sandbox", "inspector_lists_by_table", "NESTS_hard.R"),
-    RESIGHTINGS = file.path(photo_overlap_root, ".ai", "codex_proposals", "validator_sandbox", "inspector_lists_by_table", "RESIGHTINGS_hard.R")
+    CAPTURES = file.path(photo_overlap_root, "ai", "codex_proposals", "validator_sandbox", "inspector_lists_by_table", "CAPTURES_hard.R"),
+    NESTS = file.path(photo_overlap_root, "ai", "codex_proposals", "validator_sandbox", "inspector_lists_by_table", "NESTS_hard.R"),
+    RESIGHTINGS = file.path(photo_overlap_root, "ai", "codex_proposals", "validator_sandbox", "inspector_lists_by_table", "RESIGHTINGS_hard.R")
 )
 
 photo_overlap_block <- function(path) {

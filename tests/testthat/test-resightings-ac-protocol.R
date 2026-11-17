@@ -154,13 +154,13 @@ test_that("BC and FC retain the same reciprocal behavior as AC", {
 test_that("tracked RESIGHTINGS exports include AC in both reciprocal rules", {
   hard <- paste(
     readLines(app_file(
-      ".ai/codex_proposals/validator_sandbox/inspector_lists_by_table/RESIGHTINGS_hard.R"
+      "ai/codex_proposals/validator_sandbox/inspector_lists_by_table/RESIGHTINGS_hard.R"
     )),
     collapse = "\n"
   )
   warning <- paste(
     readLines(app_file(
-      ".ai/codex_proposals/validator_sandbox/inspector_lists_by_table/RESIGHTINGS_warning.R"
+      "ai/codex_proposals/validator_sandbox/inspector_lists_by_table/RESIGHTINGS_warning.R"
     )),
     collapse = "\n"
   )

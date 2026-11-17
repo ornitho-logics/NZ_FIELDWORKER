@@ -2,7 +2,7 @@ library(testthat)
 library(data.table)
 
 observer_code_path <- function(table) {
-  app_file(".ai", "codex_proposals", "validator_sandbox",
+  app_file("ai", "codex_proposals", "validator_sandbox",
            "inspector_lists_by_table", paste0(table, "_hard.R"))
 }
 
@@ -116,7 +116,7 @@ test_that("protocol and guarded installer agree with the tracked validator chang
   role_predicate <- "LOWER(TRIM(COALESCE(comments, ''))) REGEXP @observer_hard_comment_pattern"
   expect_length(gregexpr(role_predicate, sql, fixed = TRUE)[[1L]], 4L)
   skip_if_not_installed("yaml")
-  protocol <- yaml::read_yaml(app_file(".ai", "codex_proposals", "validator_sandbox",
+  protocol <- yaml::read_yaml(app_file("ai", "codex_proposals", "validator_sandbox",
     "xlsx_short_tag_update", "bdot_dataentry_validator_protocol_plot_aligned.yaml"))
   expect_identical(protocol$observer_code_format$regexp, "^[A-Z0-9]{2,3}$")
   expect_match(protocol$observer_code_format$public_exception, "RESIGHTINGS_PUBLIC", fixed = TRUE)

@@ -17,12 +17,12 @@ Reconstruction status:
 
 Primary sources checked:
 
-- ignored proposal-note filenames under `.ai/codex_proposals/`
+- ignored proposal-note filenames under `ai/codex_proposals/`
 - cross-thread references visible from Thread 1 and current `AGENTS.md`
 
 ## Current Recovery Result
 
-- No dedicated Thread 6 prompt transcript or ignored proposal memo was found in the local repo during initialization of `.ai/codex_logs/`.
+- No dedicated Thread 6 prompt transcript or ignored proposal memo was found in the local repo during initialization of `ai/codex_logs/`.
 - Thread 6 is clearly defined in `AGENTS.md`, but I did not find a corresponding thread-specific prompt artifact comparable to Threads 1 through 5.
 
 ## Most Likely Explanation
@@ -63,13 +63,13 @@ Exact task scope:
   workbook without weakening conservative availability logic.
 - Compare tracked source with the latest local SQL dump, tests, and PDF-preview
   scripts.
-- Create `.ai/codex_proposals/THREAD6_COMBO_LIST_PROTOCOL.md` and append this dated
+- Create `ai/codex_proposals/THREAD6_COMBO_LIST_PROTOCOL.md` and append this dated
   `Exact` entry.
 
 Authorized writes:
 
-- `.ai/codex_proposals/THREAD6_COMBO_LIST_PROTOCOL.md`
-- `.ai/codex_logs/THREAD6_PROMPT_LOG.md`
+- `ai/codex_proposals/THREAD6_COMBO_LIST_PROTOCOL.md`
+- `ai/codex_logs/THREAD6_PROMPT_LOG.md`
 
 Result:
 
@@ -123,7 +123,7 @@ Current-state findings:
 
 Documentation result:
 
-- Replaced `.ai/codex_proposals/THREAD6_COMBO_LIST_PROTOCOL.md` with a
+- Replaced `ai/codex_proposals/THREAD6_COMBO_LIST_PROTOCOL.md` with a
   restart-grade, sanitized specification covering authority/state labels,
   ownership, source chain, formatter, candidate rules, normalization,
   reference-date behavior, used evidence, subtraction, exclusions, ranking,

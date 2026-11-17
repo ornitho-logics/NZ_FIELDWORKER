@@ -42,7 +42,7 @@ Reconstruction status:
 Primary sources:
 
 - current visible Codex conversation history in this thread
-- `.ai/codex_proposals/THREAD2_SCHEMA_REVIEW.md`
+- `ai/codex_proposals/THREAD2_SCHEMA_REVIEW.md`
 - local `AGENTS.md`
 - local `git log`
 - current `DATABASE/*.SQL`
@@ -226,7 +226,7 @@ Current reconstruction boundary:
 
 18. `Exact`
     Prompt:
-    - request to update `.ai/codex_logs/THREAD2_PROMPT_LOG.md` with recoverable prompt history, milestones, and gaps
+    - request to update `ai/codex_logs/THREAD2_PROMPT_LOG.md` with recoverable prompt history, milestones, and gaps
     Main output:
     - the first materially complete ignored local prompt-history log for Thread 2
 
@@ -455,8 +455,8 @@ Current reconstruction boundary:
     What was achieved:
     - stale pre-`DATABASE/` schema assumptions were removed from the active Thread 2 notes
     Output/artifact/file:
-    - `.ai/codex_proposals/THREAD2_SCHEMA_REVIEW.md`
-    - `.ai/codex_logs/THREAD2_PROMPT_LOG.md`
+    - `ai/codex_proposals/THREAD2_SCHEMA_REVIEW.md`
+    - `ai/codex_logs/THREAD2_PROMPT_LOG.md`
     Status:
     - complete
 
@@ -469,7 +469,7 @@ Current reconstruction boundary:
       specified the boundary for a future reusable brood view
     Output/artifact/file:
     - `DATABASE/main_tables.SQL`
-    - `.ai/codex_proposals/THREAD2_SCHEMA_REVIEW.md`
+    - `ai/codex_proposals/THREAD2_SCHEMA_REVIEW.md`
     Status:
     - complete as the agreed methodology and source-schema contract; the derived
       view and downstream implementation were completed later in the local tree
@@ -479,8 +479,8 @@ Current reconstruction boundary:
     - stale wording about an unstaged `views.SQL` edit was removed
     - the `NO_NEST` changes were reclassified as committed branch state
     Output/artifact/file:
-    - `.ai/codex_proposals/THREAD2_SCHEMA_REVIEW.md`
-    - `.ai/codex_logs/THREAD2_PROMPT_LOG.md`
+    - `ai/codex_proposals/THREAD2_SCHEMA_REVIEW.md`
+    - `ai/codex_logs/THREAD2_PROMPT_LOG.md`
     Status:
     - complete
 
@@ -493,8 +493,8 @@ Current reconstruction boundary:
     Output/artifact/file:
     - `DATABASE/views.SQL` (read-only source inspection for this documentation task)
     - `main/R/pdf_todo.R` and `main/R/pdf_todo_map.R` (read-only source inspection)
-    - `.ai/codex_proposals/THREAD2_SCHEMA_REVIEW.md`
-    - `.ai/codex_logs/THREAD2_PROMPT_LOG.md`
+    - `ai/codex_proposals/THREAD2_SCHEMA_REVIEW.md`
+    - `ai/codex_logs/THREAD2_PROMPT_LOG.md`
     Status:
     - implementation complete in the current local working tree; not committed,
       pushed, merged, deployed, or live-database verified
@@ -507,8 +507,8 @@ Current reconstruction boundary:
       fixed full-table column lists, or current view/index requirement for ring
     Output/artifact/file:
     - `DATABASE/main_tables.SQL`
-    - `.ai/codex_proposals/THREAD2_SCHEMA_REVIEW.md`
-    - `.ai/codex_logs/THREAD2_PROMPT_LOG.md`
+    - `ai/codex_proposals/THREAD2_SCHEMA_REVIEW.md`
+    - `ai/codex_logs/THREAD2_PROMPT_LOG.md`
     Status:
     - tracked DDL/documentation alignment complete locally; live deployment was
       already performed by the user and was not independently verified here
@@ -525,7 +525,7 @@ Current reconstruction boundary:
       NESTS_LATEST source watches, and future-only brood architecture were
       explicitly marked obsolete;
     Output/artifact/file:
-    - `.ai/codex_proposals/THREAD2_SCHEMA_REVIEW.md`
+    - `ai/codex_proposals/THREAD2_SCHEMA_REVIEW.md`
     Status:
     - documentation update complete; source behavior, database state, and
       deployment status unchanged
@@ -565,7 +565,7 @@ Main output:
 
 - current visible Codex conversation history in this thread
 - prior content of this prompt log
-- `.ai/codex_proposals/THREAD2_SCHEMA_REVIEW.md`
+- `ai/codex_proposals/THREAD2_SCHEMA_REVIEW.md`
 - local `AGENTS.md`
 - current repository inspection of:
   - `DATABASE/main_tables.SQL`
@@ -626,7 +626,7 @@ Prompt summary:
 
 Output:
 
-- refreshed `.ai/codex_proposals/THREAD2_SCHEMA_REVIEW.md` as a current
+- refreshed `ai/codex_proposals/THREAD2_SCHEMA_REVIEW.md` as a current
   restart-grade architecture reference;
 - appended this sanitized prompt-history entry and updated milestone/gap
   metadata;

@@ -127,8 +127,8 @@ event or third-party service has been independently audited.
 The repository tracks:
 
 - `AGENTS.md`;
-- Thread 1-9 specialist handoffs under `.ai/codex_proposals/`;
-- sanitized prompt/decision summaries under `.ai/codex_logs/`;
+- Thread 1-9 specialist handoffs under `ai/codex_proposals/`;
+- sanitized prompt/decision summaries under `ai/codex_logs/`;
 - the reviewed validator inspector-list exports;
 - this transparency record.
 
@@ -181,8 +181,8 @@ workflow authorized changes to the live database.
 A replacement Codex thread should read:
 
 1. `AGENTS.md` and current Git status/revision;
-2. `.ai/CODEX_USAGE_TRANSPARENCY.md`;
-3. `.ai/codex_proposals/THREAD1_REPOSITORY_MAP.md`;
+2. `ai/CODEX_USAGE_TRANSPARENCY.md`;
+3. `ai/codex_proposals/THREAD1_REPOSITORY_MAP.md`;
 4. the owning specialist handoff;
 5. current source and focused tests;
 6. the relevant sanitized prompt log only for chronology.

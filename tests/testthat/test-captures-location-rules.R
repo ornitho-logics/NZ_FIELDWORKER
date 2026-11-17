@@ -2,7 +2,7 @@ library(testthat)
 library(data.table)
 
 captures_hard_path <- app_file(
-  ".ai",
+  "ai",
   "codex_proposals",
   "validator_sandbox",
   "inspector_lists_by_table",

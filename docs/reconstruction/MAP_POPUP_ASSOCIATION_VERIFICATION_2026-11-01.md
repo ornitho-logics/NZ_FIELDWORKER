@@ -63,7 +63,7 @@ count projections. The assertions were retained, the helper repaired, and all
 fixtures then passed without changing production SQL or expected counts.
 The successful install/refresh evidence from that first run remains valid for
 the SQL hashes above; the failed fixture result is not represented as a pass.
-Private run evidence is retained locally under ignored `.ai/local/`.
+Private run evidence is retained locally under ignored `ai/local/`.
 
 The subsequent manual v2.4.17 text/HTML update is documentation only and is
 checked separately; it does not replace the SQL run's source identities.

@@ -238,8 +238,8 @@ Shiny wiring, PDF/map/list helpers, template, help text, and focused tests.
 
 Updated:
 
-- `.ai/codex_proposals/THREAD4_TODO_MAP_LIST_DEBUG_PLAN.md`
-- `.ai/codex_logs/THREAD4_PROMPT_LOG.md`
+- `ai/codex_proposals/THREAD4_TODO_MAP_LIST_DEBUG_PLAN.md`
+- `ai/codex_logs/THREAD4_PROMPT_LOG.md`
 
 The refreshed memo documents the current five-source hatch hierarchy, positive
 and negative brood behavior, parent capture/resight/MM rules, hiding-photo ring

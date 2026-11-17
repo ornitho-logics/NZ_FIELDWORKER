@@ -87,13 +87,13 @@ test_that("AI disclosure links public evidence and states its privacy boundaries
   expect_match(section, "**Open Field Manual in a separate window** above the manual", fixed = TRUE)
   expect_match(html, "<strong>Open Field Manual in a separate window</strong> above the manual", fixed = TRUE)
   urls <- c(
-    "https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/.ai/CODEX_USAGE_TRANSPARENCY.md",
+    "https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/ai/CODEX_USAGE_TRANSPARENCY.md",
     "https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/AGENTS.md",
-    "https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/.ai/codex_logs/INDEX.md",
-    "https://github.com/ornitho-logics/NZ_FIELDWORKER/tree/main/.ai/codex_proposals",
-    "https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/.ai/codex_proposals/THREAD3_VALIDATION_ARCHITECTURE.md#mock-data-and-tests",
-    "https://github.com/ornitho-logics/NZ_FIELDWORKER/tree/main/.ai/codex_proposals/validator_sandbox/inspector_lists_by_table",
-    "https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/.ai/codex_proposals/THREAD4_TODO_MAP_LIST_DEBUG_PLAN.md",
+    "https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/ai/codex_logs/INDEX.md",
+    "https://github.com/ornitho-logics/NZ_FIELDWORKER/tree/main/ai/codex_proposals",
+    "https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/ai/codex_proposals/THREAD3_VALIDATION_ARCHITECTURE.md#mock-data-and-tests",
+    "https://github.com/ornitho-logics/NZ_FIELDWORKER/tree/main/ai/codex_proposals/validator_sandbox/inspector_lists_by_table",
+    "https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/ai/codex_proposals/THREAD4_TODO_MAP_LIST_DEBUG_PLAN.md",
     "https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/1559b166e77d177fe01e278e1b112d912f032b1a/docs/reconstruction/README.md",
     "https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/1559b166e77d177fe01e278e1b112d912f032b1a/tools/reconstruction/fixtures.sql"
   )
@@ -307,7 +307,7 @@ test_that("manual archive members match the preserved manifest and reconstructio
     # AI-folder link relocation and the resulting translation/render digests.
     expected <- readLines(path, warn = FALSE, encoding = "UTF-8")
     for (prefix in c("codex_proposals", "codex_logs", "CODEX_USAGE_TRANSPARENCY.md")) {
-      expected <- gsub(paste0("notes/", prefix), paste0(".ai/", prefix), expected, fixed = TRUE)
+      expected <- gsub(paste0("notes/", prefix), paste0("ai/", prefix), expected, fixed = TRUE)
     }
     for (source in c("manual.md", "manual-de.md", "core-guide.md", "core-guide-de.md")) {
       archived_source <- file.path(manual_archive, "readers", source)

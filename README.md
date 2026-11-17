@@ -84,12 +84,12 @@ shiny::runApp("./main", launch.browser = TRUE)
   for database maintainers.
 * [Reconstruction guide](docs/reconstruction/README.md): setup, verification
   and a step-by-step agent recipe for adapting the project to another study.
-* [Developer guide](.ai/codex_proposals/THREAD1_REPOSITORY_MAP.md): repository
+* [Developer guide](ai/codex_proposals/THREAD1_REPOSITORY_MAP.md): repository
   map and links to the specialist handoffs.
-* [Contribution and safety rules](.ai/AGENTS.md): read before using an AI assistant
+* [Contribution and safety rules](ai/AGENTS.md): read before using an AI assistant
   or changing database-facing code. Live changes remain human-controlled.
-* [AI-use transparency](.ai/CODEX_USAGE_TRANSPARENCY.md) and
-  [decision summaries](.ai/codex_logs/INDEX.md): how AI assisted development
+* [AI-use transparency](ai/CODEX_USAGE_TRANSPARENCY.md) and
+  [decision summaries](ai/codex_logs/INDEX.md): how AI assisted development
   and how confidentiality and human review are handled. The public repository
   documents the software; confidential field data and credentials are not
   published here.

@@ -11,7 +11,7 @@ rows, bird/ring/tag/nest identities, private rollout rankings, or GPS data.
 
 The summaries are chronology aids. They are not source authority, biological
 data, or evidence of deployment. Read `AGENTS.md`,
-`.ai/CODEX_USAGE_TRANSPARENCY.md`, and the owning specialist handoff first.
+`ai/CODEX_USAGE_TRANSPARENCY.md`, and the owning specialist handoff first.
 
 ## Confidence labels
 
@@ -80,7 +80,7 @@ deployment.
 ## Restart reading order
 
 1. `AGENTS.md` and the current Git status/revision.
-2. `.ai/CODEX_USAGE_TRANSPARENCY.md`.
+2. `ai/CODEX_USAGE_TRANSPARENCY.md`.
 3. `THREAD1_REPOSITORY_MAP.md`.
 4. The owning specialist handoff and current source/tests.
 5. The relevant sanitized prompt summary for chronology only.

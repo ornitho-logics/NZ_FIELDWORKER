@@ -156,7 +156,7 @@ See `--help` and acceptance.json. Missing tools produce NOT RUN,
 not a silently green full acceptance result. Only the selected focused tests
 run; the app and its ordinary full test entrypoint are never started.
 
-Reports and server files go to a new ignored `.ai/local/` directory. Server
+Reports and server files go to a new ignored `ai/local/` directory. Server
 shutdown is owned by the runner; artifacts remain available. No full field dump,
 production credentials, network connection, real map, or external historical
 database is needed. The small archive tables in fixtures are structural mocks.

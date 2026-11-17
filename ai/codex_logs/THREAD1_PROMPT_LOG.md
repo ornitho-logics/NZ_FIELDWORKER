@@ -39,7 +39,7 @@ Reconstruction status:
 Primary sources:
 
 - current visible Codex conversation history in this thread
-- [THREAD1_REPOSITORY_MAP.md](/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/.ai/codex_proposals/THREAD1_REPOSITORY_MAP.md)
+- [THREAD1_REPOSITORY_MAP.md](/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/ai/codex_proposals/THREAD1_REPOSITORY_MAP.md)
 - current local `AGENTS.md`
 - repo-visible consequences of earlier Thread 1 guidance
 
@@ -50,7 +50,7 @@ Primary sources:
    Main output: initial repository map for `main/`, `DataEntry/`, `gpxui/`, schema, validators, GPS, and to-do logic.
 
 2. `Exact`
-   Prompt: "THREAD 1 — Save repository map proposal ... save that same repository map to .ai/codex_proposals/THREAD1_REPOSITORY_MAP.md."
+   Prompt: "THREAD 1 — Save repository map proposal ... save that same repository map to ai/codex_proposals/THREAD1_REPOSITORY_MAP.md."
    Main output: first ignored local Thread 1 map file.
 
 3. `Exact`
@@ -156,7 +156,7 @@ Primary sources:
 
 23. `Exact`
     Prompt: "create the initial local-only logging structure, and do what you can to document all the prompts up until now (structure it according to THREAD/agent)"
-    Main output: creation of `.ai/codex_logs/` plus reconstructed prompt logs.
+    Main output: creation of `ai/codex_logs/` plus reconstructed prompt logs.
 
 24. `Exact`
     Prompt: "Please provide me a detailed prompt that I can submit to each agent in the project that asks them to add all my prompts to the respective LOG in the codex_logs folder. Please also ask them to add a summary to the log of the milestones reached through the prompt history."
@@ -206,11 +206,11 @@ Primary sources:
 
 ## Milestones reached through prompt history
 
-- Initial Thread 1 repository cartography was completed and then saved locally to `.ai/codex_proposals/THREAD1_REPOSITORY_MAP.md`.
+- Initial Thread 1 repository cartography was completed and then saved locally to `ai/codex_proposals/THREAD1_REPOSITORY_MAP.md`.
 - Thread 1 repeatedly refreshed the repository map after multiple `origin/main` syncs and local `cass_prep` changes.
 - The current repo-wide governance file `AGENTS.md` was revised from Thread 1 analysis and now documents the `cass_prep` branch as Luke’s Codex-integrated branch.
 - The `cass_prep -> main` clean-PR workflow was documented so `AGENTS.md` can remain on `cass_prep` without being pushed upstream accidentally.
-- Local prompt logging was initialized under `.ai/codex_logs/`.
+- Local prompt logging was initialized under `ai/codex_logs/`.
 - Thread 1 documented the current schema facts that matter across threads:
   `DATABASE/` is canonical
   `observer_upload` is CAPTURES-only
@@ -234,8 +234,8 @@ Primary sources:
 
 - Thread 1 now spans classic repository cartography, branch/governance support, and repo-surface routing advice.
 - The most important current Thread 1 local outputs are:
-  [THREAD1_REPOSITORY_MAP.md](/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/.ai/codex_proposals/THREAD1_REPOSITORY_MAP.md)
-  [THREAD1_PROMPT_LOG.md](/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/.ai/codex_logs/THREAD1_PROMPT_LOG.md)
+  [THREAD1_REPOSITORY_MAP.md](/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/ai/codex_proposals/THREAD1_REPOSITORY_MAP.md)
+  [THREAD1_PROMPT_LOG.md](/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/ai/codex_logs/THREAD1_PROMPT_LOG.md)
 - When new Thread 1 work happens, update both the repo map and this prompt log together if the work changes branch-state interpretation, repo structure understanding, or Thread 1 governance assumptions.
 
 ## Exact Prompt Entry: 2026-10-23 Repository-wide recovery/documentation pass
@@ -294,7 +294,7 @@ credentials, coordinates, or private overrides.
   3.1, and 4. It explicitly requires distinguishing agreed protocol,
   implementation, local mock state, and live deployment.
 - Main output: updated `AGENTS.md`,
-  `.ai/codex_proposals/THREAD1_REPOSITORY_MAP.md`, and this ignored prompt
+  `ai/codex_proposals/THREAD1_REPOSITORY_MAP.md`, and this ignored prompt
   log only. No SQL, validator, app, test, database, or live-data changes were
   made by Thread 1. Existing uncommitted source/test changes from Threads 2 and
   4 were inspected and documented, not staged or reverted.
@@ -343,7 +343,7 @@ credentials, coordinates, or private overrides.
   PDF map and summary retention, direct chick-location precedence, chick-band
   colour selection, tests, and cross-thread responsibilities.
 - Main output: updated `AGENTS.md`,
-  `.ai/codex_proposals/THREAD1_REPOSITORY_MAP.md`, and this ignored log only.
+  `ai/codex_proposals/THREAD1_REPOSITORY_MAP.md`, and this ignored log only.
   The local implementation is documented as complete and user-approved, while
   commit, push, PR review/merge, target-database deployment, live inspector/view
   state, and running-app verification remain outstanding. No database, live
@@ -359,7 +359,7 @@ credentials, coordinates, or private overrides.
   requirements, per-chick event/photo/GPS entry, separate CAPTURES tent photos,
   `RESIGHTINGS_PUBLIC` stability, and cross-thread ownership.
 - Main output: updated `AGENTS.md`,
-  `.ai/codex_proposals/THREAD1_REPOSITORY_MAP.md`, and this ignored log only.
+  `ai/codex_proposals/THREAD1_REPOSITORY_MAP.md`, and this ignored log only.
   The documentation records protocol version 1.2.1, `RES_010`, the focused ring
   regression test, and the distinction between local approved implementation,
   uncommitted source changes, and undeployed/unverified live database state.
@@ -374,7 +374,7 @@ credentials, coordinates, or private overrides.
   and Thread 3.1 completed it successfully. Replace stale delivery-gap and
   replacement-specialist wording while preserving the protocol, protected WIP,
   and live-deployment caveats.
-- Main output: updated `THREAD1_REPOSITORY_MAP.md`, `.ai/codex_logs/INDEX.md`,
+- Main output: updated `THREAD1_REPOSITORY_MAP.md`, `ai/codex_logs/INDEX.md`,
   and this log. The final status records the earlier empty-tool-result issue as
   a resolved historical coordination incident, confirms that the authoritative
   protocol remains v1.3.4, and states that the finalized documentation is ready

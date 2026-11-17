@@ -130,9 +130,9 @@ anything:
 2. The official validator YAML:
    `/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/bdot_db/data/working/bdot_dataentry_validator_protocol.yaml`
 3. The synchronized local protocol mirror:
-   `.ai/codex_proposals/validator_sandbox/xlsx_short_tag_update/bdot_dataentry_validator_protocol_plot_aligned.yaml`
+   `ai/codex_proposals/validator_sandbox/xlsx_short_tag_update/bdot_dataentry_validator_protocol_plot_aligned.yaml`
 4. The local paste-ready hard/warning exports under:
-   `.ai/codex_proposals/validator_sandbox/inspector_lists_by_table/`
+   `ai/codex_proposals/validator_sandbox/inspector_lists_by_table/`
 5. Connected mock workbook, CSV exports, repair scripts, focused tests, and reports.
 6. Older prompt logs and planning documents, which explain intent but do not override
    current schema, protocol, or implementation.
@@ -678,7 +678,7 @@ resolution contract should be documented as stricter than H-row save validation.
 
 The connected mock workflow is under:
 
-`.ai/codex_proposals/validator_sandbox/xlsx_short_tag_update/`
+`ai/codex_proposals/validator_sandbox/xlsx_short_tag_update/`
 
 Relevant artifacts include:
 
@@ -730,10 +730,10 @@ rollback by editing biological data or by deleting unrelated SQL/R changes.
 The audit covered:
 
 - `AGENTS.md`, `README.md`, and `main/www/help/intro.html`;
-- `.ai/codex_proposals/THREAD1_REPOSITORY_MAP.md`;
+- `ai/codex_proposals/THREAD1_REPOSITORY_MAP.md`;
   `THREAD2_SCHEMA_REVIEW.md`; `THREAD4_TODO_MAP_LIST_DEBUG_PLAN.md`;
   `GEOLOCATOR_ROLLOUT_PROTOCOL.md` and related logs;
-- this memo and `.ai/codex_logs/THREAD3_PROMPT_LOG.md`;
+- this memo and `ai/codex_logs/THREAD3_PROMPT_LOG.md`;
 - official YAML and local mirror;
 - `DATABASE/main_tables.SQL`, `support_tables.SQL`, `functions.SQL`, and relevant
   `views.SQL` sections;
@@ -861,9 +861,9 @@ Use the following authority order when rebuilding or reviewing this workstream:
 2. The official working protocol YAML at
    `/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/bdot_db/data/working/bdot_dataentry_validator_protocol.yaml`.
 3. The then-byte-identical local protocol mirror at
-   `.ai/codex_proposals/validator_sandbox/xlsx_short_tag_update/bdot_dataentry_validator_protocol_plot_aligned.yaml`.
+   `ai/codex_proposals/validator_sandbox/xlsx_short_tag_update/bdot_dataentry_validator_protocol_plot_aligned.yaml`.
 4. Tracked hard/warning inspector exports under
-   `.ai/codex_proposals/validator_sandbox/inspector_lists_by_table/`.
+   `ai/codex_proposals/validator_sandbox/inspector_lists_by_table/`.
 5. Connected mock fixtures, parser checks, repair scripts, focused tests, and
    reports.
 6. Prompt logs and older handoffs for intent and history only.

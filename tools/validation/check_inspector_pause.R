@@ -77,7 +77,7 @@ nov <- get("add_nov_flags", ns)(data.table::data.table(rowid = 1:2),
 check(all(nov$nov == 0))
 
 # Parse all approved exports without evaluating their real validation code.
-exports <- list.files(".ai/codex_proposals/validator_sandbox/inspector_lists_by_table",
+exports <- list.files("ai/codex_proposals/validator_sandbox/inspector_lists_by_table",
     pattern = "_(hard|warning)\\.R$", full.names = TRUE)
 check(length(exports) == 12L)
 for (path in exports) check(length(parse(file = path)) == 1L)
