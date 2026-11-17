@@ -185,6 +185,7 @@ dashboardPage(
     tags$section(
       id = "pwa_update_notice", class = "pwa-update", hidden = TRUE,
       `aria-label` = "App update",
+      tags$div(class = "pwa-update-icon", `aria-hidden` = "true", icon("download")),
       tags$div(
         class = "pwa-update-copy",
         tags$strong("A new version of Fieldworker is ready"),
