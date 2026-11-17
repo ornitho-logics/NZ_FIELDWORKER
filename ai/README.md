@@ -11,23 +11,10 @@ belong in ignored `ai/local/` or the existing ignored proposal folders. The
 shared `.gitignore` protects these working files in every checkout. Never put
 credentials or confidential field records into tracked files.
 
-The tracked `.gitignore.MV` provides optional additional rules for AI tooling
-state. It is currently activated only in this checkout with:
-
-```sh
-git config --local core.excludesFile "$(pwd)/.gitignore.MV"
-```
-
-Other collaborators do not inherit that Git setting. Shared AI documents remain
-versioned regardless of whether the optional rules are active. To add a newly
-reviewed shared document, update the shared `.gitignore` allowlist for its exact
-path, then stage it explicitly.
-
-To disable the optional checkout-local rules, run:
-
-```sh
-git config --local --unset core.excludesFile
-```
+The shared `.gitignore` also excludes root `.agents/` and `.codex/` tooling
+state. No additional ignore file or checkout-local activation is required.
+To add a newly reviewed shared document, update the shared `.gitignore`
+allowlist for its exact path, then stage it explicitly.
 
 Historical archive manifests retain their original paths for checksum and
 restore compatibility. The empty, environment-managed `.agents/` and `.codex/`

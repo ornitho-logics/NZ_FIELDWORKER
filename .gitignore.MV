@@ -1,6 +1,0 @@
-# Optional checkout-local rules for the project's AI tooling.
-# Shared AI documents live in /ai/ and remain tracked.
-# Drafts, temporary output, and tooling state remain untracked.
-/ai/
-/.agents/
-/.codex/

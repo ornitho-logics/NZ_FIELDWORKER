@@ -33,6 +33,8 @@ ADMIN (link)
 /notes/*
 
 # Consolidated AI working area.
+/.agents/
+/.codex/
 # Track reviewed thread handoffs and inspector lists while keeping other local
 # notes, raw logs, generated previews, and data artifacts ignored.
 !/ai/
