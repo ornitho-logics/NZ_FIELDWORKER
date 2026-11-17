@@ -1,0 +1,5 @@
+# Personal AI workspace rules; activated only by this checkout's Git config.
+# Tracked shared files remain versioned; new personal additions are ignored.
+/.ai/
+/.agents/
+/.codex/

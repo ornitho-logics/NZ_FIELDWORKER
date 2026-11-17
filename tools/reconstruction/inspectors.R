@@ -9,7 +9,7 @@ stopifnot(identical(marker$socket, socket), identical(marker$purpose, "synthetic
 con <- DBI::dbConnect(RMariaDB::MariaDB(), user = "root", host = "localhost", unix.socket = socket, dbname = "FIELD_2026_BADOatNZ")
 tryCatch({
   stopifnot(identical(DBI::dbGetQuery(con, "SELECT token FROM reconstruction_owner")$token, marker$token))
-  files <- list.files(file.path(root, "notes", "codex_proposals", "validator_sandbox", "inspector_lists_by_table"), pattern = "_(hard|warning)[.]R$", full.names = TRUE)
+  files <- list.files(file.path(root, ".ai", "codex_proposals", "validator_sandbox", "inspector_lists_by_table"), pattern = "_(hard|warning)[.]R$", full.names = TRUE)
   stopifnot(length(files) == 12L)
   for (file in files) {
     code <- paste(readLines(file, warn = FALSE), collapse = "\n")

@@ -1,4 +1,4 @@
-<!-- English-source-md5: d46b0def8f3dcea6a4e23517ad8d428f -->
+<!-- English-source-md5: 368cd965c3233ba82f58fbcdfd572303 -->
 
 # BADO-Feldhandbuch 2026
 
@@ -2597,12 +2597,12 @@ Wenn sich die folgenden GitHub-Links in der FIELDWORKER-App nicht öffnen lassen
 
 Für alle, die sich für die Entstehung dieser Arbeit interessieren, macht das Projekt seinen Entwicklungsprozess auf GitHub einsehbar:
 
-- [Überblick über den Einsatz von KI](https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/notes/CODEX_USAGE_TRANSPARENCY.md).
+- [Überblick über den Einsatz von KI](https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/.ai/CODEX_USAGE_TRANSPARENCY.md).
 - [Anweisungen und Sicherheitsregeln für die KI-Assistenten](https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/AGENTS.md).
-- [Zusammenfassungen von Anfragen, Diskussionen, und Entscheidungen](https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/notes/codex_logs/INDEX.md).
-- [Arbeitsnotizen für die verschiedenen Fachaufgaben](https://github.com/ornitho-logics/NZ_FIELDWORKER/tree/main/notes/codex_proposals).
-- [Entwicklung und Prüfung der Dateneingabeprüfungen](https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/notes/codex_proposals/THREAD3_VALIDATION_ARCHITECTURE.md#mock-data-and-tests), zusammen mit den [Prüfungen selbst](https://github.com/ornitho-logics/NZ_FIELDWORKER/tree/main/notes/codex_proposals/validator_sandbox/inspector_lists_by_table).
-- [Entwicklung der To-Do-Listen, Karten, und PDFs](https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/notes/codex_proposals/THREAD4_TODO_MAP_LIST_DEBUG_PLAN.md).
+- [Zusammenfassungen von Anfragen, Diskussionen, und Entscheidungen](https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/.ai/codex_logs/INDEX.md).
+- [Arbeitsnotizen für die verschiedenen Fachaufgaben](https://github.com/ornitho-logics/NZ_FIELDWORKER/tree/main/.ai/codex_proposals).
+- [Entwicklung und Prüfung der Dateneingabeprüfungen](https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/.ai/codex_proposals/THREAD3_VALIDATION_ARCHITECTURE.md#mock-data-and-tests), zusammen mit den [Prüfungen selbst](https://github.com/ornitho-logics/NZ_FIELDWORKER/tree/main/.ai/codex_proposals/validator_sandbox/inspector_lists_by_table).
+- [Entwicklung der To-Do-Listen, Karten, und PDFs](https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/.ai/codex_proposals/THREAD4_TODO_MAP_LIST_DEBUG_PLAN.md).
 - [Anleitung zur Reproduktion des Entwicklungs- und Testprozesses](https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/1559b166e77d177fe01e278e1b112d912f032b1a/docs/reconstruction/README.md), mit [erfundenen Beispieldaten](https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/1559b166e77d177fe01e278e1b112d912f032b1a/tools/reconstruction/fixtures.sql).
 
 Diese Ressourcen erläutern die Arbeit und ihre Grenzen. Sie enthalten geprüfte Notizen und Zusammenfassungen, nicht jedes Gespräch oder jede private Arbeitsdatei.

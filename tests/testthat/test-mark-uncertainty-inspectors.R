@@ -2,7 +2,7 @@ library(testthat)
 library(data.table)
 
 mark_uncertainty_resightings_path <- app_file(
-  "notes",
+  ".ai",
   "codex_proposals",
   "validator_sandbox",
   "inspector_lists_by_table",
@@ -10,7 +10,7 @@ mark_uncertainty_resightings_path <- app_file(
 )
 
 mark_uncertainty_warning_path <- app_file(
-  "notes",
+  ".ai",
   "codex_proposals",
   "validator_sandbox",
   "inspector_lists_by_table",
@@ -18,7 +18,7 @@ mark_uncertainty_warning_path <- app_file(
 )
 
 mark_uncertainty_captures_path <- app_file(
-  "notes",
+  ".ai",
   "codex_proposals",
   "validator_sandbox",
   "inspector_lists_by_table",

@@ -127,7 +127,7 @@ R code, database views, or Shiny process is live.
   `origin/main` deliberately does not. Do not describe the dirty worktree as
   the current deployable architecture.
 - This handoff and its sanitized companion
-  `notes/codex_logs/THREAD4_PROMPT_LOG.md` are tracked. Raw transcripts remain
+  `.ai/codex_logs/THREAD4_PROMPT_LOG.md` are tracked. Raw transcripts remain
   ignored.
 
 Status vocabulary used below:
@@ -265,7 +265,7 @@ The refresh inspected:
 - Thread 4 proposal and prompt log.
 - Thread 5 Overview dashboard plan.
 - Thread 6 combo-list protocol.
-- `notes/codex_proposals/GEOLOCATOR_ROLLOUT_PROTOCOL.md`.
+- `.ai/codex_proposals/GEOLOCATOR_ROLLOUT_PROTOCOL.md`.
 - Thread 8 H-event reconciliation and template-distillation notes.
 - `DATABASE/main_tables.SQL`, `DATABASE/functions.SQL`,
   `DATABASE/predict_hatching.SQL`, and `DATABASE/views.SQL`.
@@ -281,7 +281,7 @@ The refresh inspected:
 - `tests/testthat/test-pdf-todo.R`,
   `tests/testthat/test-todo-view-rules.R`,
   `tests/testthat/test-todo-refresh-worker.R`, and the focused map/app tests.
-- `notes/codex_proposals/THREAD9_LOCAL_REPLICA_PROTOCOL.md` for the
+- `.ai/codex_proposals/THREAD9_LOCAL_REPLICA_PROTOCOL.md` for the
   disposable MariaDB replay boundary and its explicit ownership split.
 - The inspected `origin/main` revision and the protected dirty worktree were
   compared separately; neither is silently treated as the other.

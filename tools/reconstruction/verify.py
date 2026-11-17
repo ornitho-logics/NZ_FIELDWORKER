@@ -9,7 +9,7 @@ import subprocess
 ROOT = Path(__file__).resolve().parents[2]
 DOCS = ROOT / "docs/reconstruction"
 PROTECTED = ("main/", "DataEntry/", "gpxui/", "DATABASE/",
-             "notes/codex_proposals/validator_sandbox/")
+             ".ai/codex_proposals/validator_sandbox/")
 STATES = {"PASS", "FAIL", "NOT RUN", "NOT AVAILABLE"}
 
 

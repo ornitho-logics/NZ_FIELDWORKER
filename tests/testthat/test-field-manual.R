@@ -87,13 +87,13 @@ test_that("AI disclosure links public evidence and states its privacy boundaries
   expect_match(section, "**Open Field Manual in a separate window** above the manual", fixed = TRUE)
   expect_match(html, "<strong>Open Field Manual in a separate window</strong> above the manual", fixed = TRUE)
   urls <- c(
-    "https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/notes/CODEX_USAGE_TRANSPARENCY.md",
+    "https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/.ai/CODEX_USAGE_TRANSPARENCY.md",
     "https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/AGENTS.md",
-    "https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/notes/codex_logs/INDEX.md",
-    "https://github.com/ornitho-logics/NZ_FIELDWORKER/tree/main/notes/codex_proposals",
-    "https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/notes/codex_proposals/THREAD3_VALIDATION_ARCHITECTURE.md#mock-data-and-tests",
-    "https://github.com/ornitho-logics/NZ_FIELDWORKER/tree/main/notes/codex_proposals/validator_sandbox/inspector_lists_by_table",
-    "https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/notes/codex_proposals/THREAD4_TODO_MAP_LIST_DEBUG_PLAN.md",
+    "https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/.ai/codex_logs/INDEX.md",
+    "https://github.com/ornitho-logics/NZ_FIELDWORKER/tree/main/.ai/codex_proposals",
+    "https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/.ai/codex_proposals/THREAD3_VALIDATION_ARCHITECTURE.md#mock-data-and-tests",
+    "https://github.com/ornitho-logics/NZ_FIELDWORKER/tree/main/.ai/codex_proposals/validator_sandbox/inspector_lists_by_table",
+    "https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/main/.ai/codex_proposals/THREAD4_TODO_MAP_LIST_DEBUG_PLAN.md",
     "https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/1559b166e77d177fe01e278e1b112d912f032b1a/docs/reconstruction/README.md",
     "https://github.com/ornitho-logics/NZ_FIELDWORKER/blob/1559b166e77d177fe01e278e1b112d912f032b1a/tools/reconstruction/fixtures.sql"
   )
@@ -303,7 +303,18 @@ test_that("manual archive members match the preserved manifest and reconstructio
     expect_identical(unname(tools::md5sum(path)), member$md5)
     restored <- file.path(manual_root, member$original_path)
     expect_true(file.exists(restored))
-    expect_identical(unname(tools::md5sum(restored)), member$md5)
+    # The archive remains immutable. Active copies differ only by the reviewed
+    # AI-folder link relocation and the resulting translation/render digests.
+    expected <- readLines(path, warn = FALSE, encoding = "UTF-8")
+    for (prefix in c("codex_proposals", "codex_logs", "CODEX_USAGE_TRANSPARENCY.md")) {
+      expected <- gsub(paste0("notes/", prefix), paste0(".ai/", prefix), expected, fixed = TRUE)
+    }
+    for (source in c("manual.md", "manual-de.md", "core-guide.md", "core-guide-de.md")) {
+      archived_source <- file.path(manual_archive, "readers", source)
+      expected <- gsub(unname(tools::md5sum(archived_source)),
+                       unname(tools::md5sum(manual_file(source))), expected, fixed = TRUE)
+    }
+    expect_identical(readLines(restored, warn = FALSE, encoding = "UTF-8"), expected)
   }
   rules <- jsonlite::read_json(file.path(manual_root, "docs", "reconstruction", "rules.json"))
   expect_identical(normalizePath(file.path(manual_root, rules$manual)),

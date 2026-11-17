@@ -28,6 +28,7 @@ build_inspector_restore <- function(output) {
     ignored <- system2("git", c("check-ignore", "-q", "--", shQuote(output)))
     if (!identical(ignored, 0L)) stop("Output must be inside a Git-ignored folder.")
     tables <- c("CAPTURES", "EGGS", "NESTS", "OBSERVERS", "RESIGHTINGS", "RESIGHTINGS_PUBLIC")
+    # Historical archive member paths stay unchanged after the .ai/ relocation.
     prefix <- "notes/codex_proposals/validator_sandbox/inspector_lists_by_table"
     expected <- c(file.path(prefix, "FILE_INDEX.txt"),
         as.vector(outer(tables, c("hard.R", "warning.R"),

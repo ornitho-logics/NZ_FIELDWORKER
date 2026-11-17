@@ -69,7 +69,7 @@ The reconstruction harness requires value 0 and, on macOS, creates/detaches its
 own case-sensitive APFS sparse volume. An initial native macOS value-2 bootstrap
 failed on a temporary-table CTE during refresh; it is retained as a failed
 platform control, not resolved by changing reference SQL or skipping that stage.
-The [Thread 9 record](../../notes/codex_proposals/THREAD9_LOCAL_REPLICA_PROTOCOL.md)
+The [Thread 9 record](../../.ai/codex_proposals/THREAD9_LOCAL_REPLICA_PROTOCOL.md)
 distinguishes completed local checks, missing older golden artifacts, and historical
 failures. Stop at a collation/case/install error; a partial build is not publication.
 RDS export requires base tables plus CAPTURES_ARCHIVE; SQL backup needs
@@ -87,7 +87,7 @@ DataEntry validates submitted `x`; each check returns `rowid`, `variable`, `reas
 including zero-row success, and preserves row numbers. Inspectors are `list(...)`
 expressions wrapped in `try_validator`. Track hard/error versus warning behaviour
 separately from post-save QA and mock-generation rules; extra output columns do
-not automatically add UI severity. [Exports](../../notes/codex_proposals/validator_sandbox/inspector_lists_by_table/)
+not automatically add UI severity. [Exports](../../.ai/codex_proposals/validator_sandbox/inspector_lists_by_table/)
 are source artifacts, not proof of installed DB rows or package severity handling.
 
 Address inspector rows by table AND trailing comments role (`hard`/`warn`), verify

@@ -2,7 +2,7 @@ library(testthat)
 library(data.table)
 
 resightings_hard_path <- app_file(
-  "notes",
+  ".ai",
   "codex_proposals",
   "validator_sandbox",
   "inspector_lists_by_table",

@@ -19,7 +19,7 @@ Reconstruction status:
 - current visible Codex conversation history in this thread
 - prior local Thread 5 log content
 - [THREAD5_OVERVIEW_DASHBOARD_PLAN.md](../codex_proposals/THREAD5_OVERVIEW_DASHBOARD_PLAN.md)
-- `notes/codex_proposals/run_fieldworker_full_app_from_latest_sql_dump.R`
+- `.ai/codex_proposals/run_fieldworker_full_app_from_latest_sql_dump.R`
 
 ## Exact Prompt History
 
@@ -261,7 +261,7 @@ Reconstruction status:
     - local ignored script creation was requested for reliable full-app preview
 
 43. `Exact`
-    Prompt excerpt: source error showing `cannot open file 'notes/codex_proposals/run_fieldworker_full_app_from_latest_sql_dump.R': No such file or directory`
+    Prompt excerpt: source error showing `cannot open file '.ai/codex_proposals/run_fieldworker_full_app_from_latest_sql_dump.R': No such file or directory`
     Main result:
     - path / sourcing instructions for the new local script needed clarification
 
@@ -276,7 +276,7 @@ Reconstruction status:
     - preview-side table/view refresh logic needed to match the tracked app’s reactive invalidation behavior
 
 46. `Exact`
-    Prompt excerpt: "Please read the local AGENTS.md first and stay strictly within your current thread role ... Please add all recoverable prompts from your thread to your thread-specific log file in notes/codex_logs/"
+    Prompt excerpt: "Please read the local AGENTS.md first and stay strictly within your current thread role ... Please add all recoverable prompts from your thread to your thread-specific log file in .ai/codex_logs/"
     Main result:
     - this local Thread 5 prompt-history log update was requested
 
@@ -394,7 +394,7 @@ only partially recoverable and are not reproduced here.
 
 1. Overview dashboard architecture pass drafted.
    Artifact:
-   - `notes/codex_proposals/THREAD5_OVERVIEW_DASHBOARD_PLAN.md`
+   - `.ai/codex_proposals/THREAD5_OVERVIEW_DASHBOARD_PLAN.md`
    Status:
    - complete as a first-pass design memo
 
@@ -442,7 +442,7 @@ only partially recoverable and are not reproduced here.
    What was achieved:
    - a reusable local-only full-app preview script was created so Overview work could be tested against the latest SQL dump without changing source DB wiring
    Artifact:
-   - `notes/codex_proposals/run_fieldworker_full_app_from_latest_sql_dump.R`
+   - `.ai/codex_proposals/run_fieldworker_full_app_from_latest_sql_dump.R`
    Status:
    - historically useful, but now stale relative to the current `db_get()`-based Overview code and not the current source of truth
 
@@ -450,7 +450,7 @@ only partially recoverable and are not reproduced here.
    What was achieved:
    - repeated prompt-driven debugging fixed lay-date preview failures, empty `TODO_LIST` output, and stale view updates after `reference_date` changes
    Artifact:
-   - successive local-only fixes inside `notes/codex_proposals/run_fieldworker_full_app_from_latest_sql_dump.R`
+   - successive local-only fixes inside `.ai/codex_proposals/run_fieldworker_full_app_from_latest_sql_dump.R`
    Status:
    - partial historical milestone; the script requires a focused refresh before it can safely mirror all current Overview paths
 
@@ -468,7 +468,7 @@ only partially recoverable and are not reproduced here.
     - obsolete single-panel assumptions were removed
     - the prompt log was extended to include the documentation-refresh request itself
     Artifact:
-    - `notes/codex_proposals/THREAD5_OVERVIEW_DASHBOARD_PLAN.md`
+    - `.ai/codex_proposals/THREAD5_OVERVIEW_DASHBOARD_PLAN.md`
     - this file
    Status:
    - complete
@@ -480,7 +480,7 @@ only partially recoverable and are not reproduced here.
     - the standalone SQL `OVERVIEW` view was confirmed to be separate from dashboard plot calculation
     - the GPS heatmap was confirmed absent and deferred
     Artifact:
-    - `notes/codex_proposals/THREAD5_OVERVIEW_DASHBOARD_PLAN.md`
+    - `.ai/codex_proposals/THREAD5_OVERVIEW_DASHBOARD_PLAN.md`
     - this file
     Status:
     - complete as a static current-state protocol at commit `7c1d502`

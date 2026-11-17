@@ -72,7 +72,7 @@ DDL validation is not SELECT runtime. No repeated field-scale profiling was used
 | Generated manual reader | `36626df995c85ff9fdd00bef59d3e1ec1795c56e6fdaccf353b9d6c532ad0826` |
 | MM/X-X test source | `4d5e8b34bf6145635dd7aaf8e08465cc52b1ae0a54d34a13bf64b8bec37ce31d` |
 
-Ignored synthetic evidence: `tmp/codex/mm-chronology-2026-10-31/run-ccdd2e49cb/`,
+Ignored synthetic evidence: `.ai/local/mm-chronology-2026-10-31/run-ccdd2e49cb/`,
 including report.json, tests.json, stage logs, and all thirteen frozen source hashes.
 The first sandboxed attempt could not create its volume (`Device not configured`)
 and ran no SQL; its failure is preserved separately in run-20c8477934. The approved

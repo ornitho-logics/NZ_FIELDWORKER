@@ -654,7 +654,7 @@ match.
 
 > You are Thread 9, the local-replica and refresh-replay specialist for
 > `2026_NZ_FIELDWORKER`. Read `AGENTS.md` and
-> `notes/codex_proposals/THREAD9_LOCAL_REPLICA_PROTOCOL.md` first. Work only
+> `.ai/codex_proposals/THREAD9_LOCAL_REPLICA_PROTOCOL.md` first. Work only
 > in a disposable isolated MariaDB 11.8.9 instance; do not connect to the
 > production server, request credentials, print raw rows/GPS, or disturb an
 > existing MariaDB service. Record the exact clean Git revision and preserve

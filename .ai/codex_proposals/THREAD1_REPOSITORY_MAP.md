@@ -103,7 +103,7 @@ integration gate must establish agreement after their source changes freeze.
   work reported by Threads 2, 3/3.1, and 4.
 - The current official validator protocol and its synchronized local mirror,
   both reporting protocol version 1.3.4, plus the ignored negative-brood mock
-  fixtures under `notes/codex_proposals/validator_sandbox/`.
+  fixtures under `.ai/codex_proposals/validator_sandbox/`.
 - Relevant ignored validator protocol and inspector-list locations without
   opening mock workbooks or reading record-level CSV data.
 
@@ -121,7 +121,7 @@ remote, PR, or deployment state.
 - `AGENTS.md` is intentionally tracked and included under the user's explicit
   request; it now documents project-wide workflow rather than `cass_prep`-only
   metadata.
-- The six curated handoffs under `notes/codex_proposals/` are now explicitly
+- The six curated handoffs under `.ai/codex_proposals/` are now explicitly
   unignored so future reasoning/logic updates remain reviewable in Git.
 - Raw prompt logs, generated previews, dumps, workbooks, mock data, and other
   proposal artifacts remain ignored.
@@ -153,11 +153,11 @@ remote, PR, or deployment state.
   and table/view browsers.
 - `tests/testthat/`: mocked app wiring, DataEntry server, Overview, view-polling,
   and leaflet tests.
-- `notes/codex_proposals/`: tracked Thread 1-9 handoffs, the reviewed field
+- `.ai/codex_proposals/`: tracked Thread 1-9 handoffs, the reviewed field
   manual, and inspector-list exports, plus ignored private/working artifacts.
-- `notes/codex_logs/`: tracked sanitized prompt/decision summaries; raw prompt
+- `.ai/codex_logs/`: tracked sanitized prompt/decision summaries; raw prompt
   transcripts and private attachments remain local and ignored.
-- `notes/CODEX_USAGE_TRANSPARENCY.md`: tracked explanation of Codex roles,
+- `.ai/CODEX_USAGE_TRANSPARENCY.md`: tracked explanation of Codex roles,
   human-control boundaries, publication scope, and confidentiality exclusions.
 - `tmp/`: ignored local scratch/output area.
 
@@ -487,9 +487,9 @@ Current protocol and local paste-ready locations:
 - Official external protocol:
   `/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/bdot_db/data/working/bdot_dataentry_validator_protocol.yaml`
 - Ignored local protocol mirror:
-  `notes/codex_proposals/validator_sandbox/xlsx_short_tag_update/bdot_dataentry_validator_protocol_plot_aligned.yaml`
+  `.ai/codex_proposals/validator_sandbox/xlsx_short_tag_update/bdot_dataentry_validator_protocol_plot_aligned.yaml`
 - Paste-ready two-list exports:
-  `notes/codex_proposals/validator_sandbox/inspector_lists_by_table/`
+  `.ai/codex_proposals/validator_sandbox/inspector_lists_by_table/`
 
 The local review mirror reports v1.3.14, generated 2026-10-26; the external
 canonical copy reports v1.3.5, generated 2026-10-24. Their contents are separate
@@ -526,7 +526,7 @@ are supporting artifacts, not tracked app code or live validator state.
 - `AVAILABLE_COMBOS` is exposed in `Show Views`; `USED_COMBOS_DETAIL` is not.
 
 The user has reassigned active Thread 6 to combo-list work. `AGENTS.md` and the
-tracked `notes/codex_proposals/THREAD6_COMBO_LIST_PROTOCOL.md` now agree on that
+tracked `.ai/codex_proposals/THREAD6_COMBO_LIST_PROTOCOL.md` now agree on that
 role. The sanitized Thread 6 decision summary is tracked; raw transcripts and
 attachments remain ignored.
 
@@ -800,7 +800,7 @@ runtime package behavior or current database contents.
 
 Start with:
 
-- `notes/codex_proposals/THREAD2_SCHEMA_REVIEW.md` (tracked schema handoff
+- `.ai/codex_proposals/THREAD2_SCHEMA_REVIEW.md` (tracked schema handoff
   refreshed 2026-10-06)
 - `DATABASE/main_tables.SQL`
 - `DATABASE/support_tables.SQL`
@@ -817,10 +817,10 @@ source is approved locally; deployment is not yet established.
 
 Start with:
 
-- `notes/codex_proposals/THREAD3_VALIDATION_ARCHITECTURE.md`
-- `notes/codex_proposals/validator_sandbox/THREAD3_CAPTURES_MOCK_VALIDATOR_PLAN.md`
+- `.ai/codex_proposals/THREAD3_VALIDATION_ARCHITECTURE.md`
+- `.ai/codex_proposals/validator_sandbox/THREAD3_CAPTURES_MOCK_VALIDATOR_PLAN.md`
 - the official external protocol path listed above;
-- `notes/codex_proposals/validator_sandbox/inspector_lists_by_table/`.
+- `.ai/codex_proposals/validator_sandbox/inspector_lists_by_table/`.
 
 Thread 3.1 owns the in-flight v1.3.14 review mirror and its negative-brood mock
 fixtures; the external canonical copy remains a separate v1.3.5 artifact.
@@ -836,7 +836,7 @@ deployment verification.
 Start with the refreshed current-state handoff and then verify against current
 code:
 
-- `notes/codex_proposals/THREAD4_TODO_MAP_LIST_DEBUG_PLAN.md` (negative-brood
+- `.ai/codex_proposals/THREAD4_TODO_MAP_LIST_DEBUG_PLAN.md` (negative-brood
   implementation/deployment review refreshed 2026-09-27)
 - `DATABASE/views.SQL`
 - `main/R/pdf_todo.R`
@@ -844,7 +844,7 @@ code:
 - `main/templates/todo_pdf.qmd`
 - `main/R/leaflet_nest_latest.R`
 - `main/R/kmz_nest_latest.R`
-- `notes/codex_logs/THREAD4_PROMPT_LOG.md` for historical prompt context.
+- `.ai/codex_logs/THREAD4_PROMPT_LOG.md` for historical prompt context.
 
 Thread 4 should treat a linked age-C H-class `RESIGHTINGS` event with a
 normalized nonblank, non-`NA` `ring` as the only hiding-photo completion
@@ -854,15 +854,15 @@ evidence; CAPTURES tent-photo metadata remains a separate event.
 
 Start with:
 
-- `notes/codex_proposals/THREAD5_OVERVIEW_DASHBOARD_PLAN.md`
+- `.ai/codex_proposals/THREAD5_OVERVIEW_DASHBOARD_PLAN.md`
 - `main/R/ggplot_overview.R`
 - `main/ui.R`
 - `main/server.R`
 - `tests/testthat/test-app-wiring.R`
 - `tests/testthat/test-main-server.R`
-- `notes/codex_logs/THREAD5_PROMPT_LOG.md`
-- `notes/codex_proposals/THREAD5_OVERVIEW_CUMULATIVE_RDS_PREVIEW.R`
-- `notes/codex_proposals/run_fieldworker_full_app_from_latest_sql_dump.R`.
+- `.ai/codex_logs/THREAD5_PROMPT_LOG.md`
+- `.ai/codex_proposals/THREAD5_OVERVIEW_CUMULATIVE_RDS_PREVIEW.R`
+- `.ai/codex_proposals/run_fieldworker_full_app_from_latest_sql_dump.R`.
 
 The preview scripts are ignored local tooling and are not source of truth over
 tracked app code.
@@ -871,14 +871,14 @@ tracked app code.
 
 Treat the Thread 6 memo and aligned `AGENTS.md` role as authoritative. Start with:
 
-- `notes/codex_proposals/THREAD6_COMBO_LIST_PROTOCOL.md`
-- `notes/codex_logs/THREAD6_PROMPT_LOG.md`
+- `.ai/codex_proposals/THREAD6_COMBO_LIST_PROTOCOL.md`
+- `.ai/codex_logs/THREAD6_PROMPT_LOG.md`
 - the `USED_COMBOS_DETAIL` and `AVAILABLE_COMBOS` sections of
   `DATABASE/views.SQL`;
 - `DATABASE/functions.SQL`;
 - `main/R/pdf_todo.R::todo_pdf_prepare_team_marks()`;
 - `CAPTURES` input/output mark fields in `DATABASE/main_tables.SQL`;
-- `notes/codex_proposals/validator_sandbox/xlsx_short_tag_update/debug_captures_combo_pool.R`
+- `.ai/codex_proposals/validator_sandbox/xlsx_short_tag_update/debug_captures_combo_pool.R`
   only as ignored mock-workflow context.
 
 ## Recommended next inspections
@@ -1011,8 +1011,8 @@ Tracked review documents:
 - `THREAD1_REPOSITORY_MAP.md` through `THREAD9_LOCAL_REPLICA_PROTOCOL.md`,
   including the sanitized Thread 7 rollout handoff and Thread 8 supporting
   handoffs;
-- `notes/codex_logs/INDEX.md` and sanitized Thread 1-9 decision summaries;
-- `notes/CODEX_USAGE_TRANSPARENCY.md`;
+- `.ai/codex_logs/INDEX.md` and sanitized Thread 1-9 decision summaries;
+- `.ai/CODEX_USAGE_TRANSPARENCY.md`;
 - `validator_sandbox/inspector_lists_by_table/` and its file index.
 
 Ignored/private working artifacts:

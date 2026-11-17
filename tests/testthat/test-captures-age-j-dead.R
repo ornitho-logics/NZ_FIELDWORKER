@@ -5,7 +5,7 @@ testthat::test_that("age-J dead captures use recovered marks and blank release m
   project_root <- normalizePath(file.path(testthat::test_path(), "..", ".."))
   hard_path <- file.path(
     project_root,
-    "notes",
+    ".ai",
     "codex_proposals",
     "validator_sandbox",
     "inspector_lists_by_table",
@@ -13,7 +13,7 @@ testthat::test_that("age-J dead captures use recovered marks and blank release m
   )
   warning_path <- file.path(
     project_root,
-    "notes",
+    ".ai",
     "codex_proposals",
     "validator_sandbox",
     "inspector_lists_by_table",

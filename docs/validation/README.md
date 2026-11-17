@@ -13,8 +13,8 @@ exports and their file index, unchanged from source commit
 
 - [Download the source archive](archives/2026-11-08/inspectors.tar.gz).
 - [Archive and per-file checksums](archives/2026-11-08/manifest.json).
-- [Browse the immutable source snapshot](https://github.com/ornitho-logics/NZ_FIELDWORKER/tree/9574508481a15c5455e94b85259f5da346ca0e6e/notes/codex_proposals/validator_sandbox/inspector_lists_by_table).
-- [Current editable exports](../../notes/codex_proposals/validator_sandbox/inspector_lists_by_table/).
+- [Browse the immutable source snapshot](https://github.com/ornitho-logics/NZ_FIELDWORKER/tree/9574508481a15c5455e94b85259f5da346ca0e6e/.ai/codex_proposals/validator_sandbox/inspector_lists_by_table).
+- [Current editable exports](../../.ai/codex_proposals/validator_sandbox/inspector_lists_by_table/).
 
 Keep the dated archive and manifest unchanged. A future approved revision
 should have its own dated archive. The existing editable exports remain in
@@ -106,7 +106,7 @@ described above, generate a ready-to-review restore script from the repository
 root:
 
 ```sh
-Rscript --vanilla tools/validation/build_inspector_restore.R tmp/codex/validator-restore/restore_inspectors.SQL
+Rscript --vanilla tools/validation/build_inspector_restore.R .ai/local/validator-restore/restore_inspectors.SQL
 ```
 
 The generator requires the project's existing `jsonlite` dependency and either
@@ -180,4 +180,4 @@ connection to the field server is claimed. The SQL follows
 [MariaDB's UPDATE documentation](https://mariadb.com/docs/server/reference/sql-statements/data-manipulation/changing-deleting-data/update)
 and [compound-statement documentation](https://mariadb.com/docs/server/reference/sql-statements/programmatic-compound-statements/using-compound-statements-outside-of-stored-programs).
 Detailed validation authority remains in the
-[validation handoff](../../notes/codex_proposals/THREAD3_VALIDATION_ARCHITECTURE.md).
+[validation handoff](../../.ai/codex_proposals/THREAD3_VALIDATION_ARCHITECTURE.md).

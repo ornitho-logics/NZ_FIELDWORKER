@@ -64,7 +64,7 @@ and refresh branches together; updating one copy may leave outputs inconsistent.
 
 [Entry wrappers](../../DataEntry/CAPTURES/global.R) contain prefilled values,
 dropdowns, and group names. The
-[inspector exports](../../notes/codex_proposals/validator_sandbox/inspector_lists_by_table/)
+[inspector exports](../../.ai/codex_proposals/validator_sandbox/inspector_lists_by_table/)
 contain executable study rules; live DB-stored lists are separately installed.
 Do not treat export filenames as unique database row addresses.
 

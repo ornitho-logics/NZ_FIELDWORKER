@@ -44,12 +44,12 @@ Reconstruction status:
 ## Sources used for reconstruction
 
 - current visible Codex conversation history for Thread 3
-- [THREAD3_VALIDATION_ARCHITECTURE.md](/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/notes/codex_proposals/THREAD3_VALIDATION_ARCHITECTURE.md)
-- [THREAD3_CAPTURES_MOCK_VALIDATOR_PLAN.md](/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/notes/codex_proposals/validator_sandbox/THREAD3_CAPTURES_MOCK_VALIDATOR_PLAN.md)
-- [THREAD3_protocol_inspector_lists_res_cap_pub_obs.R](/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/notes/codex_proposals/validator_sandbox/THREAD3_protocol_inspector_lists_res_cap_pub_obs.R)
-- per-table inspector exports under [inspector_lists_by_table](/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/notes/codex_proposals/validator_sandbox/inspector_lists_by_table)
-- local file index at [FILE_INDEX.txt](/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/notes/codex_proposals/validator_sandbox/inspector_lists_by_table/FILE_INDEX.txt)
-- current local protocol mirror at [bdot_dataentry_validator_protocol_plot_aligned.yaml](/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/notes/codex_proposals/validator_sandbox/xlsx_short_tag_update/bdot_dataentry_validator_protocol_plot_aligned.yaml)
+- [THREAD3_VALIDATION_ARCHITECTURE.md](/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/.ai/codex_proposals/THREAD3_VALIDATION_ARCHITECTURE.md)
+- [THREAD3_CAPTURES_MOCK_VALIDATOR_PLAN.md](/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/.ai/codex_proposals/validator_sandbox/THREAD3_CAPTURES_MOCK_VALIDATOR_PLAN.md)
+- [THREAD3_protocol_inspector_lists_res_cap_pub_obs.R](/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/.ai/codex_proposals/validator_sandbox/THREAD3_protocol_inspector_lists_res_cap_pub_obs.R)
+- per-table inspector exports under [inspector_lists_by_table](/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/.ai/codex_proposals/validator_sandbox/inspector_lists_by_table)
+- local file index at [FILE_INDEX.txt](/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/.ai/codex_proposals/validator_sandbox/inspector_lists_by_table/FILE_INDEX.txt)
+- current local protocol mirror at [bdot_dataentry_validator_protocol_plot_aligned.yaml](/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/.ai/codex_proposals/validator_sandbox/xlsx_short_tag_update/bdot_dataentry_validator_protocol_plot_aligned.yaml)
 
 ## Exact prompt history
 
@@ -358,20 +358,20 @@ Reconstruction status:
 1. `Reconstructed`
    Likely early prompt: inspect and explain the central DB-stored inspector architecture after the project moved away from tracked per-table `inspector.R` files.
    Evidence:
-   - [THREAD3_VALIDATION_ARCHITECTURE.md](/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/notes/codex_proposals/THREAD3_VALIDATION_ARCHITECTURE.md)
+   - [THREAD3_VALIDATION_ARCHITECTURE.md](/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/.ai/codex_proposals/THREAD3_VALIDATION_ARCHITECTURE.md)
    - its emphasis on `inspectors`, `try_validator`, `rowid`, `variable`, `reason`, package-side uncertainty, and repo / package boundaries
 
 2. `Reconstructed`
    Likely early prompt: design the first safe local CAPTURES validator sandbox before touching live inspector rows.
    Evidence:
-   - [THREAD3_CAPTURES_MOCK_VALIDATOR_PLAN.md](/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/notes/codex_proposals/validator_sandbox/THREAD3_CAPTURES_MOCK_VALIDATOR_PLAN.md)
+   - [THREAD3_CAPTURES_MOCK_VALIDATOR_PLAN.md](/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/.ai/codex_proposals/validator_sandbox/THREAD3_CAPTURES_MOCK_VALIDATOR_PLAN.md)
    - that memo’s original focus on mock rows, rowid preservation, zero-row pass cases, and provisional validator categories
 
 3. `Partial`
    Likely prompt family: consolidate protocol-driven lists and by-table inspector exports into a repeatable ignored local workflow for DB paste-testing and mock-workbook regeneration.
    Evidence:
-   - [THREAD3_protocol_inspector_lists_res_cap_pub_obs.R](/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/notes/codex_proposals/validator_sandbox/THREAD3_protocol_inspector_lists_res_cap_pub_obs.R)
-   - `*_hard.R` and `*_warning.R` files under [inspector_lists_by_table](/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/notes/codex_proposals/validator_sandbox/inspector_lists_by_table)
+   - [THREAD3_protocol_inspector_lists_res_cap_pub_obs.R](/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/.ai/codex_proposals/validator_sandbox/THREAD3_protocol_inspector_lists_res_cap_pub_obs.R)
+   - `*_hard.R` and `*_warning.R` files under [inspector_lists_by_table](/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/.ai/codex_proposals/validator_sandbox/inspector_lists_by_table)
    - workbook / CSV repair scripts under `xlsx_short_tag_update/`
 
 ## Inferred task families
@@ -394,7 +394,7 @@ Reconstruction status:
    - repo-visible versus package-side validator responsibilities were mapped
    - the `inspectors` table and `DataEntry/inspectors/` app were established as the live validator path
    Output / artifact:
-   - [THREAD3_VALIDATION_ARCHITECTURE.md](/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/notes/codex_proposals/THREAD3_VALIDATION_ARCHITECTURE.md)
+   - [THREAD3_VALIDATION_ARCHITECTURE.md](/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/.ai/codex_proposals/THREAD3_VALIDATION_ARCHITECTURE.md)
    Status:
    - complete
 
@@ -402,7 +402,7 @@ Reconstruction status:
    What was achieved:
    - a fake-data workflow for testing validator output shape, rowid preservation, and pass / fail cases was formalized
    Output / artifact:
-   - [THREAD3_CAPTURES_MOCK_VALIDATOR_PLAN.md](/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/notes/codex_proposals/validator_sandbox/THREAD3_CAPTURES_MOCK_VALIDATOR_PLAN.md)
+   - [THREAD3_CAPTURES_MOCK_VALIDATOR_PLAN.md](/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/.ai/codex_proposals/validator_sandbox/THREAD3_CAPTURES_MOCK_VALIDATOR_PLAN.md)
    Status:
    - complete, but now mainly historical as a small debug harness
 
@@ -411,7 +411,7 @@ Reconstruction status:
    - validator behavior was re-anchored to the YAML protocol rather than drifting table by table
    Output / artifact:
    - official external protocol in `bdot_db/data/working/`
-   - current local mirror at [bdot_dataentry_validator_protocol_plot_aligned.yaml](/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/notes/codex_proposals/validator_sandbox/xlsx_short_tag_update/bdot_dataentry_validator_protocol_plot_aligned.yaml)
+   - current local mirror at [bdot_dataentry_validator_protocol_plot_aligned.yaml](/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/.ai/codex_proposals/validator_sandbox/xlsx_short_tag_update/bdot_dataentry_validator_protocol_plot_aligned.yaml)
    Status:
    - complete
 
@@ -419,7 +419,7 @@ Reconstruction status:
    What was achieved:
    - live biological data-entry tables were reorganized conceptually around only `TABLE_hard` and `TABLE_warning`
    Output / artifact:
-   - per-table exports under [inspector_lists_by_table](/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/notes/codex_proposals/validator_sandbox/inspector_lists_by_table)
+   - per-table exports under [inspector_lists_by_table](/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/.ai/codex_proposals/validator_sandbox/inspector_lists_by_table)
    Status:
    - complete as local architecture guidance; live DB state still depends on paste-in updates
 
@@ -473,8 +473,8 @@ Reconstruction status:
     What was achieved:
     - the architecture memo, CAPTURES plan, and prompt log now together preserve the validator architecture, workflow, chronology, and major decision changes for a future new validation thread
     Output / artifact:
-    - [THREAD3_VALIDATION_ARCHITECTURE.md](/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/notes/codex_proposals/THREAD3_VALIDATION_ARCHITECTURE.md)
-    - [THREAD3_CAPTURES_MOCK_VALIDATOR_PLAN.md](/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/notes/codex_proposals/validator_sandbox/THREAD3_CAPTURES_MOCK_VALIDATOR_PLAN.md)
+    - [THREAD3_VALIDATION_ARCHITECTURE.md](/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/.ai/codex_proposals/THREAD3_VALIDATION_ARCHITECTURE.md)
+    - [THREAD3_CAPTURES_MOCK_VALIDATOR_PLAN.md](/Users/luketheduke2/ownCloud/kemp_projects/bdot/R_projects/2026_NZ_FIELDWORKER/.ai/codex_proposals/validator_sandbox/THREAD3_CAPTURES_MOCK_VALIDATOR_PLAN.md)
     - this log
     Status:
     - complete for the current local branch state
@@ -750,8 +750,8 @@ rebases, and pull requests.
 
 The authorized documentation targets were only:
 
-- `notes/codex_proposals/THREAD3_VALIDATION_ARCHITECTURE.md`;
-- `notes/codex_logs/THREAD3_PROMPT_LOG.md`; and
+- `.ai/codex_proposals/THREAD3_VALIDATION_ARCHITECTURE.md`;
+- `.ai/codex_logs/THREAD3_PROMPT_LOG.md`; and
 - narrowly supported Thread 3.1 corrections in `AGENTS.md`.
 
 The prompt required inspection of repository state, all current hard/warning
@@ -822,7 +822,7 @@ biological-rule decision.
 ## Replacement Thread 3.2 bootstrap prompt
 
 > Read `AGENTS.md` and
-> `notes/codex_proposals/THREAD3_VALIDATION_ARCHITECTURE.md` in full. Perform
+> `.ai/codex_proposals/THREAD3_VALIDATION_ARCHITECTURE.md` in full. Perform
 > a read-only validation-workstream audit from the current checkout. Preserve
 > all dirty files and do not access live databases, credentials, or DB-managed
 > inspectors. Verify the external protocol version and the tracked local mirror
@@ -909,7 +909,7 @@ pushed, merged, pasted into Adminer, or deployed by this reconciliation.
 ### Updated replacement-thread bootstrap prompt
 
 > Read `AGENTS.md`, this prompt log, and
-> `notes/codex_proposals/THREAD3_VALIDATION_ARCHITECTURE.md` in full. Treat
+> `.ai/codex_proposals/THREAD3_VALIDATION_ARCHITECTURE.md` in full. Treat
 > the local protocol mirror version 1.3.13 as the current reviewed local
 > specification, while verifying whether any external canonical protocol or
 > live inspector deployment has actually changed. Preserve dirty work. Do not

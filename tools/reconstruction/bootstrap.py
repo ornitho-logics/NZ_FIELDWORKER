@@ -23,9 +23,9 @@ SCHEMA = "FIELD_2026_BADOatNZ"
 
 def safe_output(path):
     path = path.resolve()
-    allowed = [ROOT / "tmp/codex", Path(tempfile.gettempdir()).resolve(), Path("/tmp").resolve()]
+    allowed = [ROOT / ".ai/local", Path(tempfile.gettempdir()).resolve(), Path("/tmp").resolve()]
     if path.exists() or not any(base in path.parents for base in allowed):
-        raise ValueError("Output must be a NEW directory below ignored tmp/codex or system temporary storage")
+        raise ValueError("Output must be a NEW directory below ignored .ai/local or system temporary storage")
     return path
 
 
@@ -43,7 +43,7 @@ def socket_options(socket):
 
 def freeze_sources():
     tracked = subprocess.check_output(["git", "ls-files"], cwd=ROOT, text=True).splitlines()
-    sources = [ROOT / p for p in tracked if p.startswith(("main/", "DataEntry/", "gpxui/", "DATABASE/", "tests/", "notes/codex_proposals/validator_sandbox/", "docs/field-manual-archive/", "docs/overview-archive/", "docs/notA-summary-archive/"))]
+    sources = [ROOT / p for p in tracked if p.startswith(("main/", "DataEntry/", "gpxui/", "DATABASE/", "tests/", ".ai/codex_proposals/validator_sandbox/", "docs/field-manual-archive/", "docs/overview-archive/", "docs/notA-summary-archive/"))]
     sources += [p for folder in (TOOLS, DOCS) for p in folder.rglob("*") if p.is_file() and p.suffix in (".py", ".R", ".json", ".sql", ".md") and "__pycache__" not in p.parts]
     return {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(set(sources))}
 
@@ -56,12 +56,12 @@ def pipeline_exit_code(report):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mariadb-bin", type=Path, help="Directory containing MariaDB 11.8.9 client/server/install-db/admin")
-    parser.add_argument("--output", type=Path, help="New artifact directory (default ignored tmp/codex)")
+    parser.add_argument("--output", type=Path, help="New artifact directory (default ignored .ai/local)")
     parser.add_argument("--render", action="store_true", help="Render synthetic PDF after gates; still requires visual review")
     parser.add_argument("--quarto", type=Path, help="Explicit local Quarto executable, never an installer")
     args = parser.parse_args()
     token = uuid.uuid4().hex
-    output = safe_output(args.output or ROOT / "tmp/codex" / ("reconstruction-" + token[:10]))
+    output = safe_output(args.output or ROOT / ".ai/local" / ("reconstruction-" + token[:10]))
     output.mkdir(parents=True)
     specification = read_json(DOCS / "acceptance.json")
     catalog_rules = read_json(DOCS / "rules.json")["rules"]
