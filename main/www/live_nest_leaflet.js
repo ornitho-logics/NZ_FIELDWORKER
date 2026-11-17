@@ -155,7 +155,8 @@ window.liveNestLeafletGpsControl = function(el, x) {
   function locationOptions(watching) {
     return {
       enableHighAccuracy: true,
-      maximumAge: watching ? 2000 : 5000,
+      // Request a fresh fix rather than reusing a cached GPS position.
+      maximumAge: 0,
       timeout: watching ? 15000 : 10000
     };
   }
@@ -311,7 +312,7 @@ window.liveNestLeafletGpsControl = function(el, x) {
 
     if (moveMap || state.following) {
       map.setView(latlng, Math.max(map.getZoom(), 17), {
-        animate: true
+        animate: false
       });
     }
   }
