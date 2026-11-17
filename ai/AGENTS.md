@@ -5,10 +5,10 @@
 The full instructions live in `ai/AGENTS.md`; the root `AGENTS.md` points
 here so agents discover them automatically. Reviewed AI documents remain
 tracked under `ai/` for all project contributors, including those who do not
-use AI. Drafts, temporary output, and tooling state belong in ignored
-`ai/local/` or the existing ignored proposal folders. The shared `.gitignore`
-protects working files and root AI tooling state in every checkout, while
-reviewed shared files remain versioned.
+use AI. The `ai/` directory itself is not ignored. In this checkout, narrow
+rules in `.git/info/exclude` protect `ai/local/`, the existing private working
+folders, and root AI tooling state. Verify that a scratch path is ignored before
+writing there; local exclusions are not inherited by other checkouts.
 
 ## Tracking and authority of this file
 
