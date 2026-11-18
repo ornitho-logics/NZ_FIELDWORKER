@@ -66,23 +66,33 @@ overview_recapture_cohorts_plot <- function(x, refdate = get_reference_date()) {
     sprintf("%d / %d (%.1f%%)", n_recaptured, n_previous, 100 * proportion),
     "No previous captures"
   )]
+  x[, cohort_label := factor(
+    paste(cohort_year, label, sep = "\n"),
+    levels = paste(cohort_year, label, sep = "\n")
+  )]
+  slices <- data.table::rbindlist(list(
+    x[, .(cohort_label, status = "Recaptured", fraction = proportion)],
+    x[, .(cohort_label, status = "Not yet recaptured", fraction = 1 - proportion)]
+  ))
+  # An empty cohort has no pie: its heading explains the missing denominator.
+  slices <- slices[!is.na(fraction)]
+  slices[, status := factor(status, levels = c("Recaptured", "Not yet recaptured"))]
 
-  ggplot(x, aes(x = factor(cohort_year), y = proportion)) +
-    geom_col(width = 0.6, fill = "#3480be", na.rm = TRUE) +
-    geom_text(aes(y = fifelse(is.na(proportion), 0, proportion), label = label),
-              vjust = -0.7, size = 5) +
-    scale_y_continuous(
-      limits = c(0, 1),
-      breaks = seq(0, 1, 0.25),
-      labels = function(value) paste0(round(100 * value), "%"),
-      expand = expansion(mult = c(0, 0.12))
-    ) +
+  ggplot(x) +
+    geom_col(data = slices, aes(x = "", y = fraction, fill = status),
+             width = 1, colour = "white", linewidth = 0.6) +
+    facet_wrap(vars(cohort_label), nrow = 1, drop = FALSE) +
+    coord_polar(theta = "y") +
+    scale_y_continuous(limits = c(0, 1), expand = expansion(mult = 0)) +
+    scale_fill_manual(values = c("Recaptured" = "#3480be",
+                                 "Not yet recaptured" = "#e2e8f0"), drop = FALSE) +
     labs(
-      x = "Previous capture year", y = "Recaptured this year",
+      x = NULL, y = NULL, fill = NULL,
       subtitle = paste("Adult Cass recaptures through", format(as.Date(refdate), "%d %b %Y"))
     ) +
-    theme_bw(base_size = 18) +
-    theme(panel.grid.minor = element_blank())
+    theme_void(base_size = 18) +
+    theme(strip.text = element_text(size = 15, face = "bold"),
+          legend.position = "bottom", legend.text = element_text(size = 13))
 }
 
 

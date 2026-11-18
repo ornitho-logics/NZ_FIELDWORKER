@@ -1,6 +1,7 @@
 # Source definitions only; database reads are replaced with an aggregate mock.
 recapture_cohorts_test_env <- function() {
   env <- new.env(parent = asNamespace("ggplot2"))
+  env$.datatable.aware <- TRUE
   for (name in c("data.table", "as.data.table", "copy", "fifelse", "let")) {
     env[[name]] <- getExportedValue("data.table", name)
   }
@@ -34,7 +35,7 @@ test_that("recapture cohorts query is bounded to two previous years and Cass adu
 })
 
 
-test_that("cohort bars label counts, percentages, zero recaptures, and missing cohorts", {
+test_that("cohort pies label counts, percentages, zero recaptures, and missing cohorts", {
   env <- recapture_cohorts_test_env()
   x <- data.table::data.table(cohort_year = 2024:2025,
                              n_previous = c(20, 10), n_recaptured = c(5, 0))
@@ -43,11 +44,21 @@ test_that("cohort bars label counts, percentages, zero recaptures, and missing c
   expect_equal(plot$data$proportion, c(0.25, 0))
   expect_equal(plot$data$label, c("5 / 20 (25.0%)", "0 / 10 (0.0%)"))
   expect_identical(x, before)
+  slices <- plot$layers[[1]]$data
+  expect_equal(slices$fraction, c(0.25, 0, 0.75, 1))
+  expect_s3_class(plot$coordinates, "CoordPolar")
   expect_silent(ggplot2::ggplot_build(plot))
 
   x[, `:=`(n_previous = 0, n_recaptured = 0)]
   plot <- env$overview_recapture_cohorts_plot(x, as.Date("2026-11-18"))
   expect_true(all(is.na(plot$data$proportion)))
   expect_true(all(plot$data$label == "No previous captures"))
+  expect_equal(nrow(plot$layers[[1]]$data), 0L)
+  expect_silent(ggplot2::ggplot_build(plot))
+
+  x[, `:=`(n_previous = 10, n_recaptured = 10)]
+  plot <- env$overview_recapture_cohorts_plot(x, as.Date("2026-11-18"))
+  expect_equal(plot$layers[[1]]$data$fraction, c(1, 1, 0, 0))
+  expect_true(all(plot$data$label == "10 / 10 (100.0%)"))
   expect_silent(ggplot2::ggplot_build(plot))
 })
