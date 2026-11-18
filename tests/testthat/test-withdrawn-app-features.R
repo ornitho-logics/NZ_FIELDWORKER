@@ -3,7 +3,7 @@ withdrawal_root <- normalizePath(testthat::test_path("..", ".."), mustWork = TRU
 withdrawal_file <- function(...) file.path(withdrawal_root, ...)
 withdrawal_text <- function(...) paste(readLines(withdrawal_file(...), encoding = "UTF-8"), collapse = "\n")
 
-test_that("Luke Overview and Phenology coexist while notA reports stay absent", {
+test_that("Overview consolidates charts while Phenology and notA reports stay absent", {
   ui <- withdrawal_text("main", "ui.R")
   server <- withdrawal_text("main", "server.R")
   expect_silent(parse(withdrawal_file("main", "ui.R")))
@@ -13,21 +13,22 @@ test_that("Luke Overview and Phenology coexist while notA reports stay absent", 
   expect_match(ui, 'tabName = "field_manual"', fixed = TRUE)
   plots <- regmatches(ui, gregexpr('overview_[a-z_]+_show', ui))[[1]]
   expect_setequal(plots, c(
+    "overview_recapture_cohorts_show",
     "overview_quota_show", "overview_lay_date_show", "overview_hatching_forecast_show",
     "overview_nests_show", "overview_cr_combos_show", "overview_geolocator_show",
     "overview_chick_growth_show", "overview_tagged_resightings_show"
   ))
-  expect_length(plots, 8L)
+  expect_length(plots, 9L)
+  expect_false(grepl("overview_recaptures_show", ui, fixed = TRUE))
+  expect_false(grepl("overview_recaptures_show", server, fixed = TRUE))
   for (id in plots) {
     expect_match(server, paste0("output$", id, " <- renderPlot("), fixed = TRUE)
   }
-  expect_match(ui, 'tabName = "phenology"', fixed = TRUE)
-  expect_match(ui, 'plotOutput("phenology_show"', fixed = TRUE)
-  expect_match(withdrawal_text("main", "R", "phenology.R"),
-    'output$phenology_show <- renderPlot', fixed = TRUE)
-  expect_false(grepl("overview_lay_date_show", withdrawal_text("main", "R", "phenology.R")))
+  expect_false(grepl('tabName = "phenology"', ui, fixed = TRUE))
+  expect_false(grepl('plotOutput("phenology_show"', ui, fixed = TRUE))
+  expect_false(file.exists(withdrawal_file("main", "R", "phenology.R")))
   expect_match(ui, 'tabName = "overview"', fixed = TRUE)
-  expect_match(server, "phenology_server(input, output, session, active_refdate)", fixed = TRUE)
+  expect_false(grepl("phenology_server", server, fixed = TRUE))
   expect_match(server, 'dbtable_is_updated(c("CAPTURES", "NESTS"))', fixed = TRUE)
   expect_match(server, "overview_chick_growth_data_version()", fixed = TRUE)
   expect_true(file.exists(withdrawal_file("main", "R", "ggplot_overview.R")))

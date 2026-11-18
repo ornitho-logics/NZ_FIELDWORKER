@@ -128,6 +128,7 @@ test_that("main app UI and entrypoint load", {
   expect_true(is.function(app$env$overview_limp_status))
 
   for (output_id in c(
+    "overview_recapture_cohorts_show",
     "overview_nests_show",
     "overview_geolocator_show",
     "overview_tagged_resightings_show",
@@ -144,11 +145,19 @@ test_that("main app UI and entrypoint load", {
         length(),
       1
     )
+    expect_equal(
+      htmltools::tagQuery(app$ui)$
+        find(glue::glue("#{output_id}"))$
+        closest(".collapsed-card")$
+        length(),
+      1
+    )
   }
 
   expect_contains(app$env$dbtabs_show_views, "OVERVIEW")
-  expect_match(html, 'data-value="phenology"', fixed = TRUE)
-  expect_match(html, 'id="phenology_show"', fixed = TRUE)
+  expect_no_match(html, 'id="overview_recaptures_show"', fixed = TRUE)
+  expect_no_match(html, 'data-value="phenology"', fixed = TRUE)
+  expect_no_match(html, 'id="phenology_show"', fixed = TRUE)
   expect_false("notA_summary" %in% app$env$dbtabs_show_views)
   expect_false("notA_summary" %in% names(app$env$dbtabs_show_view_sources))
   expect_setequal(

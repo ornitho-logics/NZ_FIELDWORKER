@@ -54,7 +54,6 @@ dashboardPage(
       menuItem("Downloads", tabName = "downloads", icon = icon("download")),
       menuItem("Intro", tabName = "intro", icon = icon("circle-info")),
       menuItem("Overview", tabName = "overview", icon = icon("circle-play")),
-      menuItem("Phenology", tabName = "phenology", icon = icon("chart-line")),
       menuItem("GPS", tabName = "gps", icon = icon("location-arrow")),
       menuItem("Enter Data", tabName = "enter_data", icon = icon("edit")),
       menuItem("Show tables", tabName = "show_tables", icon = icon("table")),
@@ -178,6 +177,7 @@ dashboardPage(
     includeCSS("./www/style.css"),
     includeScript("./www/reference_date.js"),
     includeScript("./www/download_feedback.js"),
+    includeScript("./www/overview_boxes.js"),
     includeScript("./www/live_nest_leaflet.js"),
     includeScript("./www/field_resightings_location.js"),
     includeScript("./www/pwa_install.js"),
@@ -310,17 +310,17 @@ dashboardPage(
       tabItem(
         tabName = "overview",
         bs4Dash::box(
-          title = "Cass: Recaptures of birds captured in previous years",
+          title = "Cass: Adults recaptured from the previous two years",
           width = 12,
           collapsible = TRUE,
-          collapsed = FALSE,
-          spinner(plotOutput("overview_recaptures_show", height = "65vh"))
+          collapsed = TRUE,
+          spinner(plotOutput("overview_recapture_cohorts_show", height = "55vh"))
         ),
         bs4Dash::box(
           title = "Current quotas for manipulations (Cass and elsewhere in NZ).",
           width = 12,
           collapsible = TRUE,
-          collapsed = FALSE,
+          collapsed = TRUE,
           height = "40vh",
           style = "overflow: hidden;",
           spinner(
@@ -334,7 +334,7 @@ dashboardPage(
           title = "Cass: lay date phenology",
           width = 12,
           collapsible = TRUE,
-          collapsed = FALSE,
+          collapsed = TRUE,
           height = "50vh",
           style = "overflow: hidden;",
           spinner(
@@ -347,7 +347,7 @@ dashboardPage(
           title = "Cass: Hatching Forecast",
           width = 12,
           collapsible = TRUE,
-          collapsed = FALSE,
+          collapsed = TRUE,
           height = "50vh",
           style = "overflow: hidden;",
           spinner(
@@ -360,7 +360,7 @@ dashboardPage(
           title = "Cass: Seasonal progression in nest discovery",
           width = 12,
           collapsible = TRUE,
-          collapsed = FALSE,
+          collapsed = TRUE,
           height = "50vh",
           style = "overflow: hidden;",
           spinner(
@@ -373,7 +373,7 @@ dashboardPage(
           title = "Cass: Seasonal progression in unique band combinations encountered (resighted or captured)",
           width = 12,
           collapsible = TRUE,
-          collapsed = FALSE,
+          collapsed = TRUE,
           height = "50vh",
           style = "overflow: hidden;",
           spinner(
@@ -386,7 +386,7 @@ dashboardPage(
           title = "Cass: Seasonal progression in geolocator deployments",
           width = 12,
           collapsible = TRUE,
-          collapsed = FALSE,
+          collapsed = TRUE,
           height = "50vh",
           style = "overflow: hidden;",
           spinner(
@@ -399,7 +399,7 @@ dashboardPage(
           title = "Cass: Chick growth trends",
           width = 12,
           collapsible = TRUE,
-          collapsed = FALSE,
+          collapsed = TRUE,
           height = "55vh",
           style = "overflow: hidden;",
           spinner(
@@ -413,24 +413,13 @@ dashboardPage(
           title = "Cass: Resighting histories of geolocator-tagged birds",
           width = 12,
           collapsible = TRUE,
-          collapsed = FALSE,
+          collapsed = TRUE,
           spinner(
             plotOutput(
               "overview_tagged_resightings_show",
               height = "105vh"
             )
           )
-        )
-      ),
-
-      # Phenology tab
-      tabItem(
-        tabName = "phenology",
-        bs4Dash::box(
-          title = "Cass River phenology",
-          width = 12,
-          collapsible = FALSE,
-          spinner(plotOutput("phenology_show", height = "85vh"))
         )
       ),
 

@@ -116,6 +116,31 @@ body {
   letter-spacing: 0.01em;
 }
 
+.overview-graph-header {
+  cursor: pointer;
+}
+
+.overview-graph-header:hover {
+  background: rgba(226, 232, 240, 0.9);
+}
+
+.overview-graph-header .card-title {
+  padding-right: 3rem;
+}
+
+.overview-graph-header .card-tools {
+  position: absolute;
+  top: 50%;
+  right: 0.5rem;
+  transform: translateY(-50%);
+}
+
+.overview-graph-header [data-card-widget="collapse"] {
+  min-width: 44px;
+  min-height: 44px;
+  font-size: 1.15rem;
+}
+
 .list-group-flush .list-group-item {
   position: relative;
   margin-bottom: 0.8rem;

@@ -38,7 +38,6 @@ function(input, output, session) {
 
   field_resightings_server(input, output, active_refdate)
   data_issues_server(input, output, session)
-  phenology_server(input, output, session, active_refdate)
 
   overview_plot_date_limits <- reactive({
     overview_date_limits(active_refdate())
@@ -48,6 +47,10 @@ function(input, output, session) {
     5000,
     session = session,
     checkFunc = function() {
+      # Skip Overview-specific database polling while this plot is hidden.
+      if (!isFALSE(session$clientData$output_overview_chick_growth_show_hidden)) {
+        return(NULL)
+      }
       dbtable_is_updated(c("CAPTURES", "NESTS"))
     },
     valueFunc = function() {
@@ -358,11 +361,11 @@ function(input, output, session) {
     )
   })
 
-  output$overview_recaptures_show <- renderPlot({
+  output$overview_recapture_cohorts_show <- renderPlot({
     try_else(
-      overview_recaptures_graph(active_refdate()),
+      overview_recapture_cohorts_graph(active_refdate()),
       fallback_ggplot,
-      fail = 'overview_recaptures_graph() failed!'
+      fail = 'overview_recapture_cohorts_graph() failed!'
     )
   })
 
@@ -462,6 +465,22 @@ function(input, output, session) {
       )
     }
   )
+
+  # Collapsed boxes hide their outputs. Suspend plotting (and its queries)
+  # until a box is opened, including after reference-date changes.
+  for (output_id in c(
+    "overview_recapture_cohorts_show",
+    "overview_quota_show",
+    "overview_lay_date_show",
+    "overview_hatching_forecast_show",
+    "overview_nests_show",
+    "overview_cr_combos_show",
+    "overview_geolocator_show",
+    "overview_chick_growth_show",
+    "overview_tagged_resightings_show"
+  )) {
+    outputOptions(output, output_id, suspendWhenHidden = TRUE)
+  }
 
   output$new_data <- renderUI({
     entry_classes <- fifelse(
