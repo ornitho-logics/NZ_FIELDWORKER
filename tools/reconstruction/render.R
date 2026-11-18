@@ -16,7 +16,7 @@ con <- DBI::dbConnect(RMariaDB::MariaDB(), user = "root", host = "localhost", un
 stopifnot(identical(DBI::dbGetQuery(con, "SELECT token FROM reconstruction_owner")$token, marker$token))
 DBq <- function(sql, ...) as.data.table(DBI::dbGetQuery(con, sql))
 get_reference_date <- function() as.Date(DBI::dbGetQuery(con, "SELECT value FROM settings WHERE variable='reference_date'")$value[[1L]])
-git_version <- list(id="SYNTHETIC-9e010e5", local=TRUE, dirty=FALSE)
+app_version <- "synthetic"
 preferred_timezone <- "Pacific/Auckland"
 for (file in c("display_nest_ids.R", "pdf_todo_map.R", "pdf_todo.R")) {
   sys.source(file.path(root, "main", "R", file), envir = .GlobalEnv)

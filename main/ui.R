@@ -1,14 +1,3 @@
-test_results <- read.csv("../tests/test-results.csv")
-tests_ok <- test_results$failed[1] == 0
-
-app_test_status <- list(
-  text = glue::glue("{test_results$passed[1]} tests passed"),
-  badge = glue::glue("{test_results$failed[1]} failed"),
-  badge_color = if (tests_ok) "success" else "danger",
-  icon = if (tests_ok) "circle-check" else "circle-xmark",
-  icon_color = if (tests_ok) "#00815f" else "#d70427"
-)
-
 dashboardPage(
   scrollToTop = TRUE,
   dark = NULL,
@@ -20,7 +9,6 @@ dashboardPage(
     color = "#f8fafc"
   ),
 
-  # Build identity comes from the deployment stamp, never the public Git ref.
   title = "FIELDWORKER",
 
   header = dashboardHeader(
@@ -74,17 +62,8 @@ dashboardPage(
       hr(),
 
       menuItem(
-        text = uiOutput("git_version_label", inline = TRUE),
-        icon = icon("code-branch", style = "color: gray;")
-      ),
-      menuItem(
-        text = app_test_status$text,
-        icon = icon(
-          app_test_status$icon,
-          style = glue("color: {app_test_status$icon_color};")
-        ),
-        badgeLabel = app_test_status$badge,
-        badgeColor = app_test_status$badge_color
+        text = tags$span(id = "app_version_label", paste("Version", app_version)),
+        icon = icon("circle-info", style = "color: gray;")
       )
     )
   ),
@@ -167,7 +146,7 @@ dashboardPage(
   body = dashboardBody(
     tags$head(
       tags$link(rel = "manifest", href = "manifest.webmanifest"),
-      tags$meta(name = "fieldworker-build", content = git_version$build_id),
+      tags$meta(name = "fieldworker-build", content = pwa_build_id),
       tags$meta(name = "theme-color", content = "#2f6fa3"),
       tags$meta(name = "mobile-web-app-capable", content = "yes"),
       tags$meta(name = "apple-mobile-web-app-capable", content = "yes"),

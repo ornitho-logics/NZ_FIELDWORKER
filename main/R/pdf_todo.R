@@ -403,27 +403,8 @@ todo_pdf_query_tasks <- function() {
 }
 
 
-todo_pdf_version_footer <- function(version = NULL) {
-  if (is.null(version)) {
-    version <- get0("git_version", ifnotfound = NULL, inherits = TRUE)
-  }
-  if (is.null(version) || !is.list(version)) {
-    version <- list(id = "unknown")
-  }
-
-  commit_id <- version$id
-  if (is.null(commit_id) || !length(commit_id) || is.na(commit_id[[1L]])) {
-    commit_id <- "unknown"
-  } else {
-    commit_id <- as.character(commit_id[[1L]])
-  }
-
-  if (isTRUE(version$local)) {
-    dirty_suffix <- if (isTRUE(version$dirty)) "-dirty" else ""
-    return(glue("version local-{commit_id}{dirty_suffix}"))
-  }
-
-  glue("version {commit_id}")
+todo_pdf_version_footer <- function(version = app_version) {
+  paste("version", version)
 }
 
 

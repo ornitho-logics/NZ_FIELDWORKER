@@ -1,17 +1,4 @@
 function(input, output, session) {
-  output$git_version_label <- renderUI({
-    version = git_version
-
-    tags$a(
-      id = "git_version_label",
-      href = git_commit_url_for_version(version),
-      target = "_blank",
-      rel = "noopener noreferrer",
-      title = paste("Running build:", version$build_id, "| revision:", version$id),
-      git_version_label_text(version)
-    )
-  })
-
   reference_date <- reactiveVal(get_reference_date())
   pending_refdate <- reactiveVal(NULL)
   todo_refresh_job <- reactiveVal(NULL)

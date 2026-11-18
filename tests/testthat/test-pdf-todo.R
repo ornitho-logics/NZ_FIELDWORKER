@@ -914,13 +914,8 @@ test_that("terminal hatched broods use unique age-C captures", {
 
 test_that("PDF includes the main-version footer", {
   app <- load_main_app()
-  version <- list(
-    id = "abcdef1",
-    source = "env:FIELDWORKER_GIT_ID",
-    local = FALSE,
-    dirty = FALSE
-  )
-  app$env$git_version <- version
+  version <- "1.2.3"
+  app$env$app_version <- version
   qmd <- app$env$todo_pdf_qmd(
     pdf = list(
       title = "Cass To-Dos for 2026-09-30",
@@ -935,7 +930,7 @@ test_that("PDF includes the main-version footer", {
 
   expect_equal(
     app$env$todo_pdf_version_footer(version),
-    "version abcdef1"
+    "version 1.2.3"
   )
   expect_true(grepl("#set page(header:", qmd_text, fixed = TRUE))
   expect_true(grepl("Cass To-Dos for 2026-09-30", qmd_text, fixed = TRUE))
@@ -947,7 +942,7 @@ test_that("PDF includes the main-version footer", {
   expect_false(grepl('title: "Cass To-Dos for 2026-09-30"', qmd_text, fixed = TRUE))
   expect_true(grepl("#set page(footer:", qmd_text, fixed = TRUE))
   expect_true(grepl(
-    "version abcdef1",
+    "version 1.2.3",
     qmd_text,
     fixed = TRUE
   ))
@@ -963,39 +958,6 @@ test_that("PDF includes the main-version footer", {
   ))
   expect_false(grepl("CEST", qmd_text, fixed = TRUE))
   expect_false(grepl("commit time", qmd_text, fixed = TRUE))
-})
-
-
-test_that("local PDF footers identify the local commit and dirty state", {
-  app <- load_main_app()
-
-  expect_equal(
-    app$env$todo_pdf_version_footer(list(
-      id = "abcdef1",
-      source = "git:HEAD-working-tree",
-      local = TRUE,
-      dirty = TRUE
-    )),
-    "version local-abcdef1-dirty"
-  )
-  expect_equal(
-    app$env$todo_pdf_version_footer(list(
-      id = "abcdef1",
-      source = "git:HEAD",
-      local = TRUE,
-      dirty = FALSE
-    )),
-    "version local-abcdef1"
-  )
-  expect_equal(
-    app$env$todo_pdf_version_footer(list(
-      id = "abcdef1",
-      source = "env:FIELDWORKER_GIT_ID",
-      local = FALSE,
-      dirty = FALSE
-    )),
-    "version abcdef1"
-  )
 })
 
 

@@ -58,33 +58,11 @@ test_that("main app UI and entrypoint load", {
   expect_identical(names(formals(app$server)), c("input", "output", "session"))
   expect_identical(app$env$group, "nz_fieldworker")
   expect_identical(app$env$preferred_timezone, "Pacific/Auckland")
-  expect_identical(app$env$git_id, app$env$git_version$id)
-  expect_true(nzchar(app$env$git_id))
-  expect_true(app$env$git_version$source %in%
-    c("deployment:build.json", "git:HEAD-working-tree", "unavailable"))
-  expect_identical(
-    app$env$git_local_head_id(app_file("main")),
-    app$env$normalize_git_id(
-      app$env$git_output(
-        app_file("main"),
-        c("rev-parse", "--short=7", "HEAD")
-      )
-    )
-  )
-
   expect_match(html, "FIELDWORKER", fixed = TRUE)
-  expect_match(html, 'id="git_version_label"', fixed = TRUE)
-  expect_equal(
-    app$env$git_version_label_text(list(
-      id = "abcdef1",
-      local = TRUE
-    )),
-    "local-abcdef1"
-  )
-  expect_equal(
-    app$env$git_commit_url_for_version(list(id = "abcdef1")),
-    "https://github.com/ornitho-logics/NZ_FIELDWORKER/commit/abcdef1"
-  )
+  expect_match(html, 'id="app_version_label"', fixed = TRUE)
+  expect_match(app$env$app_version, "^[0-9]+\\.[0-9]+\\.[0-9]+$")
+  expect_match(html, paste("Version", app$env$app_version), fixed = TRUE)
+  expect_no_match(html, 'id="git_version_label"', fixed = TRUE)
   expect_match(html, 'data-value="downloads"', fixed = TRUE)
   expect_match(html, 'data-value="enter_data"', fixed = TRUE)
   expect_match(html, 'data-value="nest_map"', fixed = TRUE)
@@ -175,8 +153,8 @@ test_that("main app UI and entrypoint load", {
   expect_match(html, "State / brood:", fixed = TRUE)
   expect_match(html, "Brood", fixed = TRUE)
   expect_no_match(html, "Hatched", fixed = TRUE)
-  expect_match(html, app$env$app_test_status$text, fixed = TRUE)
-  expect_match(html, app$env$app_test_status$badge, fixed = TRUE)
+  expect_no_match(html, "tests passed", fixed = TRUE)
+  expect_no_match(html, "Build unknown", fixed = TRUE)
 })
 
 
