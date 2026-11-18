@@ -79,16 +79,10 @@ overview_recapture_cohorts_plot <- function(x, refdate = get_reference_date()) {
     ) +
     labs(
       x = "Previous capture year", y = "Recaptured this year",
-      subtitle = paste("Adult Cass recaptures through", format(as.Date(refdate), "%d %b %Y")),
-      caption = paste(
-        "Labels: recaptured / adults captured in that year (percentage).",
-        "Unique metal rings; adults and Cass captures only; no resightings.",
-        "Calendar years; birds captured in both years appear in both cohorts.",
-        sep = "\n"
-      )
+      subtitle = paste("Adult Cass recaptures through", format(as.Date(refdate), "%d %b %Y"))
     ) +
     theme_bw(base_size = 18) +
-    theme(panel.grid.minor = element_blank(), plot.caption = element_text(size = 10))
+    theme(panel.grid.minor = element_blank())
 }
 
 
