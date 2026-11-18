@@ -1,3 +1,84 @@
+overview_recaptures_graph <- function(refdate = get_reference_date()) {
+  refdate <- as.Date(refdate)
+  year_start <- as.Date(paste0(format(refdate, "%Y"), "-01-01"))
+
+  # Pool all earlier years; one metal ring contributes once to the denominator.
+  # Aggregate in SQL so this panel retrieves no individual bird records.
+  x <- data.table(db_get(
+    "
+    WITH history AS (
+      SELECT REPLACE(UPPER(TRIM(ring)), '-', '') AS ring_key
+      FROM CAPTURES_ARCHIVE
+      WHERE UPPER(TRIM(site_code)) = 'CR' AND date < ?
+        AND UPPER(TRIM(age)) = 'A'
+      UNION
+      SELECT REPLACE(UPPER(TRIM(ring)), '-', '') AS ring_key
+      FROM CAPTURES
+      WHERE UPPER(TRIM(site)) = 'CR' AND date < ?
+        AND UPPER(TRIM(age)) = 'A'
+    ), cohort AS (
+      SELECT DISTINCT ring_key FROM history
+      WHERE ring_key IS NOT NULL AND ring_key NOT IN ('', 'NA')
+    ), recaptures AS (
+      SELECT h.ring_key, MIN(c.date) AS first_recapture
+      FROM cohort h
+      INNER JOIN CAPTURES c
+        ON REPLACE(UPPER(TRIM(c.ring)), '-', '') = h.ring_key
+      WHERE UPPER(TRIM(c.site)) = 'CR' AND c.date >= ? AND c.date <= ?
+        AND UPPER(TRIM(c.age)) = 'A'
+      GROUP BY h.ring_key
+    )
+    SELECT first_recapture AS plot_date, COUNT(*) AS n_recaptured,
+      (SELECT COUNT(*) FROM cohort) AS n_previous
+    FROM recaptures GROUP BY first_recapture
+    UNION ALL
+    SELECT NULL, 0, COUNT(*) FROM cohort
+    ",
+    params = list(as.character(year_start), as.character(year_start),
+                  as.character(year_start), as.character(refdate))
+  ))
+
+  n_previous <- as.numeric(x$n_previous[1])
+  events <- x[!is.na(plot_date)]
+  events[, plot_date := as.Date(as.character(plot_date))]
+  setorder(events, plot_date)
+  events[, n := cumsum(as.numeric(n_recaptured))]
+  total <- sum(as.numeric(events$n_recaptured))
+  points <- rbindlist(list(
+    data.table(plot_date = year_start, n = 0),
+    events[, .(plot_date, n)],
+    data.table(plot_date = refdate, n = total)
+  ))
+  points[, proportion := if (n_previous > 0) n / n_previous else NA_real_]
+  plot_data <- melt(points, id.vars = "plot_date",
+                    measure.vars = c("n", "proportion"),
+                    variable.name = "metric", value.name = "value")
+  plot_data[, metric := factor(metric, levels = c("n", "proportion"),
+    labels = c("N recaptured", "Proportion recaptured (0–1)"))]
+
+  ggplot(plot_data, aes(plot_date, value)) +
+    geom_step(linewidth = 0.9, color = "#6d7577", na.rm = TRUE) +
+    facet_wrap(~metric, ncol = 1, scales = "free_y") +
+    scale_x_date(date_labels = "%d %b", date_breaks = "1 month") +
+    scale_y_continuous(limits = c(0, NA)) +
+    coord_cartesian(xlim = c(year_start, max(refdate, year_start + 1))) +
+    labs(x = NULL, y = NULL,
+      subtitle = if (n_previous > 0) {
+        sprintf("%d / %d previously captured birds recaptured (%.1f%%)",
+                total, n_previous, 100 * total / n_previous)
+      } else {
+        "No birds captured in previous years; proportion unavailable"
+      },
+      caption = paste("Unique metal rings; adults only; Cass captures only.",
+        "Previous years pooled; calendar year of reference date.",
+        "Recaptures only, excluding resightings.")) +
+    theme_bw(base_size = 18) +
+    theme(panel.grid.minor = element_blank(),
+          axis.text.x = element_text(angle = 30, hjust = 1),
+          plot.caption = element_text(size = 10))
+}
+
+
 overview_integer_breaks <- function(limits, n = 6L) {
   limits <- as.numeric(limits)
   limits <- limits[is.finite(limits)]

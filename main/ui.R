@@ -310,6 +310,13 @@ dashboardPage(
       tabItem(
         tabName = "overview",
         bs4Dash::box(
+          title = "Cass: Recaptures of birds captured in previous years",
+          width = 12,
+          collapsible = TRUE,
+          collapsed = FALSE,
+          spinner(plotOutput("overview_recaptures_show", height = "65vh"))
+        ),
+        bs4Dash::box(
           title = "Current quotas for manipulations (Cass and elsewhere in NZ).",
           width = 12,
           collapsible = TRUE,

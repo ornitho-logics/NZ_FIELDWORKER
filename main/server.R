@@ -358,6 +358,14 @@ function(input, output, session) {
     )
   })
 
+  output$overview_recaptures_show <- renderPlot({
+    try_else(
+      overview_recaptures_graph(active_refdate()),
+      fallback_ggplot,
+      fail = 'overview_recaptures_graph() failed!'
+    )
+  })
+
   output$overview_nests_show <- renderPlot(
     {
       try_else(
