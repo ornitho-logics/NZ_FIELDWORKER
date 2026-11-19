@@ -356,6 +356,14 @@ function(input, output, session) {
     )
   })
 
+  output$overview_encounter_cohorts_show <- renderPlot({
+    try_else(
+      overview_encounter_cohorts_graph(active_refdate()),
+      fallback_ggplot,
+      fail = 'overview_encounter_cohorts_graph() failed!'
+    )
+  })
+
   output$overview_nests_show <- renderPlot(
     {
       try_else(
@@ -465,6 +473,7 @@ function(input, output, session) {
   # until a box is opened, including after reference-date changes.
   for (output_id in c(
     "overview_recapture_cohorts_show",
+    "overview_encounter_cohorts_show",
     "overview_quota_show",
     "overview_lay_date_show",
     "overview_hatching_forecast_show",

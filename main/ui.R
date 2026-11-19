@@ -303,6 +303,13 @@ dashboardPage(
           spinner(plotOutput("overview_recapture_cohorts_show", height = "55vh"))
         ),
         bs4Dash::box(
+          title = "Cass: Adults captured or resighted from the previous two years",
+          width = 12,
+          collapsible = TRUE,
+          collapsed = TRUE,
+          spinner(plotOutput("overview_encounter_cohorts_show", height = "55vh"))
+        ),
+        bs4Dash::box(
           title = "Current quotas for manipulations (Cass and elsewhere in NZ).",
           width = 12,
           collapsible = TRUE,
