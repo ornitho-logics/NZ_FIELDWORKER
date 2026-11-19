@@ -30,7 +30,7 @@ test_that("nest finder queries include the chosen contributors and zero counts",
   expect_true(all(x[observer_code != "BK", n_found] == 0))
   plot <- env$overview_nest_finders_plot(x, as.Date("2026-11-19"))
   expect_equal(nrow(plot$data), 11L)
-  expect_equal(plot$data[observer_code == "BK", nests_per_week], 2)
+  expect_equal(plot$data[observer_code == "BK", nests_per_day], 2 / 7)
   for (fragment in c(
     "ROW_NUMBER() OVER", "PARTITION BY UPPER(TRIM(nest_id))",
     "ORDER BY date, COALESCE(time_visit, '00:00:00'), pk",
@@ -51,7 +51,7 @@ test_that("failed queries are not presented as a leaderboard of zero counts", {
 })
 
 
-test_that("nest finder rankings retain zeros without trophies and rank weekly rates", {
+test_that("nest finder rankings retain zeros without trophies and rank daily rates", {
   env <- nest_finders_test_env()
   x <- data.table::data.table(
     observer_code = c("BK", "LEH", "ADO", "KD"),
@@ -65,10 +65,16 @@ test_that("nest finder rankings retain zeros without trophies and rank weekly ra
   before <- data.table::copy(x)
   plot <- env$overview_nest_finders_plot(x, as.Date("2026-11-19"))
   expect_identical(plot$data$observer_code, c("LEH", "ADO", "KD", "BK"))
-  expect_equal(plot$data$nests_per_week, c(3, 1.5, 1, 0))
+  expect_equal(plot$data$nests_per_day, c(3 / 7, 3 / 14, 1 / 7, 0))
+  expect_equal(plot$data$field_days, c(7, 14, 7, 14))
   expect_equal(plot$data$n_found, c(3, 3, 1, 0))
-  expect_identical(plot$data$total_label, c("3 nests", "3 nests", "1 nest", "0 nests"))
-  expect_identical(plot$data$podium, c("\U0001F3C6 ", "\U0001F948 ", "\U0001F949 ", ""))
+  expect_identical(plot$data$total_label,
+    c("3 nests / 7 days", "3 nests / 14 days", "1 nest / 7 days", "0 nests / 14 days"))
+  expect_equal(plot$data$podium_rank, c(1, 2, 3, NA_real_))
+  expect_identical(as.character(plot$data$display_name),
+    c("Invented B", "Invented C", "Invented D", "Invented A"))
+  expect_s3_class(plot$layers[[4]]$geom, "GeomPoint")
+  expect_equal(plot$layers[[4]]$data$podium_rank, c(1, 2, 3))
   expect_identical(x, before)
   expect_silent(ggplot2::ggplot_build(plot))
   expect_silent(ggplot2::ggplot_build(env$overview_nest_finders_plot(
@@ -89,10 +95,10 @@ test_that("missing or inconsistent field dates do not invent a rate", {
     last_found = as.Date(rep("2026-11-13", 4))
   )
   plot <- env$overview_nest_finders_plot(x, as.Date("2026-11-19"))
-  expect_equal(plot$data[observer_code == "ADO", nests_per_week], 2)
-  expect_true(all(is.na(plot$data[observer_code %in% c("BK", "LEH"), nests_per_week])))
-  expect_true(all(plot$data[observer_code %in% c("BK", "LEH"), podium] == ""))
-  expect_true(all(plot$data[observer_code %in% c("ADO", "KD"), podium] == "\U0001F3C6 "))
+  expect_equal(plot$data[observer_code == "ADO", nests_per_day], 2 / 7)
+  expect_true(all(is.na(plot$data[observer_code %in% c("BK", "LEH"), nests_per_day])))
+  expect_true(all(is.na(plot$data[observer_code %in% c("BK", "LEH"), podium_rank])))
+  expect_true(all(plot$data[observer_code %in% c("ADO", "KD"), podium_rank] == 1))
   expect_true(all(grepl("rate unavailable",
     plot$data[observer_code %in% c("BK", "LEH"), total_label], fixed = TRUE)))
   expect_silent(ggplot2::ggplot_build(plot))
@@ -112,8 +118,9 @@ test_that("only included contributor codes appear and zero finds need no discove
   )
   plot <- env$overview_nest_finders_plot(x, as.Date("2026-11-19"))
   expect_identical(plot$data$observer_code, "BK")
-  expect_equal(plot$data$nests_per_week, 0)
-  expect_identical(plot$data$total_label, "0 nests")
-  expect_identical(plot$data$podium, "")
+  expect_equal(plot$data$nests_per_day, 0)
+  expect_identical(plot$data$total_label, "0 nests / 7 days")
+  expect_true(is.na(plot$data$podium_rank))
+  expect_equal(nrow(plot$layers[[4]]$data), 0L)
   expect_silent(ggplot2::ggplot_build(plot))
 })

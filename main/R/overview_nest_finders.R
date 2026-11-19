@@ -86,38 +86,65 @@ overview_nest_finders_plot <- function(x, refdate = get_reference_date()) {
   x[, end_date := pmin(field_stop, as.Date(refdate), na.rm = TRUE)]
   x[, field_days := as.numeric(end_date - field_start) + 1]
   # Dates must cover the discoveries; incomplete/inconsistent stints cannot
-  # provide a defensible weekly rate. Count both arrival and departure days.
+  # provide a defensible daily rate. Count both arrival and departure days.
   x[is.na(field_start) | field_days <= 0 |
       (n_found > 0 & (is.na(first_found) | is.na(last_found) |
         first_found < field_start | last_found > end_date)),
     field_days := NA_real_]
-  x[, nests_per_week := n_found * 7 / field_days]
-  setorder(x, -nests_per_week, -n_found, contributor, observer_code, na.last = TRUE)
+  x[, nests_per_day := n_found / field_days]
+  setorder(x, -nests_per_day, -n_found, contributor, observer_code, na.last = TRUE)
   x[, podium_rank := NA_real_]
-  x[!is.na(nests_per_week) & nests_per_week > 0,
-    podium_rank := data.table::frank(-nests_per_week, ties.method = "min")]
-  x[, podium := ""]
-  x[podium_rank == 1, podium := "\U0001F3C6 "]
-  x[podium_rank == 2, podium := "\U0001F948 "]
-  x[podium_rank == 3, podium := "\U0001F949 "]
-  x[, display_name := paste0(podium, contributor)]
+  x[!is.na(nests_per_day) & nests_per_day > 0,
+    podium_rank := data.table::frank(-nests_per_day, ties.method = "min")]
+  x[, display_name := contributor]
   x[, display_name := factor(display_name, levels = rev(unique(display_name)))]
-  x[, bar_value := nests_per_week]
+  x[, bar_value := nests_per_day]
   x[is.na(bar_value), bar_value := 0]
   x[, total_label := paste(n_found, ifelse(n_found == 1, "nest", "nests"))]
-  x[is.na(nests_per_week), total_label := paste0(total_label, " (rate unavailable)")]
+  x[!is.na(nests_per_day), total_label := paste(
+    total_label, "/", field_days, ifelse(field_days == 1, "day", "days")
+  )]
+  x[is.na(nests_per_day), total_label := paste0(total_label, " (rate unavailable)")]
   x[, bar_colour := "#53a89a"]
   x[podium_rank == 1, bar_colour := "#e8b62c"]
   x[podium_rank == 2, bar_colour := "#9aaabb"]
   x[podium_rank == 3, bar_colour := "#c68850"]
 
+  # Draw medals from shapes and ordinary digits, avoiding emoji font support.
+  medals <- x[!is.na(podium_rank) & podium_rank <= 3]
+  medal_scale <- max(c(x$bar_value, 0.1))
+  medals[, `:=`(
+    medal_x = -0.12 * medal_scale,
+    ribbon_left = -0.15 * medal_scale,
+    ribbon_right = -0.09 * medal_scale,
+    ribbon_y = as.numeric(display_name) - 0.28
+  )]
+
   ggplot(x, aes(x = bar_value, y = display_name)) +
     geom_col(aes(fill = bar_colour), width = 0.65, show.legend = FALSE) +
+    geom_segment(data = medals,
+      aes(x = medal_x, y = display_name, xend = ribbon_left, yend = ribbon_y,
+          colour = bar_colour), inherit.aes = FALSE, linewidth = 2.5, show.legend = FALSE) +
+    geom_segment(data = medals,
+      aes(x = medal_x, y = display_name, xend = ribbon_right, yend = ribbon_y,
+          colour = bar_colour), inherit.aes = FALSE, linewidth = 2.5, show.legend = FALSE) +
+    geom_point(data = medals, aes(x = medal_x, y = display_name, fill = bar_colour),
+      inherit.aes = FALSE, shape = 21, size = 9, stroke = 0.8, colour = "#66502b",
+      show.legend = FALSE) +
+    geom_text(data = medals, aes(x = medal_x, y = display_name, label = podium_rank),
+      inherit.aes = FALSE, size = 4, fontface = "bold", colour = "#302719") +
     scale_fill_identity() +
+    scale_colour_identity() +
     geom_text(aes(label = total_label), hjust = -0.15, size = 4.5, fontface = "bold") +
-    scale_x_continuous(expand = expansion(mult = c(0, 0.45))) +
+    scale_x_continuous(
+      breaks = function(limits) {
+        ticks <- pretty(c(0, max(limits)), n = 5)
+        ticks[ticks >= 0]
+      },
+      expand = expansion(mult = c(0.06, 0.45))
+    ) +
     labs(title = "The Great Cass Nest Quest",
-         x = "Nests / week in field", y = NULL,
+         x = "Nests / day in field", y = NULL,
          subtitle = paste("Nests found through", format(as.Date(refdate), "%d %b %Y"))) +
     theme_minimal(base_size = 16) +
     theme(panel.grid.minor = element_blank(), panel.grid.major.y = element_blank(),
