@@ -14,11 +14,12 @@ test_that("Overview consolidates charts while Phenology and notA reports stay ab
   plots <- regmatches(ui, gregexpr('overview_[a-z_]+_show', ui))[[1]]
   expect_setequal(plots, c(
     "overview_recapture_cohorts_show",
+    "overview_nest_finders_show",
     "overview_quota_show", "overview_lay_date_show", "overview_hatching_forecast_show",
     "overview_nests_show", "overview_cr_combos_show", "overview_geolocator_show",
     "overview_chick_growth_show", "overview_tagged_resightings_show"
   ))
-  expect_length(plots, 9L)
+  expect_length(plots, 10L)
   expect_false(grepl("overview_recaptures_show", ui, fixed = TRUE))
   expect_false(grepl("overview_recaptures_show", server, fixed = TRUE))
   for (id in plots) {

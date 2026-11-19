@@ -84,6 +84,8 @@ test_that("main app UI and entrypoint load", {
   expect_match(html, 'id="overview_chick_growth_show"', fixed = TRUE)
   expect_match(html, 'id="overview_quota_show"', fixed = TRUE)
   overview_titles <- c(
+    "Cass: Nest-finding leaderboard",
+    "Cass: Adults recaptured from the previous two years",
     "Current quotas for manipulations (Cass and elsewhere in NZ).",
     "Cass: lay date phenology",
     "Cass: Hatching Forecast",
@@ -108,6 +110,7 @@ test_that("main app UI and entrypoint load", {
   for (output_id in c(
     "overview_recapture_cohorts_show",
     "overview_nests_show",
+    "overview_nest_finders_show",
     "overview_geolocator_show",
     "overview_tagged_resightings_show",
     "overview_cr_combos_show",

@@ -289,6 +289,13 @@ dashboardPage(
       tabItem(
         tabName = "overview",
         bs4Dash::box(
+          title = tags$span(style = "color: #c62828;", "Cass: Nest-finding leaderboard"),
+          width = 12,
+          collapsible = TRUE,
+          collapsed = TRUE,
+          spinner(plotOutput("overview_nest_finders_show", height = "70vh"))
+        ),
+        bs4Dash::box(
           title = "Cass: Adults recaptured from the previous two years",
           width = 12,
           collapsible = TRUE,

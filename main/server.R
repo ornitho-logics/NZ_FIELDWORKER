@@ -369,6 +369,14 @@ function(input, output, session) {
     }
   )
 
+  output$overview_nest_finders_show <- renderPlot({
+    try_else(
+      overview_nest_finders_graph(active_refdate()),
+      fallback_ggplot,
+      fail = 'overview_nest_finders_graph() failed!'
+    )
+  })
+
   output$overview_geolocator_show <- renderPlot(
     {
       try_else(
@@ -461,6 +469,7 @@ function(input, output, session) {
     "overview_lay_date_show",
     "overview_hatching_forecast_show",
     "overview_nests_show",
+    "overview_nest_finders_show",
     "overview_cr_combos_show",
     "overview_geolocator_show",
     "overview_chick_growth_show",
