@@ -48,8 +48,8 @@ test_that("encounter cohorts add only adult Cass RESIGHTINGS with unique identit
   env$db_get <- function(sql, params) {
     query <<- sql
     parameters <<- params
-    data.table::data.table(cohort_year = 2024:2025,
-                          n_previous = c(20, 10), n_recaptured = c(8, 3))
+    data.table::data.table(cohort_year = "2024–2025",
+                          n_previous = 25, n_recaptured = 10)
   }
   plot <- env$overview_encounter_cohorts_graph(as.Date("2026-11-19"))
   expect_length(parameters, 12L)
@@ -64,7 +64,12 @@ test_that("encounter cohorts add only adult Cass RESIGHTINGS with unique identit
     "LEFT JOIN encountered_birds", "COUNT(DISTINCT c.ring_key)"
   )) expect_match(query, fragment, fixed = TRUE)
   expect_false(grepl("RESIGHTINGS_PUBLIC", query, fixed = TRUE))
-  expect_equal(plot$data$proportion, c(0.4, 0.3))
+  expect_match(query, "'2024–2025' AS cohort_year", fixed = TRUE)
+  expect_match(query, "h.cohort_year >= y.cohort_year", fixed = TRUE)
+  expect_false(grepl("GROUP BY y.cohort_year", query, fixed = TRUE))
+  expect_equal(nrow(plot$data), 1L)
+  expect_equal(plot$data$proportion, 0.4)
+  expect_equal(plot$data$label, "10 / 25 (40.0%)")
   expect_match(plot$labels$subtitle, "captures or resightings", fixed = TRUE)
   expect_silent(ggplot2::ggplot_build(plot))
 })

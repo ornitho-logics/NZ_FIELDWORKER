@@ -296,17 +296,11 @@ dashboardPage(
           spinner(plotOutput("overview_nest_finders_show", height = "70vh"))
         ),
         bs4Dash::box(
-          title = "Cass: Adults recaptured from the previous two years",
+          title = "Cass: Adults recaptured or resighted from the previous two years",
           width = 12,
           collapsible = TRUE,
           collapsed = TRUE,
-          spinner(plotOutput("overview_recapture_cohorts_show", height = "55vh"))
-        ),
-        bs4Dash::box(
-          title = "Cass: Adults captured or resighted from the previous two years",
-          width = 12,
-          collapsible = TRUE,
-          collapsed = TRUE,
+          spinner(plotOutput("overview_recapture_cohorts_show", height = "55vh")),
           spinner(plotOutput("overview_encounter_cohorts_show", height = "55vh"))
         ),
         bs4Dash::box(

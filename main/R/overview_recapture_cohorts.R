@@ -1,6 +1,7 @@
 # Compare each previous year's adult Cass cohort with this year's captures.
 overview_recapture_cohorts_data <- function(
-  refdate = get_reference_date(), include_resightings = FALSE
+  refdate = get_reference_date(), include_resightings = FALSE,
+  pool_years = FALSE
 ) {
   refdate <- as.Date(refdate)
   year <- as.integer(format(refdate, "%Y"))
@@ -89,15 +90,18 @@ overview_recapture_cohorts_data <- function(
         AND UPPER(TRIM(age)) = 'A'
         AND date >= ? AND date <= ?
     )", resighting_ctes, "
-    SELECT y.cohort_year,
+    SELECT ", if (pool_years) {
+      paste0("'", year - 2L, "–", year - 1L, "'")
+    } else "y.cohort_year", " AS cohort_year,
       COUNT(DISTINCT h.ring_key) AS n_previous,
       COUNT(DISTINCT c.ring_key) AS n_recaptured
-    FROM years y
-    LEFT JOIN history h ON h.cohort_year = y.cohort_year
+    FROM ", if (pool_years) {
+      "(SELECT MIN(cohort_year) AS cohort_year FROM years) y"
+    } else "years y", "
+    LEFT JOIN history h ON h.cohort_year ", if (pool_years) ">=" else "=", " y.cohort_year
       AND h.ring_key IS NOT NULL AND h.ring_key NOT IN ('', 'NA')
     LEFT JOIN ", if (include_resightings) "encountered_birds" else "current_birds", " c ON c.ring_key = h.ring_key
-    GROUP BY y.cohort_year
-    ORDER BY y.cohort_year
+    ", if (!pool_years) "GROUP BY y.cohort_year ORDER BY y.cohort_year" else "", "
     "),
     params = params
   ))
@@ -170,7 +174,9 @@ overview_recapture_cohorts_graph <- function(refdate = get_reference_date()) {
 
 overview_encounter_cohorts_graph <- function(refdate = get_reference_date()) {
   overview_recapture_cohorts_plot(
-    overview_recapture_cohorts_data(refdate, include_resightings = TRUE),
+    overview_recapture_cohorts_data(
+      refdate, include_resightings = TRUE, pool_years = TRUE
+    ),
     refdate, include_resightings = TRUE
   )
 }
