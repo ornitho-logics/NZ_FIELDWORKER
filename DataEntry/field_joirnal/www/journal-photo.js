@@ -9,10 +9,32 @@ window.jQuery(function () {
   const save = document.getElementById("save");
   let generation = 0;
   let previewUrl = null;
+  let connected = false;
+  let saving = false;
+  let photoState = "none";
   const limit = 500000;
 
+  function controls() {
+    save.disabled = !connected || saving || ["processing", "error"].includes(photoState);
+    save.textContent = saving ? "Saving…" : connected ? "Save entry" : "Connecting…";
+    picker.disabled = saving || !connected;
+    remove.disabled = saving || !connected;
+    document.querySelectorAll("#date input, #observer, #entry").forEach(input => {
+      input.disabled = saving;
+    });
+  }
+
+  function showStatus(text, style) {
+    const alert = document.createElement("div");
+    alert.className = `alert alert-${style}`;
+    alert.textContent = text;
+    document.getElementById("save_status").replaceChildren(alert);
+  }
+
   function publish(value) {
+    photoState = value.state;
     window.Shiny.setInputValue("photo", value, {priority: "event"});
+    controls();
   }
 
   function clearPreview() {
@@ -28,7 +50,6 @@ window.jQuery(function () {
     clearPreview();
     message.textContent = "";
     remove.hidden = true;
-    save.disabled = false;
     publish({state: "none"});
   }
 
@@ -70,7 +91,6 @@ window.jQuery(function () {
     const current = ++generation;
     clearPreview();
     remove.hidden = false;
-    save.disabled = true;
     message.textContent = "Preparing photo…";
     publish({state: "processing"});
     try {
@@ -116,13 +136,11 @@ window.jQuery(function () {
       preview.hidden = false;
       message.textContent = `${canvas.width} × ${canvas.height} pixels · ${Math.ceil(blob.size / 1000)} KB · ready to save`;
       publish({state: "ready", data: encoded});
-      save.disabled = false;
     } catch (error) {
       if (current !== generation) return;
       message.textContent = error.message || "Could not prepare this photo. Choose another photo.";
       publish({state: "error"});
       // Removing the failed photo also lets the user save the written entry.
-      save.disabled = true;
     }
   });
 
@@ -130,4 +148,36 @@ window.jQuery(function () {
   window.Shiny.addCustomMessageHandler("journal-photo-reset", function (message) {
     reset();
   });
+  window.Shiny.addCustomMessageHandler("journal-save-result", function (message) {
+    saving = false;
+    controls();
+  });
+
+  // Give immediate feedback before the synchronous database operation begins.
+  save.addEventListener("click", function (event) {
+    if (saving || !connected || ["processing", "error"].includes(photoState)) {
+      event.stopImmediatePropagation();
+      event.preventDefault();
+      return;
+    }
+    saving = true;
+    controls();
+    showStatus("Saving your entry to the database…", "info");
+  }, true);
+
+  function ready() {
+    connected = true;
+    controls();
+  }
+  window.jQuery(document).on("shiny:sessioninitialized.journal", ready);
+  if (window.Shiny.initializedPromise) window.Shiny.initializedPromise.then(ready);
+  window.jQuery(document).on("shiny:disconnected.journal", function () {
+    connected = false;
+    showStatus(saving
+      ? "Connection lost. Save could not be confirmed. Keep this form open and check the journal before trying again."
+      : "Connection lost. Your form is still here. Saving is unavailable until the connection returns.", "warning");
+    saving = false;
+    controls();
+  });
+  controls();
 });

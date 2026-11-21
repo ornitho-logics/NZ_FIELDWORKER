@@ -1,5 +1,5 @@
 # Standalone browser integration test. Starts a loopback-only Shiny app with a
-# synthetic save function; no database connections or real photos are used.
+# mocked DBI calls; the real save/commit/feedback code runs without a database.
 # Run from the repository root: Rscript --vanilla tests/field-journal-photo-browser.R
 root <- normalizePath(".")
 port <- httpuv::randomPort()
@@ -10,9 +10,35 @@ app_process <- callr::r_bg(function(root, port) {
   on.exit(unlink(app_dir, recursive = TRUE), add = TRUE)
   file.copy(file.path(source_dir, c("global.R", "ui.R", "server.R")), app_dir)
   file.symlink(file.path(source_dir, "www"), file.path(app_dir, "www"))
-  # Override the writer in the disposable copy before any session can start.
-  cat("\njournal_save <- function(...) invisible(TRUE)\n",
-      file = file.path(app_dir, "global.R"), append = TRUE)
+  # Mock only the database boundary, retaining the production writer.
+  database <- new.env()
+  database$pk <- 0L
+  testthat::local_mocked_bindings(
+    db_con = function(group) {
+      stopifnot(identical(group, "nz_fieldworker"))
+      structure(list(), class = "synthetic_journal_connection")
+    }, .package = "DataEntry"
+  )
+  testthat::local_mocked_bindings(
+    dbBegin = function(conn, ...) TRUE,
+    dbExecute = function(conn, statement, params, ...) {
+      Sys.sleep(0.2)
+      if (identical(params[[3]], "INVENTED SAVE FAILURE")) {
+        stop("Synthetic database write failure")
+      }
+      stopifnot(length(params[[4]]) == 1L,
+                is.null(params[[4]][[1]]) || is.raw(params[[4]][[1]]))
+      1L
+    },
+    dbGetQuery = function(conn, statement, ...) {
+      stopifnot(identical(statement, "SELECT LAST_INSERT_ID() AS pk"))
+      data.frame(pk = database$pk + 1L)
+    },
+    dbCommit = function(conn, ...) { database$pk <- database$pk + 1L; TRUE },
+    dbRollback = function(conn, ...) TRUE,
+    dbDisconnect = function(conn, ...) TRUE,
+    .package = "DBI"
+  )
   shiny::runApp(app_dir, host = "127.0.0.1", port = port,
                launch.browser = FALSE, quiet = TRUE)
 }, args = list(root, port), stdout = "|", stderr = "|")
@@ -59,7 +85,8 @@ run_checks <- function() {
     const deadline = Date.now() + 15000;
     const wait = () => {
       if (window.Shiny && Shiny.shinyapp && Shiny.shinyapp.$socket &&
-          Shiny.shinyapp.$socket.readyState === 1 && document.getElementById('save')) resolve(true);
+          Shiny.shinyapp.$socket.readyState === 1 && document.getElementById('save') &&
+          !document.getElementById('save').disabled) resolve(true);
       else if (Date.now() > deadline) reject(Error('Shiny did not connect'));
       else setTimeout(wait, 50);
     }; wait();
@@ -88,6 +115,29 @@ run_checks <- function() {
         await new Promise(resolve => setTimeout(resolve, 30));
       }
     };
+    const fill = (id, value) => {
+      document.getElementById(id).value = value;
+      Shiny.setInputValue(id, value, {priority: 'event'});
+    };
+    const save = document.getElementById('save');
+    const status = document.getElementById('save_status');
+    const date = document.querySelector('#date input').value;
+    fill('observer', 'AB');
+    fill('entry', 'INVENTED SAVE FAILURE');
+    save.click();
+    assert(save.disabled && save.textContent.includes('Saving'), 'Save has no immediate feedback');
+    await wait(() => !!status.querySelector('.alert-danger') && !save.disabled);
+    assert(document.getElementById('entry').value === 'INVENTED SAVE FAILURE', 'Failed save cleared text');
+    save.click();
+    await wait(() => !!status.querySelector('.alert-danger') && !save.disabled);
+    assert(!status.textContent.includes('Saving'), 'Repeated failure left Saving feedback stuck');
+    fill('entry', 'Invented note without photo');
+    save.click();
+    await wait(() => status.textContent.includes('reference #1') && !save.disabled);
+    assert(!!status.querySelector('.alert-success'), 'Successful save has no green confirmation');
+    await wait(() => document.getElementById('entry').value === '');
+    assert(document.getElementById('observer').value === 'AB', 'Observer cleared after save');
+    assert(document.querySelector('#date input').value === date, 'Date cleared after save');
     const canvas = document.createElement('canvas');
     canvas.width = 2400; canvas.height = 1800;
     const ctx = canvas.getContext('2d');
@@ -122,11 +172,18 @@ run_checks <- function() {
     assert(Math.abs(preview.naturalWidth / preview.naturalHeight - 4/3) < .01, 'Aspect ratio changed');
     assert(!document.getElementById('save').disabled, 'Save remains disabled');
     assert(picker.files[0].size === original.size, 'Original was changed');
-    Shiny.setInputValue('entry', 'Invented browser test note', {priority: 'event'});
-    document.getElementById('save').click();
-    await wait(() => document.getElementById('save_status').textContent.includes('Entry saved'));
+    fill('entry', 'INVENTED SAVE FAILURE');
+    save.click();
+    await wait(() => !!status.querySelector('.alert-danger') && !save.disabled);
+    assert(!preview.hidden && picker.files.length === 1, 'Failed save cleared photo');
+    fill('entry', 'Invented browser test note');
+    save.click();
+    await wait(() => status.textContent.includes('reference #2') && !save.disabled);
     await wait(() => photoMessages.at(-1)?.state === 'none');
     assert(preview.hidden && picker.files.length === 0, 'Photo was not cleared after save');
+    await wait(() => document.getElementById('entry').value === '');
+    assert(document.getElementById('observer').value === 'AB', 'Photo save cleared observer');
+    assert(document.querySelector('#date input').value === date, 'Photo save cleared date');
     choose(new Blob(['invalid'], {type: 'image/jpeg'}), 'invalid.jpg');
     await wait(() => photoMessages.at(-1)?.state === 'error');
     assert(document.getElementById('save').disabled, 'Invalid photo could be silently omitted');

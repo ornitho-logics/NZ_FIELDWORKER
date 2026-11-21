@@ -65,14 +65,73 @@ journal_photo <- function(upload) {
   photo
 }
 
+journal_save_error <- function(message, state = "error") {
+  structure(list(message = message, call = NULL, state = state),
+            class = c("journal_save_error", "error", "condition"))
+}
+
 journal_save <- function(date, observer, entry, photo = NULL) {
   con <- DataEntry::db_con(group = group)
-  on.exit(DBI::dbDisconnect(con), add = TRUE)
-  DBI::dbExecute(
-    con,
-    paste("INSERT INTO `field_joirnal` (`date`, `observer`, `entry`, `photo`)",
-          "VALUES (?, ?, ?, ?)"),
-    params = list(as.character(date), observer, entry, list(photo))
-  )
-  invisible(TRUE)
+  transaction <- FALSE
+  on.exit({
+    if (transaction) suppressWarnings(try(DBI::dbRollback(con), silent = TRUE))
+    suppressWarnings(try(DBI::dbDisconnect(con), silent = TRUE))
+  }, add = TRUE)
+
+  DBI::dbBegin(con)
+  transaction <- TRUE
+  receipt <- withCallingHandlers({
+    affected <- DBI::dbExecute(
+      con,
+      paste("INSERT INTO `field_joirnal` (`date`, `observer`, `entry`, `photo`)",
+            "VALUES (?, ?, ?, ?)"),
+      params = list(as.character(date), observer, entry, list(photo))
+    )
+    if (length(affected) != 1L || is.na(affected) || affected != 1) {
+      stop("The database did not insert exactly one journal entry.", call. = FALSE)
+    }
+    id <- DBI::dbGetQuery(con, "SELECT LAST_INSERT_ID() AS pk")$pk
+    if (length(id) != 1L || is.na(id) || !grepl("^[1-9][0-9]*$", as.character(id))) {
+      stop("The database did not return a journal entry ID.", call. = FALSE)
+    }
+    list(pk = as.character(id))
+  }, warning = function(w) {
+    stop(journal_save_error("Entry was not saved: the database could not store it completely. Your text and photo have been kept."))
+  })
+
+  # A lost connection during commit leaves the outcome unknown. Do not tell the
+  # user to retry blindly, because the database might already have committed.
+  tryCatch({
+    committed <- DBI::dbCommit(con)
+    if (!isTRUE(committed)) stop("Commit was not acknowledged.", call. = FALSE)
+  }, error = function(e) {
+    stop(journal_save_error(
+      "Save could not be confirmed. Your text and photo have been kept. Check the journal before trying again.",
+      state = "uncertain"
+    ))
+  })
+  transaction <- FALSE
+  receipt
+}
+
+journal_save_failure <- function(error) {
+  if (inherits(error, "journal_save_error")) {
+    return(list(state = error$state, message = conditionMessage(error)))
+  }
+  # Driver errors can contain submitted text or connection details. Show a
+  # useful category without sending those details to the browser.
+  detail <- conditionMessage(error)
+  reason <- if (grepl("doesn't exist|does not exist|no such table|unknown table", detail, ignore.case = TRUE)) {
+    "The journal table is unavailable. Contact the app administrator."
+  } else if (grepl("access denied|denied to user|permission denied", detail, ignore.case = TRUE)) {
+    "The database did not allow this save. Contact the app administrator."
+  } else if (grepl("cnf_path|DATAENTRY_CNF|default.file", detail, ignore.case = TRUE)) {
+    "The database connection is not configured for this app. Contact the app administrator."
+  } else if (grepl("too long|too large|packet|truncat", detail, ignore.case = TRUE)) {
+    "The database could not store the entry or photo at this size. Contact the app administrator."
+  } else {
+    "The database could not save this entry. Check the connection and try again."
+  }
+  list(state = "error", message = paste("Entry was not saved.", reason,
+                                        "Your text and photo have been kept."))
 }

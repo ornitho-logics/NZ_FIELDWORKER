@@ -2,7 +2,7 @@ fluidPage(
   tags$head(
     tags$title("Field journal"),
     tags$meta(name = "viewport", content = "width=device-width, initial-scale=1"),
-    tags$script(src = "journal-photo.js"),
+    tags$script(src = "journal-photo.js?v=2"),
     tags$style(HTML("
       body { background: #f2f5f1; color: #263c34; font-family: system-ui, sans-serif; }
       .journal-shell { max-width: 760px; margin: 5vh auto; padding: 0 12px; }
@@ -19,6 +19,8 @@ fluidPage(
         border-radius: 10px; padding: 12px 24px; font-weight: 600; width: 100%; }
       .journal-save:hover, .journal-save:focus { background: #1e4937; color: white; }
       .journal-status { margin-top: 16px; }
+      .journal-status .alert { border-radius: 10px; margin-bottom: 0; line-height: 1.6; }
+      .journal-save:disabled { opacity: .65; cursor: wait; }
       #photo-preview { display: block; max-width: 100%; max-height: 360px;
         border-radius: 10px; margin: 12px 0; object-fit: contain; }
       #photo-preview[hidden], #photo-remove[hidden] { display: none; }
@@ -52,9 +54,10 @@ fluidPage(
         tags$button(id = "photo-remove", type = "button", class = "btn btn-default",
                     hidden = NA, "Remove photo")
       ),
-      actionButton("save", "Save entry", icon = icon("check"), class = "journal-save"),
+      actionButton("save", "Connecting…", icon = icon("check"), class = "journal-save",
+                   disabled = NA),
       div(class = "journal-status", role = "status", `aria-live` = "polite",
-          textOutput("save_status"))
+          uiOutput("save_status"))
     )
   )
 )
