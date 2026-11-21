@@ -4,7 +4,7 @@
 
 # App release version: major.minor.patch. Bump patch for fixes, minor for
 # features, and major for incompatible changes when preparing a release.
-app_version <- "1.0.0"
+app_version <- "1.0.3"
 
 #! PACKAGES & DATA
 sapply(
@@ -180,15 +180,22 @@ kmz_nest_state_cols <- c(
 
 
 # Installed-app update detection uses a separate content hash.
-read_pwa_build = function(app_dir = getwd()) {
-  path = file.path(app_dir, "www", "build.json")
-  if (!file.exists(path)) return(NULL)
-  build = tryCatch(
+read_pwa_build <- function(app_dir = getwd()) {
+  path <- file.path(app_dir, "www", "build.json")
+  if (!file.exists(path)) {
+    return(NULL)
+  }
+  build <- tryCatch(
     jsonlite::read_json(path),
     error = function(error) NULL
   )
-  if (!is.list(build) || !is.character(build$id) || length(build$id) != 1L ||
-      is.na(build$id) || !grepl("^[a-f0-9]{64}$", build$id)) {
+  if (
+    !is.list(build) ||
+      !is.character(build$id) ||
+      length(build$id) != 1L ||
+      is.na(build$id) ||
+      !grepl("^[a-f0-9]{64}$", build$id)
+  ) {
     return(NULL)
   }
   build
@@ -197,7 +204,9 @@ read_pwa_build = function(app_dir = getwd()) {
 
 resolve_pwa_build_id <- function(app_dir = getwd()) {
   build <- read_pwa_build(app_dir)
-  if (is.null(build)) return("unknown")
+  if (is.null(build)) {
+    return("unknown")
+  }
   build$id
 }
 
