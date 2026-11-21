@@ -236,7 +236,7 @@ data_issues_run <- function(
     table <- names(catalog)[index]
     progress(table, index, length(catalog))
     rules <- tryCatch(data_issues_rules(
-      file.path(directory, table, "inspector.R"), catalog[[table]]
+      file.path(directory, table, "inspector_reference.R"), catalog[[table]]
     ), error = identity)
     if (inherits(rules, "error")) {
       fail(table, "Inspector")

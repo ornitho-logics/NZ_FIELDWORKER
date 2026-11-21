@@ -464,6 +464,21 @@ dbview_is_updated <- function(view) {
 showTable <- function(tab, exclude = c("pk", "nov"), formatDate = TRUE) {
   tryCatch(
     {
+      if (identical(tab, "field_joirnal")) {
+        # Keep binary image contents out of the searchable table payload.
+        o <- data.table(DBq(paste(
+          "SELECT `date`, `observer`, `entry`,",
+          "CASE WHEN `photo` IS NULL THEN '' ELSE",
+          "CONCAT('Photo attached (', OCTET_LENGTH(`photo`), ' bytes)') END AS `photo`",
+          "FROM `field_joirnal` ORDER BY `date` DESC, `pk` DESC"
+        )))
+        if ("error" %in% names(o)) return(o)
+        for (field in names(o)) {
+          set(o, j = field, value = htmltools::htmlEscape(as.character(o[[field]])))
+        }
+        return(o)
+      }
+
       cc <- data.table(db_get(glue("SHOW COLUMNS FROM {tab};")))
       cc <- cc[!Field %in% exclude]
 

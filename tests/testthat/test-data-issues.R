@@ -11,7 +11,7 @@ data_issues_test_env <- function() {
 write_issue_inspector <- function(directory, table, code) {
   path <- file.path(directory, table)
   dir.create(path)
-  writeLines(code, file.path(path, "inspector.R"))
+  writeLines(code, file.path(path, "inspector_reference.R"))
 }
 
 
@@ -21,7 +21,7 @@ test_that("the reviewed catalog contains only four tables and no missing-data ch
   expect_identical(names(catalog), c("CAPTURES", "NESTS", "EGGS", "RESIGHTINGS"))
   for (table in names(catalog)) {
     rules <- env$data_issues_rules(
-      app_file("DataEntry", table, "inspector.R"), catalog[[table]]
+      app_file("DataEntry", table, "inspector_reference.R"), catalog[[table]]
     )
     expect_true(length(rules) > 0)
     text <- paste(vapply(rules, function(rule) paste(deparse(rule), collapse = " "), ""),

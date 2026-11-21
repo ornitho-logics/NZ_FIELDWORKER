@@ -52,6 +52,7 @@ preferred_timezone <- "Pacific/Auckland"
 
 db <- "FIELD_2026_BADOatNZ"
 dbtabs_entry <- c(
+  "field_joirnal",
   "OBSERVERS",
   "CAPTURES",
   "NESTS",
@@ -64,6 +65,7 @@ dbtabs_entry <- c(
 
 
 dbtabs_show_tables <- c(
+  "field_joirnal",
   "OBSERVERS",
   "CAPTURES",
   "NESTS",

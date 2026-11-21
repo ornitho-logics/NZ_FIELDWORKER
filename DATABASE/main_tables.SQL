@@ -6,6 +6,16 @@ CREATE DATABASE IF NOT EXISTS FIELD_2026_BADOatNZ;
 
 USE FIELD_2026_BADOatNZ;
 
+CREATE TABLE `field_joirnal` (
+  `date` date DEFAULT NULL COMMENT 'Date of the observation (local, New Zealand)',
+  `observer` varchar(3) DEFAULT NULL COMMENT 'Registered observer code (see OBSERVERS table)',
+  `entry` text DEFAULT NULL COMMENT 'Field journal observation',
+  `photo` blob DEFAULT NULL COMMENT 'Optional photo stored as binary image data',
+  `pk` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  COMMENT='Any relevant observations or contextual information, including migratory groups, unusual sightings, adverse weather conditions, environmental events, or anything else considered noteworthy.';
+
 CREATE TABLE IF NOT EXISTS OBSERVERS (
   name text DEFAULT NULL COMMENT 'Your full name.',
   observer varchar(3) DEFAULT NULL COMMENT 'Your registered observer code: two or three uppercase letters or digits (for example AB or P3). Use this same code when entering data.',

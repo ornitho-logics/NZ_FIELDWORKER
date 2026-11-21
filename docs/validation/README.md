@@ -7,6 +7,18 @@ or re-enable validators. Field-server changes remain human-applied.
 
 ## Preserved original inspectors
 
+The six biological DataEntry apps load save-time validators from the database
+`inspectors` table through the DataEntry package. That package gives a file
+named `inspector.R` in an app directory priority over the database. The local
+copies are therefore named `inspector_reference.R`; keep that name so they do
+not override database rules. The Data Issues report explicitly reads these
+reference files for its separate retrospective checks. The inspector and
+spatial-object editors retain their independent configuration.
+
+After deploying this source change, reopen the entry apps. Database inspector
+contents determine the active checks, including any operator-installed pause.
+This change does not install, restore, or verify live database rows.
+
 The **8 November 2026 archive** contains all twelve approved hard/warning R
 exports and their file index, unchanged from source commit
 `9574508481a15c5455e94b85259f5da346ca0e6e`:
