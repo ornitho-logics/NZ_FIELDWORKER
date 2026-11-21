@@ -461,21 +461,67 @@ dbview_is_updated <- function(view) {
 }
 
 
-showTable <- function(tab, exclude = c("pk", "nov"), formatDate = TRUE) {
+field_journal_photo_response <- function(req) {
+  pk <- shiny::parseQueryString(req$QUERY_STRING %||% "")$pk
+  if (is.null(pk) || length(pk) != 1L || !grepl("^[1-9][0-9]{0,9}$", pk)) {
+    return(shiny::httpResponse(400L, "text/plain", "Invalid photo reference."))
+  }
+  rows <- tryCatch(DBq(
+    "SELECT `photo` FROM `field_joirnal` WHERE `pk` = ? LIMIT 1",
+    params = list(pk), notify = FALSE
+  ), error = function(e) NULL)
+  if (is.null(rows) || "error" %in% names(rows)) {
+    return(shiny::httpResponse(503L, "text/plain", "Photo temporarily unavailable."))
+  }
+  if (nrow(rows) == 0L || is.null(rows$photo[[1L]]) || !length(rows$photo[[1L]])) {
+    return(shiny::httpResponse(404L, "text/plain", "No photo attached."))
+  }
+  photo <- rows$photo[[1L]]
+  mime <- if (is.raw(photo) && identical(head(photo, 3L), as.raw(c(255, 216, 255)))) {
+    "image/jpeg"
+  } else if (is.raw(photo) && identical(head(photo, 8L), as.raw(c(137, 80, 78, 71, 13, 10, 26, 10)))) {
+    "image/png"
+  } else if (is.raw(photo) && (identical(head(photo, 6L), charToRaw("GIF87a")) ||
+                              identical(head(photo, 6L), charToRaw("GIF89a")))) {
+    "image/gif"
+  } else if (is.raw(photo) && length(photo) >= 12L &&
+             identical(photo[1:4], charToRaw("RIFF")) && identical(photo[9:12], charToRaw("WEBP"))) {
+    "image/webp"
+  } else {
+    return(shiny::httpResponse(415L, "text/plain", "Unsupported photo format."))
+  }
+  shiny::httpResponse(200L, mime, photo, headers = c(
+    `Cache-Control` = "no-store", `X-Content-Type-Options` = "nosniff"
+  ))
+}
+
+field_journal_photo_cell <- function(pk, photo_url) {
+  if (is.na(pk) || !grepl("^[1-9][0-9]{0,9}$", as.character(pk))) return("")
+  if (is.null(photo_url)) return("Photo attached")
+  url <- paste0(photo_url, if (grepl("?", photo_url, fixed = TRUE)) "&" else "?", "pk=", pk)
+  as.character(htmltools::tags$a(
+    href = url, target = "_blank", rel = "noopener noreferrer", title = "Open photo",
+    htmltools::tags$img(src = url, alt = "Field journal photo", loading = "lazy",
+                        class = "journal-photo-thumbnail")
+  ))
+}
+
+showTable <- function(tab, exclude = c("pk", "nov"), formatDate = TRUE, photo_url = NULL) {
   tryCatch(
     {
       if (identical(tab, "field_joirnal")) {
-        # Keep binary image contents out of the searchable table payload.
+        # Fetch photo identifiers here; image bytes are served on demand.
         o <- data.table(DBq(paste(
           "SELECT `date`, `observer`, `entry`,",
-          "CASE WHEN `photo` IS NULL THEN '' ELSE",
-          "CONCAT('Photo attached (', OCTET_LENGTH(`photo`), ' bytes)') END AS `photo`",
+          "CASE WHEN `photo` IS NULL OR OCTET_LENGTH(`photo`) = 0 THEN NULL ELSE `pk` END AS `photo`",
           "FROM `field_joirnal` ORDER BY `date` DESC, `pk` DESC"
         )))
         if ("error" %in% names(o)) return(o)
-        for (field in names(o)) {
+        for (field in setdiff(names(o), "photo")) {
           set(o, j = field, value = htmltools::htmlEscape(as.character(o[[field]])))
         }
+        set(o, j = "photo", value = vapply(o$photo, field_journal_photo_cell, "",
+                                           photo_url = photo_url, USE.NAMES = FALSE))
         return(o)
       }
 

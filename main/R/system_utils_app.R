@@ -4,6 +4,12 @@ view_table_column_widths <- function(tab, view = FALSE) {
 
 
 TABLE_show <- function(x, session, view = FALSE) {
+  photo_url <- NULL
+  if (identical(x, "field_joirnal")) {
+    photo_url <- session$registerDataObj("field_journal_photo", NULL, function(data, req) {
+      field_journal_photo_response(req)
+    })
+  }
   get_data <- reactivePoll(
     10000,
     session = session,
@@ -16,6 +22,7 @@ TABLE_show <- function(x, session, view = FALSE) {
     },
     valueFunc = function() {
       if (is.character(x)) {
+        if (identical(x, "field_joirnal")) return(showTable(x, photo_url = photo_url))
         return(showTable(x))
       }
 
@@ -48,6 +55,14 @@ TABLE_show <- function(x, session, view = FALSE) {
   if (length(width_defs)) {
     table_options$autoWidth <- FALSE
   }
+  extensions <- c("Scroller", "Buttons")
+  if (identical(x, "field_joirnal")) {
+    # Photo rows have variable heights; use pagination instead of Scroller.
+    table_options$scroller <- FALSE
+    table_options$scrollY <- NULL
+    table_options$pageLength <- 10
+    extensions <- "Buttons"
+  }
 
   DT::renderDataTable(
     {
@@ -64,7 +79,7 @@ TABLE_show <- function(x, session, view = FALSE) {
     escape = FALSE,
     selection = "none",
     filter = 'top',
-    extensions = c("Scroller", "Buttons"),
+    extensions = extensions,
     options = table_options,
     class = c("compact", "stripe", "order-column", "hover")
   )

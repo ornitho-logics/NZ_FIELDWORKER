@@ -481,7 +481,7 @@ dashboardPage(
           id = "tabset_tables",
           .list = lapply(dbtabs_show_tables, function(i) {
             tabPanel(
-              title = glue("[{i}]"),
+              title = if (identical(i, "field_joirnal")) "Field journal" else glue("[{i}]"),
               active = FALSE,
               spinner(
                 DTOutput(outputId = glue("{i}_show"))

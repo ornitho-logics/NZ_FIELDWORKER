@@ -1096,6 +1096,13 @@ table.dataTable tbody td {
 .pwa-panel h3 { font-size: 1.2rem; font-weight: 700; }
 .pwa-panel p { margin-bottom: 0.75rem; }
 .pwa-panel .pwa-install-help { margin-top: 0.75rem; }
+.journal-photo-thumbnail {
+  display: block;
+  width: 180px;
+  height: 120px;
+  object-fit: contain;
+  border-radius: 6px;
+}
 .pwa-network-note { color: #596b78; font-size: 0.9rem; }
 .pwa-update-check { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
 .pwa-update-check .btn-link { padding-left: 0; }

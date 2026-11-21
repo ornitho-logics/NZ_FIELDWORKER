@@ -488,6 +488,7 @@ function(input, output, session) {
   }
 
   output$new_data <- renderUI({
+    entry_labels <- ifelse(dbtabs_entry == "field_joirnal", "Field journal", dbtabs_entry)
     entry_classes <- fifelse(
       dbtabs_entry %in% c("inspectors", "spatial_objects"),
       "btn-danger bttn-danger",
@@ -498,11 +499,11 @@ function(input, output, session) {
       hrefs = glue("../DataEntry/{dbtabs_entry}/"),
       labels = fifelse(
         dbtabs_entry %in% "inspectors",
-        glue("{icon('user-check')} {dbtabs_entry}"),
+        glue("{icon('user-check')} {entry_labels}"),
         fifelse(
           dbtabs_entry %in% "spatial_objects",
-          glue("{icon('draw-polygon')} {dbtabs_entry}"),
-          glue("{icon('pencil')} {dbtabs_entry}")
+          glue("{icon('draw-polygon')} {entry_labels}"),
+          glue("{icon('pencil')} {entry_labels}")
         )
       ),
       classes = entry_classes

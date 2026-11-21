@@ -150,20 +150,51 @@ test_that("journal never confirms zero-row, warned, or uncertain writes", {
   expect_identical(db$closed, 3L)
 })
 
-test_that("journal table browser escapes observations and shows photo sizes without binary data", {
+test_that("journal table browser escapes observations and links photos without fetching binary data", {
   env <- new.env(parent = globalenv())
   sys.source(app_file("main", "R", "system_utils.R"), env)
   env$data.table <- data.table::data.table
   env$set <- data.table::set
   env$DBq <- function(sql) {
     expect_match(sql, "OCTET_LENGTH(`photo`)", fixed = TRUE)
-    data.frame(date = as.Date("2026-11-21"), observer = "AB",
-               entry = "<script>invented</script>", photo = "Photo attached (4 bytes)")
+    expect_match(sql, "ELSE `pk` END AS `photo`", fixed = TRUE)
+    data.frame(date = as.Date(c("2026-11-21", "2026-11-20")), observer = c("AB", "CD"),
+               entry = c("<script>invented</script>", "Invented note"), photo = c(7L, NA_integer_))
   }
-  rows <- env$showTable("field_joirnal")
-  expect_identical(rows$date, "2026-11-21")
-  expect_identical(rows$entry, "&lt;script&gt;invented&lt;/script&gt;")
-  expect_identical(rows$photo, "Photo attached (4 bytes)")
+  rows <- env$showTable("field_joirnal", photo_url = "session/synthetic/dataobj/photo?w=0")
+  expect_identical(rows$date, c("2026-11-21", "2026-11-20"))
+  expect_identical(rows$entry[[1]], "&lt;script&gt;invented&lt;/script&gt;")
+  expect_match(rows$photo[[1]], "<img", fixed = TRUE)
+  expect_match(rows$photo[[1]], 'loading="lazy"', fixed = TRUE)
+  expect_match(rows$photo[[1]], "pk=7", fixed = TRUE)
+  expect_identical(rows$photo[[2]], "")
+})
+
+test_that("journal image endpoint returns binary photos only for valid references", {
+  env <- new.env(parent = globalenv())
+  sys.source(app_file("main", "R", "system_utils.R"), env)
+  photo <- jpeg::writeJPEG(matrix(0.5, 4, 6), raw())
+  calls <- 0L
+  env$DBq <- function(sql, params, notify) {
+    calls <<- calls + 1L
+    expect_identical(sql, "SELECT `photo` FROM `field_joirnal` WHERE `pk` = ? LIMIT 1")
+    expect_identical(params, list("7"))
+    expect_false(notify)
+    rows <- data.frame(id = 7L)
+    rows$photo <- list(photo)
+    rows
+  }
+  request <- list(QUERY_STRING = "w=0&pk=7")
+  response <- env$field_journal_photo_response(request)
+  expect_identical(response$status, 200L)
+  expect_identical(response$content_type, "image/jpeg")
+  expect_identical(response$content, photo)
+  expect_identical(env$field_journal_photo_response(list(QUERY_STRING = "pk=7%20OR%201=1"))$status, 400L)
+  expect_identical(calls, 1L)
+  photo <- NULL
+  expect_identical(env$field_journal_photo_response(request)$status, 404L)
+  photo <- charToRaw("<html>invented invalid image</html>")
+  expect_identical(env$field_journal_photo_response(request)$status, 415L)
 })
 
 test_that("journal upload checks reject unfinished, oversized, and invalid images", {
