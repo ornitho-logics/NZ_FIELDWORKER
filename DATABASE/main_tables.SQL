@@ -10,7 +10,7 @@ CREATE TABLE `field_joirnal` (
   `date` date DEFAULT NULL COMMENT 'Date of the observation (local, New Zealand)',
   `observer` varchar(3) DEFAULT NULL COMMENT 'Registered observer code (see OBSERVERS table)',
   `entry` text DEFAULT NULL COMMENT 'Field journal observation',
-  `photo` blob DEFAULT NULL COMMENT 'Optional photo stored as binary image data',
+  `photo` mediumblob DEFAULT NULL COMMENT 'Optional photo resized in the browser and stored as JPEG image data',
   `pk` int(10) unsigned NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`pk`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4

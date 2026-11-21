@@ -63,23 +63,20 @@ test_that("journal saves once per click, preserves failed forms, and resets succ
     if (attempts == 1L) stop("Invented connection failure")
     saved <<- list(date, observer, entry, photo)
   }
-  photo <- as.raw(c(0, 255, 13, 10))
-  path <- withr::local_tempfile()
-  writeBin(photo, path)
+  photo <- jpeg::writeJPEG(matrix(0.5, 4, 6), raw())
+  upload <- list(state = "ready", data = paste0("data:image/jpeg;base64,", jsonlite::base64_enc(photo)))
   shiny::testServer(app$server, {
     session$flushReact()
     session$setInputs(date = as.Date("2026-11-21"), observer = "AB", entry = "Invented note",
-                      photo = data.frame(size = length(photo), datapath = path))
+                      photo = upload)
     session$setInputs(save = 1L)
     expect_match(output$save_status, "Could not save", fixed = TRUE)
     expect_identical(input$entry, "Invented note")
-    expect_identical(upload_version(), 0L)
     session$setInputs(save = 2L)
     expect_match(output$save_status, "Entry saved", fixed = TRUE)
-    expect_identical(upload_version(), 1L)
     expect_identical(saved[[4]], photo)
     expect_identical(attempts, 2L)
-    session$setInputs(photo = data.frame(size = app$env$journal_photo_limit + 1, datapath = path))
+    session$setInputs(photo = list(state = "ready", data = paste0("data:image/jpeg;base64,", strrep("A", 700000))))
     session$setInputs(save = 3L)
     expect_match(output$save_status, "too large", fixed = TRUE)
     expect_identical(attempts, 2L)
@@ -100,4 +97,24 @@ test_that("journal table browser escapes observations and shows photo sizes with
   expect_identical(rows$date, "2026-11-21")
   expect_identical(rows$entry, "&lt;script&gt;invented&lt;/script&gt;")
   expect_identical(rows$photo, "Photo attached (4 bytes)")
+})
+
+test_that("journal upload checks reject unfinished, oversized, and invalid images", {
+  app <- load_journal_app()
+  expect_null(app$env$journal_photo(NULL))
+  expect_null(app$env$journal_photo(list(state = "none")))
+  for (state in c("processing", "error")) {
+    expect_error(app$env$journal_photo(list(state = state)), "Wait for the photo preview")
+  }
+  upload <- function(bytes) {
+    list(state = "ready", data = paste0("data:image/jpeg;base64,", jsonlite::base64_enc(bytes)))
+  }
+  expect_error(app$env$journal_photo(list(state = "ready", data = "data:image/png;base64,AA==")), "JPEG")
+  expect_error(app$env$journal_photo(upload(charToRaw("invented invalid image"))), "JPEG")
+  # A valid JPEG header with an excessive width must fail before image decoding.
+  huge <- jpeg::writeJPEG(matrix(0.5, 2, 1601), raw())
+  expect_error(app$env$journal_photo(upload(huge)), "1,600 pixels")
+  photo <- jpeg::writeJPEG(matrix(0.5, 10, 16), raw())
+  expect_identical(app$env$journal_photo(upload(photo)), photo)
+  expect_error(app$env$journal_photo(upload(head(photo, -20))), "could not be read")
 })

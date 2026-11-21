@@ -2,6 +2,7 @@ fluidPage(
   tags$head(
     tags$title("Field journal"),
     tags$meta(name = "viewport", content = "width=device-width, initial-scale=1"),
+    tags$script(src = "journal-photo.js"),
     tags$style(HTML("
       body { background: #f2f5f1; color: #263c34; font-family: system-ui, sans-serif; }
       .journal-shell { max-width: 760px; margin: 5vh auto; padding: 0 12px; }
@@ -18,6 +19,11 @@ fluidPage(
         border-radius: 10px; padding: 12px 24px; font-weight: 600; width: 100%; }
       .journal-save:hover, .journal-save:focus { background: #1e4937; color: white; }
       .journal-status { margin-top: 16px; }
+      #photo-preview { display: block; max-width: 100%; max-height: 360px;
+        border-radius: 10px; margin: 12px 0; object-fit: contain; }
+      #photo-preview[hidden], #photo-remove[hidden] { display: none; }
+      .journal-photo { margin-bottom: 24px; }
+      .journal-photo label { display: block; }
     "))
   ),
   div(class = "journal-shell",
@@ -29,13 +35,23 @@ fluidPage(
       fluidRow(
         column(6, dateInput("date", "Observation date", value = journal_today(),
                             format = "yyyy-mm-dd", width = "100%")),
-        column(6, textInput("observer", "Observer code", placeholder = "e.g. AB",
+        column(6, textInput("observer", "observer",
                             width = "100%"))
       ),
-      textAreaInput("entry", "What did you observe?", rows = 9,
+      textAreaInput("entry", "Field journal entry", rows = 9,
                     placeholder = "Describe the observation and any useful context…",
                     width = "100%"),
-      uiOutput("photo_upload"),
+      div(class = "journal-photo",
+        # No id/name: Shiny must not bind this input and upload the original.
+        tags$label("Photo (optional)",
+          tags$input(class = "journal-photo-picker", type = "file", accept = "image/*")
+        ),
+        helpText("Photos are resized before upload. Your original stays unchanged."),
+        tags$img(id = "photo-preview", alt = "Photo prepared for this entry", hidden = NA),
+        tags$p(id = "photo-status", role = "status", `aria-live` = "polite"),
+        tags$button(id = "photo-remove", type = "button", class = "btn btn-default",
+                    hidden = NA, "Remove photo")
+      ),
       actionButton("save", "Save entry", icon = icon("check"), class = "journal-save"),
       div(class = "journal-status", role = "status", `aria-live` = "polite",
           textOutput("save_status"))

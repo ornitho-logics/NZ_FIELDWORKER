@@ -1,34 +1,12 @@
 function(input, output, session) {
-  upload_version <- reactiveVal(0L)
   status <- reactiveVal("")
-
-  output$photo_upload <- renderUI({
-    upload_version()
-    tagList(
-      fileInput("photo", "Photo (optional)", accept = "image/*",
-                buttonLabel = "Choose photo", placeholder = "No photo selected",
-                width = "100%"),
-      helpText(paste("Maximum photo size:", format(journal_photo_limit, big.mark = ","), "bytes."))
-    )
-  })
   output$save_status <- renderText(status())
 
   observeEvent(input$save, {
-    photo <- NULL
-    if (!is.null(input$photo)) {
-      # A storage limit, independent of biological entry validation.
-      if (input$photo$size > journal_photo_limit) {
-        status("This photo is too large. Choose a smaller photo and save again.")
-        return()
-      }
-      photo <- tryCatch(
-        readBin(input$photo$datapath, "raw", n = journal_photo_limit + 1L),
-        error = function(e) NULL
-      )
-      if (is.null(photo) || length(photo) > journal_photo_limit) {
-        status("The photo could not be attached. Choose the photo again and retry.")
-        return()
-      }
+    photo <- tryCatch(journal_photo(input$photo), error = identity)
+    if (inherits(photo, "error")) {
+      status(conditionMessage(photo))
+      return()
     }
 
     saved <- tryCatch({
@@ -42,7 +20,7 @@ function(input, output, session) {
     }
 
     updateTextAreaInput(session, "entry", value = "")
-    upload_version(upload_version() + 1L)
+    session$sendCustomMessage("journal-photo-reset", list(reset = TRUE))
     status("Entry saved. You can add another observation.")
   }, ignoreInit = TRUE)
 }
